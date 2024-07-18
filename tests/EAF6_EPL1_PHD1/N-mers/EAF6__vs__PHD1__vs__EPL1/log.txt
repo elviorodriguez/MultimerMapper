@@ -1,0 +1,5 @@
+2024-02-10 21:04:35,256 Running colabfold 1.5.5 (0cf2621921f2e79a1da9db7ba2ed072291f68e45)
+2024-02-10 21:04:35,339 Running on GPU
+2024-02-10 21:04:35,556 Found 6 citations for tools or databases
+2024-02-10 21:04:35,556 Skipping Tb927.9.2910__vs__Tb927.10.9930__vs__Tb927.10.14190 (already done)
+2024-02-10 21:04:35,556 Done
