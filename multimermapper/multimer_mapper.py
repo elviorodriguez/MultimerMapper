@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import string
+from string import ascii_uppercase, digits
 import os
 from Bio import SeqIO, PDB
 from Bio.PDB import PDBIO, PDBParser, Chain, Superimposer
@@ -11,7 +11,7 @@ import pandas as pd
 from itertools import product
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, Normalize
-import re
+from re import search
 import igraph
 import plotly.graph_objects as go           # For plotly ploting
 from plotly.offline import plot             # To allow displaying plots
@@ -19,7 +19,7 @@ from Bio.PDB.Polypeptide import protein_letters_3to1
 
 from utils.progress_bar import print_progress_bar
 from utils.pdockq import pdockq_read_pdb, calc_pdockq
-from input import seq_input_from_fasta, extract_seqs_from_AF2_PDBs, merge_fasta_with_PDB_data
+from input_check import seq_input_from_fasta, extract_seqs_from_AF2_PDBs, merge_fasta_with_PDB_data, logger
 from utils.find_most_similar_string import find_most_similar
 
 # -----------------------------------------------------------------------------
@@ -948,7 +948,7 @@ def generate_json_subunits(sliced_PAE_and_pLDDTs, combination):
     json_dict = {}
     
     # Define all possible letters/numbers/symbols for chain IDs that can be used
-    chain_letters = (string.ascii_uppercase + string.digits + '!#$%&()+,-.;=@[]^_{}~`')
+    chain_letters = (ascii_uppercase + digits + '!#$%&()+,-.;=@[]^_{}~`')
     # Tested: $!#,
     
     # Counter to select the chain letter
@@ -1052,7 +1052,7 @@ def generate_json_subunits2(sliced_PAE_and_pLDDTs, combination, drop_low_plddt_d
     json_dict = {}
     
     # Define all possible letters/numbers/symbols for chain IDs that can be used
-    chain_letters = (string.ascii_uppercase + string.digits + '!#$%&()+,-.;=@[]^_{}~`')
+    chain_letters = (ascii_uppercase + digits + '!#$%&()+,-.;=@[]^_{}~`')
     # Tested: $!#,
     
     # Counter to select the chain letter
@@ -1327,7 +1327,7 @@ def generate_pairwise_2mers_df(all_pdb_data):
                         
                         
                         # Extraction
-                        rank = int((re.search(r'_rank_(\d{3})_', filename)).group(1))
+                        rank = int((search(r'_rank_(\d{3})_', filename)).group(1))
                         pTM = PAE_matrix['ptm']
                         ipTM = PAE_matrix['iptm']
                         PAE_matrix = np.array(PAE_matrix['pae'])
@@ -1565,7 +1565,7 @@ def generate_pairwise_Nmers_df(all_pdb_data, is_debug = False):
                         json_data = json.load(f)
                         
                         # Extraction
-                        rank = int((re.search(r'_rank_(\d{3})_', filename)).group(1))
+                        rank = int((search(r'_rank_(\d{3})_', filename)).group(1))
                         pTM = json_data['ptm']
                         ipTM = json_data['iptm']
                         full_PAE_matrix = np.array(json_data['pae'])
