@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # Sequence input from FASTA file(s) -------------------------------------------
 # -----------------------------------------------------------------------------
 
-def seq_input_from_fasta(fasta_file_path, use_names = True):
+def seq_input_from_fasta(fasta_file_path: str, use_names: bool = True):
     '''
     This part takes as input a fasta file with the IDs and sequences of each 
     protein that potentially forms part of the complex.
@@ -78,7 +78,7 @@ def seq_input_from_fasta(fasta_file_path, use_names = True):
 # Extract the sequences from AF2 PDB file(s) ----------------------------------
 # -----------------------------------------------------------------------------
 
-def extract_seqs_from_AF2_PDBs(AF2_2mers, AF2_Nmers = None):
+def extract_seqs_from_AF2_PDBs(AF2_2mers: str, AF2_Nmers: str = None):
     '''
     This parts extract the sequence of each PDB files in the above folders 
     (AF2-2mers and AF2-Nmers) and stores it in memory as a nested dict.
@@ -167,7 +167,7 @@ def extract_seqs_from_AF2_PDBs(AF2_2mers, AF2_Nmers = None):
 # Merge sequences from FASTA file with PDB data ------------------------------
 # -----------------------------------------------------------------------------
 
-def get_unique_pdb_sequences(all_pdb_data):
+def get_unique_pdb_sequences(all_pdb_data: dict):
     '''
     Takes in all_pdb_data dict and returns the unique amino acid sequences 
     in all the PDB files.
@@ -178,7 +178,7 @@ def get_unique_pdb_sequences(all_pdb_data):
 
 
 # Check for errors
-def compare_sequences(prot_seqs, PDB_sequences):
+def compare_sequences(prot_seqs: list, PDB_sequences: list):
 
     # Progress
     logger.info("Detected proteins:")
@@ -208,7 +208,7 @@ def compare_sequences(prot_seqs, PDB_sequences):
         raise ValueError("At least one detected unique sequence is different than those on FASTA file")
     
 
-def merge_fasta_with_PDB_data(all_pdb_data, prot_IDs, prot_seqs):
+def merge_fasta_with_PDB_data(all_pdb_data: dict, prot_IDs: list, prot_seqs: list):
     '''
     This part combines the data extracted from the PDBs and the data extracted
     from the FASTA file. Modifies all_pdb_data dict
@@ -268,7 +268,8 @@ def main():
         prot_names = prot_IDs_backup
     
     # PDB files
-    all_pdb_data = extract_seqs_from_AF2_PDBs(args.AF2_2mers, args.AF2_Nmers)
+    #all_pdb_data = extract_seqs_from_AF2_PDBs(args.AF2_2mers, args.AF2_Nmers)
+    all_pdb_data = extract_seqs_from_AF2_PDBs(args.AF2_2mers)
 
     # Combine the data from both 
     merge_fasta_with_PDB_data(all_pdb_data, prot_IDs, prot_seqs)
