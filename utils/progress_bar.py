@@ -26,7 +26,7 @@ def print_progress_bar(current, total, text = "", progress_length = 40):
     else:
         progress_bar = progress_bar_template.format("=" * progress + "-" * (progress_length - progress - 1))
         
-    print(f"Progress{text}: {progress_bar} {percent:.2f}%")
+    return f"Progress{text}: {progress_bar} {percent:.2f}%"
 
 if __name__ == "__main__":
     print_progress_bar(current = [], total = [], text = "", progress_length = 40)

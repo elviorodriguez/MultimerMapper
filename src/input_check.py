@@ -31,6 +31,9 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Set matplotlib logger to warning level to reduce verbosity
+logging.getLogger('matplotlib').setLevel(logging.WARNING)
+
 
 # -----------------------------------------------------------------------------
 # Sequence input from FASTA file(s) -------------------------------------------
@@ -208,7 +211,8 @@ def compare_sequences(prot_seqs: list, PDB_sequences: list):
         raise ValueError("At least one detected unique sequence is different than those on FASTA file")
     
 
-def merge_fasta_with_PDB_data(all_pdb_data: dict, prot_IDs: list, prot_seqs: list):
+def merge_fasta_with_PDB_data(all_pdb_data: dict, prot_IDs: list, prot_names: list,
+                               prot_seqs: list, prot_lens: list, prot_N: int, use_names: bool):
     '''
     This part combines the data extracted from the PDBs and the data extracted
     from the FASTA file. Modifies all_pdb_data dict
@@ -231,6 +235,14 @@ def merge_fasta_with_PDB_data(all_pdb_data: dict, prot_IDs: list, prot_seqs: lis
                     # Add protein_ID to the existing dictionary
                     data["protein_ID"] = prot_IDs[i]
 
+    print("")
+    for i in range(prot_N):
+        logger.info(f"Protein number: {i+1}")
+        logger.info(f"    ID      : {prot_IDs[i]}")
+        logger.info(f"    Name    : {prot_names[i]}")
+        logger.info(f"    Seq     : {prot_seqs[i]}")
+        logger.info(f"    L       : {prot_lens[i]}")
+    print("")
 
 # -----------------------------------------------------------------------------
 # Main ------------------------------------------------------------------------
@@ -257,9 +269,13 @@ def main():
     
     args = parser.parse_args()
     
+    # Use names?
+    use_names = args.use_names
+
     # FASTA file
+    fasta_file_path = args.fasta_file_path
     prot_IDs, prot_names, prot_seqs, prot_lens, prot_N = seq_input_from_fasta(
-        args.fasta_file_path, use_names=args.use_names)
+        fasta_file_path, use_names)
     
     # Use names?
     if args.use_names:
@@ -272,14 +288,8 @@ def main():
     all_pdb_data = extract_seqs_from_AF2_PDBs(args.AF2_2mers)
 
     # Combine the data from both 
-    merge_fasta_with_PDB_data(all_pdb_data, prot_IDs, prot_seqs)
-
-    for i in range(prot_N):
-        logger.info(f"Protein number: {i+1}")
-        logger.info(f"    ID      : {prot_IDs[i]}")
-        logger.info(f"    Name    : {prot_names[i]}")
-        logger.info(f"    Seq     : {prot_seqs[i]}")
-        logger.info(f"    L       : {prot_lens[i]}")
+    merge_fasta_with_PDB_data(all_pdb_data, prot_IDs, prot_seqs, 
+                               prot_seqs, prot_lens, prot_N, use_names)
 
 if __name__ == "__main__":
     main()
