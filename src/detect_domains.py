@@ -100,7 +100,6 @@ def reformat_clusters(domain_clusters):
 
 def plot_domains(protein_ID, matrix_data, positions, colors, custom_title = None, out_folder = 'domains', save_plot = True, show_plot = True):
 
-
     # Define a diverging colormap for the matrix
     matrix_cmap = 'coolwarm'
 
