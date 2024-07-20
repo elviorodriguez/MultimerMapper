@@ -1246,13 +1246,6 @@ def generate_filesystem_for_CombFold(xlsx_Qvalues, out_folder, sliced_PAE_and_pL
             # Copy the file to the destination folder
             shutil.copy(source_path, destination_path)
             
-        
-    
-    
-    
-    
-
-
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -2615,8 +2608,6 @@ def compare_and_plot_graphs(graph1, graph2, pairwise_2mers_df, pairwise_Nmers_df
 # -----------------------------------------------------------------------------
 # ---------------- Input checking functions and wrapper -----------------------
 # -----------------------------------------------------------------------------
-
-# def check_fasta_file(fasta_file_path):
     
 
 # Wrapper for previous functions
