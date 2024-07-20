@@ -4,17 +4,33 @@ import logging
 from Bio import SeqIO, PDB
 from Bio.PDB.Polypeptide import protein_letters_3to1
 
+# ------------------------------------------------------------------------------
+# Logging function & formats  --------------------------------------------------
+# ------------------------------------------------------------------------------
+
+# Create formatters
+file_formatter = logging.Formatter('%(asctime)s|%(name)s|%(levelname)s|%(message)s')
+console_formatter = logging.Formatter('%(message)s')
+
+# Create handlers
+console_handler = logging.StreamHandler()
+file_handler = logging.FileHandler('multimer_mapper.log')
+
+# Set formatters for handlers
+console_handler.setFormatter(console_formatter)
+file_handler.setFormatter(file_formatter)
+
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,  # Set to DEBUG to capture all types of log messages
-    format='%(asctime)s|%(name)s|%(levelname)s|%(message)s',  # Log format
     handlers=[
-        logging.StreamHandler(),  # Log to console
-        logging.FileHandler('multimer_mapper.log')  # Log to file
+        console_handler,
+        file_handler
     ]
 )
 
 logger = logging.getLogger(__name__)
+
 
 # -----------------------------------------------------------------------------
 # Sequence input from FASTA file(s) -------------------------------------------
@@ -215,11 +231,12 @@ def merge_fasta_with_PDB_data(all_pdb_data, prot_IDs, prot_seqs):
                     # Add protein_ID to the existing dictionary
                     data["protein_ID"] = prot_IDs[i]
 
-# For debbuging
+
 # -----------------------------------------------------------------------------
 # Main ------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 
+# For debbuging
 def main():
 
     import argparse
