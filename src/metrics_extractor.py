@@ -1,30 +1,17 @@
 # -*- coding: utf-8 -*-
 
 import os
-from Bio import SeqIO, PDB
-from Bio.PDB import PDBIO, PDBParser, Chain, Superimposer
-from Bio.SeqUtils import seq1
+from Bio.PDB import PDBIO, PDBParser
 import json
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from re import search
-import igraph
-import plotly.graph_objects as go           # For plotly ploting
-from plotly.offline import plot             # To allow displaying plots
-from Bio.PDB.Polypeptide import protein_letters_3to1
 
 from src.input_check import logger
 from utils.progress_bar import print_progress_bar
 from utils.pdockq import pdockq_read_pdb, calc_pdockq
 from utils.find_most_similar_string import find_most_similar
-from src.detect_domains import detect_domains, plot_backbone
-
-# -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 # -----------------------------------------------------------------------------
 # Extracts PAE matrices for each protein from JSON files ----------------------
@@ -36,7 +23,7 @@ each model from the corresponding JSON files with AF2 prediction metrics. Then,
 computes several metrics for the sub-PAE and sub-pLDDT (the extracted part) and
 selects the best PAE matrix to be latter used as input for domain detection.
 The best sub-PAE matrix is the one comming from the model with the lowest mean
-sub-pLDDT. It is "monomer centric".
+sub-pLDDT.
 '''
 
 def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str):
@@ -289,7 +276,7 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str):
 This part extracts pairwise interaction data of each pairwise model and
 creates a dataframe called pairwise_2mers_df for later use.
 '''
-
+# 2-mers pairwise data generation
 def generate_pairwise_2mers_df(all_pdb_data: dict):
 
     # Empty dataframe to store rank, pTMs, ipTMs, min_PAE to make graphs later on
@@ -309,7 +296,7 @@ def generate_pairwise_2mers_df(all_pdb_data: dict):
             
             # Progress
             print("")
-            print("Extracting ipTMs from:", model_folder)
+            logger.info(f"Extracting ipTMs from: {model_folder}")
             
             # print(all_pdb_data[model_folder])
             len_A = all_pdb_data[model_folder]['A']['length']
@@ -319,11 +306,11 @@ def generate_pairwise_2mers_df(all_pdb_data: dict):
             protein_ID2 = all_pdb_data[model_folder]['B']['protein_ID']
             
             # ----------- Debug -----------
-            print("Length A:", len_A)
-            print("Length B:", len_B)
-            print("Length A+B:", len_AB)
-            print("Protein ID1:", protein_ID1)
-            print("Protein ID2:", protein_ID2)
+            logger.info(f"Length A: {len_A}")
+            logger.info(f"Length B: {len_B}")
+            logger.info(f"Length A+B: {len_AB}")
+            logger.info(f"Protein ID1: {protein_ID1}")
+            logger.info(f"Protein ID2: {protein_ID2}")
             # -----------------------------
             
             # Initialize a sub-dict to store values later
@@ -335,7 +322,7 @@ def generate_pairwise_2mers_df(all_pdb_data: dict):
                 if "rank_" in filename and ".json" in filename:
                     
                     # Progress
-                    print("Processing file:", filename)
+                    logger.info(f"Processing file: {filename}")
             
                     # Full path to the JSON file
                     json_file_path = os.path.join(model_folder, filename)
@@ -379,17 +366,17 @@ def generate_pairwise_2mers_df(all_pdb_data: dict):
                     ppv = np.round(ppv, 5)
                     
                     # Get the model PDB as biopython object
-                    pair_PDB = PDB.PDBParser(QUIET=True).get_structure("structure", most_similar_pdb_file_path)[0]
+                    pair_PDB = PDBParser(QUIET=True).get_structure("structure", most_similar_pdb_file_path)[0]
                     
                     
-                    # ----------- Debug -----------
-                    print("Matching PDB:", most_similar_pdb)
-                    print("  - Rank:", rank)
-                    print("  - pTM:", pTM)
-                    print("  - ipTM:", ipTM)
-                    print("  - Minimum PAE:", min_PAE)
-                    print("  - pDockQ:", pdockq)
-                    print("  - PPV:", ppv)
+                    # ----------- Debug/info -----------
+                    logger.info(f"Matching PDB: {most_similar_pdb}")
+                    logger.info(f"  - Rank: {rank}")
+                    logger.info(f"  - pTM: {pTM}")
+                    logger.info(f"  - ipTM: {ipTM}")
+                    logger.info(f"  - Minimum PAE: {min_PAE}")
+                    logger.info(f"  - pDockQ: {pdockq}")
+                    logger.info(f"  - PPV: {ppv}")
                     # -----------------------------
                     
                     # Append interaction data to pairwise_2mers_df
@@ -411,12 +398,11 @@ def generate_pairwise_2mers_df(all_pdb_data: dict):
             # For progress bar
             current_model += 1
             print("")
-            print_progress_bar(current_model, total_models, text = " (2-mers metrics)")
-        
+            logger.info(print_progress_bar(current_model, total_models, text = " (2-mers metrics)"))
         
     return pairwise_2mers_df
 
-
+# N-mers pairwise data generation
 def generate_pairwise_Nmers_df(all_pdb_data: dict, is_debug = False):
     
     def generate_pair_combinations(values):
@@ -487,7 +473,7 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, is_debug = False):
     def compute_pDockQ_for_Nmer_pair(pair_sub_PDB):
         # Save the  structure to a temporary file in memory
         tmp_file = "tmp.pdb"
-        pdbio = PDB.PDBIO()
+        pdbio = PDBIO()
         pdbio.set_structure(pair_sub_PDB)
         pdbio.save(tmp_file)
         
@@ -504,9 +490,9 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, is_debug = False):
         try:
             os.remove(tmp_file)
         except FileNotFoundError:
-            print(f"The file {tmp_file} does not exist.")
+            logger.error(f"The file {tmp_file} does not exist.")
         except Exception as e:
-            print(f"An error occurred: {e}")
+            logger.error(f"An error occurred: {e}")
                 
         return pdockq, ppv
     
@@ -544,13 +530,14 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, is_debug = False):
             pdb_files = [s for s in os.listdir(model_folder) if s.endswith(".pdb")]
             
             # Debug
-            if is_debug: print("Chains:", chains)
+            if is_debug: logger.debug(f"Chains: {chains}")
             if is_debug: 
-                for p, pair in enumerate(chain_pairs): print(f"   - Pair {p}:", pair)
+                for p, pair in enumerate(chain_pairs):
+                    logger.debug(f"   - Pair {p}: {pair}")
             
             # Progress
             print("")
-            print("Extracting N-mer metrics from:", model_folder)
+            logger.info(f"Extracting N-mer metrics from: {model_folder}")
             
             # Initialize a sub-dicts to store values later
             all_pdb_data[model_folder]["pairwise_data"] = {} 
@@ -563,17 +550,15 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, is_debug = False):
                 if "rank_" in filename and ".json" in filename:
                     
                     # Progress
-                    print("Processing file (N-mers):", filename)
+                    logger.info(f"Processing file (N-mers): {filename}")
                     
                     # Find matching PDB for json file and extract its structure
                     most_similar_pdb = find_most_similar(filename, pdb_files)                       # Find matching pdb for current rank
                     most_similar_pdb_file_path = os.path.join(model_folder, most_similar_pdb)       # Full path to the PDB file
-                    most_similar_pdb_structure = PDB.PDBParser(QUIET=True).get_structure("structure", most_similar_pdb_file_path)[0]
+                    most_similar_pdb_structure = PDBParser(QUIET=True).get_structure("structure", most_similar_pdb_file_path)[0]
             
-            
-                    print("   - Matching PDB:", most_similar_pdb)
-                    print("   - Proteins in model:", chains_IDs)
-                    
+                    logger.info(f"   - Matching PDB: {most_similar_pdb}")
+                    logger.info(f"   - Proteins in model: {chains_IDs}")
                     
                     # Full path to the JSON file
                     json_file_path = os.path.join(model_folder, filename)
@@ -590,9 +575,9 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, is_debug = False):
                         ipTM = json_data['iptm']
                         full_PAE_matrix = np.array(json_data['pae'])
                     
-                    print("   - Rank:", rank, f"  <-----( {rank} )----->")
-                    print("   - pTM:", pTM)
-                    print("   - ipTM:", ipTM)
+                    logger.info(f"   - Rank: {rank}  <-----( {rank} )----->")
+                    logger.info(f"   - pTM: {pTM}")
+                    logger.info(f"   - ipTM: {ipTM}")
                         
                     # Save full PAE matrix and structure
                     all_pdb_data[model_folder]["full_PAE_matrices"][rank] = full_PAE_matrix
@@ -635,12 +620,12 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, is_debug = False):
                         all_pdb_data[model_folder]["pairwise_data"][pair][rank]["PPV"] = ipTM
                         
                         # ----------- Debug -----------
-                        print("   Chains pair:", pair)
-                        print("     - ID1:", prot1_ID)
-                        print("     - ID2:", prot2_ID)                        
-                        print("     - Minimum PAE:", min_PAE)
-                        print("     - pDockQ:", pdockq)
-                        print("     - PPV:", ppv)
+                        logger.info(f"   Chains pair: {pair}")
+                        logger.info(f"     - ID1: {prot1_ID}")
+                        logger.info(f"     - ID2: {prot2_ID}")
+                        logger.info(f"     - Minimum PAE: {min_PAE}")
+                        logger.info(f"     - pDockQ: {pdockq}")
+                        logger.info(f"     - PPV: {ppv}")
                         # -----------------------------
                         
                         # Append interaction data to pairwise_2mers_df
@@ -663,7 +648,7 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, is_debug = False):
             # For progress bar
             current_model += 1
             print("")
-            print_progress_bar(current_model, total_models, text = " (N-mers metrics)")
+            logger.info(print_progress_bar(current_model, total_models, text = " (N-mers metrics)"))
         
     # Convert proteins_in_model column lists to tuples (lists are not hashable and cause some problems)
     pairwise_Nmers_df['proteins_in_model'] = pairwise_Nmers_df['proteins_in_model'].apply(tuple)

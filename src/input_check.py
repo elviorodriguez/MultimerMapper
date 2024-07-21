@@ -74,6 +74,12 @@ def seq_input_from_fasta(fasta_file_path: str, use_names: bool = True):
         
     # Progress
     logging.info(f"INITIALIZING: extracting data from {fasta_file_path}")
+
+    # Use names?
+    if use_names:
+        prot_IDs_backup = prot_IDs
+        prot_IDs = prot_names
+        prot_names = prot_IDs_backup
         
     return prot_IDs, prot_names, prot_seqs, prot_lens, prot_N
 
