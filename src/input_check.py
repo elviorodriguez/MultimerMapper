@@ -1,45 +1,16 @@
 
 import os
-import logging
 from Bio import SeqIO, PDB
 from Bio.PDB.Polypeptide import protein_letters_3to1
+from logging import Logger
 
-# ------------------------------------------------------------------------------
-# Logging function & formats  --------------------------------------------------
-# ------------------------------------------------------------------------------
-
-# Create formatters
-file_formatter = logging.Formatter('%(asctime)s|%(name)s|%(levelname)s|%(message)s')
-console_formatter = logging.Formatter('%(message)s')
-
-# Create handlers
-console_handler = logging.StreamHandler()
-file_handler = logging.FileHandler('multimer_mapper.log')
-
-# Set formatters for handlers
-console_handler.setFormatter(console_formatter)
-file_handler.setFormatter(file_formatter)
-
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,  # Set to DEBUG to capture all types of log messages
-    handlers=[
-        console_handler,
-        file_handler
-    ]
-)
-
-logger = logging.getLogger(__name__)
-
-# Set matplotlib logger to warning level to reduce verbosity
-logging.getLogger('matplotlib').setLevel(logging.WARNING)
-logging.getLogger('PIL').setLevel(logging.WARNING)
+from utils.logger_setup import configure_logger
 
 # -----------------------------------------------------------------------------
 # Sequence input from FASTA file(s) -------------------------------------------
 # -----------------------------------------------------------------------------
 
-def seq_input_from_fasta(fasta_file_path: str, use_names: bool = True):
+def seq_input_from_fasta(fasta_file_path: str, use_names: bool = True, logger: Logger | None = None):
     '''
     This part takes as input a fasta file with the IDs and sequences of each 
     protein that potentially forms part of the complex.
@@ -55,6 +26,8 @@ def seq_input_from_fasta(fasta_file_path: str, use_names: bool = True):
         prot_IDs, prot_names, prot_seqs, prot_lens, prot_N
         (list)    (list)      (list)     (list)     (int)
     '''
+    if logger is None:
+        logger = configure_logger()
     
     # Initialize empty lists to store features of each protein
     prot_IDs = []
@@ -73,7 +46,7 @@ def seq_input_from_fasta(fasta_file_path: str, use_names: bool = True):
     prot_N = len(prot_IDs)
         
     # Progress
-    logging.info(f"INITIALIZING: extracting data from {fasta_file_path}")
+    logger.info(f"INITIALIZING: extracting data from {fasta_file_path}")
 
     # Use names?
     if use_names:
@@ -87,7 +60,7 @@ def seq_input_from_fasta(fasta_file_path: str, use_names: bool = True):
 # Extract the sequences from AF2 PDB file(s) ----------------------------------
 # -----------------------------------------------------------------------------
 
-def extract_seqs_from_AF2_PDBs(AF2_2mers: str, AF2_Nmers: str = None):
+def extract_seqs_from_AF2_PDBs(AF2_2mers: str, AF2_Nmers: str = None, logger: Logger | None = None):
     '''
     This parts extract the sequence of each PDB files in the above folders 
     (AF2-2mers and AF2-Nmers) and stores it in memory as a nested dict.
@@ -105,6 +78,8 @@ def extract_seqs_from_AF2_PDBs(AF2_2mers: str, AF2_Nmers: str = None):
         }
     
     '''
+    if logger is None:
+        logger = configure_logger()
     
     if AF2_Nmers != None:
         folders_to_search = [AF2_2mers, AF2_Nmers]
@@ -187,7 +162,10 @@ def get_unique_pdb_sequences(all_pdb_data: dict):
 
 
 # Check for errors
-def compare_sequences(prot_seqs: list, PDB_sequences: list):
+def compare_sequences(prot_seqs: list, PDB_sequences: list, logger: Logger | None = None):
+
+    if logger is None:
+        logger = configure_logger()
 
     # Progress
     logger.info("Detected proteins:")
@@ -218,17 +196,21 @@ def compare_sequences(prot_seqs: list, PDB_sequences: list):
     
 
 def merge_fasta_with_PDB_data(all_pdb_data: dict, prot_IDs: list, prot_names: list,
-                               prot_seqs: list, prot_lens: list, prot_N: int, use_names: bool):
+                               prot_seqs: list, prot_lens: list, prot_N: int, use_names: bool,
+                               logger: Logger | None = None):
     '''
     This part combines the data extracted from the PDBs and the data extracted
     from the FASTA file. Modifies all_pdb_data dict
     '''
+
+    if logger is None:
+        logger = configure_logger()
     
     # Get unique sequences in PDB files
     PDB_sequences = get_unique_pdb_sequences(all_pdb_data)
 
     # Check if there is any inconsistency with the provided data
-    compare_sequences(prot_seqs, PDB_sequences)
+    compare_sequences(prot_seqs, PDB_sequences, logger = logger)
 
     # Merge sequences from FASTA file with PDB data
     for model_folder, chain_data in all_pdb_data.items():

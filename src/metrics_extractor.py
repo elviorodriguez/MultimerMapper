@@ -7,8 +7,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from re import search
+from logging import Logger
 
-from src.input_check import logger
+from utils.logger_setup import configure_logger
 from utils.progress_bar import print_progress_bar
 from utils.pdockq import pdockq_read_pdb, calc_pdockq
 from utils.find_most_similar_string import find_most_similar
@@ -26,7 +27,8 @@ The best sub-PAE matrix is the one comming from the model with the lowest mean
 sub-pLDDT.
 '''
 
-def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_path: str, overwrite: bool = False):
+def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_path: str, overwrite: bool = False,
+                                  logger: Logger | None = None):
     '''
     This part extracts the PAE values and pLDDT values for each protein (ID) and
     each model matching the corresponding JSON files with AF2 prediction metrics. Then,
@@ -51,6 +53,8 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
                 |-> "min_mean_pLDDT_index"
                 |->
     '''
+    if logger is None:
+        logger = configure_logger()
     
     # Progress
     logger.info("INITIALIZING: extract_AF2_metrics_from_JSON")
@@ -278,7 +282,10 @@ creates a dataframe called pairwise_2mers_df for later use.
 '''
 # 2-mers pairwise data generation
 def generate_pairwise_2mers_df(all_pdb_data: dict, out_path: str = ".", save_pairwise_data: bool = True,
-                                overwrite: bool = False,):
+                                overwrite: bool = False, logger: Logger | None = None):
+    
+    if logger is None:
+        logger = configure_logger()
 
     # Empty dataframe to store rank, pTMs, ipTMs, min_PAE to make graphs later on
     columns = ['protein1', 'protein2', 'length1', 'length2', 'rank', 'pTM', 'ipTM', 'min_PAE', 'pDockQ', 'PPV', 'model','diagonal_sub_PAE']
@@ -418,7 +425,11 @@ def generate_pairwise_2mers_df(all_pdb_data: dict, out_path: str = ".", save_pai
 
 # N-mers pairwise data generation
 def generate_pairwise_Nmers_df(all_pdb_data: dict, out_path: str = ".", save_pairwise_data: bool = True,
-                                overwrite: bool = False, is_debug = False):
+                                overwrite: bool = False, is_debug = False,
+                                logger: Logger | None = None):
+    
+    if logger is None:
+        logger = configure_logger()
     
     def generate_pair_combinations(values):
         '''Generates all possible pair combinations of the elements in "values",

@@ -3,18 +3,21 @@ import os
 import json
 import numpy as np
 import pandas as pd
-from src.input_check import logger
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, Normalize
 import plotly.graph_objects as go           # For plotly ploting
 from plotly.offline import plot             # To allow displaying plots
+from logging import Logger
+
+from utils.logger_setup import configure_logger
 
 # -----------------------------------------------------------------------------
 # Split proteins into domain using pae_to_domains.py --------------------------
 # -----------------------------------------------------------------------------
 
 # Function from pae_to_domains.py
-def domains_from_pae_matrix_igraph(pae_matrix, pae_power=1, pae_cutoff=5, graph_resolution=1):
+def domains_from_pae_matrix_igraph(pae_matrix, pae_power=1, pae_cutoff=5, graph_resolution=1,
+                                   logger: Logger | None = None):
     '''
     Takes a predicted aligned error (PAE) matrix representing the predicted error in distances between each 
     pair of residues in a model, and uses a graph-based community clustering algorithm to partition the model
@@ -31,6 +34,9 @@ def domains_from_pae_matrix_igraph(pae_matrix, pae_power=1, pae_cutoff=5, graph_
 
     Returns: a series of lists, where each list contains the indices of residues belonging to one cluster.
     '''
+    if logger is None:
+        logger = configure_logger()
+
     try:
         import igraph
     except ImportError:
@@ -408,7 +414,8 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
                    graph_resolution: float | int = 0.075, pae_power: float | int  = 1, pae_cutoff: float | int  = 5,
                    auto_domain_detection: bool = True, graph_resolution_preset: bool | None = None, save_preset: bool  = False,
                    save_png_file: bool  = True, show_image: bool  = False, show_structure: bool  = True, show_inline: bool  = True,
-                   save_html: bool  = True, save_tsv: bool  = True, overwrite: bool = False):
+                   save_html: bool  = True, save_tsv: bool  = True, overwrite: bool = False,
+                   logger: Logger | None = None):
     
     '''Modifies sliced_PAE_and_pLDDTs to add domain information. Generates the 
     following sub-keys for each protein_ID key:
@@ -426,7 +433,10 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
     - save_preset (bool): set to True if you want to store the graph_resolution
         preset of each protein for later use.
     '''    
-    
+
+    if logger is None:
+        logger = configure_logger()
+
     # Progress
     print("")
     logger.info("INITIALIZING: (Semi)Automatic domain detection algorithm...")
@@ -469,7 +479,7 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
             # Compute it with a resolution on 0.5
             domain_clusters = domains_from_pae_matrix_igraph(
                 sliced_PAE_and_pLDDTs[protein_ID]['best_PAE_matrix'],
-                pae_power, pae_cutoff, graph_resolution)
+                pae_power, pae_cutoff, graph_resolution, logger = logger)
             
             # Save on dictionary
             sliced_PAE_and_pLDDTs[protein_ID]["domain_clusters"] = sorted(domain_clusters)
