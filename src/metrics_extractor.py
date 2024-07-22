@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from re import search
+from itertools import combinations
+from copy import deepcopy
 from logging import Logger
 
 from utils.logger_setup import configure_logger
@@ -443,8 +445,6 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, out_path: str = ".", save_pai
         Returns:
             A list of tuples with the value pairs'''
         
-        from itertools import combinations
-        
         # Generate all combinations of length 2
         all_combinations = combinations(values, 2)
         
@@ -486,7 +486,6 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, out_path: str = ".", save_pai
         return sub_PAE_min
     
     def keep_selected_chains(model, chains_to_keep):
-        from copy import deepcopy
         
         model_copy = deepcopy(model)
         

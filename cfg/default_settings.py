@@ -34,9 +34,10 @@ save_preset: bool = True
 save_PAE_png: bool = True
 
 # If True, opens the monomer PAE matrix (as png) of each protein with detected domains (S.O. image viewer)
-display_PAE_domains: bool = True
+display_PAE_domains: bool = True # Use this when you run the pipeline from command line
 
 # If True, opens the monomer PAE matrix (as png) of each protein with detected domains (In-line of the console)
+# Use this when you run the pipeline interactively using ipython (eg jupyter notebook)
 display_PAE_domains_inline: bool = True
 
 # If True, opens the monomer structure of each protein with detected domains as HTML (Browser)

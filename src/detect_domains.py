@@ -3,11 +3,16 @@ import os
 import json
 import numpy as np
 import pandas as pd
+import igraph
+from collections import defaultdict
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, Normalize
 import plotly.graph_objects as go           # For plotly ploting
 from plotly.offline import plot             # To allow displaying plots
 from logging import Logger
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
+from IPython.display import display
 
 from utils.logger_setup import configure_logger
 
@@ -16,7 +21,8 @@ from utils.logger_setup import configure_logger
 # -----------------------------------------------------------------------------
 
 # Function from pae_to_domains.py
-def domains_from_pae_matrix_igraph(pae_matrix, pae_power=1, pae_cutoff=5, graph_resolution=1,
+def domains_from_pae_matrix_igraph(pae_matrix, pae_power: float | int = 1, pae_cutoff: float | int = 5,
+                                   graph_resolution: float | int = 1,
                                    logger: Logger | None = None):
     '''
     Takes a predicted aligned error (PAE) matrix representing the predicted error in distances between each 
@@ -37,14 +43,6 @@ def domains_from_pae_matrix_igraph(pae_matrix, pae_power=1, pae_cutoff=5, graph_
     if logger is None:
         logger = configure_logger()
 
-    try:
-        import igraph
-    except ImportError:
-        logger.info('ERROR: This method requires python-igraph to be installed. Please install it using "pip install python-igraph" '
-            'in a Python >=3.6 environment and try again.')
-        import sys
-        sys.exit()
-    import numpy as np
     weights = 1/pae_matrix**pae_power
 
     g = igraph.Graph()
@@ -57,7 +55,6 @@ def domains_from_pae_matrix_igraph(pae_matrix, pae_power=1, pae_cutoff=5, graph_
 
     vc = g.community_leiden(weights='weight', resolution=graph_resolution/100, n_iterations=-1)
     membership = np.array(vc.membership)
-    from collections import defaultdict
     clusters = defaultdict(list)
     for i, c in enumerate(membership):
         clusters[c].append(i)
@@ -65,7 +62,7 @@ def domains_from_pae_matrix_igraph(pae_matrix, pae_power=1, pae_cutoff=5, graph_
     return clusters
 
 
-def reformat_clusters(domain_clusters):
+def reformat_clusters(domain_clusters: list):
     '''
     Reformats the output of domains_from_pae_matrix_igraph to make it easier
     to plot and further processing.
@@ -182,10 +179,6 @@ def combine_figures_and_plot(fig1, fig2, out_path: str = ".", protein_ID = None,
     Returns:
         None
     '''
-    
-    from PIL import Image
-    from io import BytesIO
-    from IPython.display import display
 
     # Create BytesIO objects to hold the image data in memory
     image1_bytesio = BytesIO()
@@ -205,17 +198,28 @@ def combine_figures_and_plot(fig1, fig2, out_path: str = ".", protein_ID = None,
     
     # Get the size of the images
     width, height = image1.size
-    
-    # Create a new image with double the width for side-by-side display
-    combined_image = Image.new('RGB', (width * 2, height))
-    
+
+    # Create a new image with double the width for side-by-side display and extra space for title
+    combined_image = Image.new('RGB', (width * 2, height + 40), color='white')
+
     # Paste the images into the combined image
-    combined_image.paste(image1, (0, 0))
-    combined_image.paste(image2, (width, 0))
-    
+    combined_image.paste(image1, (0, 40))
+    combined_image.paste(image2, (width, 40))    
+
+    # Get font, create a drawing object and draw the title
+    draw = ImageDraw.Draw(combined_image)
+    title_font = ImageFont.load_default(size = 80)
+    title_text = f"{protein_ID}" if protein_ID else "Protein: Unknown"
+    text_bbox = draw.textbbox((0, 0), title_text, font=title_font)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_x = (width * 2 - text_width) / 2
+    text_y = 10
+    draw.text((text_x, text_y), title_text, font=title_font, fill='black')
+
+
     # Show the combined image
-    if show_image: combined_image.show()
-    if show_inline: display(combined_image)
+    if show_image: combined_image.show()        # (with the default image viewer of the S.O.)
+    if show_inline: display(combined_image)     # (in-line in ipython console)
 
     # Save the combined image to a file?
     if save_png_file:
@@ -409,12 +413,35 @@ def plot_backbone(protein_chain, domains, protein_ID = "", legend_position = dic
         
     if return_fig: return fig
 
+def convert_manual_domains_df_to_clusters(sliced_PAE_and_pLDDTs: dict, manual_domains_df: pd.DataFrame, logger: Logger | None = None):
+    '''
+    Modifies sliced_PAE_and_pLDDTs to contain "domain_clusters" and "ref_domain_clusters" information
+    for each protein_ID.
+
+    Returns:
+        None
+    '''
+    if logger is None:
+        logger = configure_logger()
+
+    for P, protein_ID in enumerate(sliced_PAE_and_pLDDTs.keys()):
+
+        logger.info(f"  - Converting manual domains of {protein_ID} to clusters")
+        
+        # Assign domains clusters and ref domain cluster using manual_domains_df
+        protein_domains_df = manual_domains_df.loc[manual_domains_df['Protein_ID'] == protein_ID]
+
+        # a series of lists, where each list contains the indices of residues belonging to one cluster.
+        sliced_PAE_and_pLDDTs[protein_ID]["domain_clusters"]        = [list(range(domain_row["Start"] - 1, domain_row["End"] - 1)) for i, domain_row in protein_domains_df.iterrows()]       
+        sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"][0] = list(range(0, len(sliced_PAE_and_pLDDTs[protein_ID]["length"])))
+        sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"][1] = [item for sublist in sliced_PAE_and_pLDDTs[protein_ID]["domain_clusters"] for item in sublist]
+
 # Working function
 def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: str,
                    graph_resolution: float | int = 0.075, pae_power: float | int  = 1, pae_cutoff: float | int  = 5,
                    auto_domain_detection: bool = True, graph_resolution_preset: bool | None = None, save_preset: bool  = False,
                    save_png_file: bool  = True, show_image: bool  = False, show_structure: bool  = True, show_inline: bool  = True,
-                   save_html: bool  = True, save_tsv: bool  = True, overwrite: bool = False,
+                   save_html: bool  = True, save_tsv: bool  = True, overwrite: bool = False, manual_domains: str | None = None,
                    logger: Logger | None = None):
     
     '''Modifies sliced_PAE_and_pLDDTs to add domain information. Generates the 
@@ -457,10 +484,22 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
     if save_preset or save_tsv or save_png_file or save_html:
         save_folder = out_path + "/domains"
         os.makedirs(save_folder, exist_ok = overwrite)
+
+    # If you want to manually set the domains (look at the sample file)
+    use_manual = False
+    if manual_domains is not None:
+        use_manual = True
+        logger.info(f"Domain asigned manually using manual_domains file: {manual_domains}")
+        manual_domains_df = pd.read_csv(manual_domains, sep='\t')
+        convert_manual_domains_df_to_clusters(sliced_PAE_and_pLDDTs, manual_domains_df, logger)
     
     # Detect domains for one protein at a time
     for P, protein_ID in enumerate(sliced_PAE_and_pLDDTs.keys()):
         
+        # If manual domains was set, skip domain detection
+        if use_manual:
+            break
+
         # Flag used fon semi-automatic domain detection
         you_like = False
         
@@ -621,7 +660,6 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
     domains_df['Mean_pLDDT'] = domains_df['Mean_pLDDT'].astype(float)
     
     if save_tsv:
-        # Create a folder named "domains" if it doesn't exist
         save_folder = out_path + "/domains"
         tsv_file_path = save_folder + "/domains.tsv"
         domains_df.to_csv(tsv_file_path, sep='\t', index=False)
