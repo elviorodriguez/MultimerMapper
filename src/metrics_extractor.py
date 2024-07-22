@@ -26,7 +26,7 @@ The best sub-PAE matrix is the one comming from the model with the lowest mean
 sub-pLDDT.
 '''
 
-def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str):
+def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_path: str, overwrite: bool = False):
     '''
     This part extracts the PAE values and pLDDT values for each protein (ID) and
     each model matching the corresponding JSON files with AF2 prediction metrics. Then,
@@ -219,8 +219,8 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str):
         
         
     # Create dir to store PAE matrices plots
-    directory_for_PAE_pngs = os.path.splitext(fasta_file_path)[0] + "_PAEs_for_domains"
-    os.makedirs(directory_for_PAE_pngs, exist_ok = True)
+    directory_for_PAE_pngs = out_path + "/PAEs_for_domains"
+    os.makedirs(directory_for_PAE_pngs, exist_ok = overwrite)
     
     
     # Find best PAE matrix, store it in dict and save plots
@@ -277,7 +277,8 @@ This part extracts pairwise interaction data of each pairwise model and
 creates a dataframe called pairwise_2mers_df for later use.
 '''
 # 2-mers pairwise data generation
-def generate_pairwise_2mers_df(all_pdb_data: dict):
+def generate_pairwise_2mers_df(all_pdb_data: dict, out_path: str = ".", save_pairwise_data: bool = True,
+                                overwrite: bool = False,):
 
     # Empty dataframe to store rank, pTMs, ipTMs, min_PAE to make graphs later on
     columns = ['protein1', 'protein2', 'length1', 'length2', 'rank', 'pTM', 'ipTM', 'min_PAE', 'pDockQ', 'PPV', 'model','diagonal_sub_PAE']
@@ -399,11 +400,25 @@ def generate_pairwise_2mers_df(all_pdb_data: dict):
             current_model += 1
             print("")
             logger.info(print_progress_bar(current_model, total_models, text = " (2-mers metrics)"))
+    
+    if save_pairwise_data:
+        save_path = os.path.join(out_path, "pairwise_2-mers.tsv")
         
+        if os.path.exists(save_path):
+            if overwrite:
+                pairwise_2mers_df.drop(columns=['model', 'diagonal_sub_PAE']).to_csv(save_path, sep='\t', index=False)
+                logger.warning(f"Overwritten pairwise 2-mers data to {save_path}")
+            else:
+                raise FileExistsError(f"File {save_path} already exists. To overwrite, set 'overwrite=True'.")
+        else:
+            pairwise_2mers_df.drop(columns=['model', 'diagonal_sub_PAE']).to_csv(save_path, sep='\t', index=False)
+            logger.info(f"Saved pairwise 2-mers data to {save_path}")
+
     return pairwise_2mers_df
 
 # N-mers pairwise data generation
-def generate_pairwise_Nmers_df(all_pdb_data: dict, is_debug = False):
+def generate_pairwise_Nmers_df(all_pdb_data: dict, out_path: str = ".", save_pairwise_data: bool = True,
+                                overwrite: bool = False, is_debug = False):
     
     def generate_pair_combinations(values):
         '''Generates all possible pair combinations of the elements in "values",
@@ -653,4 +668,17 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, is_debug = False):
     # Convert proteins_in_model column lists to tuples (lists are not hashable and cause some problems)
     pairwise_Nmers_df['proteins_in_model'] = pairwise_Nmers_df['proteins_in_model'].apply(tuple)
     
+    if save_pairwise_data:
+        save_path = os.path.join(out_path, "pairwise_N-mers.tsv")
+
+        if os.path.exists(save_path):
+            if overwrite:
+                pairwise_Nmers_df.drop(columns=['model', 'diagonal_sub_PAE']).to_csv(save_path, sep='\t', index=False)
+                logger.warning(f"Overwritten pairwise N-mers data to {save_path}")
+            else:
+                raise FileExistsError(f"File {save_path} already exists. To overwrite, set 'overwrite=True'.")
+        else:
+            pairwise_Nmers_df.drop(columns=['model', 'diagonal_sub_PAE']).to_csv(save_path, sep='\t', index=False)
+            logger.info(f"Saved pairwise N-mers data to {save_path}")
+
     return pairwise_Nmers_df

@@ -99,7 +99,8 @@ def reformat_clusters(domain_clusters):
     return [resid_list, clust_list]
 
 
-def plot_domains(protein_ID, matrix_data, positions, colors, custom_title = None, out_folder = 'domains', save_plot = True, show_plot = True):
+def plot_domains(protein_ID, matrix_data, positions, colors, custom_title = None,
+                 out_folder = 'domains', save_plot = True, show_plot = True):
 
     # Define a diverging colormap for the matrix
     matrix_cmap = 'coolwarm'
@@ -160,7 +161,7 @@ def plot_domains(protein_ID, matrix_data, positions, colors, custom_title = None
     return fig
 
 
-def combine_figures_and_plot(fig1, fig2, protein_ID = None, save_png_file = False, show_image = False, show_inline = True):
+def combine_figures_and_plot(fig1, fig2, out_path: str = ".", protein_ID = None, save_png_file = False, show_image = False, show_inline = True):
     '''
     Generates a single figure with fig1 and fig2 side by side.
     
@@ -217,9 +218,8 @@ def combine_figures_and_plot(fig1, fig2, protein_ID = None, save_png_file = Fals
             raise ValueError("protein_ID not provided. Required for saving domains plot file.")
         
         # Create a folder named "domains" if it doesn't exist
-        save_folder = "domains"
-        if not os.path.exists(save_folder):
-            os.makedirs(save_folder)
+        save_folder = out_path + "/domains"
+        os.makedirs(save_folder, exist_ok = True)
     
         # Save figure
         combined_image.save(os.path.join(save_folder, f"{protein_ID}-domains_plot.png"))
@@ -258,7 +258,9 @@ def remove_loop_clusters(domain_clusters):
     return result
 
 # For semi-auto domain defining
-def plot_backbone(protein_chain, domains, protein_ID = "", legend_position = dict(x=1.02, y=0.5), showgrid = True, margin=dict(l=0, r=0, b=0, t=0), show_axis = False, show_structure = False, save_html = False, return_fig = False, is_for_network = False):
+def plot_backbone(protein_chain, domains, protein_ID = "", legend_position = dict(x=1.02, y=0.5), 
+                  showgrid = True, margin=dict(l=0, r=0, b=0, t=0), show_axis = False, show_structure = False, 
+                  save_html = False, return_fig = False, is_for_network = False, out_path: str = "."):
     
     # Protein CM
     protein_CM = list(protein_chain.center_of_mass())
@@ -393,9 +395,8 @@ def plot_backbone(protein_chain, domains, protein_ID = "", legend_position = dic
     if show_structure: plot(fig)
     
     if save_html:
-        save_folder = "domains"
-        if not os.path.exists(save_folder):
-            os.makedirs(save_folder)
+        save_folder = out_path + "/domains"
+        os.makedirs(save_folder, exist_ok = True)
     
         # Save figure
         fig.write_html(os.path.join(save_folder, f"{protein_ID}-domains_plot.html"))
@@ -403,11 +404,11 @@ def plot_backbone(protein_chain, domains, protein_ID = "", legend_position = dic
     if return_fig: return fig
 
 # Working function
-def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, 
+def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: str,
                    graph_resolution: float | int = 0.075, pae_power: float | int  = 1, pae_cutoff: float | int  = 5,
                    auto_domain_detection: bool = True, graph_resolution_preset: bool | None = None, save_preset: bool  = False,
                    save_png_file: bool  = True, show_image: bool  = False, show_structure: bool  = True, show_inline: bool  = True,
-                   save_html: bool  = True, save_tsv: bool  = True):
+                   save_html: bool  = True, save_tsv: bool  = True, overwrite: bool = False):
     
     '''Modifies sliced_PAE_and_pLDDTs to add domain information. Generates the 
     following sub-keys for each protein_ID key:
@@ -441,6 +442,11 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str,
 
     # Make a backup for later
     general_graph_resolution = graph_resolution
+
+    # Create output folder
+    if save_preset or save_tsv or save_png_file or save_html:
+        save_folder = out_path + "/domains"
+        os.makedirs(save_folder, exist_ok = overwrite)
     
     # Detect domains for one protein at a time
     for P, protein_ID in enumerate(sliced_PAE_and_pLDDTs.keys()):
@@ -454,6 +460,7 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str,
         # If you have a preset
         if graph_resolution_preset != None:
             graph_resolution = graph_resolution_preset[protein_ID]
+    
         
         while not you_like:
     
@@ -511,12 +518,13 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str,
                 
                 # Create a single figure with both domain definitions subplots
                 combine_figures_and_plot(plot_before, plot_after, protein_ID = protein_ID, save_png_file = save_png_file,
-                                         show_image = show_image, show_inline = show_inline)
+                                         show_image = show_image, show_inline = show_inline, out_path = out_path)
                 
                 # Plot the protein
                 plot_backbone(protein_chain = sliced_PAE_and_pLDDTs[protein_ID]["PDB_xyz"],
                               domains = sliced_PAE_and_pLDDTs[protein_ID]["no_loops_domain_clusters"][1],
-                              protein_ID = protein_ID, show_structure = show_structure, save_html = save_html)
+                              protein_ID = protein_ID, show_structure = show_structure, save_html = save_html,
+                              out_path = out_path)
                 
                 # Ask user if the detected domain distribution is OK
                 user_input = input(f"Do you like the resulting domains for {protein_ID}? (y or n) - ")
@@ -542,25 +550,22 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str,
                 
                 # Create a single figure with both domain definitions subplots
                 combine_figures_and_plot(plot_before, plot_after, protein_ID = protein_ID, save_png_file = save_png_file,
-                                         show_image = show_image, show_inline = show_inline)
+                                         show_image = show_image, show_inline = show_inline, out_path = out_path)
                 
                 # Plot the protein
                 plot_backbone(protein_chain = sliced_PAE_and_pLDDTs[protein_ID]["PDB_xyz"],
                               domains = sliced_PAE_and_pLDDTs[protein_ID]["no_loops_domain_clusters"][1],
-                              protein_ID = protein_ID, show_structure = show_structure, save_html = save_html)
+                              protein_ID = protein_ID, show_structure = show_structure, save_html = save_html,
+                              out_path = out_path)
                 
                 
                 # Save it if you need to run again your pipeline 
                 if save_preset: graph_resolution_for_preset[protein_ID] = graph_resolution
-                
     
     # save_preset is the path to the JSON file
     if save_preset:
         # Create a folder named "domains" if it doesn't exist
-        save_folder = "domains"
-        if not os.path.exists(save_folder):
-            os.makedirs(save_folder)
-        preset_out_JSON = save_folder + "/" + os.path.splitext(fasta_file_path)[0] + "-graph_resolution_preset.json"
+        preset_out_JSON = save_folder + "/graph_resolution_preset.json"
         with open(preset_out_JSON, 'w') as json_file:
             json.dump(graph_resolution_for_preset, json_file)
     
@@ -579,7 +584,6 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str,
     # Initialize df
     domains_columns = ["Protein_ID", "Domain", "Start", "End", "Mean_pLDDT"]
     domains_df = pd.DataFrame(columns = domains_columns)
-    
     
     # Define domains and add them to domains_df
     for P, protein_ID in enumerate(sliced_PAE_and_pLDDTs.keys()):
@@ -608,10 +612,8 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str,
     
     if save_tsv:
         # Create a folder named "domains" if it doesn't exist
-        save_folder = "domains"
-        if not os.path.exists(save_folder):
-            os.makedirs(save_folder)
-        tsv_file_path = save_folder + "/" + os.path.splitext(fasta_file_path)[0] + "-domains.tsv"
+        save_folder = out_path + "/domains"
+        tsv_file_path = save_folder + "/domains.tsv"
         domains_df.to_csv(tsv_file_path, sep='\t', index=False)
         
     return domains_df

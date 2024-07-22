@@ -1,17 +1,18 @@
-
-
 #################################################################################
-############### Python file for debuging ########################################
+################ Python file for debuging MultimerMapper ########################
 #################################################################################
 
 from src.input_check import seq_input_from_fasta, extract_seqs_from_AF2_PDBs, merge_fasta_with_PDB_data
 from src.metrics_extractor import extract_AF2_metrics_from_JSON, generate_pairwise_2mers_df, generate_pairwise_Nmers_df
+from src.detect_domains import detect_domains
+from cfg.default_settings import *
 
-# Input
+# Input/Output
 fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
 AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
 AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
-use_names = True
+out_path = "tests/output"
+overwrite = True
 
 # FASTA file processing
 prot_IDs, prot_names, prot_seqs, prot_lens, prot_N = seq_input_from_fasta(
@@ -26,19 +27,22 @@ merge_fasta_with_PDB_data(all_pdb_data, prot_IDs, prot_seqs,
                             prot_seqs, prot_lens, prot_N, use_names)
 
 # Extract AF2 metrics
-sliced_PAE_and_pLDDTs = extract_AF2_metrics_from_JSON(all_pdb_data, fasta_file)
+sliced_PAE_and_pLDDTs = extract_AF2_metrics_from_JSON(all_pdb_data, fasta_file, out_path, overwrite = overwrite)
 
 # Get pairwise info
-pairwise_2mers_df = generate_pairwise_2mers_df(all_pdb_data)
-pairwise_Nmers_df = generate_pairwise_Nmers_df(all_pdb_data)
+pairwise_2mers_df = generate_pairwise_2mers_df(all_pdb_data, out_path = out_path, save_pairwise_data = True, overwrite = overwrite)
+pairwise_Nmers_df = generate_pairwise_Nmers_df(all_pdb_data, out_path = out_path, save_pairwise_data = True, overwrite = overwrite)
 
 # Detect protein domains
 domains_df = detect_domains(sliced_PAE_and_pLDDTs, fasta_file, graph_resolution = graph_resolution,
                             auto_domain_detection = auto_domain_detection,
                             graph_resolution_preset = graph_resolution_preset, save_preset = save_preset,
                             save_png_file = save_PAE_png, show_image = display_PAE_domains,
-                            show_inline = display_PAE_domains_inline, show_structure = show_structures,
-                            save_html = save_domains_html, save_tsv = save_domains_tsv)
+                            show_inline = display_PAE_domains_inline, show_structure = show_monomer_structures,
+                            save_html = save_domains_html, save_tsv = save_domains_tsv,
+                            out_path = out_path, overwrite = overwrite)
+
+print(domains_df)
 
 ############  IMPORTS from main module ###########
 # from Bio import SeqIO, PDB

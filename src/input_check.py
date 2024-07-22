@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # Set matplotlib logger to warning level to reduce verbosity
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
-
+logging.getLogger('PIL').setLevel(logging.WARNING)
 
 # -----------------------------------------------------------------------------
 # Sequence input from FASTA file(s) -------------------------------------------
