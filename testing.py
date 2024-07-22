@@ -91,17 +91,19 @@ except FileNotFoundError:
 # Detect protein domains
 display_PAE_domains = True
 display_PAE_domains_inline = True
-auto_domain_detection = False
+auto_domain_detection = True
 graph_resolution_preset = None
+manual_domains = "tests/EAF6_EPL1_PHD1/manual_domains.tsv"
+manual_domains = None
 domains_df = detect_domains(sliced_PAE_and_pLDDTs, fasta_file, graph_resolution = graph_resolution,
                             auto_domain_detection = auto_domain_detection,
                             graph_resolution_preset = graph_resolution_preset, save_preset = save_preset,
                             save_png_file = save_PAE_png, show_image = display_PAE_domains,
                             show_inline = display_PAE_domains_inline, show_structure = show_monomer_structures,
                             save_html = save_domains_html, save_tsv = save_domains_tsv,
-                            out_path = out_path, overwrite = overwrite, logger = logger)
+                            out_path = out_path, overwrite = overwrite, logger = logger, manual_domains = manual_domains)
 
-# print(domains_df)
+print(domains_df)
 
 ############  IMPORTS from main module ###########
 # from Bio import SeqIO, PDB

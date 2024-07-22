@@ -12,7 +12,7 @@ def configure_logger(out_path = "."):
     
     # Create formatters
     file_formatter = logging.Formatter('%(asctime)s|%(name)s|%(levelname)s|%(message)s')
-    console_formatter = logging.Formatter('%(message)s')
+    console_formatter = logging.Formatter('%(levelname)s|%(message)s')
     
     # Create handlers
     console_handler = logging.StreamHandler()

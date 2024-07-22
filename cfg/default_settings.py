@@ -46,6 +46,10 @@ show_monomer_structures: bool = True
 # If True, saves the monomer structure of each protein with detected domains as HTML (<out_path>/domains folder)
 save_domains_html: bool = True
 
+# When you know the exact span of the domains of your proteins, set this as the path to the manual_domains.tsv file
+# Look for a sample file in tests
+manual_domains: str | None = None
+
 # If True, saves the detected domains table (./domains folder)
 save_domains_tsv: bool = True
 

@@ -13,6 +13,7 @@ from logging import Logger
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 from IPython.display import display
+from copy import deepcopy
 
 from utils.logger_setup import configure_logger
 
@@ -236,8 +237,9 @@ def combine_figures_and_plot(fig1, fig2, out_path: str = ".", protein_ID = None,
 
 
 # Convert clusters of loops into the wrapper cluster domain
-def remove_loop_clusters(domain_clusters):
-    result = domain_clusters.copy()
+def remove_loop_clusters(domain_clusters: list, logger: Logger | None = None):
+
+    result = deepcopy(domain_clusters)
     i = 0
 
     while i < len(domain_clusters):
@@ -264,8 +266,29 @@ def remove_loop_clusters(domain_clusters):
 
         # Move to the next tandem
         i = tandem_end + 1
+    
+    # Function to solve any conflict with the domains
+    def convert_clusters(original_list):
+        converted_list = []
+        current_cluster = -1
+        previous_number = None
+        
+        for number in original_list:
+            if number != previous_number:
+                current_cluster += 1
+                previous_number = number
+            converted_list.append(current_cluster)
+        
+        return converted_list
 
-    return result
+    # max_val = 0
+    # for c_val in domain_clusters:
+    #     if c_val > max_val:
+    #         max_val = c_val
+    #     elif c_val < max_val:
+    #         logger
+    
+    return convert_clusters(result)
 
 # For semi-auto domain defining
 def plot_backbone(protein_chain, domains, protein_ID = "", legend_position = dict(x=1.02, y=0.5), 
@@ -278,7 +301,7 @@ def plot_backbone(protein_chain, domains, protein_ID = "", legend_position = dic
     # Create a 3D scatter plot
     fig = go.Figure()
     
-    domain_colors = ['red', 'green', 'blue', 'purple', 'yellow', 'orange', 'brown', 'pink', 'cyan', 'lime', 'gray', 'olive'] * 10
+    domain_colors = ['red', 'green', 'blue', 'purple', 'yellow', 'orange', 'brown', 'pink', 'cyan', 'lime', 'gray', 'olive'] * 20
     
     pLDDT_colors = ["darkblue", "lightblue", "yellow", "orange", "red"]
     
@@ -432,9 +455,34 @@ def convert_manual_domains_df_to_clusters(sliced_PAE_and_pLDDTs: dict, manual_do
         protein_domains_df = manual_domains_df.loc[manual_domains_df['Protein_ID'] == protein_ID]
 
         # a series of lists, where each list contains the indices of residues belonging to one cluster.
-        sliced_PAE_and_pLDDTs[protein_ID]["domain_clusters"]        = [list(range(domain_row["Start"] - 1, domain_row["End"] - 1)) for i, domain_row in protein_domains_df.iterrows()]       
-        sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"][0] = list(range(0, len(sliced_PAE_and_pLDDTs[protein_ID]["length"])))
-        sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"][1] = [item for sublist in sliced_PAE_and_pLDDTs[protein_ID]["domain_clusters"] for item in sublist]
+        import sys
+        sliced_PAE_and_pLDDTs[protein_ID]["domain_clusters"] = [ [int(domain_row["Domain"])] * int(domain_row["End"] - domain_row["Start"] + 1) for i, domain_row in protein_domains_df.iterrows()]
+        logger.debug("domain_clusters:")
+        logger.debug(sliced_PAE_and_pLDDTs[protein_ID]["domain_clusters"])
+
+        positions = list(range(0, sliced_PAE_and_pLDDTs[protein_ID]["length"]))
+        logger.debug("positions:")
+        logger.debug(positions)
+
+        domain_clusters = [item for sublist in sliced_PAE_and_pLDDTs[protein_ID]["domain_clusters"] for item in sublist]
+        logger.debug("domain_clusters:")
+        logger.debug(domain_clusters)
+
+        no_loops_domain_clusters = remove_loop_clusters(domain_clusters, logger)
+        logger.debug("no_loops_domain_clusters:")
+        logger.debug(no_loops_domain_clusters)
+
+        sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"] = [positions, domain_clusters]
+        logger.debug("ref_domain_clusters[0]:")
+        logger.debug(sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"][0])
+        logger.debug("ref_domain_clusters[1]:")
+        logger.debug(sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"][1])
+
+        sliced_PAE_and_pLDDTs[protein_ID]["no_loops_domain_clusters"] = [positions, tuple(no_loops_domain_clusters)]
+        logger.debug("no_loops_domain_clusters[0]:")
+        logger.debug(sliced_PAE_and_pLDDTs[protein_ID]["no_loops_domain_clusters"][0])
+        logger.debug("no_loops_domain_clusters[1]:")
+        logger.debug(sliced_PAE_and_pLDDTs[protein_ID]["no_loops_domain_clusters"][1])
 
 # Working function
 def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: str,
@@ -473,9 +521,16 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
     if save_preset: graph_resolution_for_preset = {}
     
     # If you have a preset, load it and use it
-    if graph_resolution_preset != None:
+    if graph_resolution_preset is not None:
         with open(graph_resolution_preset, 'r') as json_file:
             graph_resolution_preset = json.load(json_file)
+        
+        # Some input verification
+        if auto_domain_detection:
+            logger.warning( '"auto_domain_detection = True" was passed together with "graph_resolution_preset"')
+            logger.warning(f'   - graph_resolution_preset : {graph_resolution_preset}')
+            logger.warning( '(Semi)Automatic domain definitions will be skipped')
+            logger.warning( 'Make sure that is what you want')
 
     # Make a backup for later
     general_graph_resolution = graph_resolution
@@ -492,6 +547,19 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
         logger.info(f"Domain asigned manually using manual_domains file: {manual_domains}")
         manual_domains_df = pd.read_csv(manual_domains, sep='\t')
         convert_manual_domains_df_to_clusters(sliced_PAE_and_pLDDTs, manual_domains_df, logger)
+
+        # Some input verification
+        if graph_resolution_preset is not None:
+            logger.warning(f'"graph_resolution_preset" was passed together with "manual_domains"')
+            logger.warning(f'   - graph_resolution_preset: {graph_resolution_preset}')
+            logger.warning(f'   - manual_domains         : {manual_domains}')
+            logger.warning( 'Domains definitions with "graph_resolution_preset" will be skipped')
+            logger.warning( 'Make sure that is what you want')
+        if auto_domain_detection:
+            logger.warning(f'"auto_domain_detection = True" was passed together with "manual_domains"')
+            logger.warning(f'   - manual_domains         : {manual_domains}')
+            logger.warning( 'Automatic domain definitions will be skipped')
+            logger.warning( 'Make sure that is what you want')
     
     # Detect domains for one protein at a time
     for P, protein_ID in enumerate(sliced_PAE_and_pLDDTs.keys()):
@@ -547,7 +615,7 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
             positions = sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"][0]
             domain_clusters = list(sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"][1])
             
-            no_loops_domain_clusters = remove_loop_clusters(domain_clusters)
+            no_loops_domain_clusters = remove_loop_clusters(domain_clusters, logger = logger)
             
             # Save to dictionary
             sliced_PAE_and_pLDDTs[protein_ID]["no_loops_domain_clusters"] = [positions, tuple(no_loops_domain_clusters)]
