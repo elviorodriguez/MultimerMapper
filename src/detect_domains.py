@@ -3,6 +3,7 @@ import os
 import json
 import numpy as np
 import pandas as pd
+from src.input_check import logger
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, Normalize
 import plotly.graph_objects as go           # For plotly ploting
@@ -33,7 +34,7 @@ def domains_from_pae_matrix_igraph(pae_matrix, pae_power=1, pae_cutoff=5, graph_
     try:
         import igraph
     except ImportError:
-        print('ERROR: This method requires python-igraph to be installed. Please install it using "pip install python-igraph" '
+        logger.info('ERROR: This method requires python-igraph to be installed. Please install it using "pip install python-igraph" '
             'in a Python >=3.6 environment and try again.')
         import sys
         sys.exit()
@@ -400,16 +401,13 @@ def plot_backbone(protein_chain, domains, protein_ID = "", legend_position = dic
         fig.write_html(os.path.join(save_folder, f"{protein_ID}-domains_plot.html"))
         
     if return_fig: return fig
-    
-    
-    
-
 
 # Working function
-def detect_domains(sliced_PAE_and_pLDDTs, fasta_file_path, graph_resolution = 0.075, pae_power = 1, pae_cutoff = 5,
-                   auto_domain_detection = True, graph_resolution_preset = None, save_preset = False,
-                   save_png_file = True, show_image = False, show_structure = True, show_inline = True,
-                   save_html = True, save_tsv = True):
+def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, 
+                   graph_resolution: float | int = 0.075, pae_power: float | int  = 1, pae_cutoff: float | int  = 5,
+                   auto_domain_detection: bool = True, graph_resolution_preset: bool | None = None, save_preset: bool  = False,
+                   save_png_file: bool  = True, show_image: bool  = False, show_structure: bool  = True, show_inline: bool  = True,
+                   save_html: bool  = True, save_tsv: bool  = True):
     
     '''Modifies sliced_PAE_and_pLDDTs to add domain information. Generates the 
     following sub-keys for each protein_ID key:
@@ -430,7 +428,7 @@ def detect_domains(sliced_PAE_and_pLDDTs, fasta_file_path, graph_resolution = 0.
     
     # Progress
     print("")
-    print("INITIALIZING: (Semi)Automatic domain detection algorithm...")
+    logger.info("INITIALIZING: (Semi)Automatic domain detection algorithm...")
     print("")
     
     # If you want to save the domains definitions as a preset, this will be saved as JSON
@@ -459,7 +457,7 @@ def detect_domains(sliced_PAE_and_pLDDTs, fasta_file_path, graph_resolution = 0.
         
         while not you_like:
     
-    ######### Compute domain clusters for all the best PAE matrices
+     ######## Compute domain clusters for all the best PAE matrices
         
             # Compute it with a resolution on 0.5
             domain_clusters = domains_from_pae_matrix_igraph(
@@ -469,7 +467,7 @@ def detect_domains(sliced_PAE_and_pLDDTs, fasta_file_path, graph_resolution = 0.
             # Save on dictionary
             sliced_PAE_and_pLDDTs[protein_ID]["domain_clusters"] = sorted(domain_clusters)
         
-    ######### Reformat the domain clusters to make the plotting easier (for each protein)
+     ######## Reformat the domain clusters to make the plotting easier (for each protein)
             
             # Do reformatting
             ref_domain_clusters = reformat_clusters(sliced_PAE_and_pLDDTs[protein_ID]["domain_clusters"])
@@ -477,7 +475,7 @@ def detect_domains(sliced_PAE_and_pLDDTs, fasta_file_path, graph_resolution = 0.
             # Save to dictionary
             sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"] = ref_domain_clusters
         
-    ######### Save plots of domain clusters for all the proteins
+     ######## Save plots of domain clusters for all the proteins
             matrix_data = sliced_PAE_and_pLDDTs[protein_ID]["best_PAE_matrix"]
             positions = sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"][0]
             domain_clusters = sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"][1]
@@ -488,7 +486,7 @@ def detect_domains(sliced_PAE_and_pLDDTs, fasta_file_path, graph_resolution = 0.
                          save_plot = False, show_plot = False)
         
             
-    ######### Convert clusters of loops into the wrapper cluster domain and replot
+     ######## Convert clusters of loops into the wrapper cluster domain and replot
             matrix_data = sliced_PAE_and_pLDDTs[protein_ID]["best_PAE_matrix"]
             positions = sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"][0]
             domain_clusters = list(sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"][1])
@@ -523,7 +521,7 @@ def detect_domains(sliced_PAE_and_pLDDTs, fasta_file_path, graph_resolution = 0.
                 # Ask user if the detected domain distribution is OK
                 user_input = input(f"Do you like the resulting domains for {protein_ID}? (y or n) - ")
                 if user_input == "y":
-                    print("   - Saving domain definition.")
+                    logger.info("   - Saving domain definition.")
                     you_like = True
                     
                     # Save it if you need to run again your pipeline 
@@ -532,12 +530,12 @@ def detect_domains(sliced_PAE_and_pLDDTs, fasta_file_path, graph_resolution = 0.
                 elif user_input == "n":
                     while True:
                         try:
-                            print(f"   - Current graph_resolution is: {graph_resolution}")
+                            logger.info(f"   - Current graph_resolution is: {graph_resolution}")
                             graph_resolution = float(input("   - Set a new graph_resolution value (int/float): "))
                             break  # Break out of the loop if conversion to float succeeds
                         except ValueError:
-                            print("   - Invalid input. Please enter a valid float/int.")
-                else: print("Unknown command: Try again.")
+                            logger.info("   - Invalid input. Please enter a valid float/int.")
+                else: logger.info("Unknown command: Try again.")
                 
             else:
                 you_like = True
