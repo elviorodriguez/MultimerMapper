@@ -4,11 +4,14 @@
 
 import os
 import pickle
+
+from cfg.default_settings import *
 from utils.logger_setup import configure_logger
 from src.input_check import seq_input_from_fasta, extract_seqs_from_AF2_PDBs, merge_fasta_with_PDB_data
 from src.metrics_extractor import extract_AF2_metrics_from_JSON, generate_pairwise_2mers_df, generate_pairwise_Nmers_df
 from src.detect_domains import detect_domains
-from cfg.default_settings import *
+from src.ppi_detector import filter_non_int_2mers_df, filter_non_int_Nmers_df
+
 
 # Input/Output
 fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
@@ -48,6 +51,10 @@ except FileNotFoundError:
     
     print("Pickle file not found. Running the full protocol...")
 
+    # --------------------------------------------------------------------------
+    # -------------------- Input verification and merging ----------------------
+    # --------------------------------------------------------------------------
+
     # FASTA file processing
     prot_IDs, prot_names, prot_seqs, prot_lens, prot_N = seq_input_from_fasta(
         fasta_file, use_names, logger = logger)
@@ -59,6 +66,10 @@ except FileNotFoundError:
     # Combine data
     merge_fasta_with_PDB_data(all_pdb_data, prot_IDs, prot_seqs, 
                                 prot_seqs, prot_lens, prot_N, use_names, logger = logger)
+    
+    # --------------------------------------------------------------------------
+    # -------------------------- Metrics extraction ----------------------------
+    # --------------------------------------------------------------------------
 
     # Extract AF2 metrics
     sliced_PAE_and_pLDDTs = extract_AF2_metrics_from_JSON(all_pdb_data, fasta_file, out_path, overwrite = overwrite, logger = logger)
@@ -87,10 +98,14 @@ except FileNotFoundError:
 
     logger.warning(f"Saved variables to pickle: {pickle_file}")
 
+# --------------------------------------------------------------------------
+# --------------------------- Domain detection -----------------------------
+# --------------------------------------------------------------------------
 
-# Detect protein domains
-display_PAE_domains = True
-# display_PAE_domains_inline = True
+# Domain detection
+display_PAE_domains = False
+display_PAE_domains_inline = False
+show_monomer_structures = False
 auto_domain_detection = False
 graph_resolution_preset = None
 manual_domains = "tests/EAF6_EPL1_PHD1/manual_domains.tsv"
@@ -103,7 +118,36 @@ domains_df = detect_domains(sliced_PAE_and_pLDDTs, fasta_file, graph_resolution 
                             save_html = save_domains_html, save_tsv = save_domains_tsv,
                             out_path = out_path, overwrite = overwrite, logger = logger, manual_domains = manual_domains)
 
-print(domains_df)
+logger.info(f"Resulting domains:\n{domains_df}")
+
+# --------------------------------------------------------------------------
+# ----------------------------- PPI detection ------------------------------
+# --------------------------------------------------------------------------
+
+logger.info("Detecting PPI using cutoffs...")
+
+# For 2-mers
+pairwise_2mers_df_F3, unique_2mers_proteins = filter_non_int_2mers_df(
+    pairwise_2mers_df, 
+    min_PAE_cutoff = min_PAE_cutoff_2mers,
+    ipTM_cutoff = ipTM_cutoff_2mers,
+    N_models_cutoff = N_models_cutoff)
+
+# For N-mers
+pairwise_Nmers_df_F3, unique_Nmers_proteins = filter_non_int_Nmers_df(
+    pairwise_Nmers_df,
+    min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
+    pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
+    N_models_cutoff = N_models_cutoff)
+
+logger.info("Resulting interactions:")
+logger.info(f"   - 2-mers proteins: {unique_2mers_proteins}")
+logger.info(f"   - 2-mers PPIs:\n{pairwise_2mers_df_F3}")
+logger.info("For N-mers:")
+logger.info(f"   - N-mers proteins: {unique_Nmers_proteins}")
+logger.info(f"   - N-mers PPIs:\n{pairwise_Nmers_df_F3}")
+
+
 
 ############  IMPORTS from main module ###########
 # from Bio import SeqIO, PDB

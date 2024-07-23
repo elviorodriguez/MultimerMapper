@@ -51,7 +51,7 @@ def parse_AF2_and_sequences(fasta_file_path, AF2_2mers, AF2_Nmers = None, use_na
         
     pairwise_2mers_df = generate_pairwise_2mers_df(all_pdb_data)
     
-    pairwise_2mers_df_F3, unique_proteins = filter_non_interactions(pairwise_2mers_df,
+    pairwise_2mers_df_F3, unique_proteins = filter_non_int_2mers_df(pairwise_2mers_df,
                                                               min_PAE_cutoff = min_PAE_cutoff_2mers,
                                                               ipTM_cutoff = ipTM_cutoff_2mers,
                                                               N_models_cutoff = N_models_cutoff)
@@ -60,8 +60,8 @@ def parse_AF2_and_sequences(fasta_file_path, AF2_2mers, AF2_Nmers = None, use_na
     
     if AF2_Nmers != None:
         pairwise_Nmers_df = generate_pairwise_Nmers_df(all_pdb_data, is_debug = False)
-        pairwise_Nmers_df_F3, unique_Nmers_proteins = filter_pairwise_Nmers_df(pairwise_Nmers_df,
-                                                                               min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
+        pairwise_Nmers_df_F3, unique_Nmers_proteins = filter_non_int_Nmers_df(pairwise_Nmers_df,
+                                                                            min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
                                                                                pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
                                                                                N_models_cutoff = N_models_cutoff)
         graph_Nmers = generate_full_graph_Nmers(pairwise_Nmers_df_F3)

@@ -54,3 +54,16 @@ manual_domains: str | None = None
 save_domains_tsv: bool = True
 
 
+# ----------------------------------------------------------------------------
+# --------------------------- For PPI detection ------------------------------
+# ----------------------------------------------------------------------------
+
+# Cutoffs for 2-mers (Sens = 57.4%, FPR = 0.05)
+min_PAE_cutoff_2mers = 8.99
+ipTM_cutoff_2mers = 0.240
+N_models_cutoff = 3
+  
+# Cutoffs for N-mers (Sens = 57.4%, FPR = 0.05)
+min_PAE_cutoff_Nmers = 8.99
+pDockQ_cutoff_Nmers = 0.022
+N_models_cutoff = 3
