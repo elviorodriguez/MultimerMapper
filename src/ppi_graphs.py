@@ -1,11 +1,20 @@
 
-
+import os
+import igraph
+import pandas as pd
+import numpy as np
+from Bio.PDB import Chain, Superimposer
+from Bio.PDB.Polypeptide import protein_letters_3to1
+import plotly.graph_objects as go           # For plotly ploting
+from plotly.offline import plot             # To allow displaying plots
 
 # -----------------------------------------------------------------------------
-# Plot graph for the current complex (2-mers) ---------------------------------
+# PPI graph for 2-mers --------------------------------------------------------
 # -----------------------------------------------------------------------------
 
-def generate_full_graph_2mers(pairwise_2mers_df_F3, directory_path = "./2D_graphs"):
+def generate_2mers_graph(pairwise_2mers_df_F3: pd.DataFrame,
+                               out_path: str = ".",
+                               overwrite: bool = False):
     
     # Extract unique nodes from both 'protein1' and 'protein2'
     nodes = list(set(pairwise_2mers_df_F3['protein1']) | set(pairwise_2mers_df_F3['protein2']))
@@ -34,8 +43,8 @@ def generate_full_graph_2mers(pairwise_2mers_df_F3, directory_path = "./2D_graph
     graph.es['N_models'] = N_models_W
     
     # Create the directory if it doesn't exist
-    if not os.path.exists(directory_path):
-        os.makedirs(directory_path)
+    out_2d_dir = out_path + "/2D_graphs"
+    os.makedirs(out_2d_dir, exist_ok = overwrite)
     
     # Plot full graph
     igraph.plot(graph, 
@@ -54,20 +63,26 @@ def generate_full_graph_2mers(pairwise_2mers_df_F3, directory_path = "./2D_graph
                 bbox=(400, 400),
                 margin = 50,
                 
-                # 
-                target = directory_path + "/" + "2D_graph_2mers-full.png")
+                # Save it in out_path
+                target = out_2d_dir + "/2D_graph_2mers-full.png")
     
     return graph
 
 # -----------------------------------------------------------------------------
-# Keep only fully connected network combinations ------------------------------
+# (This is BETA) Keep only fully connected network combinations ---------------
 # -----------------------------------------------------------------------------
 
-def find_sub_graphs(graph, directory_path = "./2D_graphs"):
+def find_sub_graphs(graph: igraph.Graph,
+                     out_path: str = ".",
+                     overwrite: bool = False):
     
     # Find fully connected subgraphs ----------------------------------------------
     fully_connected_subgraphs = [graph.subgraph(component) for component in graph.components() if graph.subgraph(component).is_connected()]
     
+    # Create the directory if it doesn't exist
+    out_2d_dir = out_path + "/2D_graphs"
+    os.makedirs(out_2d_dir, exist_ok = overwrite)
+
     # Print the fully connected subgraphs
     print("\nFully connected subgraphs:")
     for i, subgraph in enumerate(fully_connected_subgraphs, start = 1):
@@ -94,13 +109,14 @@ def find_sub_graphs(graph, directory_path = "./2D_graphs"):
                     margin = 50,
                     
                     # Save subplot
-                    target = directory_path + "/" + f"2D_sub_graph_Nº{i}-" + '_'.join(subgraph.vs["name"]) + ".png")
+                    target = out_2d_dir + f"/2D_sub_graph_Nº{i}-" + '_'.join(subgraph.vs["name"]) + ".png")
         
     return fully_connected_subgraphs
 
 
 # Filter pairwise_2mers_df to get pairwise data for each sub_graph
-def get_fully_connected_subgraphs_pairwise_2mers_dfs(pairwise_2mers_df_F3, fully_connected_subgraphs):
+def get_fully_connected_subgraphs_pairwise_2mers_dfs(pairwise_2mers_df_F3: pd.DataFrame,
+                                                      fully_connected_subgraphs: list[igraph.Graph]):
     
     fully_connected_subgraphs_pairwise_2mers_dfs = []
     
@@ -115,11 +131,13 @@ def get_fully_connected_subgraphs_pairwise_2mers_dfs(pairwise_2mers_df_F3, fully
         
     return fully_connected_subgraphs_pairwise_2mers_dfs
 
+# -----------------------------------------------------------------------------
+# PPI graph for N-mers --------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-
-
-
-def generate_full_graph_Nmers(pairwise_Nmers_df_F3, directory_path = "./2D_graphs"):
+def generate_Nmers_graph(pairwise_Nmers_df_F3: pd.DataFrame,
+                               out_path: str = ".",
+                               overwrite: bool = False):
     
     graph_df = pd.DataFrame(np.sort(pairwise_Nmers_df_F3[['protein1', 'protein2']], axis=1), columns=['protein1', 'protein2']).drop_duplicates()
     
@@ -140,9 +158,9 @@ def generate_full_graph_Nmers(pairwise_Nmers_df_F3, directory_path = "./2D_graph
     graph.es['N_models'] = N_models_W
     
     # Create the directory if it doesn't exist
-    if not os.path.exists(directory_path):
-        os.makedirs(directory_path)
-    
+    out_2d_dir = out_path + "/2D_graphs"
+    os.makedirs(out_2d_dir, exist_ok = overwrite)
+
     # Plot full graph
     igraph.plot(graph, 
                 layout = graph.layout("fr"),
@@ -161,30 +179,47 @@ def generate_full_graph_Nmers(pairwise_Nmers_df_F3, directory_path = "./2D_graph
                 margin = 50,
                 
                 # 
-                target = directory_path + "/" + "2D_graph_Nmers-full.png")
+                target = out_2d_dir + "/2D_graph_Nmers-full.png")
     
     return graph
 
 
-def compare_and_plot_graphs(graph1, graph2, pairwise_2mers_df, pairwise_Nmers_df, domains_df, sliced_PAE_and_pLDDTs,
-                            # Prot IDs and prot names to add them to the graph as hovertext later on
-                            prot_IDs, prot_names,
-                            # 2-mers cutoffs
-                            min_PAE_cutoff_2mers = 4.5, ipTM_cutoff_2mers = 0.4,
-                            # N-mers cutoffs
-                            min_PAE_cutoff_Nmers = 4.5, pDockQ_cutoff_Nmers = 0.15,
-                            # General cutoff
-                            N_models_cutoff = 3,
-                            # For RMSD calculations
-                            domain_RMSD_plddt_cutoff = 60, trimming_RMSD_plddt_cutoff = 70,
-                            # Other parameters
-                            edge_color1='red', edge_color2='green', edge_color3 = 'orange', edge_color4 = 'purple',  edge_color5 = "pink",
-                            edge_color6 = "blue", edge_color_both='black',
-                            vertex_color1='red', vertex_color2='green', vertex_color3='orange', vertex_color_both='gray',
-                            is_debug = False, pdockq_indirect_interaction_cutoff = 0.23, predominantly_static_cutoff = 0.6,
-                            remove_indirect_interactions = True):
+# -----------------------------------------------------------------------------
+# Combined PPI graph ----------------------------------------------------------
+# -----------------------------------------------------------------------------
+
+# Combine 2-mers and N-mers graphs
+def generate_combined_graph(
+        graph1, graph2,
+        pairwise_2mers_df, pairwise_Nmers_df,
+        domains_df, sliced_PAE_and_pLDDTs,
+
+        # Prot IDs and prot names to add them to the graph as hovertext later on
+        prot_IDs, prot_names,
+
+        # 2-mers cutoffs
+        min_PAE_cutoff_2mers = 8.99, ipTM_cutoff_2mers = 0.240,
+
+        # N-mers cutoffs
+        min_PAE_cutoff_Nmers = 8.99, pDockQ_cutoff_Nmers = 0.022,
+
+        # General cutoff
+        N_models_cutoff = 3,
+
+        # For RMSD calculations
+        domain_RMSD_plddt_cutoff = 60, trimming_RMSD_plddt_cutoff = 70,
+
+        # Other parameters
+        edge_color1='red', edge_color2='green', edge_color3 = 'orange', edge_color4 = 'purple',  edge_color5 = "pink",
+        edge_color6 = "blue", edge_color_both='black',
+        vertex_color1='red', vertex_color2='green', vertex_color3='orange', vertex_color_both='gray',
+        
+        pdockq_indirect_interaction_cutoff = 0.23, predominantly_static_cutoff = 0.6,
+        remove_indirect_interactions = True,
+        
+        is_debug = False):
     """
-    Compare two graphs and create a new graph with colored edges and vertices based on the differences.
+    Compares two graphs and create a new graph with colored edges and vertices based on their differences.
 
     Parameters:
     - graph1 (2mers), graph2 (Nmers): igraph.Graph objects representing the two graphs to compare.
@@ -196,8 +231,10 @@ def compare_and_plot_graphs(graph1, graph2, pairwise_2mers_df, pairwise_Nmers_df
         (5) indirect interactions (Nmers mean pDockQ < 0.23),
         (6) ambiguous but predominantly staticand 
         (both: static) both graphs, respectively.
-    - vertex_color1, vertex_color2, vertex_color_both: Colors for vertices in graph1 only, graph2 only,
-        and both graphs, respectively.
+    - vertex_color1, vertex_color2, vertex_color_both: Colors for vertices in
+        (1) graph1 only,
+        (2) graph2 only,
+        (both) both graphs, respectively.
     - pdockq_indirect_interaction_cutoff:
     - predominantly_static_cutoff (float 0->1): for ambiguous N-mer interactions, the fraction of models that need to be positive to consider it a predominantly static interaction. Default=0.6.
 
@@ -801,7 +838,9 @@ def compare_and_plot_graphs(graph1, graph2, pairwise_2mers_df, pairwise_Nmers_df
     add_nodes_IDs(graphC, prot_IDs, prot_names)
     add_domain_RMSD_against_reference(graphC, domains_df, sliced_PAE_and_pLDDTs,pairwise_2mers_df, pairwise_Nmers_df,
                                       domain_RMSD_plddt_cutoff, trimming_RMSD_plddt_cutoff)
-    modify_indirect_interaction_edges(graphC, edge_color5, pdockq_indirect_interaction_cutoff = 0.23)
+    modify_indirect_interaction_edges(graphC, edge_color5,
+                                      pdockq_indirect_interaction_cutoff = pdockq_indirect_interaction_cutoff,
+                                      remove_indirect_interactions = remove_indirect_interactions)
     
     # add cutoffs dict to the graph
     graphC["cutoffs_dict"] = dict(
@@ -868,7 +907,7 @@ def generate_layout_for_combined_graph(combined_graph, edge_attribute_value=['St
 
     return layout
 
-
+# Convert igraph graph to interactive plotly plot
 def igraph_to_plotly(graph, layout = None, save_html = None,
                      # Edges visualization
                      edge_width = 2, self_loop_orientation = 0, self_loop_size = 2.5, use_dot_dynamic_edges = True, 
@@ -1178,4 +1217,3 @@ def igraph_to_plotly(graph, layout = None, save_html = None,
     if save_html != None: fig.write_html(save_html)
     
     return fig
-

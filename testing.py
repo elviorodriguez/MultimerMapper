@@ -11,6 +11,7 @@ from src.input_check import seq_input_from_fasta, extract_seqs_from_AF2_PDBs, me
 from src.metrics_extractor import extract_AF2_metrics_from_JSON, generate_pairwise_2mers_df, generate_pairwise_Nmers_df
 from src.detect_domains import detect_domains
 from src.ppi_detector import filter_non_int_2mers_df, filter_non_int_Nmers_df
+from src.ppi_graphs import generate_2mers_graph, generate_Nmers_graph, generate_combined_graph
 
 
 # Input/Output
@@ -74,7 +75,7 @@ except FileNotFoundError:
     # Extract AF2 metrics
     sliced_PAE_and_pLDDTs = extract_AF2_metrics_from_JSON(all_pdb_data, fasta_file, out_path, overwrite = overwrite, logger = logger)
 
-    # Get pairwise info
+    # Get pairwise data for 2-mers and N-mers
     pairwise_2mers_df = generate_pairwise_2mers_df(all_pdb_data, out_path = out_path, save_pairwise_data = save_pairwise_data, 
                                                 overwrite = overwrite, logger = logger)
     pairwise_Nmers_df = generate_pairwise_Nmers_df(all_pdb_data, out_path = out_path, save_pairwise_data = save_pairwise_data, 
@@ -146,6 +147,79 @@ logger.info(f"   - 2-mers PPIs:\n{pairwise_2mers_df_F3}")
 logger.info("For N-mers:")
 logger.info(f"   - N-mers proteins: {unique_Nmers_proteins}")
 logger.info(f"   - N-mers PPIs:\n{pairwise_Nmers_df_F3}")
+
+# --------------------------------------------------------------------------
+# ----------------------- 2D PPI graph generation --------------------------
+# --------------------------------------------------------------------------
+
+logger.info("Converting PPIs to graphs...")
+
+# 2-mers PPI graph
+graph_2mers = generate_2mers_graph(pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
+                                    out_path = out_path,
+                                    overwrite = overwrite)
+
+logger.debug(f"Resulting 2-mers graph:\n{graph_2mers}")
+
+# N-mers PPI graph
+graph_Nmers = generate_Nmers_graph(pairwise_Nmers_df_F3 = pairwise_Nmers_df_F3,
+                                    out_path = out_path,
+                                    overwrite = overwrite)
+
+logger.debug(f"Resulting 2-mers graph:\n{graph_Nmers}")
+
+
+# Combined graph
+combined_graph, dynamic_proteins, dynamic_interactions = generate_combined_graph(
+    
+    # Input
+    graph_2mers, graph_Nmers, 
+    pairwise_2mers_df, pairwise_Nmers_df, 
+    domains_df, sliced_PAE_and_pLDDTs,
+    
+    # Prot_IDs and names to add them to the graph
+    prot_IDs = prot_IDs, prot_names = prot_names,
+    
+    # 2-mers cutoffs
+    min_PAE_cutoff_2mers = min_PAE_cutoff_2mers, ipTM_cutoff_2mers = ipTM_cutoff_2mers,
+    
+    # N-mers cutoffs
+    min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
+    
+    # General cutoffs
+    N_models_cutoff = N_models_cutoff,
+    pdockq_indirect_interaction_cutoff = pdockq_indirect_interaction_cutoff, 
+    predominantly_static_cutoff = predominantly_static_cutoff,
+
+    # For RMSD calculations
+    domain_RMSD_plddt_cutoff = domain_RMSD_plddt_cutoff,
+    trimming_RMSD_plddt_cutoff = trimming_RMSD_plddt_cutoff,
+
+    # Style options (see cfg/default_settings module for their meaning)
+    edge_color1 = edge_color1, edge_color2 = edge_color2, edge_color3 = edge_color3, edge_color4 = edge_color4,
+    edge_color5 = edge_color5, edge_color6 = edge_color6, edge_color_both = edge_color_both,
+    vertex_color1=vertex_color1, vertex_color2=vertex_color2, vertex_color3=vertex_color3, vertex_color_both=vertex_color_both,
+
+    # Remove indirect interactions?
+    remove_indirect_interactions = remove_indirect_interactions,
+    
+    # Is debug?
+    is_debug = False)
+
+logger.debug(f"Resulting combined graph:\n{combined_graph}")
+logger.debug(f"Dynamic proteins:\n{dynamic_proteins}")
+logger.debug(f"Dynamic interactions:\n{dynamic_interactions}")
+
+# Save reference monomers?
+if save_ref_structures:
+
+    logger.info("Saving PDB reference structures...")
+
+    from src.save_ref_pdbs import save_reference_pdbs
+
+    save_reference_pdbs(sliced_PAE_and_pLDDTs = sliced_PAE_and_pLDDTs,
+                        out_path = out_path,
+                        overwrite = overwrite)
 
 
 
