@@ -6,7 +6,28 @@ from pathlib import Path
 # Logging function & formats  --------------------------------------------------
 # ------------------------------------------------------------------------------
 
-def configure_logger(out_path = "."):
+def configure_logger(out_path = ".", log_level: str = "info"):
+
+    # Set logging level
+    if log_level == "notset":
+        level = logging.NOTSET
+    elif log_level == "debug":
+        level = logging.DEBUG
+    elif log_level == "info":
+        level = logging.INFO
+    elif log_level == "warn":
+        level = logging.WARN
+    elif log_level == "error":
+        level = logging.ERROR
+    elif log_level == "critical":
+        level = logging.CRITICAL
+    else:
+        import sys
+        logger = configure_logger(out_path)
+        logger.error(f"Unknown log_level: {log_level}")
+        logger.error( "EXIT")
+        sys.exit()
+
     # Ensure the output directory exists
     Path(out_path).mkdir(parents=True, exist_ok=True)
     
@@ -24,7 +45,7 @@ def configure_logger(out_path = "."):
     
     # Configure logging
     logging.basicConfig(
-        level=logging.DEBUG,  # Set to DEBUG to capture all types of log messages
+        level=level,
         handlers=[
             console_handler,
             file_handler

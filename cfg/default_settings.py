@@ -5,6 +5,10 @@ use_names: bool = True
 # For overwritting everything in output folder
 overwrite: bool = False
 
+# Logging level ("notset", "debug", "info", "warn", "error", "critical")
+# Increase it to "warn", "error" or "critical" to reduce verbosity
+log_level = "info"
+
 # ----------------------------------------------------------------------------
 # --------------------------- For metric extraction  -------------------------
 # ----------------------------------------------------------------------------
@@ -123,7 +127,9 @@ vertex_color_both=PT_palette["gray"]    #
 remove_indirect_interactions = True
 
 
-#
+# ----------------------------------------------------------------------------
+# -------------------------- For coorinate analysis --------------------------
+# ----------------------------------------------------------------------------
 
 # Save reference structures of each protein as PDB file? (<out_path>/PDB_ref_monomers dir)
 save_ref_structures = True

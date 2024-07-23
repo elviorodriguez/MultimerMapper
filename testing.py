@@ -213,7 +213,7 @@ logger.debug(f"Dynamic interactions:\n{dynamic_interactions}")
 # Save reference monomers?
 if save_ref_structures:
 
-    logger.info("Saving PDB reference structures...")
+    logger.info("Saving PDB reference monomer structures...")
 
     from src.save_ref_pdbs import save_reference_pdbs
 
