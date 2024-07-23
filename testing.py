@@ -90,11 +90,11 @@ except FileNotFoundError:
 
 # Detect protein domains
 display_PAE_domains = True
-display_PAE_domains_inline = True
-auto_domain_detection = True
+# display_PAE_domains_inline = True
+auto_domain_detection = False
 graph_resolution_preset = None
 manual_domains = "tests/EAF6_EPL1_PHD1/manual_domains.tsv"
-manual_domains = None
+# manual_domains = None
 domains_df = detect_domains(sliced_PAE_and_pLDDTs, fasta_file, graph_resolution = graph_resolution,
                             auto_domain_detection = auto_domain_detection,
                             graph_resolution_preset = graph_resolution_preset, save_preset = save_preset,

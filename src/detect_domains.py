@@ -103,14 +103,14 @@ def reformat_clusters(domain_clusters: list):
     return [resid_list, clust_list]
 
 
-def plot_domains(protein_ID, matrix_data, positions, colors, custom_title = None,
-                 out_folder = 'domains', save_plot = True, show_plot = True):
+def plot_domains(protein_ID, matrix_data, positions, colors, custom_title=None, 
+                 out_folder='domains', save_plot=True, show_plot=True):
 
     # Define a diverging colormap for the matrix
     matrix_cmap = 'coolwarm'
 
-    # Define a custom colormap for the discrete integer values in clusters
-    cluster_cmap = ListedColormap(['red', 'green', 'blue', 'purple', 'yellow', 'orange', 'brown', 'pink', 'cyan', 'lime', 'gray', 'olive'])
+    # Define a common color list for the discrete integer values in clusters
+    DOMAIN_COLORS = ['red', 'green', 'blue', 'purple', 'yellow', 'orange', 'brown', 'pink', 'cyan', 'lime', 'gray', 'olive']
 
     # Create a figure and axis
     fig, ax = plt.subplots(figsize=(8, 8))
@@ -119,22 +119,20 @@ def plot_domains(protein_ID, matrix_data, positions, colors, custom_title = None
     cax = ax.matshow(matrix_data, cmap=matrix_cmap)
 
     # Add a colorbar for the matrix
-    # cbar = fig.colorbar(cax)
     fig.colorbar(cax)
 
-    # Normalize the cluster values to match the colormap range
-    norm = Normalize(vmin=min(colors), vmax=max(colors))
+    # Map the colors to the DOMAIN_COLORS list
+    mapped_colors = [DOMAIN_COLORS[color % len(DOMAIN_COLORS)] for color in colors]
 
-    # Scatter plot on top of the matrix with the custom colormap for clusters
-    # scatter = ax.scatter(positions, positions, c=colors, cmap=cluster_cmap, s=100, norm=norm)
-    ax.scatter(positions, positions, c=colors, cmap=cluster_cmap, s=100, norm=norm)
+    # Scatter plot on top of the matrix with the mapped colors
+    ax.scatter(positions, positions, c=mapped_colors, s=100)
 
     # Get unique cluster values
     unique_clusters = np.unique(colors)
 
-    # Create a legend by associating normalized cluster values with corresponding colors
+    # Create a legend by associating cluster values with corresponding colors
     legend_handles = [plt.Line2D([0], [0], marker='o', color='w',
-                                 markerfacecolor=cluster_cmap(norm(c)),
+                                 markerfacecolor=DOMAIN_COLORS[c % len(DOMAIN_COLORS)],
                                  markersize=10,
                                  label=f'Domain {c}') for c in unique_clusters]
 
@@ -146,24 +144,17 @@ def plot_domains(protein_ID, matrix_data, positions, colors, custom_title = None
     plt.ylabel('Positions')
     plt.title(f"{custom_title}")
 
-    if save_plot == True:
-        # Create a folder named "domains" if it doesn't exist
-        save_folder = out_folder
-        if not os.path.exists(save_folder):
-            os.makedirs(save_folder)
-    
-        # Save the plot
-        plt.savefig(os.path.join(save_folder, f"{protein_ID}_domains_plot.png"))
+    if save_plot:
+        if not os.path.exists(out_folder):
+            os.makedirs(out_folder)
+        plt.savefig(os.path.join(out_folder, f"{protein_ID}_domains_plot.png"))
 
-    # Show the plot
-    if show_plot: plt.show()
-    
-    if show_plot == False:
-      # Turn interactive mode back on to display plots later
+    if show_plot:
+        plt.show()
+    else:
         plt.close()
-        
-    return fig
 
+    return fig
 
 def combine_figures_and_plot(fig1, fig2, out_path: str = ".", protein_ID = None, save_png_file = False, show_image = False, show_inline = True):
     '''
@@ -281,13 +272,6 @@ def remove_loop_clusters(domain_clusters: list, logger: Logger | None = None):
         
         return converted_list
 
-    # max_val = 0
-    # for c_val in domain_clusters:
-    #     if c_val > max_val:
-    #         max_val = c_val
-    #     elif c_val < max_val:
-    #         logger
-    
     return convert_clusters(result)
 
 # For semi-auto domain defining
@@ -454,35 +438,13 @@ def convert_manual_domains_df_to_clusters(sliced_PAE_and_pLDDTs: dict, manual_do
         # Assign domains clusters and ref domain cluster using manual_domains_df
         protein_domains_df = manual_domains_df.loc[manual_domains_df['Protein_ID'] == protein_ID]
 
-        # a series of lists, where each list contains the indices of residues belonging to one cluster.
-        import sys
         sliced_PAE_and_pLDDTs[protein_ID]["domain_clusters"] = [ [int(domain_row["Domain"])] * int(domain_row["End"] - domain_row["Start"] + 1) for i, domain_row in protein_domains_df.iterrows()]
-        logger.debug("domain_clusters:")
-        logger.debug(sliced_PAE_and_pLDDTs[protein_ID]["domain_clusters"])
-
         positions = list(range(0, sliced_PAE_and_pLDDTs[protein_ID]["length"]))
-        logger.debug("positions:")
-        logger.debug(positions)
-
         domain_clusters = [item for sublist in sliced_PAE_and_pLDDTs[protein_ID]["domain_clusters"] for item in sublist]
-        logger.debug("domain_clusters:")
-        logger.debug(domain_clusters)
-
         no_loops_domain_clusters = remove_loop_clusters(domain_clusters, logger)
-        logger.debug("no_loops_domain_clusters:")
-        logger.debug(no_loops_domain_clusters)
-
         sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"] = [positions, domain_clusters]
-        logger.debug("ref_domain_clusters[0]:")
-        logger.debug(sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"][0])
-        logger.debug("ref_domain_clusters[1]:")
-        logger.debug(sliced_PAE_and_pLDDTs[protein_ID]["ref_domain_clusters"][1])
-
         sliced_PAE_and_pLDDTs[protein_ID]["no_loops_domain_clusters"] = [positions, tuple(no_loops_domain_clusters)]
-        logger.debug("no_loops_domain_clusters[0]:")
-        logger.debug(sliced_PAE_and_pLDDTs[protein_ID]["no_loops_domain_clusters"][0])
-        logger.debug("no_loops_domain_clusters[1]:")
-        logger.debug(sliced_PAE_and_pLDDTs[protein_ID]["no_loops_domain_clusters"][1])
+        
 
 # Working function
 def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: str,
@@ -585,8 +547,8 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
         
             # Compute it with a resolution on 0.5
             domain_clusters = domains_from_pae_matrix_igraph(
-                sliced_PAE_and_pLDDTs[protein_ID]['best_PAE_matrix'],
-                pae_power, pae_cutoff, graph_resolution, logger = logger)
+                                sliced_PAE_and_pLDDTs[protein_ID]['best_PAE_matrix'],
+                                pae_power, pae_cutoff, graph_resolution, logger = logger)
             
             # Save on dictionary
             sliced_PAE_and_pLDDTs[protein_ID]["domain_clusters"] = sorted(domain_clusters)
@@ -606,8 +568,8 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
             
             # plot before loop removal
             plot_before = plot_domains(protein_ID, matrix_data, positions, domain_clusters,
-                         custom_title = "Before Loop Removal", out_folder= "domains_no_modification",
-                         save_plot = False, show_plot = False)
+                            custom_title = "Before Loop Removal", out_folder = None,
+                            save_plot = False, show_plot = False)
         
             
      ######## Convert clusters of loops into the wrapper cluster domain and replot
@@ -622,12 +584,12 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
             
             # Plot after loop removal
             plot_after = plot_domains(protein_ID, matrix_data, positions, no_loops_domain_clusters,
-                         custom_title = "After Loop Removal", out_folder= "domains_no_loops",
+                         custom_title = "After Loop Removal", out_folder = None,
                          save_plot = False, show_plot = False)
             
             
             # If the dataset was already converted to domains
-            if graph_resolution_preset != None:
+            if graph_resolution_preset is not None:
                 you_like = True
                 
             # If you want to do semi-auto domain detection
@@ -639,7 +601,7 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
                 
                 # Plot the protein
                 plot_backbone(protein_chain = sliced_PAE_and_pLDDTs[protein_ID]["PDB_xyz"],
-                              domains = sliced_PAE_and_pLDDTs[protein_ID]["no_loops_domain_clusters"][1],
+                              domains = no_loops_domain_clusters,
                               protein_ID = protein_ID, show_structure = show_structure, save_html = save_html,
                               out_path = out_path)
                 
