@@ -25,7 +25,7 @@ This part extracts the PAE values and pLDDT values for each protein (ID) and
 each model from the corresponding JSON files with AF2 prediction metrics. Then,
 computes several metrics for the sub-PAE and sub-pLDDT (the extracted part) and
 selects the best PAE matrix to be latter used as input for domain detection.
-The best sub-PAE matrix is the one comming from the model with the lowest mean
+The best sub-PAE matrix is the one coming from the model with the lowest mean
 sub-pLDDT.
 '''
 
@@ -36,7 +36,7 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
     each model matching the corresponding JSON files with AF2 prediction metrics. Then,
     computes several metrics for the sub-PAE and sub-pLDDT (the extracted part) and
     selects the best PAE matrix to be used later as input for domain detection.
-    The best sub-PAE matrix is the one comming from the model with the lowest mean
+    The best sub-PAE matrix is the one coming from the model with the lowest mean
     sub-pLDDT.
     
     Returns 
@@ -68,7 +68,7 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
     total_models = len(all_pdb_data.keys())
     current_model = 0
     
-    # Iterate over the predicion directories where JSON files are located
+    # Iterate over the prediction directories where JSON files are located
     for model_folder in all_pdb_data.keys():
         
         # Progress
@@ -78,7 +78,7 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
         # Empty lists to store chains info
         chain_IDs = []
         chain_sequences = []
-        chain_lenghts = []
+        chain_lengths = []
         chain_cumulative_lengths = []
         chain_names = []
         chain_PAE_matrix = []
@@ -91,12 +91,12 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
         for chain_ID in sorted(all_pdb_data[model_folder].keys()):
             chain_IDs.append(chain_ID)
             chain_sequences.append(all_pdb_data[model_folder][chain_ID]["sequence"])
-            chain_lenghts.append(all_pdb_data[model_folder][chain_ID]["length"])
+            chain_lengths.append(all_pdb_data[model_folder][chain_ID]["length"])
             chain_names.append(all_pdb_data[model_folder][chain_ID]["protein_ID"])
             
-        # Compute the cummulative lengths to slice the pLDDT and PAE matrix
-        # also, add 0 as start cummulative summ
-        chain_cumulative_lengths = np.insert(np.cumsum(chain_lenghts), 0, 0)
+        # Compute the cumulative lengths to slice the pLDDT and PAE matrix
+        # also, add 0 as start cumulative sum
+        chain_cumulative_lengths = np.insert(np.cumsum(chain_lengths), 0, 0)
         
         # Add as many empty list as chains in the PDB file
         chain_PAE_matrix.extend([] for _ in range(len(chain_IDs)))
@@ -162,7 +162,7 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
             if protein_id not in sliced_PAE_and_pLDDTs.keys():
                 sliced_PAE_and_pLDDTs[protein_id] = {
                     "sequence": chain_sequences[i],
-                    "length": chain_lenghts[i],
+                    "length": chain_lengths[i],
                     "PDB_file": [],
                     "PDB_xyz": [],
                     "pLDDTs": [],
@@ -187,23 +187,23 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
         logger.info(f"Computing metrics for: {protein_ID}")
         
         # Initialize list to store metrics
-        PAE_matrix_summs = []
+        PAE_matrix_sums = []
         pLDDTs_means = []
         
-        # Itrate over every extracted PAE/pLDDT
+        # Iterate over every extracted PAE/pLDDT
         for i in range(len(sliced_PAE_and_pLDDTs[protein_ID]['PAE_matrices'])):
             # Compute the desired metrics
-            PAE_summ = np.sum(sliced_PAE_and_pLDDTs[protein_ID]['PAE_matrices'][i])
+            PAE_sum = np.sum(sliced_PAE_and_pLDDTs[protein_ID]['PAE_matrices'][i])
             pLDDT_average = np.mean(sliced_PAE_and_pLDDTs[protein_ID]['pLDDTs'][i])
             
             # Append them to the lists
-            PAE_matrix_summs.append(PAE_summ)
+            PAE_matrix_sums.append(PAE_sum)
             pLDDTs_means.append(pLDDT_average)
             
             
         # Find the index of the minimum and max value for the PAE summ
-        min_PAE_index = PAE_matrix_summs.index(min(PAE_matrix_summs)) # Best matrix
-        max_PAE_index = PAE_matrix_summs.index(max(PAE_matrix_summs)) # Worst matrix
+        min_PAE_index = PAE_matrix_sums.index(min(PAE_matrix_sums)) # Best matrix
+        max_PAE_index = PAE_matrix_sums.index(max(PAE_matrix_sums)) # Worst matrix
         
         # Find the index of the minimum and max value for the pLDDTs means
         min_mean_pLDDT_index = pLDDTs_means.index(min(pLDDTs_means)) # Worst pLDDT
@@ -266,7 +266,7 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
         plt.clf()  # or plt.close(fig)
         plt.close(fig)
         
-        # Best PAE: MAX average pLDDT (we save it in necesary format for downstream analysis)
+        # Best PAE: MAX average pLDDT (we save it in necessary format for downstream analysis)
         sliced_PAE_and_pLDDTs[protein_ID]["best_PAE_matrix"] = np.array(max_pLDDT_array, dtype=np.float64)
     
     # # Turn interactive mode back on to display plots later

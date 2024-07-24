@@ -506,7 +506,7 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
     use_manual = False
     if manual_domains is not None:
         use_manual = True
-        logger.info(f"Domain asigned manually using manual_domains file: {manual_domains}")
+        logger.info(f"Domain assigned manually using manual_domains file: {manual_domains}")
         manual_domains_df = pd.read_csv(manual_domains, sep='\t')
         convert_manual_domains_df_to_clusters(sliced_PAE_and_pLDDTs, manual_domains_df, logger)
 

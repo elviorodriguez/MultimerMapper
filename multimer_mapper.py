@@ -17,7 +17,7 @@ def parse_AF2_and_sequences(
     fasta_file: str, AF2_2mers: str,
     AF2_Nmers: str | None = None,
     out_path: str | None = None,
-    manual_domains: str | None = manual_domains,
+    manual_domains: str | None = None,
     
     # Options imported from cfg.default_settings
     use_names = use_names,
@@ -346,13 +346,16 @@ if __name__ == "__main__":
     AF2_Nmers = args.AF2_Nmers
     out_path = args.out_path
     overwrite = args.overwrite
+    manual_domains = args.manual_domains
     
     # --------------------------------------------------------------------------
     # --------------------------- Pipeline execution ---------------------------
     # --------------------------------------------------------------------------
 
     # Run the main MultimerMapper pipeline
-    multimer_mapper_output = parse_AF2_and_sequences(fasta_file, AF2_2mers, AF2_Nmers, out_path, use_names, overwrite = overwrite)
+    multimer_mapper_output = parse_AF2_and_sequences(fasta_file, AF2_2mers, AF2_Nmers, out_path,
+                                                     manual_domains = manual_domains,
+                                                     use_names = use_names, overwrite = overwrite)
 
     combined_graph_interactive = interactive_igraph_to_plotly(multimer_mapper_output["combined_graph"], out_path = out_path)
     

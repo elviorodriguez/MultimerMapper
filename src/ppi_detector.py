@@ -17,8 +17,10 @@ import pandas as pd
 # Get PPI from 2-mers dataset -------------------------------------------------
 # -----------------------------------------------------------------------------
 
-def filter_non_int_2mers_df(pairwise_2mers_df, min_PAE_cutoff: float | int = 4.5,
-                             ipTM_cutoff: float | int = 0.4, N_models_cutoff: int = 3):
+def filter_non_int_2mers_df(pairwise_2mers_df: pd.DataFrame,
+                            min_PAE_cutoff: float | int = 4.5,
+                            ipTM_cutoff: float | int = 0.4,
+                            N_models_cutoff: int = 3):
     '''
     This part searches for pairwise interactions inside each combination and
     filters out those combinations that do not have fully connected networks
@@ -76,11 +78,12 @@ def filter_non_int_2mers_df(pairwise_2mers_df, min_PAE_cutoff: float | int = 4.5
 # Get PPI from N-mers dataset -------------------------------------------------
 # -----------------------------------------------------------------------------
 
-def filter_non_int_Nmers_df(pairwise_Nmers_df,
-                             min_PAE_cutoff_Nmers = 4.5,
-                             # As ipTM lose sense in N-mers data, we us pDockQ values instead
-                             pDockQ_cutoff_Nmers = 0.15,
-                             N_models_cutoff = 3, is_debug = False):
+def filter_non_int_Nmers_df(pairwise_Nmers_df: pd.DataFrame,
+                            min_PAE_cutoff_Nmers: float | int = 4.5,
+                            # As ipTM lose sense in N-mers data, we us pDockQ values instead
+                            pDockQ_cutoff_Nmers: float | int = 0.15,
+                            N_models_cutoff: int = 3,
+                            is_debug: bool = False):
     
     # Pre-process N-mers pairwise interactions to count how many models surpass cutoff
     pairwise_Nmers_df_F1 = (pairwise_Nmers_df
