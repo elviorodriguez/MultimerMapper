@@ -1,4 +1,6 @@
 
+import os
+
 from cfg.default_settings import *
 from utils.logger_setup import configure_logger
 from src.input_check import seq_input_from_fasta, extract_seqs_from_AF2_PDBs, merge_fasta_with_PDB_data
@@ -6,12 +8,13 @@ from src.metrics_extractor import extract_AF2_metrics_from_JSON, generate_pairwi
 from src.detect_domains import detect_domains
 from src.ppi_detector import filter_non_int_2mers_df, filter_non_int_Nmers_df
 from src.ppi_graphs import generate_2mers_graph, generate_Nmers_graph, generate_combined_graph, igraph_to_plotly
+from utils.temp_files_manager import setup_temp_file
 
 # Main MultimerMapper pipeline
 def parse_AF2_and_sequences(
     
     # Input
-    fasta_file: str, AF2_2mers: str, AF2_Nmers: str, out_path: str,
+    fasta_file: str, AF2_2mers: str, AF2_Nmers: str | None = None, out_path: str | None = None,
     
     # Options imported from cfg.default_settings
     use_names = use_names,
@@ -47,10 +50,22 @@ def parse_AF2_and_sequences(
     log_level: str = log_level, overwrite = overwrite):
 
     # --------------------------------------------------------------------------
-    # ------------------------ Initialize the logger ---------------------------
+    # -------------- Initialize the logger and initial setup -------------------
     # --------------------------------------------------------------------------
     
     logger = configure_logger(out_path, log_level = log_level)
+
+    # Create a tmp empty dir that erase itself when the program exits
+    if AF2_Nmers is None:
+        from utils.temp_files_manager import setup_temp_dir
+        AF2_Nmers = setup_temp_dir(logger)
+
+    # The default out_path will contain the basename of the fasta file
+    if out_path is None:
+        out_path = default_out_path + str(os.path.splitext(os.path.basename(fasta_file))[0])
+
+    # Sometimes plotly leaves a tmp HTML file. This removes it at the end of the execution
+    setup_temp_file(logger = logger, file_path= 'temp-plot.html')
     
     # --------------------------------------------------------------------------
     # -------------------- Input verification and merging ----------------------
@@ -300,10 +315,10 @@ if __name__ == "__main__":
     parser.add_argument('AF2_2mers', type = str,
         help='Path to the directory containing AF2 2mers PDB files')
     
-    parser.add_argument('AF2_Nmers', type = str, 
-        help='Path to the directory containing AF2 Nmers PDB files (optional: pass an empty directory)')
+    parser.add_argument('--AF2_Nmers', type = str, default = None,
+        help='Path to the directory containing AF2 Nmers PDB files')
     
-    parser.add_argument('out_path', type = str,
+    parser.add_argument('--out_path', type = str, default = None,
         help='Output directory to store results')
     
     parser.add_argument('--use_names', action='store_true',

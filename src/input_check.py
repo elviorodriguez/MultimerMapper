@@ -223,14 +223,14 @@ def merge_fasta_with_PDB_data(all_pdb_data: dict, prot_IDs: list, prot_names: li
                     # Add protein_ID to the existing dictionary
                     data["protein_ID"] = prot_IDs[i]
 
-    print("")
+    logger.info("")
     for i in range(prot_N):
         logger.info(f"Protein number: {i+1}")
         logger.info(f"    ID      : {prot_IDs[i]}")
         logger.info(f"    Name    : {prot_names[i]}")
         logger.info(f"    Seq     : {prot_seqs[i]}")
         logger.info(f"    L       : {prot_lens[i]}")
-    print("")
+    logger.info("")
 
 # -----------------------------------------------------------------------------
 # Main ------------------------------------------------------------------------

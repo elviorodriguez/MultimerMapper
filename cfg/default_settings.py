@@ -1,13 +1,18 @@
 
+import time
+
 # For using names as node labels (if false, IDs will be used)
 use_names: bool = True
 
-# For overwritting everything in output folder
+# For overwriting everything in output folder
 overwrite: bool = False
 
 # Logging level ("notset", "debug", "info", "warn", "error", "critical")
 # Increase it to "warn", "error" or "critical" to reduce verbosity
-log_level = "info"
+log_level = "debug"
+
+# If you do not provide an out_path
+default_out_path = "MM_output_"
 
 # ----------------------------------------------------------------------------
 # --------------------------- For metric extraction  -------------------------

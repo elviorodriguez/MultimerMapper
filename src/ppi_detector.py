@@ -88,7 +88,7 @@ def filter_non_int_Nmers_df(pairwise_Nmers_df,
         # Unify the values on pDockQ and min_PAE the N-mer models with homooligomers
         .groupby(["protein1", "protein2", "proteins_in_model", "rank"])
         .agg({
-            'min_PAE': 'min',   # keep only the minumum value of min_PAE
+            'min_PAE': 'min',   # keep only the minimum value of min_PAE
             'pDockQ': 'max'     # keep only the maximum value of pDockQ
         })
         .reset_index())

@@ -475,9 +475,9 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
         logger = configure_logger()
 
     # Progress
-    print("")
+    logger.info("")
     logger.info("INITIALIZING: (Semi)Automatic domain detection algorithm...")
-    print("")
+    logger.info("")
     
     # If you want to save the domains definitions as a preset, this will be saved as JSON
     if save_preset: graph_resolution_for_preset = {}

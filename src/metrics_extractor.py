@@ -176,14 +176,14 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
             sliced_PAE_and_pLDDTs[protein_id]["PDB_xyz"].extend(PDB_xyz[i])
         
         current_model += 1
-        print("")
+        logger.info("")
         logger.info(print_progress_bar(current_model, total_models, text = " (JSON extraction)", progress_length = 40))
     
     # Compute PAE matrix metrics
     for protein_ID in sliced_PAE_and_pLDDTs.keys():
         
         # Progress
-        print("")
+        logger.info("")
         logger.info(f"Computing metrics for: {protein_ID}")
         
         # Initialize list to store metrics
@@ -305,17 +305,17 @@ def generate_pairwise_2mers_df(all_pdb_data: dict, out_path: str = ".", save_pai
         if len(all_pdb_data[model_folder]) == 2:
             
             # Progress
-            print("")
+            logger.info("")
             logger.info(f"Extracting ipTMs from: {model_folder}")
             
-            # print(all_pdb_data[model_folder])
+            # Get length and ID
             len_A = all_pdb_data[model_folder]['A']['length']
             len_B = all_pdb_data[model_folder]['B']['length']
             len_AB = len_A + len_B
             protein_ID1 = all_pdb_data[model_folder]['A']['protein_ID']
             protein_ID2 = all_pdb_data[model_folder]['B']['protein_ID']
             
-            # ----------- Debug -----------
+            # --------- Progress ----------
             logger.info(f"Length A: {len_A}")
             logger.info(f"Length B: {len_B}")
             logger.info(f"Length A+B: {len_AB}")
@@ -407,7 +407,7 @@ def generate_pairwise_2mers_df(all_pdb_data: dict, out_path: str = ".", save_pai
         
             # For progress bar
             current_model += 1
-            print("")
+            logger.info("")
             logger.info(print_progress_bar(current_model, total_models, text = " (2-mers metrics)"))
     
     if save_pairwise_data:
@@ -561,7 +561,7 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, out_path: str = ".", save_pai
                     logger.debug(f"   - Pair {p}: {pair}")
             
             # Progress
-            print("")
+            logger.info("")
             logger.info(f"Extracting N-mer metrics from: {model_folder}")
             
             # Initialize a sub-dicts to store values later
@@ -672,7 +672,7 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, out_path: str = ".", save_pai
         
             # For progress bar
             current_model += 1
-            print("")
+            logger.info("")
             logger.info(print_progress_bar(current_model, total_models, text = " (N-mers metrics)"))
         
     # Convert proteins_in_model column lists to tuples (lists are not hashable and cause some problems)
