@@ -1,5 +1,5 @@
 #################################################################################
-################ Python file for debuging MultimerMapper ########################
+################ Python file for debugging MultimerMapper ########################
 #################################################################################
 
 import os
@@ -11,7 +11,7 @@ from src.input_check import seq_input_from_fasta, extract_seqs_from_AF2_PDBs, me
 from src.metrics_extractor import extract_AF2_metrics_from_JSON, generate_pairwise_2mers_df, generate_pairwise_Nmers_df
 from src.detect_domains import detect_domains
 from src.ppi_detector import filter_non_int_2mers_df, filter_non_int_Nmers_df
-from src.ppi_graphs import generate_2mers_graph, generate_Nmers_graph, generate_combined_graph
+from src.ppi_graphs import generate_2mers_graph, generate_Nmers_graph, generate_combined_graph, igraph_to_plotly
 
 
 # Input/Output
@@ -221,6 +221,45 @@ if save_ref_structures:
                         out_path = out_path,
                         overwrite = overwrite)
 
+# Convert combined PPI graph to interactive plotly
+save_html = out_path + "/2D_graph.html"
+while True:
+
+    combined_graph_interactive = igraph_to_plotly(
+
+        # Input
+        graph = combined_graph, layout = None,
+
+        # Aspect of homooligomerization edges
+        self_loop_orientation = self_loop_orientation,
+        self_loop_size = self_loop_size,
+
+        # Keep background axis and grid? (not recommended)
+        show_axis = show_axis, showgrid = showgrid,
+        
+        # Set protein names as bold?
+        use_bold_protein_names = use_bold_protein_names,
+
+        # Domain RMSDs bigger than this value will be highlighted in bold in the nodes hovertext
+        add_bold_RMSD_cutoff = 5,
+
+        # Save the plot as HTML to specific file
+        save_html = save_html, 
+
+        # Add cutoff values to the legends?
+        add_cutoff_legend = add_cutoff_legend)
+    
+    logger.info('Default layout generation algorithm is Fruchterman-Reingold ("fr")')
+    logger.info('This algorithm is stochastic. Try several layouts and save the one you like.')
+    user_input = input("Do you like the plot? (y/n): ").strip().lower()
+    
+    if user_input == 'y':
+        logger.info("Great! Enjoy your interactive PPI graph.")
+        break
+    elif user_input == 'n':
+        logger.info("Generating a new PPI graph layout and graph...")
+    else:
+        logger.info("Invalid input. Please enter 'y' or 'n'.")
 
 
 ############  IMPORTS from main module ###########
@@ -229,7 +268,7 @@ if save_ref_structures:
 # from Bio.SeqUtils import seq1
 # from Bio.PDB.Polypeptide import protein_letters_3to1
 # import igraph
-# import plotly.graph_objects as go           # For plotly ploting
+# import plotly.graph_objects as go           # For plotly plotting
 # from plotly.offline import plot             # To allow displaying plots
 # from src.detect_domains import detect_domains, plot_backbone
 

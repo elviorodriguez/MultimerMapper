@@ -5,7 +5,7 @@ from src.input_check import seq_input_from_fasta, extract_seqs_from_AF2_PDBs, me
 from src.metrics_extractor import extract_AF2_metrics_from_JSON, generate_pairwise_2mers_df, generate_pairwise_Nmers_df
 from src.detect_domains import detect_domains
 from src.ppi_detector import filter_non_int_2mers_df, filter_non_int_Nmers_df
-from src.ppi_graphs import generate_2mers_graph, generate_Nmers_graph, generate_combined_graph
+from src.ppi_graphs import generate_2mers_graph, generate_Nmers_graph, generate_combined_graph, igraph_to_plotly
 
 # Main MultimerMapper pipeline
 def parse_AF2_and_sequences(
@@ -20,7 +20,7 @@ def parse_AF2_and_sequences(
     save_PAE_png = save_PAE_png, save_ref_structures = save_ref_structures,
     display_PAE_domains = display_PAE_domains, show_monomer_structures = show_monomer_structures,
     display_PAE_domains_inline = display_PAE_domains_inline, save_domains_html = save_domains_html,
-      save_domains_tsv = save_domains_tsv,
+    save_domains_tsv = save_domains_tsv,
 
     # 2-mers cutoffs
     min_PAE_cutoff_2mers = min_PAE_cutoff_2mers, ipTM_cutoff_2mers = ipTM_cutoff_2mers,
@@ -44,7 +44,7 @@ def parse_AF2_and_sequences(
     remove_indirect_interactions = remove_indirect_interactions,
     
     # Set it to "error" to reduce verbosity
-    log_level: str = log_level):
+    log_level: str = log_level, overwrite = overwrite):
 
     # --------------------------------------------------------------------------
     # ------------------------ Initialize the logger ---------------------------
@@ -204,6 +204,77 @@ def parse_AF2_and_sequences(
         save_reference_pdbs(sliced_PAE_and_pLDDTs = sliced_PAE_and_pLDDTs,
                             out_path = out_path,
                             overwrite = overwrite)
+        
+    multimer_mapper_output = {
+        "prot_IDs": prot_IDs,
+        "prot_names": prot_names,
+        "prot_seqs": prot_seqs,
+        "prot_lens": prot_lens,
+        "prot_N": prot_N,
+        "all_pdb_data": all_pdb_data,
+        "domains_df": domains_df,
+        "pairwise_2mers_df": pairwise_2mers_df,
+        "pairwise_Nmers_df": pairwise_Nmers_df,
+        "pairwise_2mers_df_F3": pairwise_2mers_df_F3,
+        "pairwise_Nmers_df_F3": pairwise_Nmers_df_F3,
+        "unique_2mers_proteins": unique_2mers_proteins,
+        "unique_Nmers_proteins": unique_Nmers_proteins,
+        "graph_2mers": graph_2mers,
+        "graph_Nmers": graph_Nmers,
+        "combined_graph": combined_graph,
+        "dynamic_proteins": dynamic_proteins,
+        "dynamic_interactions": dynamic_interactions
+    }
+
+    return multimer_mapper_output
+
+
+def interactive_igraph_to_plotly(combined_graph, out_path: str, log_level = "info"):
+
+    # Initialize the logger
+    logger = configure_logger(out_path, log_level = log_level)
+
+    # Convert combined PPI graph to interactive plotly
+    save_html = out_path + "/2D_graph.html"
+    while True:
+
+        combined_graph_interactive = igraph_to_plotly(
+
+            # Input
+            graph = combined_graph, layout = None,
+
+            # Aspect of homooligomerization edges
+            self_loop_orientation = self_loop_orientation,
+            self_loop_size = self_loop_size,
+
+            # Keep background axis and grid? (not recommended)
+            show_axis = show_axis, showgrid = showgrid,
+            
+            # Set protein names as bold?
+            use_bold_protein_names = use_bold_protein_names,
+
+            # Domain RMSDs bigger than this value will be highlighted in bold in the nodes hovertext
+            add_bold_RMSD_cutoff = 5,
+
+            # Save the plot as HTML to specific file
+            save_html = save_html, 
+
+            # Add cutoff values to the legends?
+            add_cutoff_legend = add_cutoff_legend)
+        
+        logger.info('Default layout generation algorithm is Fruchterman-Reingold ("fr")')
+        logger.info('This algorithm is stochastic. Try several layouts and save the one you like.')
+        user_input = input("Do you like the plot? (y/n): ").strip().lower()
+        
+        if user_input == 'y':
+            logger.info("Great! Enjoy your interactive PPI graph.")
+            break
+        elif user_input == 'n':
+            logger.info("Generating a new PPI graph layout and graph...")
+        else:
+            logger.info("Invalid input. Please enter 'y' or 'n'.")
+
+    return combined_graph_interactive
 
 
 ###############################################################################
@@ -238,6 +309,9 @@ if __name__ == "__main__":
     parser.add_argument('--use_names', action='store_true',
         help='Use protein names instead of IDs')
     
+    parser.add_argument('--overwrite', action='store_true',
+        help='Overwrite existent folder')
+    
     # --------------------------------------------------------------------------
     # --------------------- Command line arguments parsing ---------------------
     # ------------------------------------------------------------------------
@@ -251,10 +325,14 @@ if __name__ == "__main__":
     AF2_2mers = args.AF2_2mers
     AF2_Nmers = args.AF2_Nmers
     out_path = args.out_path
-
-
+    overwrite = args.overwrite
+    
     # --------------------------------------------------------------------------
     # --------------------------- Pipeline execution ---------------------------
     # --------------------------------------------------------------------------
 
-    parse_AF2_and_sequences(fasta_file, AF2_2mers, AF2_Nmers, out_path, use_names)
+    # Run the main MultimerMapper pipeline
+    multimer_mapper_output = parse_AF2_and_sequences(fasta_file, AF2_2mers, AF2_Nmers, out_path, use_names, overwrite = overwrite)
+
+    combined_graph_interactive = interactive_igraph_to_plotly(multimer_mapper_output["combined_graph"], out_path = out_path)
+    

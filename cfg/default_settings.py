@@ -84,7 +84,7 @@ trimming_RMSD_plddt_cutoff = 70
 
 
 # ----------------------------------------------------------------------------
-# -------------------------- For PPI classification --------------------------
+# ------------- For PPI classification and interactive PPI graph -------------
 # ----------------------------------------------------------------------------
 
 # Standard pDockQ value from Bryant et al (Nature 2022)
@@ -126,9 +126,29 @@ vertex_color_both=PT_palette["gray"]    #
 # Remove indirect interactions from combined graph? (mediated by a 3rd protein)
 remove_indirect_interactions = True
 
+# For homooligomerization edges (self-loops) ---------------------------------
+# 0: no change, 0.25: quarter turn, 0.5: half turn, 0.75: three quarters turn
+self_loop_orientation: float = 0.25
+self_loop_size: float = 3           # Size of the homooligomerization edge circle
+
+# Remove background and set protein names as bold
+show_axis = False
+showgrid = False
+use_bold_protein_names = True
+
+# Domain RMSDs bigger than this value will be highlighted in bold in the nodes hovertext
+add_bold_RMSD_cutoff = 5
+
+# You can save the plot as HTML to share it, for example, with yourself via whatsapp and analyze it
+# using your cellphone' browser
+save_html = "2D_PPI_graph.html"
+
+# Add cutoffs labels to keep track cutoffs values that generated the graph
+# Highly recommended if you are experimenting with cutoffs in other organisms
+add_cutoff_legend = False
 
 # ----------------------------------------------------------------------------
-# -------------------------- For coorinate analysis --------------------------
+# ------------------------- For coordinate analysis --------------------------
 # ----------------------------------------------------------------------------
 
 # Save reference structures of each protein as PDB file? (<out_path>/PDB_ref_monomers dir)

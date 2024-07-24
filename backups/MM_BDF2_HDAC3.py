@@ -193,7 +193,7 @@ combined_graph_interactive = MM.igraph_to_plotly(combined_graph, combined_graph_
                             self_loop_orientation = 0.25, self_loop_size=3,
                             # Remove background and set protein names as bold
                             show_axis= False, showgrid= False, use_bold_protein_names= True,
-                            # Domain RMSDs bigger than this value will be highligthed in bold in the nodes hovertext
+                            # Domain RMSDs bigger than this value will be highlighted in bold in the nodes hovertext
                             add_bold_RMSD_cutoff = 5,
                             # # You can save the plot as HTML to share it, for example, with yourself via whatsapp and analyze it
                             # # using your cellphone' browser

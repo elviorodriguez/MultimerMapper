@@ -871,9 +871,11 @@ def generate_combined_graph(
 # -----------------------------------------------------------------------------
 
 # Generate a layout (using only static edges)
-def generate_layout_for_combined_graph(combined_graph, edge_attribute_value=['Static interaction', 'Ambiguous Dynamic (In some N-mers appear and in others disappear)'],
-                                       vertex_attribute_value='Dynamic protein (disappears in N-mers)',
-                                       layout_algorithm="fr"):
+def generate_layout_for_combined_graph(
+        combined_graph,
+        edge_attribute_value = ['Static interaction', 'Ambiguous Dynamic (In some N-mers appear and in others disappear)'],
+        vertex_attribute_value = 'Dynamic protein (disappears in N-mers)',
+        layout_algorithm = "fr"):
     """
     Generate a layout for a combined graph based on specified edge and vertex attributes.
     
@@ -908,16 +910,37 @@ def generate_layout_for_combined_graph(combined_graph, edge_attribute_value=['St
     return layout
 
 # Convert igraph graph to interactive plotly plot
-def igraph_to_plotly(graph, layout = None, save_html = None,
-                     # Edges visualization
-                     edge_width = 2, self_loop_orientation = 0, self_loop_size = 2.5, use_dot_dynamic_edges = True, 
-                     # Nodes visualization
-                     node_border_color = "black", node_border_width = 1, node_size = 4.5, node_names_fontsize = 12,
-                     use_bold_protein_names = True, add_bold_RMSD_cutoff = 5, add_RMSD = True,
-                     # General visualization options
-                     hovertext_size = 12, showlegend=True, showgrid = False, show_axis = False,
-                     margin=dict(l=0, r=0, b=0, t=0), legend_position = dict(x=1.02, y=0.5),
-                     plot_graph = True, plot_bgcolor='rgba(0, 0, 0, 0)', add_cutoff_legend = True):
+def igraph_to_plotly(
+        
+        # Inputs
+        graph: igraph.Graph,
+        layout: igraph.Layout | str | None = "fr",
+        save_html: str | None = None,
+        
+        # Edges visualization
+        edge_width: int = 2, self_loop_orientation: float = 0, self_loop_size: float | int = 2.5,
+        use_dot_dynamic_edges: bool = True, 
+        
+        # Nodes visualization
+        node_border_color: str = "black",
+        node_border_width: int = 1,
+        node_size: float | int = 4.5,
+        node_names_fontsize: int = 12,
+        use_bold_protein_names: bool = True,
+        add_bold_RMSD_cutoff: int | float = 5,
+        add_RMSD: bool = True,
+        
+        # General visualization options
+        hovertext_size: int = 12,
+        showlegend: bool = True,
+        showgrid: bool = False,
+        show_axis: bool = False,
+        margin: dict = dict(l=0, r=0, b=0, t=0),
+        legend_position: dict = dict(x=1.02, y=0.5),
+        plot_graph: bool = True,
+        plot_bgcolor = 'rgba(0, 0, 0, 0)',
+        add_cutoff_legend: bool = True):
+    
     """
     Convert an igraph.Graph to an interactive Plotly plot. Used to visualize combined_graph.
     
@@ -928,20 +951,20 @@ def igraph_to_plotly(graph, layout = None, save_html = None,
         if str, a layout with layout algorithm will be created (eg: "kk" or "fr")
     - save_html (str): path to html file to be created.
     - edge_width (float): thickness of edges lines.
-    - self_loop_orientation (float): rotates self-loop edges arround the corresponding vertex (0.25 a quarter turn, 0.5 half, etc).
+    - self_loop_orientation (float): rotates self-loop edges around the corresponding vertex (0.25 a quarter turn, 0.5 half, etc).
     - self_loop_size (float): self-loops circumferences size.
     - node_border_color (str): color for nodes borders (default = "black")
-    - node_border_width (float): width of nodes borders (set to 0 to make them disapear)
+    - node_border_width (float): width of nodes borders (set to 0 to make them disappear)
     - node_size (float): size of nodes (vertices).
     - node_names_fontsize: size of protein names.
     - use_bold_protein_names (bool): display protein names in nodes as bold?
-    - add_bold_RMSD_cutoff (float): cutoff value to highligth high RMSD domains in bold. To remove this option, set it to None.
+    - add_bold_RMSD_cutoff (float): cutoff value to highlight high RMSD domains in bold. To remove this option, set it to None.
     - add_RMSD (bool): add domain RMSD information in nodes hovertext?
     - hovertext_size (float): font size of hovertext.
     - showlegend (bool): display the legend?
     - showgrid (bool): display background grid?
     - showaxis (bool): display x and y axis?
-    - margin (dict): left (l), rigth (r), bottom (b) and top (t) margins sizes. Default: dict(l=0, r=0, b=0, t=0).
+    - margin (dict): left (l), right (r), bottom (b) and top (t) margins sizes. Default: dict(l=0, r=0, b=0, t=0).
     - legend_position (dict): x and y positions of the legend. Default: dict(x=1.02, y=0.5)
     - plot_graph (bool): display the plot in your browser?
     
@@ -1118,12 +1141,12 @@ def igraph_to_plotly(graph, layout = None, save_html = None,
                 RMSD_dfs[DF] = nodes_df["RMSD_df"][DF].drop(columns="RMSD")
                 RMSD_dfs[DF]['<b></b>RMSD'] = RMSD_data
         
-        # Modify the hovertex to contain domains and RMSD values
+        # Modify the hovertext to contain domains and RMSD values
         nodes_hovertext = [
             hovertext +
             "<br><br>-------- Reference structure domains --------<br>" +
             domain_data.to_string(index=False).replace('\n', '<br>')+
-            "<br><br>-------- Domain RMSD agains highest pLDDT structure --------<br>" +
+            "<br><br>-------- Domain RMSD against highest pLDDT structure --------<br>" +
             RMSD_data.to_string(index=False).replace('\n', '<br>') +
             f'<br><br>*Domains with mean pLDDT < {graph["cutoffs_dict"]["domain_RMSD_plddt_cutoff"]} (disordered) were not used for RMSD calculations.<br>'+
             f'**Only residues with pLDDT > {graph["cutoffs_dict"]["trimming_RMSD_plddt_cutoff"]} were considered for RMSD calculations.'
@@ -1214,6 +1237,7 @@ def igraph_to_plotly(graph, layout = None, save_html = None,
     if plot_graph: plot(fig)
     
     # Save the plot?
-    if save_html != None: fig.write_html(save_html)
+    if save_html is not None:
+        fig.write_html(save_html)
     
     return fig
