@@ -14,7 +14,10 @@ from utils.temp_files_manager import setup_temp_file
 def parse_AF2_and_sequences(
     
     # Input
-    fasta_file: str, AF2_2mers: str, AF2_Nmers: str | None = None, out_path: str | None = None,
+    fasta_file: str, AF2_2mers: str,
+    AF2_Nmers: str | None = None,
+    out_path: str | None = None,
+    manual_domains: str | None = manual_domains,
     
     # Options imported from cfg.default_settings
     use_names = use_names,
@@ -319,6 +322,9 @@ if __name__ == "__main__":
     
     parser.add_argument('--out_path', type = str, default = None,
         help='Output directory to store results')
+    
+    parser.add_argument('--manual_domains', type = str, default = None,
+        help='Path to tsv file with manually defined domains (look at tests/EAF6_EPL1_PHD1/manual_domains.tsv for an example)')
     
     parser.add_argument('--use_names', action='store_true',
         help='Use protein names instead of IDs')
