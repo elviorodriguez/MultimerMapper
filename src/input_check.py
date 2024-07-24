@@ -60,9 +60,57 @@ def seq_input_from_fasta(fasta_file_path: str, use_names: bool = True, logger: L
 # Extract the sequences from AF2 PDB file(s) ----------------------------------
 # -----------------------------------------------------------------------------
 
-def extract_seqs_from_AF2_PDBs(AF2_2mers: str, AF2_Nmers: str = None, logger: Logger | None = None):
+# Extracts the sequence of each chain of a PDB and returns a dictionary with
+# keys as chain letters 
+def extract_sequence_from_PDB_atoms(pdb_file: str):
+    """Takes in a PDB file path and returns a list of all the protein sequences,
+    one for each protein chain.
+
+    Args:
+        pdb_file (str): path to a PDB file
+
+    Returns:
+        list: list of protein sequences in the PDB file
+    """    
+    structure = PDB.PDBParser(QUIET=True).get_structure("protein", pdb_file)
+    model = structure[0]  # Assuming there is only one model in the structure
+
+    sequences = {}
+    for chain in model:
+        chain_id = chain.id
+        sequence = ""
+        for residue in chain:
+            if PDB.is_aa(residue):
+                sequence += protein_letters_3to1[residue.get_resname()]
+        sequences[chain_id] = sequence
+
+    return sequences
+
+
+def remove_duplicate_predictions(all_pdb_data: dict, logger: Logger | None = None):
     '''
-    This parts extract the sequence of each PDB files in the above folders 
+    Analyzes all_pdb_data to search for predictions that are equivalent (e.g., when
+    the order of the proteins where switched). It modifies it by removing the last 
+    encountered duplicates. Gives a warning for each encountered duplicate.
+    '''
+    if logger is None:
+        logger = configure_logger()
+    
+    seen_sequences = set()
+
+    for path in list(all_pdb_data.keys()):
+        sequences = [data['sequence'] for data in all_pdb_data[path].values()]
+        sorted_sequences = tuple(sorted(sequences))
+        
+        if sorted_sequences in seen_sequences:
+            logger.warning(f"Duplicate prediction found and removed: {path}")
+            del all_pdb_data[path]
+        else:
+            seen_sequences.add(sorted_sequences)
+    
+
+def extract_seqs_from_AF2_PDBs(AF2_2mers: str, AF2_Nmers: str = None, logger: Logger | None = None):
+    '''Extract the sequence of each PDB files in the above folders 
     (AF2-2mers and AF2-Nmers) and stores it in memory as a nested dict.
     The resulting dictionary will have the following format:
         
@@ -76,12 +124,11 @@ def extract_seqs_from_AF2_PDBs(AF2_2mers: str, AF2_Nmers: str = None, logger: Lo
          path_to_AF2_prediction_2:
          {"A": ...}
         }
-    
     '''
     if logger is None:
         logger = configure_logger()
     
-    if AF2_Nmers != None:
+    if AF2_Nmers is not None:
         folders_to_search = [AF2_2mers, AF2_Nmers]
     else:
         folders_to_search = [AF2_2mers]
@@ -100,22 +147,6 @@ def extract_seqs_from_AF2_PDBs(AF2_2mers: str, AF2_Nmers: str = None, logger: Lo
         
         return pdb_files
     
-    # Extracts the sequence of each chain of a PDB and returns a dictionary with
-    # keys as chain letters 
-    def extract_sequence_from_PDB_atoms(pdb_file):
-        structure = PDB.PDBParser(QUIET=True).get_structure("protein", pdb_file)
-        model = structure[0]  # Assuming there is only one model in the structure
-    
-        sequences = {}
-        for chain in model:
-            chain_id = chain.id
-            sequence = ""
-            for residue in chain:
-                if PDB.is_aa(residue):
-                    sequence += protein_letters_3to1[residue.get_resname()]
-            sequences[chain_id] = sequence
-    
-        return sequences
     
     # Dict to store AF2_prediction folder, chains, sequences and lengths (nested dicts)
     all_pdb_data = {}
@@ -144,7 +175,9 @@ def extract_seqs_from_AF2_PDBs(AF2_2mers: str, AF2_Nmers: str = None, logger: Lo
                 "sequence": sequence,
                 "length": len(sequence)
             }
-            
+    
+    remove_duplicate_predictions(all_pdb_data, logger = logger)
+
     return all_pdb_data
 
 # -----------------------------------------------------------------------------

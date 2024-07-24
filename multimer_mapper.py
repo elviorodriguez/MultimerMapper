@@ -139,7 +139,6 @@ def parse_AF2_and_sequences(
     logger.info("Resulting interactions:")
     logger.info(f"   - 2-mers proteins: {unique_2mers_proteins}")
     logger.info(f"   - 2-mers PPIs:\n{pairwise_2mers_df_F3}")
-    logger.info("For N-mers:")
     logger.info(f"   - N-mers proteins: {unique_Nmers_proteins}")
     logger.info(f"   - N-mers PPIs:\n{pairwise_Nmers_df_F3}")
 
