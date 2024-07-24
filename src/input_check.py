@@ -129,7 +129,7 @@ def extract_seqs_from_AF2_PDBs(AF2_2mers: str, AF2_Nmers: str = None, logger: Lo
     
     # Extract the sequence from each PDB and each file chain and save it as a dict
     # with AF2 model folder as key
-    logger.info("Extacting protein sequences of each PDB chain...")
+    logger.info("Extracting protein sequences of each PDB chain...")
     for pdb_file_path in all_pdb_files:
         sequences = extract_sequence_from_PDB_atoms(pdb_file_path)
         model_folder = os.path.split(pdb_file_path)[0]
@@ -236,7 +236,7 @@ def merge_fasta_with_PDB_data(all_pdb_data: dict, prot_IDs: list, prot_names: li
 # Main ------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 
-# For debbuging
+# For debugging
 def main():
 
     import argparse
