@@ -231,6 +231,7 @@ def parse_AF2_and_sequences(
         "prot_lens": prot_lens,
         "prot_N": prot_N,
         "all_pdb_data": all_pdb_data,
+        "sliced_PAE_and_pLDDTs": sliced_PAE_and_pLDDTs,
         "domains_df": domains_df,
         "pairwise_2mers_df": pairwise_2mers_df,
         "pairwise_Nmers_df": pairwise_Nmers_df,

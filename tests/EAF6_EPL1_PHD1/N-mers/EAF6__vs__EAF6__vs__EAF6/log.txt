@@ -1,0 +1,5 @@
+2024-07-24 14:29:23,394 Running colabfold 1.5.5 (a9293c9ed20725e0107dbe96e08a10411c1acf16)
+2024-07-24 14:29:23,909 Running on GPU
+2024-07-24 14:29:24,314 Found 6 citations for tools or databases
+2024-07-24 14:29:24,314 Skipping EAF6__vs__EAF6__vs__EAF6 (already done)
+2024-07-24 14:29:24,314 Done
