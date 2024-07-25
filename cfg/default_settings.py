@@ -28,7 +28,7 @@ graph_resolution: float | int = 0.075
 
 # If True, uses same graph_resolution value for all proteins
 # If False, you can select interactively 
-auto_domain_detection: bool = True
+auto_domain_detection: bool = False
 
 # If you have saved previously a preset, add its path here (Look in <out_path>/domains dir)
 # If not, set it as None
