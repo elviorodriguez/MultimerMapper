@@ -1,9 +1,25 @@
 # MultimerMapper
 
+# Installation
+
+```
+# Clone the repo
+git clone
+
+# Go to repo dir
+cd MultimerMapper
+
+# Create MultimerMapper environment
+conda env create -f env.yml
+```
+
 # Run test to verify it works
 
 
 ```
+# Activate MultimerMapper env to run the pipeline
+conda activate MultimerMapper
+
 # Only 2-mers
 python multimer_mapper.py tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta tests/EAF6_EPL1_PHD1/2-mers --out_path tests/output_2mers --use_names --overwrite
 
