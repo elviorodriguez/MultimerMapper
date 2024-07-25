@@ -30,8 +30,8 @@ graph_resolution: float | int = 0.075
 # If False, you can select interactively 
 auto_domain_detection: bool = False
 
-# If you have saved previously a preset, add its path here (Look in <out_path>/domains dir)
-# If not, set it as None
+# If you have saved previously a preset, add its path in this option (Look in <out_path>/domains dir)
+# If not, set it as None. All modification must be done in custom_settings.py.
 graph_resolution_preset: str | None = None
 
 # First time running the pipeline? Leave it as True (saves the preset in <out_path>/domains dir)
@@ -41,14 +41,17 @@ save_preset: bool = True
 save_PAE_png: bool = True
 
 # If True, opens the monomer PAE matrix (as png) of each protein with detected domains (S.O. image viewer)
-display_PAE_domains: bool = True # Use this when you run the pipeline from command line
+display_PAE_domains: bool = False
 
 # If True, opens the monomer PAE matrix (as png) of each protein with detected domains (In-line of the console)
 # Use this when you run the pipeline interactively using ipython (eg jupyter notebook)
-display_PAE_domains_inline: bool = True
+display_PAE_domains_inline: bool = False
 
 # If True, opens the monomer structure of each protein with detected domains as HTML (Browser)
-show_monomer_structures: bool = True
+show_monomer_structures: bool = False
+
+# To display the PAE and backbone colored by detected domains
+show_PAE_along_backbone: bool = True
 
 # If True, saves the monomer structure of each protein with detected domains as HTML (<out_path>/domains dir)
 save_domains_html: bool = True

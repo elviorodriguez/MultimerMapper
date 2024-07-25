@@ -11,6 +11,8 @@ import plotly.graph_objects as go           # For plotly plotting
 from plotly.offline import plot             # To allow displaying plots
 from logging import Logger
 from io import BytesIO
+import base64
+import webbrowser
 from PIL import Image, ImageDraw, ImageFont
 from IPython.display import display
 from copy import deepcopy
@@ -158,7 +160,8 @@ def plot_domains(protein_ID, matrix_data, positions, colors, custom_title=None,
 
     return fig
 
-def combine_figures_and_plot(fig1, fig2, out_path: str = ".", protein_ID = None, save_png_file = False, show_image = False, show_inline = True):
+def combine_figures_and_plot(fig1, fig2, out_path: str = ".", protein_ID = None, save_png_file = False, show_image = False, show_inline = True,
+                             return_combined: bool = False):
     '''
     Generates a single figure with fig1 and fig2 side by side.
     
@@ -210,7 +213,7 @@ def combine_figures_and_plot(fig1, fig2, out_path: str = ".", protein_ID = None,
     text_y = 10
     draw.text((text_x, text_y), title_text, font=title_font, fill='black')
 
-
+ 
     # Show the combined image
     if show_image: combined_image.show()        # (with the default image viewer of the S.O.)
     if show_inline: display(combined_image)     # (in-line in ipython console)
@@ -227,6 +230,21 @@ def combine_figures_and_plot(fig1, fig2, out_path: str = ".", protein_ID = None,
     
         # Save figure
         combined_image.save(os.path.join(save_folder, f"{protein_ID}-domains_plot.png"))
+    
+    if return_combined:
+        # Convert the combined image to a base64 string
+        combined_image_bytesio = BytesIO()
+        combined_image.save(combined_image_bytesio, format='png')
+        combined_image_bytesio.seek(0)
+        img_base64 = base64.b64encode(combined_image_bytesio.read()).decode('utf-8')
+    else:
+        # Convert the combined image to a base64 string
+        image2_bytesio = BytesIO()
+        image2.save(image2_bytesio, format='png')
+        image2_bytesio.seek(0)
+        img_base64 = base64.b64encode(image2_bytesio.read()).decode('utf-8')
+    
+    return img_base64
 
 
 # Convert clusters of loops into the wrapper cluster domain
@@ -279,7 +297,8 @@ def remove_loop_clusters(domain_clusters: list, logger: Logger | None = None):
 # For semi-auto domain defining
 def plot_backbone(protein_chain, domains, protein_ID = "", legend_position = dict(x=1.02, y=0.5), 
                   showgrid = True, margin=dict(l=0, r=0, b=0, t=0), show_axis = False, show_structure = False, 
-                  save_html = False, return_fig = False, is_for_network = False, out_path: str = "."):
+                  save_html = False, return_fig = False, is_for_network = False, out_path: str = ".",
+                  img_base64 = None):
     
     # Protein CM
     protein_CM = list(protein_chain.center_of_mass())
@@ -414,12 +433,66 @@ def plot_backbone(protein_chain, domains, protein_ID = "", legend_position = dic
     if show_structure: plot(fig)
     
     if save_html:
-        save_folder = out_path + "/domains"
-        os.makedirs(save_folder, exist_ok = True)
-    
+        save_folder = os.path.join(out_path, "domains")
+        os.makedirs(save_folder, exist_ok=True)
+
         # Save figure
-        fig.write_html(os.path.join(save_folder, f"{protein_ID}-domains_plot.html"))
+        html_path = os.path.join(save_folder, f"{protein_ID}-domains_plot.html")
+        fig.write_html(html_path)
+
+        # Embed the 2D image in the HTML
+        if img_base64:
+            with open(html_path, 'r+') as f:
+                
+                html_content = f.read()
+                
+                # Add CSS for side-by-side layout with proportional sizes
+                style = '''
+                <style>
+                .container {
+                    display: flex;
+                    justify-content: center; /* Horizontally center the contents */
+                    align-items: center; /* Vertically center the contents */
+                    height: 100vh; /* Set the container height to the viewport height */
+                }
+                .left-panel {
+                    flex: 1;
+                    padding: 10px;
+                }
+                .right-panel {
+                    flex: 2;
+                    padding: 10px;
+                }
+                .left-panel img {
+                    width: 100%;
+                    height: auto;
+                }
+                </style>
+                '''
+                
+                # Add HTML structure for side-by-side layout
+                html_structure = f'''
+                <div class="container">
+                    <div class="left-panel">
+                        <img src="data:image/png;base64,{img_base64}" alt="Combined Image">
+                    </div>
+                    <div class="right-panel">
+                        <!-- Interactive plot will be here -->
+                '''
+                
+                # Insert the style and structure in the HTML content
+                html_content = html_content.replace('<head>', f'<head>{style}')
+                html_content = html_content.replace('<body>', f'<body>{html_structure}')
+                
+                # Close the right panel div after the plot
+                html_content = html_content.replace('</body>', '</div></div></body>')
+                
+                f.seek(0)
+                f.write(html_content)
+                f.truncate()
         
+        return html_path
+
     if return_fig: return fig
 
 def convert_manual_domains_df_to_clusters(sliced_PAE_and_pLDDTs: dict, manual_domains_df: pd.DataFrame, logger: Logger | None = None):
@@ -451,10 +524,10 @@ def convert_manual_domains_df_to_clusters(sliced_PAE_and_pLDDTs: dict, manual_do
 # Working function
 def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: str,
                    graph_resolution: float | int = 0.075, pae_power: float | int  = 1, pae_cutoff: float | int  = 5,
-                   auto_domain_detection: bool = True, graph_resolution_preset: bool | None = None, save_preset: bool  = False,
-                   save_png_file: bool  = True, show_image: bool  = False, show_structure: bool  = True, show_inline: bool  = True,
+                   auto_domain_detection: bool = True, graph_resolution_preset: bool | None = None, save_preset: bool  = True,
+                   save_png_file: bool  = True, show_image: bool  = False, show_structure: bool  = False, show_inline: bool  = False,
                    save_html: bool  = True, save_tsv: bool  = True, overwrite: bool = False, manual_domains: str | None = None,
-                   logger: Logger | None = None):
+                   logger: Logger | None = None, show_PAE_along_backbone: bool = True):
     
     '''Modifies sliced_PAE_and_pLDDTs to add domain information. Generates the 
     following sub-keys for each protein_ID key:
@@ -598,14 +671,20 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
             elif not auto_domain_detection:
                 
                 # Create a single figure with both domain definitions subplots
-                combine_figures_and_plot(plot_before, plot_after, protein_ID = protein_ID, save_png_file = save_png_file,
-                                         show_image = show_image, show_inline = show_inline, out_path = out_path)
+                comb_img_base64 = combine_figures_and_plot(
+                    plot_before, plot_after, protein_ID = protein_ID, save_png_file = save_png_file,
+                    show_image = show_image, show_inline = show_inline, out_path = out_path)
                 
                 # Plot the protein
-                plot_backbone(protein_chain = sliced_PAE_and_pLDDTs[protein_ID]["PDB_xyz"],
-                              domains = no_loops_domain_clusters,
-                              protein_ID = protein_ID, show_structure = show_structure, save_html = save_html,
-                              out_path = out_path)
+                html_path = plot_backbone(
+                    protein_chain = sliced_PAE_and_pLDDTs[protein_ID]["PDB_xyz"],
+                    domains = no_loops_domain_clusters,
+                    protein_ID = protein_ID, show_structure = show_structure, save_html = save_html,
+                    out_path = out_path, img_base64 = comb_img_base64)
+                
+                # Open HTML file with PAE and backbone colored by detected domains
+                if show_PAE_along_backbone:
+                    webbrowser.open(f"{html_path}")
                 
                 # Ask user if the detected domain distribution is OK
                 user_input = input(f"Do you like the resulting domains for {protein_ID}? (y or n) - ")
@@ -630,14 +709,20 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
                 you_like = True
                 
                 # Create a single figure with both domain definitions subplots
-                combine_figures_and_plot(plot_before, plot_after, protein_ID = protein_ID, save_png_file = save_png_file,
-                                         show_image = show_image, show_inline = show_inline, out_path = out_path)
+                comb_img_base64 = combine_figures_and_plot(
+                    plot_before, plot_after, protein_ID = protein_ID, save_png_file = save_png_file,
+                    show_image = show_image, show_inline = show_inline, out_path = out_path)
                 
                 # Plot the protein
-                plot_backbone(protein_chain = sliced_PAE_and_pLDDTs[protein_ID]["PDB_xyz"],
-                              domains = sliced_PAE_and_pLDDTs[protein_ID]["no_loops_domain_clusters"][1],
-                              protein_ID = protein_ID, show_structure = show_structure, save_html = save_html,
-                              out_path = out_path)
+                html_path = plot_backbone(
+                    protein_chain = sliced_PAE_and_pLDDTs[protein_ID]["PDB_xyz"],
+                    domains = sliced_PAE_and_pLDDTs[protein_ID]["no_loops_domain_clusters"][1],
+                    protein_ID = protein_ID, show_structure = show_structure, save_html = save_html,
+                    out_path = out_path, img_base64 = comb_img_base64)
+                
+                # Open HTML file with PAE and backbone colored by detected domains
+                if show_PAE_along_backbone:
+                    webbrowser.open(f"{html_path}")
                 
                 
                 # Save it if you need to run again your pipeline 

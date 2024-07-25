@@ -19,7 +19,7 @@ def parse_AF2_and_sequences(
     out_path: str | None = None,
     manual_domains: str | None = None,
     
-    # Options imported from cfg.default_settings
+    # Options imported from cfg.default_settings or cfg.custom_settings
     use_names = use_names,
     graph_resolution = graph_resolution, auto_domain_detection = auto_domain_detection,
     graph_resolution_preset = graph_resolution_preset, save_preset = save_preset,
@@ -27,6 +27,7 @@ def parse_AF2_and_sequences(
     display_PAE_domains = display_PAE_domains, show_monomer_structures = show_monomer_structures,
     display_PAE_domains_inline = display_PAE_domains_inline, save_domains_html = save_domains_html,
     save_domains_tsv = save_domains_tsv,
+    show_PAE_along_backbone = show_PAE_along_backbone,
 
     # 2-mers cutoffs
     min_PAE_cutoff_2mers = min_PAE_cutoff_2mers, ipTM_cutoff_2mers = ipTM_cutoff_2mers,
@@ -111,7 +112,8 @@ def parse_AF2_and_sequences(
         save_png_file = save_PAE_png, show_image = display_PAE_domains,
         show_inline = display_PAE_domains_inline, show_structure = show_monomer_structures,
         save_html = save_domains_html, save_tsv = save_domains_tsv,
-        out_path = out_path, overwrite = True, logger = logger, manual_domains = manual_domains)
+        out_path = out_path, overwrite = True, logger = logger, manual_domains = manual_domains,
+        show_PAE_along_backbone = show_PAE_along_backbone)
     
     # Progress
     logger.info(f"Resulting domains:\n{domains_df}")
@@ -253,6 +255,7 @@ def interactive_igraph_to_plotly(combined_graph, out_path: str, log_level = "inf
 
     # Convert combined PPI graph to interactive plotly
     save_html = out_path + "/2D_graph.html"
+    
     while True:
 
         combined_graph_interactive = igraph_to_plotly(
@@ -277,21 +280,23 @@ def interactive_igraph_to_plotly(combined_graph, out_path: str, log_level = "inf
             save_html = save_html, 
 
             # Add cutoff values to the legends?
-            add_cutoff_legend = add_cutoff_legend)
+            add_cutoff_legend = add_cutoff_legend
+        )
         
         logger.info('Default layout generation algorithm is Fruchterman-Reingold ("fr")')
         logger.info('This algorithm is stochastic. Try several layouts and save the one you like.')
-        user_input = input("Do you like the plot? (y/n): ").strip().lower()
-        
-        if user_input == 'y':
-            logger.info("Great! Enjoy your interactive PPI graph.")
-            break
-        elif user_input == 'n':
-            logger.info("Generating a new PPI graph layout and graph...")
-        else:
-            logger.info("Invalid input. Please enter 'y' or 'n'.")
 
-    return combined_graph_interactive
+        while True:
+            user_input = input("\nDo you like the plot? (y/n): ").strip().lower()
+            
+            if user_input == 'y':
+                logger.info("Great! Enjoy your interactive PPI graph.")
+                return combined_graph_interactive
+            elif user_input == 'n':
+                logger.info("Generating a new PPI graph layout and graph...")
+                break
+            else:
+                logger.info("Invalid input. Please enter 'y' or 'n'.")
 
 
 ###############################################################################
