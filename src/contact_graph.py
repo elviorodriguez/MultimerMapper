@@ -242,10 +242,10 @@ def precess_until_minimal_distance(points_1, other_points_2, reference_point=Non
     points_cloud_by_angle = [points_1]
     sum_of_distances_by_angle = [calculate_total_distance(points_1, other_points_2)]
     
-    # Compute the distance by pressesing the points angle_steps at a time    
+    # Compute the distance by precessing the points angle_steps at a time    
     for angle in range(angle_steps, 360, angle_steps):
         
-        # Presess the cloud of points
+        # Precess the cloud of points
         precessed_cloud = precess_points(points = points_1,
                                          angle = angle,
                                          reference_point = reference_point)        
@@ -615,7 +615,7 @@ def precess_until_minimal_distance2(points, self_contact_points_1, partner_conta
     points_cloud_by_angle = [self_contact_points_1]
     sum_of_distances_by_angle = [calculate_total_distance(self_contact_points_1, partner_contact_points_2)]
     
-    # Compute the distance by pressesing the points angle_steps at a time    
+    # Compute the distance by precessing the points angle_steps at a time    
     for angle in range(angle_steps, 360, angle_steps):
         
         # Presess the cloud of points
@@ -789,8 +789,8 @@ class Protein(object):
     protein_list = []
     protein_list_IDs = []
     
-    # Color pallete for network representation
-    default_color_pallete = {
+    # Color palette for network representation
+    default_color_palette = {
       "Red":            ["#ffebee", "#ffcdd2", "#ef9a9a", "#e57373", "#ef5350", "#f44336", "#e53935", "#d32f2f", "#c62828", "#ff8a80", "#ff5252", "#d50000", "#f44336", "#ff1744", "#b71c1c"],
       "Green":          ["#e8f5e9", "#c8e6c9", "#a5d6a7", "#81c784", "#66bb6a", "#4caf50", "#43a047", "#388e3c", "#2e7d32", "#b9f6ca", "#69f0ae", "#00e676", "#4caf50", "#00c853", "#1b5e20"],
       "Blue":           ["#e3f2fd", "#bbdefb", "#90caf9", "#64b5f6", "#42a5f5", "#2196f3", "#1e88e5", "#1976d2", "#1565c0", "#82b1ff", "#448aff", "#2979ff", "#2962ff", "#2196f3", "#0d47a1"],
@@ -832,7 +832,7 @@ class Protein(object):
         res_pLDDT = [res["CA"].get_bfactor() for res in PDB_chain.get_residues()]
         CM = center_of_mass(res_xyz)
         
-        # Translate the protein centrois and PDB_chain to the origin (0,0,0)
+        # Translate the protein centroids and PDB_chain to the origin (0,0,0)
         res_xyz = res_xyz - CM
         for atom in PDB_chain.get_atoms(): atom.transform(np.identity(3), np.array(-CM))
         
@@ -847,7 +847,7 @@ class Protein(object):
         self.domains    = domains               # list
         self.res_xyz    = res_xyz               # List np.arrays with centroid xyz coordinates (Angst) of each residue (Required)   <-------------
         self.res_names  = res_names             # E.g: ["M1", "S2", "P3", ..., "R623"]  (Optional)
-        self.res_pLDDT  = res_pLDDT             # Per residue pLDDT (Requiered)
+        self.res_pLDDT  = res_pLDDT             # Per residue pLDDT (Required)
         self.CM         = np.array([0,0,0])     # Center of Mass (by default, proteins are translated to the origin when created)   <-------------
         
         # Initialize lists for protein partners information (indexes match)
@@ -2238,7 +2238,7 @@ class Protein(object):
         
         # Set color pallete
         if custom_res_colors != None: res_colors = custom_res_colors
-        else: res_colors = Protein.default_color_pallete
+        else: res_colors = Protein.default_color_palette
                         
         # Get the fully connected partners
         partners_list = self.get_partners_of_partners()

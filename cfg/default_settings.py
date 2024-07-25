@@ -18,7 +18,7 @@ default_out_path = "MM_output_"
 # --------------------------- For metric extraction  -------------------------
 # ----------------------------------------------------------------------------
 
-# Save the extracted interaction metris as tsv file?
+# Save the extracted interaction metrics as tsv file?
 save_pairwise_data = True
 
 # ----------------------------------------------------------------------------
@@ -29,7 +29,7 @@ save_pairwise_data = True
 graph_resolution: float | int = 0.075
 
 # If True, uses same graph_resolution value for all proteins
-# If False, you can select interactevily 
+# If False, you can select interactively 
 auto_domain_detection: bool = True
 
 # If you have saved previously a preset, add its path here (Look in <out_path>/domains dir)

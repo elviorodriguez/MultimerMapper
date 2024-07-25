@@ -20,7 +20,7 @@ def calculate_distance(coord1, coord2):
 def compute_contacts(pdb_filename, min_diagonal_PAE_matrix,
                      # Protein symbols/names/IDs
                      protein_ID_a, protein_ID_b,
-                     # This dictionary is created on the fly in best_PAE_to_damains.py (contains best pLDDT models info)
+                     # This dictionary is created on the fly in best_PAE_to_domains.py (contains best pLDDT models info)
                      sliced_PAE_and_pLDDTs, filtered_pairwise_2mers_df,
                      # Cutoff parameters
                      contact_distance = 8.0, PAE_cutoff = 3, pLDDT_cutoff = 70,
@@ -76,13 +76,13 @@ def compute_contacts(pdb_filename, min_diagonal_PAE_matrix,
     # Get the number of rows and columns
     PAE_num_rows, PAE_num_cols = min_diagonal_PAE_matrix.shape
         
-    # Match matrix dimentions with chains
+    # Match matrix dimensions with chains
     if len_a == PAE_num_rows and len_b == PAE_num_cols:
         a_is_row = True
     elif len_b == PAE_num_rows and len_a == PAE_num_cols: 
         a_is_row = False
     else:
-        raise ValueError("PAE matrix dimentions does not match chain lengths")
+        raise ValueError("PAE matrix dimensions does not match chain lengths")
         
     # Extract Bio.PDB.Chain.Chain objects from highest mean pLDDT model
     highest_pLDDT_PDB_a = sliced_PAE_and_pLDDTs[protein_ID_a]["PDB_xyz"]
@@ -156,7 +156,7 @@ def compute_contacts(pdb_filename, min_diagonal_PAE_matrix,
     contacts = []
     for res_a in chain_a:
         
-        # Normalized residue position from highest pLDDT model (substract CM)
+        # Normalized residue position from highest pLDDT model (subtract CM)
         residue_id_a = res_a.id[1]                    # it is 1 based indexing
         residue_xyz_a = highest_pLDDT_PDB_a[residue_id_a].center_of_mass() - CM_a
         
@@ -165,7 +165,7 @@ def compute_contacts(pdb_filename, min_diagonal_PAE_matrix,
         
         for res_b in chain_b:
         
-            # Normalized residue position from highest pLDDT model (substract CM)
+            # Normalized residue position from highest pLDDT model (subtract CM)
             residue_id_b = res_b.id[1]                    # it is 1 based indexing
             residue_xyz_b = highest_pLDDT_PDB_b[residue_id_b].center_of_mass() - CM_b
             
@@ -247,7 +247,7 @@ def compute_contacts(pdb_filename, min_diagonal_PAE_matrix,
 def compute_contacts_batch(pdb_filename_list, min_diagonal_PAE_matrix_list,
                            # Protein symbols/names/IDs
                            protein_ID_a_list, protein_ID_b_list,
-                           # This dictionary is created on the fly in best_PAE_to_damains.py (contains best pLDDT models info)
+                           # This dictionary is created on the fly in best_PAE_to_domains.py (contains best pLDDT models info)
                            sliced_PAE_and_pLDDTs, filtered_pairwise_2mers_df,
                            # Cutoff parameters
                            contact_distance = 8.0, PAE_cutoff = 3, pLDDT_cutoff = 70,
@@ -338,9 +338,9 @@ def compute_contacts_from_pairwise_2mers_df(filtered_pairwise_2mers_df, pairwise
     
     # Check if pairwise_Nmers_df was passed by mistake
     if "proteins_in_model" in pairwise_2mers_df.columns:
-        raise ValueError("Provided dataframe contains N-mers data. To compute contacts comming from N-mers models, please, use compute_contacts_from_pairwise_Nmers_df function.")
+        raise ValueError("Provided dataframe contains N-mers data. To compute contacts coming from N-mers models, please, use compute_contacts_from_pairwise_Nmers_df function.")
     
-    # Convert necesary files to lists
+    # Convert necessary files to lists
     pdb_filename_list = []
     min_diagonal_PAE_matrix_list = []
 
@@ -401,7 +401,7 @@ def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sl
     pDockQ                  = pairwise_Nmers_df_row["pDockQ"]
     # PPV                     = pairwise_Nmers_df_row["PPV"]
     
-    # Chekc if Bio.PDB.Model.Model object is OK
+    # Check if Bio.PDB.Model.Model object is OK
     if type(pdb_model) != PDB.Model.Model:
         raise ValueError(f"{pdb_model} is not of class Bio.PDB.Model.Model.")
     
@@ -421,13 +421,13 @@ def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sl
     # Get the number of rows and columns
     PAE_num_rows, PAE_num_cols = min_diagonal_PAE_matrix.shape
         
-    # Match matrix dimentions with chains
+    # Match matrix dimensions with chains
     if len_a == PAE_num_rows and len_b == PAE_num_cols:
         a_is_row = True
     elif len_b == PAE_num_rows and len_a == PAE_num_cols: 
         a_is_row = False
     else:
-        raise ValueError("PAE matrix dimentions does not match chain lengths")
+        raise ValueError("PAE matrix dimensions does not match chain lengths")
             
     # Extract Bio.PDB.Chain.Chain objects from highest mean pLDDT model
     highest_pLDDT_PDB_a = sliced_PAE_and_pLDDTs[protein_ID_a]["PDB_xyz"]
@@ -501,7 +501,7 @@ def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sl
     contacts = []
     for res_a in chain_a:
         
-        # Normalized residue position from highest pLDDT model (substract CM)
+        # Normalized residue position from highest pLDDT model (subtract CM)
         residue_id_a = res_a.id[1]                    # it is 1 based indexing
         residue_xyz_a = highest_pLDDT_PDB_a[residue_id_a].center_of_mass() - CM_a
         
@@ -510,7 +510,7 @@ def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sl
         
         for res_b in chain_b:
         
-            # Normalized residue position (substract CM)
+            # Normalized residue position (subtract CM)
             residue_id_b = res_b.id[1]                    # it is 1 based indexing
             residue_xyz_b = highest_pLDDT_PDB_b[residue_id_b].center_of_mass() - CM_b
             
@@ -616,7 +616,7 @@ def compute_contacts_from_pairwise_Nmers_df(pairwise_Nmers_df, filtered_pairwise
     
     # Check if pairwise_2mers_df was passed by mistake
     if "proteins_in_model" not in pairwise_Nmers_df.columns:
-        raise ValueError("Provided dataframe seems to come from 2-mers data. To compute contacts comming from 2-mers models, please, use compute_contacts_from_pairwise_2mers_df function.")
+        raise ValueError("Provided dataframe seems to come from 2-mers data. To compute contacts coming from 2-mers models, please, use compute_contacts_from_pairwise_2mers_df function.")
     
     # Empty df to store results
     columns = ["protein_ID_a", "protein_ID_b", "proteins_in_model", "res_a", "res_b", "AA_a", "AA_b",

@@ -7,7 +7,7 @@ import igraph
 from collections import defaultdict
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, Normalize
-import plotly.graph_objects as go           # For plotly ploting
+import plotly.graph_objects as go           # For plotly plotting
 from plotly.offline import plot             # To allow displaying plots
 from logging import Logger
 from io import BytesIO
@@ -22,7 +22,9 @@ from utils.logger_setup import configure_logger
 # -----------------------------------------------------------------------------
 
 # Function from pae_to_domains.py
-def domains_from_pae_matrix_igraph(pae_matrix, pae_power: float | int = 1, pae_cutoff: float | int = 5,
+def domains_from_pae_matrix_igraph(pae_matrix,
+                                   pae_power: float | int = 1,
+                                   pae_cutoff: float | int = 5,
                                    graph_resolution: float | int = 1,
                                    logger: Logger | None = None):
     '''
@@ -76,7 +78,7 @@ def reformat_clusters(domain_clusters: list):
     Returns
     -------
     reformat_domain_clusters
-        A list of list with the resiudes positions in index 0 and the cluster
+        A list of list with the residues positions in index 0 and the cluster
         assignment in index 1: [[residues], [clusters]]
 
     '''
@@ -132,8 +134,8 @@ def plot_domains(protein_ID, matrix_data, positions, colors, custom_title=None,
 
     # Create a legend by associating cluster values with corresponding colors
     legend_handles = [plt.Line2D([0], [0], marker='o', color='w',
-                                 markerfacecolor=DOMAIN_COLORS[c % len(DOMAIN_COLORS)],
-                                 markersize=10,
+                                 markerfacecolor = DOMAIN_COLORS[c % len(DOMAIN_COLORS)],
+                                 markersize = 10,
                                  label=f'Domain {c}') for c in unique_clusters]
 
     # Add legend

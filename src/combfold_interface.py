@@ -24,7 +24,7 @@ import json
 #   The format of each line is
 #   <res1> <chain_ids1> <res2> <chain_ids2> <minimal_distance> <maximal_distance> <crosslink_confidence>
 
-# Generates all posible combinations of the proteins
+# Generates all possible combinations of the proteins
 def create_dataframe_with_combinations(protein_names, Q_values):
     
     # Make sure that the Q_values are format as int
@@ -162,7 +162,7 @@ def generate_json_subunits2(sliced_PAE_and_pLDDTs, combination, drop_low_plddt_d
     # Counter to select the chain letter
     chain_ID_counter = 0
     
-    # Crosslink contraints to ensure sequence continuity
+    # Crosslink constraints to ensure sequence continuity
     txt_crosslinks = ""
     
     # Iterate over the proteins
@@ -256,7 +256,7 @@ def generate_filesystem_for_CombFold(xlsx_Qvalues, out_folder, sliced_PAE_and_pL
         DESCRIPTION. The default is False.
     drop_low_plddt_domains : None (default), int/float
         Minimum cutoff value to consider a domain for combinatorial assembly.
-        Lower that this value (disordered) will be dopped. The default is None.
+        Lower that this value (disordered) will be dropped. The default is None.
 
     Raises
     ------

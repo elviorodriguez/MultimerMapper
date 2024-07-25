@@ -201,7 +201,7 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
             pLDDTs_means.append(pLDDT_average)
             
             
-        # Find the index of the minimum and max value for the PAE summ
+        # Find the index of the minimum and max value for the PAE sum
         min_PAE_index = PAE_matrix_sums.index(min(PAE_matrix_sums)) # Best matrix
         max_PAE_index = PAE_matrix_sums.index(max(PAE_matrix_sums)) # Worst matrix
         
@@ -463,7 +463,7 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, out_path: str = ".", save_pai
             
             chain_num = chains.index(chain)
             
-            # Compute the start and end possitions to slice the PAE and get both diagonals
+            # Compute the start and end positions to slice the PAE and get both diagonals
             start_pos = sum(chain_lengths[0:chain_num])
             end_pos   = sum(chain_lengths[0:chain_num + 1])
             
@@ -617,7 +617,7 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, out_path: str = ".", save_pai
                         prot1_len = chains_lengths[chains.index(pair[0])]
                         prot2_len = chains_lengths[chains.index(pair[1])]
                         
-                        # Get start and end possition of pair-diagonal-PAE matrix
+                        # Get start and end position of pair-diagonal-PAE matrix
                         pair_start_positions, pair_end_positions = get_PAE_positions_for_pair(pair, chains, chains_lengths, model_folder)
                         
                         # Get unified (min) diagonal matrix for current pair (np.array)
