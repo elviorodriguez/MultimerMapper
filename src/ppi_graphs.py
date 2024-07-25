@@ -5,8 +5,11 @@ import pandas as pd
 import numpy as np
 from Bio.PDB import Chain, Superimposer
 from Bio.PDB.Polypeptide import protein_letters_3to1
-import plotly.graph_objects as go           # For plotly ploting
+import plotly.graph_objects as go           # For plotly plotting
 from plotly.offline import plot             # To allow displaying plots
+
+from src.analyze_homooligomers import find_homooligomerization_breaks
+
 
 # -----------------------------------------------------------------------------
 # PPI graph for 2-mers --------------------------------------------------------
@@ -226,10 +229,10 @@ def generate_combined_graph(
     - edge_color1, edge_color2, edge_color3, edge_color4, edge_color5, edge_color6, edge_color_both: Colors for edges in 
         (1) graph1 only (2mers only),
         (2) graph2 only (Nmers only), 
-        (3) graph1 only buth not tested in Nmers (lacks dynamic information), 
+        (3) graph1 only but not tested in Nmers (lacks dynamic information), 
         (4) ambiguous (Some Nmers have it), 
         (5) indirect interactions (Nmers mean pDockQ < 0.23),
-        (6) ambiguous but predominantly staticand 
+        (6) ambiguous but predominantly static and 
         (both: static) both graphs, respectively.
     - vertex_color1, vertex_color2, vertex_color_both: Colors for vertices in
         (1) graph1 only,
@@ -369,7 +372,7 @@ def generate_combined_graph(
         
     graphC.vs['color'] = vertex_colors
     
-    # Functions to add meaninig column to vertex and edges
+    # Functions to add meaning column to vertex and edges
     def add_edges_meaning(graph, edge_color1='red', edge_color2='green', edge_color3 = 'orange', edge_color_both='black'):
         
         # Function to determine the meaning based on color
@@ -391,7 +394,7 @@ def generate_combined_graph(
         
         graph.es["meaning"] = edge_df['meaning']
         
-    # Functions to add meaninig column to vertex and edges
+    # Functions to add meaning column to vertex and edges
     def add_vertex_meaning(graph, vertex_color1='red', vertex_color2='green', vertex_color3 = 'orange', vertex_color_both='gray'):
         
         # Function to determine the meaning based on color
@@ -436,7 +439,7 @@ def generate_combined_graph(
                 # Unify the values on pDockQ and min_PAE the N-mer models with homooligomers
                 .groupby(["protein1", "protein2", "proteins_in_model", "rank"])
                 .agg({
-                    'min_PAE': 'min',   # keep only the minumum value of min_PAE
+                    'min_PAE': 'min',   # keep only the minimum value of min_PAE
                     'pDockQ': 'max'     # keep only the maximum value of pDockQ
                 }).reset_index()).groupby(['protein1', 'protein2', 'proteins_in_model']):
             # Lists with models that surpass each cutoffs
@@ -485,7 +488,7 @@ def generate_combined_graph(
         # Get protein info for each protein pair
         for pair, data in pairwise_Nmers_df_F2.groupby(['protein1', 'protein2']):
             
-            # Pair comming from the dataframe (sorted)
+            # Pair coming from the dataframe (sorted)
             df_pair = sorted(pair)
             
             # Add info to the edges when the graph_pair matches the df_pair
@@ -1189,11 +1192,11 @@ def igraph_to_plotly(
     fig = go.Figure(data=[*edge_traces, node_trace], layout=layout)
     
     
-    set_edges_colors_meaninings  = set([(col, mng) for col, mng in zip(graph.es["color"], graph.es["meaning"])])
-    set_vertex_colors_meaninings = set([(col, mng) for col, mng in zip(graph.vs["color"], graph.vs["meaning"])])
+    set_edges_colors_meanings  = set([(col, mng) for col, mng in zip(graph.es["color"], graph.es["meaning"])])
+    set_vertex_colors_meanings = set([(col, mng) for col, mng in zip(graph.vs["color"], graph.vs["meaning"])])
     
-    # Add labels for edges and vertex dynamicity
-    for col, mng in set_edges_colors_meaninings:
+    # Add labels for edges and vertex dynamics
+    for col, mng in set_edges_colors_meanings:
         mng_linetype = "solid"
         if "Dynamic " in mng and use_dot_dynamic_edges:
             mng_linetype = "dot"
@@ -1204,7 +1207,7 @@ def igraph_to_plotly(
             name=mng,
             showlegend=True
         ))
-    for col, mng in set_vertex_colors_meaninings:
+    for col, mng in set_vertex_colors_meanings:
         fig.add_trace(go.Scatter(
             x=[None], y=[None],
             mode='markers',

@@ -29,6 +29,9 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
     mm_output["combined_graph"], out_path = out_path)
 
+
+from src.analyze_homooligomers import find_homooligomerization_breaks
+
 find_homooligomerization_breaks(mm_output,
                                 logger,
                                 mm.min_PAE_cutoff_Nmers,
@@ -38,8 +41,6 @@ find_homooligomerization_breaks(mm_output,
 
 
 ################################ Testing ######################################
-
-from src.analyze_homooligomers import find_homooligomerization_breaks
 
 
         

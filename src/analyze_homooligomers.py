@@ -56,7 +56,7 @@ def check_if_skipped_homo_N_mers(homo_Nmers_models: set,
     biggest_homo_N_mer  = len(models[-1])
     
     # Progress
-    logger.info(f'Verifing homo-N-mers for {models[0][0]} (3-mers or bigger)')
+    logger.info(f'Verifying homo-N-mers for {models[0][0]} (3-mers or bigger)')
     
     is_ok = []
     
@@ -188,7 +188,7 @@ def find_homooligomerization_breaks(mm_output,
         # For each homooligomerization state (starting with homo-3-mers)
         for N_state, model in enumerate(sorted(list(homo_Nmers_models), key = len), start = 3):
             
-            # Separate only data for the current holigomerization state and add chain info
+            # Separate only data for the current homooligomerization state and add chain info
             model_pairwise_df = protein_homo_N_mers_pairwise_df.query('proteins_in_model == @model')
             add_chain_information_to_df(model_pairwise_df)
             
