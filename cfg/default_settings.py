@@ -1,6 +1,4 @@
 
-import time
-
 # For using names as node labels (if false, IDs will be used)
 use_names: bool = True
 
@@ -158,3 +156,12 @@ add_cutoff_legend = False
 
 # Save reference structures of each protein as PDB file? (<out_path>/PDB_ref_monomers dir)
 save_ref_structures = True
+
+
+# ----------------------------------------------------------------------------
+#------------------------ To modify default settings -------------------------
+# ----------------------------------------------------------------------------
+
+# If you want to experiment with custom settings (e.g. changing cutoff values),
+# you can do it by overwriting the above variables in cfg/custom_settings.py.
+from cfg.custom_settings import *

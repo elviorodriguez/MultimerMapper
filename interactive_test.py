@@ -63,7 +63,7 @@ get_proteins_that_homodimerize(mm_output["pairwise_2mers_df_F3"])
 
 
 def get_path_of_homooligomers(
-        pairwise_2mers_df_F3: pd.DataFrame(),
+        pairwise_2mers_df_F3: pd.DataFrame,
         all_pdb_data: dict):
     
     homodim_prots: set = get_proteins_that_homodimerize(pairwise_2mers_df_F3)
@@ -87,14 +87,13 @@ get_path_of_homooligomers(pairwise_2mers_df_F3 = mm_output["pairwise_2mers_df_F3
             
         
     
-    
-    full_PAE_matrices
-    full_PDB_models
-    pairwise_data
-    min_diagonal_PAE
-    
-    
-    
+
+'''
+full_PAE_matrices
+full_PDB_models
+pairwise_data
+min_diagonal_PAE
+'''
     
     
     
