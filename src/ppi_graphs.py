@@ -8,6 +8,7 @@ from Bio.PDB.Polypeptide import protein_letters_3to1
 import plotly.graph_objects as go           # For plotly plotting
 from plotly.offline import plot             # To allow displaying plots
 
+from utils.logger_setup import configure_logger
 from src.analyze_homooligomers import find_homooligomerization_breaks
 
 
@@ -196,6 +197,7 @@ def generate_combined_graph(
         graph1, graph2,
         pairwise_2mers_df, pairwise_Nmers_df,
         domains_df, sliced_PAE_and_pLDDTs,
+        pairwise_2mers_df_F3,
 
         # Prot IDs and prot names to add them to the graph as hovertext later on
         prot_IDs, prot_names,
@@ -220,7 +222,7 @@ def generate_combined_graph(
         pdockq_indirect_interaction_cutoff = 0.23, predominantly_static_cutoff = 0.6,
         remove_indirect_interactions = True,
         
-        is_debug = False):
+        is_debug = False, logger = None):
     """
     Compares two graphs and create a new graph with colored edges and vertices based on their differences.
 
@@ -244,6 +246,9 @@ def generate_combined_graph(
     Returns:
     - Combined igraph.Graph object with colored edges and vertices.
     """
+    # Configure logger
+    if logger is None:
+        configure_logger()
 
     # To check if the computation was performed or not:
     tested_Nmers_edges_df = pd.DataFrame(np.sort(pairwise_Nmers_df[['protein1', 'protein2']], axis=1),
@@ -828,7 +833,37 @@ def generate_combined_graph(
         # remove duplicates
         for vertex in graph.vs:
             vertex["RMSD_df"] = vertex["RMSD_df"].drop_duplicates().reset_index(drop = True)
-               
+
+    def add_homooligomerization_state(graph,
+                                      pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
+                                      pairwise_Nmers_df = pairwise_Nmers_df,
+                                      logger = logger,
+                                      min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
+                                      pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
+                                      N_models_cutoff = N_models_cutoff):
+        
+        # Compute homooligomerization data
+        homooligomerization_states = find_homooligomerization_breaks(
+                                            pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
+                                            pairwise_Nmers_df = pairwise_Nmers_df,
+                                            logger = logger,
+                                            min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
+                                            pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
+                                            N_models_cutoff = N_models_cutoff)
+
+        # Initialize edge attribute
+        graph.es["homooligomerization_states"] = None
+
+        for edge in graph.es:
+            source_name = graph.vs[edge.source]["name"]
+            target_name = graph.vs[edge.target]["name"]
+
+            # If it is a homooligomer
+            if source_name == target_name:
+
+                # Add its homooligomerization state data
+                edge["homooligomerization_states"] = homooligomerization_states[source_name]
+
                 
     # Add data to the combined graph to allow hovertext display later           
     add_edges_meaning(graphC, edge_color1, edge_color2, edge_color3, edge_color_both)
@@ -844,6 +879,13 @@ def generate_combined_graph(
     modify_indirect_interaction_edges(graphC, edge_color5,
                                       pdockq_indirect_interaction_cutoff = pdockq_indirect_interaction_cutoff,
                                       remove_indirect_interactions = remove_indirect_interactions)
+    add_homooligomerization_state(graphC,
+                                  pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
+                                  pairwise_Nmers_df = pairwise_Nmers_df,
+                                  logger = logger,
+                                  min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
+                                  pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
+                                  N_models_cutoff = N_models_cutoff)
     
     # add cutoffs dict to the graph
     graphC["cutoffs_dict"] = dict(
@@ -872,6 +914,44 @@ def generate_combined_graph(
 # -----------------------------------------------------------------------------
 # 2D graph (protein level): interactive representation ------------------------
 # -----------------------------------------------------------------------------
+
+def format_homooligomerization_states(homooligomerization_states, logger):
+
+    # Style definitions
+    def apply_style(N, style: int):
+        
+        # OK and positive homooligomerization style (BLACK)
+        if style == 0:
+            return '<b style="color:black;">' + str(N) + '</b>'
+
+        # OK, but negative homooligomerization style (RED)
+        if style == 1:
+            return '<b style="color:red;">' + str(N) + '</b>'
+
+        # NOT OK homooligomerization style (ORANGE)
+        if style == 2:
+            return '<b style="color:orange;">' + str(N) + '</b>'
+
+    formatted_N_states = '<b style="color:black;">2</b>|'
+
+    for N, (is_ok, N_state) in enumerate(zip(homooligomerization_states["is_ok"], homooligomerization_states["N_states"]), start = 3):
+        
+        # If there is lacking predictions (error in the protocol)
+        if N_state is None:
+            formatted_N_states += apply_style(N, 2) + '|'
+        # If the homooligomerization state is negative
+        elif N_state is False:
+            formatted_N_states += apply_style(N, 1) + '|'
+        # If the homooligomerization state is positive
+        elif N_state is True:
+            formatted_N_states += apply_style(N, 0) + '|'
+        else:
+            logger.error('UNEXPECTED BEHAVIOR:')
+            logger.error(f'   - Something is wrong with homooligomerization state! ("is_ok" value: {is_ok})')
+            logger.error(f'   - Something is wrong with homooligomerization state! ("N_state" value: {N_state})')
+    
+    return formatted_N_states.rstrip("|")
+        
 
 # Generate a layout (using only static edges)
 def generate_layout_for_combined_graph(
@@ -942,7 +1022,9 @@ def igraph_to_plotly(
         legend_position: dict = dict(x=1.02, y=0.5),
         plot_graph: bool = True,
         plot_bgcolor = 'rgba(0, 0, 0, 0)',
-        add_cutoff_legend: bool = True):
+        add_cutoff_legend: bool = True,
+        
+        logger = None):
     
     """
     Convert an igraph.Graph to an interactive Plotly plot. Used to visualize combined_graph.
@@ -1044,7 +1126,7 @@ def igraph_to_plotly(
             # Adjust the position of the circle
             circle_x = pos[edge.source][0] + radius * np.cos(theta)
             circle_y = pos[edge.source][1] + radius * np.sin(theta) + radius
-            
+
             # Apply rotation?
             if self_loop_orientation != 0:
                 # Reference point to rotate the circle
@@ -1059,6 +1141,7 @@ def igraph_to_plotly(
                 circle_x = circle_x_rot
                 circle_y = circle_y_rot
             
+            # Add the self-loop edge trace
             edge_trace = go.Scatter(
                 x=circle_x.tolist() + [None],
                 y=circle_y.tolist() + [None],
@@ -1070,6 +1153,26 @@ def igraph_to_plotly(
                 hoverlabel=dict(font=dict(family='Courier New', size=hovertext_size)),
                 showlegend=False
             )
+
+            # Calculate the center of the circle (this is to add text in the middle)
+            circle_center_x = np.mean(circle_x)
+            circle_center_y = np.mean(circle_y)
+            formatted_N_states = format_homooligomerization_states(edge["homooligomerization_states"], logger = logger)
+
+            # Add text in the center with homooligomerization state info
+            text_trace = go.Scatter(
+                x=[circle_center_x],
+                y=[circle_center_y],
+                mode='text',
+                text=[formatted_N_states],
+                textposition="middle center",
+                hoverinfo='none',
+                showlegend=False
+            )
+
+            # add text trace
+            edge_traces.append(text_trace)
+
         else:
             
             # Generate additional points along the edge
@@ -1090,6 +1193,7 @@ def igraph_to_plotly(
                 showlegend=False
             )
         
+        # Add traces
         edge_traces.append(edge_trace)
     
     

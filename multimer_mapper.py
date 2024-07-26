@@ -176,8 +176,11 @@ def parse_AF2_and_sequences(
         
         # Input
         graph_2mers, graph_Nmers, 
-        pairwise_2mers_df, pairwise_Nmers_df, 
-        domains_df, sliced_PAE_and_pLDDTs,
+        pairwise_2mers_df = pairwise_2mers_df,
+        pairwise_Nmers_df = pairwise_Nmers_df, 
+        domains_df = domains_df,
+        sliced_PAE_and_pLDDTs = sliced_PAE_and_pLDDTs,
+        pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
         
         # Prot_IDs and names to add them to the graph
         prot_IDs = prot_IDs, prot_names = prot_names,
@@ -206,7 +209,7 @@ def parse_AF2_and_sequences(
         remove_indirect_interactions = remove_indirect_interactions,
         
         # Is debug?
-        is_debug = False)
+        is_debug = False, logger = logger)
     
     # Debug
     logger.debug(f"Resulting combined graph:\n{combined_graph}")
@@ -281,7 +284,10 @@ def interactive_igraph_to_plotly(combined_graph, out_path: str, log_level = "inf
             save_html = save_html, 
 
             # Add cutoff values to the legends?
-            add_cutoff_legend = add_cutoff_legend
+            add_cutoff_legend = add_cutoff_legend,
+
+            # Logger
+            logger = logger
         )
         
         logger.info('Default layout generation algorithm is Fruchterman-Reingold ("fr")')

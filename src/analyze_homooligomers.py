@@ -143,17 +143,17 @@ def does_all_have_at_least_one_interactor(model_pairwise_df: pd.DataFrame,
 #                                           N_models_cutoff)
 
 
-def find_homooligomerization_breaks(mm_output,
+def find_homooligomerization_breaks(pairwise_2mers_df_F3, pairwise_Nmers_df,
                                     logger,
                                     min_PAE_cutoff_Nmers,
                                     pDockQ_cutoff_Nmers,
                                     N_models_cutoff):
     
     # Proteins that homodimerize
-    homodim_prots: set = get_proteins_that_homodimerize(mm_output['pairwise_2mers_df_F3'])
+    homodim_prots: set = get_proteins_that_homodimerize(pairwise_2mers_df_F3)
     
     # Subset of Nmers_df corresponding to homo-N-mers
-    homo_N_mers_pairwise_df = get_homo_N_mers_pairwise_df(mm_output['pairwise_Nmers_df'])
+    homo_N_mers_pairwise_df = get_homo_N_mers_pairwise_df(pairwise_Nmers_df)
     
     # Initialize dict to store homooligomerization states of each protein
     homooligomerization_states: dict = {protein_ID: {"is_ok": [], "N_states": []} for protein_ID in homodim_prots}

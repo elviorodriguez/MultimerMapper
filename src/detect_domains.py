@@ -612,9 +612,15 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
         graph_resolution = general_graph_resolution
         
         # If you have a preset
-        if graph_resolution_preset != None:
-            graph_resolution = graph_resolution_preset[protein_ID]
-    
+        if graph_resolution_preset is not None:
+            try:
+                graph_resolution = graph_resolution_preset[protein_ID]
+            except Exception as e:
+                logger.error(f'There is something wrong with the graph_resolution_preset: {graph_resolution_preset}')
+                logger.error(f'The following exception was encountered: {e}')
+                logger.error(f'"protein_ID" during exception: {protein_ID}')
+                logger.warn(f'Continuing with semi-automatic domain detection')
+                graph_resolution_preset = None
         
         while not you_like:
     
