@@ -132,10 +132,12 @@ vertex_color_both=PT_palette["gray"]    #
 # Remove indirect interactions from combined graph? (mediated by a 3rd protein)
 remove_indirect_interactions = True
 
-# For homooligomerization edges (self-loops) ---------------------------------
-# 0: no change, 0.25: quarter turn, 0.5: half turn, 0.75: three quarters turn
+# ----- For homooligomerization edges (self-loops) ---------------------------
+# 0: up, 0.25: left, 0.5: down, 0.75: right
 self_loop_orientation: float = 0.0
-self_loop_size: float = 3           # Size of the homooligomerization edge circle
+# Size of the homooligomerization edge circle
+self_loop_size: float = 3
+# ----------------------------------------------------------------------------
 
 # Remove background and set protein names as bold
 show_axis = False
