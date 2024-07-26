@@ -152,12 +152,23 @@ def find_homooligomerization_breaks(pairwise_2mers_df_F3, pairwise_Nmers_df,
     # Proteins that homodimerize
     homodim_prots: set = get_proteins_that_homodimerize(pairwise_2mers_df_F3)
     
-    # Subset of Nmers_df corresponding to homo-N-mers
-    homo_N_mers_pairwise_df = get_homo_N_mers_pairwise_df(pairwise_Nmers_df)
-    
     # Initialize dict to store homooligomerization states of each protein
     homooligomerization_states: dict = {protein_ID: {"is_ok": [], "N_states": []} for protein_ID in homodim_prots}
     
+    try:
+        # Subset of Nmers_df corresponding to homo-N-mers
+        homo_N_mers_pairwise_df = get_homo_N_mers_pairwise_df(pairwise_Nmers_df)
+    except KeyError as e:
+        if pairwise_Nmers_df.empty:
+            logger.warning("No N-mers passed... continuing.")
+            return homooligomerization_states
+        else:
+            logger.error(f"Unknown KeyError encountered: {e}")
+            raise
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
+        raise
+           
     for protein in homodim_prots:
         
         protein_homo_N_mers_pairwise_df = homo_N_mers_pairwise_df.query('protein1 == @protein')
