@@ -10,6 +10,7 @@ from plotly.offline import plot             # To allow displaying plots
 
 from utils.logger_setup import configure_logger
 from src.analyze_homooligomers import find_homooligomerization_breaks
+from utils.oscillations import oscillate_line, oscillate_circle
 
 
 # -----------------------------------------------------------------------------
@@ -1023,6 +1024,10 @@ def igraph_to_plotly(
         plot_graph: bool = True,
         plot_bgcolor = 'rgba(0, 0, 0, 0)',
         add_cutoff_legend: bool = True,
+        oscillation_width: int = 1,
+        oscillation_amplitude: float = 0.02,
+        oscillation_lines_frequency: int = 8, 
+        oscillation_circles_frequency: int = 20,
         
         logger = None):
     
@@ -1117,10 +1122,11 @@ def igraph_to_plotly(
             edge_linetype = "solid"
         # Modify the edge representation depending on the "meaning" <<<<<<<<<<<
             
-        # Draw a circle for self-loops
+        # ----------------- Draw a circle for homooligomerization edges (self-loops) ----------------------
         if edge.source == edge.target:
-            
-            theta = np.linspace(0, 2*np.pi, 50)
+
+            resolution = 200 # (number of points)
+            theta = np.linspace(0, 2*np.pi, resolution)
             radius = self_loop_size
             
             # Adjust the position of the circle
@@ -1132,21 +1138,53 @@ def igraph_to_plotly(
                 # Reference point to rotate the circle
                 center_x = pos[edge.source][0]
                 center_y = pos[edge.source][1]
+
                 # Degrees to rotate the circle
                 θ = self_loop_orientation * 2 * np.pi
+
                 # New circle points
                 circle_x_rot = center_x + (circle_x - center_x) * np.cos(θ) - (circle_y - center_y) * np.sin(θ)
                 circle_y_rot = center_y + (circle_x - center_x) * np.sin(θ) + (circle_y - center_y) * np.cos(θ)
-    
+
+                # Overwrite values
                 circle_x = circle_x_rot
                 circle_y = circle_y_rot
+            
+            if True:
+            # if edge["oscillates"]:
+                # Get the center of the circle oscillation line is performed with that point as reference
+                reference_point = np.array([np.mean(circle_x), np.mean(circle_y)])
+                oscillated_circle_x, oscillated_circle_y = oscillate_circle(reference_point = reference_point,
+                                                                            radius = radius,
+                                                                            amplitude = oscillation_amplitude,
+                                                                            frequency = oscillation_circles_frequency)
+                
+                # Add the oscillated edge trace
+                oscillated_edge_trace = go.Scatter(
+                    x = oscillated_circle_x.tolist() + [None],
+                    y = oscillated_circle_y.tolist() + [None],
+                    mode = "lines",
+                    line = dict(color = edge_colors[edge.index], 
+                                width = oscillation_width,
+                                dash  = edge_linetype),
+                    hoverinfo   = 'skip',
+                    text        = None,
+                    hovertext   = None,
+                    hoverlabel  = None,
+                    showlegend  = False
+                )
+
+                # add text trace
+                edge_traces.append(oscillated_edge_trace)
             
             # Add the self-loop edge trace
             edge_trace = go.Scatter(
                 x=circle_x.tolist() + [None],
                 y=circle_y.tolist() + [None],
                 mode="lines",
-                line=dict(color=edge_colors[edge.index], width=int(edge_width*edge_weight), dash = edge_linetype),
+                line=dict(color=edge_colors[edge.index],
+                          width=int(edge_width*edge_weight),
+                          dash = edge_linetype),
                 hoverinfo="text",
                 text= [edge["meaning"] + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
                 hovertext=[edge["meaning"] + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
@@ -1173,12 +1211,38 @@ def igraph_to_plotly(
             # add text trace
             edge_traces.append(text_trace)
 
+        # ----------------- Draw a line for heteromeric edges ----------------------
         else:
             
             # Generate additional points along the edge
-            additional_points = 30
-            intermediate_x = np.linspace(pos[edge.source][0], pos[edge.target][0], additional_points + 2)
-            intermediate_y = np.linspace(pos[edge.source][1], pos[edge.target][1], additional_points + 2)
+            resolution = 200
+            intermediate_x = np.linspace(pos[edge.source][0], pos[edge.target][0], resolution + 2)
+            intermediate_y = np.linspace(pos[edge.source][1], pos[edge.target][1], resolution + 2)
+
+            # If the edge is a positive interaction add some noise
+            # if edge["oscillate"]:
+            if True:
+                oscillated_x, oscillated_y = oscillate_line(start_point = pos[edge.source],
+                                                            end_point   = pos[edge.target],
+                                                            amplitude = oscillation_amplitude,
+                                                            frequency = oscillation_lines_frequency)
+                
+                # Add the oscillated edge trace
+                oscillated_edge_trace = go.Scatter(
+                    x = oscillated_x.tolist() + [None],
+                    y = oscillated_y.tolist() + [None],
+                    mode = "lines",
+                    line = dict(color = edge_colors[edge.index], 
+                                width = oscillation_width,
+                                dash  = edge_linetype),
+                    hoverinfo   = 'skip',
+                    text        = None,
+                    hovertext   = None,
+                    hoverlabel  = None,
+                    showlegend  = False
+                )
+                # Add traces
+                edge_traces.append(oscillated_edge_trace)
             
             # Add the edge trace
             edge_trace = go.Scatter(
@@ -1187,8 +1251,8 @@ def igraph_to_plotly(
                 mode="lines",
                 line=dict(color=edge_colors[edge.index], width=int(edge_width*edge_weight), dash = edge_linetype),
                 hoverinfo="text",  # Add hover text
-                text=[edge["meaning"] + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (additional_points + 2),
-                hovertext=[edge["meaning"] + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (additional_points + 2),
+                text=[edge["meaning"] + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
+                hovertext=[edge["meaning"] + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
                 hoverlabel=dict(font=dict(family='Courier New', size=hovertext_size)),
                 showlegend=False
             )
@@ -1296,21 +1360,37 @@ def igraph_to_plotly(
     fig = go.Figure(data=[*edge_traces, node_trace], layout=layout)
     
     
+    # ------------------------------------ Labels ------------------------------------
+
+    # Extract the colors (col) and label text (meaning: mng) from the combined graph
     set_edges_colors_meanings  = set([(col, mng) for col, mng in zip(graph.es["color"], graph.es["meaning"])])
     set_vertex_colors_meanings = set([(col, mng) for col, mng in zip(graph.vs["color"], graph.vs["meaning"])])
     
-    # Add labels for edges and vertex dynamics
+    # # 'solid', 'dash', 'dot', 'dashdot'
+    # def set_linetype_based_on_meaning(mng: str):
+        
+
+
+    #     # Extract the linetype from cfg/interaction_classification.tsv
+    #     raise NotImplementedError()
+
+        
+    import random
+    # Add labels for edges dynamics
     for col, mng in set_edges_colors_meanings:
-        mng_linetype = "solid"
-        if "Dynamic " in mng and use_dot_dynamic_edges:
-            mng_linetype = "dot"
+        # mng_linetype = set_linetype_based_on_meaning(mng)
+        mng_linetype = random. choice(["dot", "solid"])
         fig.add_trace(go.Scatter(
             x=[None], y=[None],
             mode='lines',
-            line=dict(color=col, width=edge_width, dash = mng_linetype),
-            name=mng,
-            showlegend=True
+            line=dict(color = col,
+                      width = edge_width,
+                      dash  = mng_linetype),
+            name = mng,
+            showlegend = True
         ))
+
+    # Add labels for vertex dynamics
     for col, mng in set_vertex_colors_meanings:
         fig.add_trace(go.Scatter(
             x=[None], y=[None],
@@ -1319,7 +1399,8 @@ def igraph_to_plotly(
             name=mng,
             showlegend=True
             ))
-        
+
+    # Add cutoff labels
     if add_cutoff_legend:
         
         # Add empty space between labels
@@ -1339,7 +1420,8 @@ def igraph_to_plotly(
                 name= cutoff_label + " = " + str(value),
                 showlegend=True
                 ))
-        
+    
+    # -----------------------------------------------------------------------------
         
     if plot_graph: plot(fig)
     
