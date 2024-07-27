@@ -9,7 +9,7 @@ from plotly.offline import plot
 from utils.logger_setup import configure_logger
 from src.analyze_homooligomers import find_homooligomerization_breaks
 from utils.oscillations import oscillate_line, oscillate_circle
-from src.interpret_dynamics import read_classification_df, classify_edge_dynamics
+from src.interpret_dynamics import read_classification_df, classify_edge_dynamics, classification_df,  get_edge_color_hex, get_edge_linetype, get_edge_weight, get_edge_oscillation
 from src.coordinate_analyzer import add_domain_RMSD_against_reference
 
 # -----------------------------------------------------------------------------
@@ -594,12 +594,18 @@ def generate_combined_graph(
                 
     # Add data to the combined graph to allow hovertext display later
     add_edges_data(graphC, pairwise_2mers_df, pairwise_Nmers_df,
-                   min_PAE_cutoff_2mers = min_PAE_cutoff_2mers, ipTM_cutoff_2mers = ipTM_cutoff_2mers,
+                   # 2-mers cutoffs
+                   min_PAE_cutoff_2mers = min_PAE_cutoff_2mers,
+                   ipTM_cutoff_2mers = ipTM_cutoff_2mers,
                    # N-mers cutoffs
-                   min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers)
+                   min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
+                   pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers)
+    
     add_vertices_IDs(graphC, prot_IDs, prot_names)
+
     add_domain_RMSD_against_reference(graphC, domains_df, sliced_PAE_and_pLDDTs,pairwise_2mers_df, pairwise_Nmers_df,
                                       domain_RMSD_plddt_cutoff, trimming_RMSD_plddt_cutoff)
+    
     add_homooligomerization_state(graphC,
                                   pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
                                   pairwise_Nmers_df = pairwise_Nmers_df,
@@ -621,17 +627,22 @@ def generate_combined_graph(
     # Analyze one edge of the combined graph at a time
     for edge in edges_gC_sort:
         
-        e_dynamic = classify_edge_dynamics(combined_edge = edge,
+        e_dynamic = classify_edge_dynamics(tuple_edge = edge,
                                            
-                                           # Graphs
-                                           graph_2mers   = graph1,
-                                           graph_Nmers   = graph2,
+                                           # Graph
+                                           graph_Comb = graphC,
                                            
-                                           # Sorted edges lists
+                                           # Cutoffs
+                                           N_models_cutoff = N_models_cutoff,
+                                           
+                                           # Sorted tuple edges lists
                                            sorted_edges_2mers_graph  = edges_g1_sort, 
                                            sorted_edges_Nmers_graph  = edges_g2_sort,
-                                           sorted_edges_Comb_graph   = edges_gC_sort,
-                                           tested_Nmers_edges_sorted = tested_Nmers_edges_sorted)
+                                           tested_Nmers_edges_sorted = tested_Nmers_edges_sorted,
+
+                                           classification_df = classification_df,
+                                           
+                                           logger = logger)
 
         edges_dynamics.append(e_dynamic)
 
@@ -747,6 +758,24 @@ def generate_layout_for_combined_graph(
 
     return layout
 
+
+# ----------------------- Edge removal based in conditions --------------------------
+def remove_edges_by_condition(graph: igraph.Graph, attribute: str, condition):
+    """
+    Remove edges from the graph that meet the given condition on an attribute.
+    
+    Parameters:
+    - graph (igraph.Graph): The graph from which edges will be removed.
+    - attribute (str): The edge attribute to check.
+    - condition (function): A function that takes an attribute value and returns True if the edge should be removed.
+    """
+    edges_to_remove = [e.index for e in graph.es if condition(e[attribute])]
+    graph.delete_edges(edges_to_remove)
+
+def indirect_condition(value):
+    return value == "Indirect"
+# ------------------------------------------------------------------------------------
+
 # Convert igraph graph to interactive plotly plot
 def igraph_to_plotly(
         
@@ -759,7 +788,6 @@ def igraph_to_plotly(
         edge_width: int = 2,
         self_loop_orientation: float = 0,
         self_loop_size: float | int = 2.5,
-        use_dot_dynamic_edges: bool = True, 
         
         # Nodes visualization
         node_border_color: str = "black",
@@ -784,6 +812,7 @@ def igraph_to_plotly(
         oscillation_amplitude: float = 0.02,
         oscillation_lines_frequency: int = 8, 
         oscillation_circles_frequency: int = 20,
+        remove_indirect_interactions: bool = True,
         
         logger = None):
     
@@ -825,6 +854,16 @@ def igraph_to_plotly(
     # Adjust the scale of the values
     node_size = node_size * 10
     self_loop_size = self_loop_size / 10
+
+    # Remove indirect interactions?
+    if remove_indirect_interactions:
+
+        # DeepCopy the graph to avoid affecting the original
+        from copy import deepcopy
+        graph = deepcopy(graph)
+            
+        # Remove edges that meet the condition
+        remove_edges_by_condition(graph, attribute = 'dynamics', condition = indirect_condition)
     
     # Generate layout if if was not provided
     if layout == None:
@@ -848,18 +887,16 @@ def igraph_to_plotly(
         
         try:
             # Get edge style based on meaning
-            edge_dynamics   = get_edge_dynamics(edge, classification_df)
-            edge_color      = get_edge_color(edge, classification_df)
+            edge_dynamics   = edge["dynamics"]
+            edge_color      = get_edge_color_hex(edge, classification_df)
             edge_linetype   = get_edge_linetype(edge, classification_df)
-            edge_width      = get_edge_width(edge, classification_df)
             edge_weight     = get_edge_weight(edge, classification_df)
-            edge_oscillates = get_edge_oscillates(edge, classification_df)
+            edge_oscillates = get_edge_oscillation(edge, classification_df)
         
         except:
             # Use default values by now
             edge_color      = "black"
             edge_linetype   = "solid"
-            edge_width      = 2
             edge_weight     = 0.5
             edge_oscillates = True
             edge_dynamics   = "Static"
