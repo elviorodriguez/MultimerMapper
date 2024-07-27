@@ -854,6 +854,7 @@ def igraph_to_plotly(
     # Adjust the scale of the values
     node_size = node_size * 10
     self_loop_size = self_loop_size / 10
+    default_edge_width = edge_width
 
     # Remove indirect interactions?
     if remove_indirect_interactions:
@@ -1150,34 +1151,9 @@ def igraph_to_plotly(
     # ----------------------------------------------------------------------------------
 
     # Extract the colors (col) and label text (meaning: mng) from the combined graph
-    set_edges_colors_meanings  = set([(col, mng) for col, mng in zip(graph.es["color"], graph.es["meaning"])])
     set_vertex_colors_meanings = set([(col, mng) for col, mng in zip(graph.vs["color"], graph.vs["meaning"])])
     
-    # # 'solid', 'dash', 'dot', 'dashdot'
-    # def set_linetype_based_on_meaning(mng: str):
-        
-
-
-    #     # Extract the linetype from cfg/interaction_classification.tsv
-    #     raise NotImplementedError()
-
-        
-    import random
-    # Add labels for edges dynamics
-    for col, mng in set_edges_colors_meanings:
-        # mng_linetype = set_linetype_based_on_meaning(mng)
-        mng_linetype = random. choice(["dot", "solid"])
-        fig.add_trace(go.Scatter(
-            x=[None], y=[None],
-            mode='lines',
-            line=dict(color = col,
-                      width = edge_width,
-                      dash  = mng_linetype),
-            name = mng,
-            showlegend = True
-        ))
-
-    # Add labels for vertex dynamics
+        # Add labels for vertex dynamics
     for col, mng in set_vertex_colors_meanings:
         fig.add_trace(go.Scatter(
             x=[None], y=[None],
@@ -1186,6 +1162,29 @@ def igraph_to_plotly(
             name=mng,
             showlegend=True
             ))
+        
+    
+    set_edges_meanings = set([mng for mng in  graph.es["dynamics"]])
+
+    # Add labels for edges dynamics
+    for mng in set_edges_meanings:
+        mng_color_hex  = classification_df.query(f'Classification == "{mng}"')["Color_hex"].iloc[0]
+        mng_oscillates = classification_df.query(f'Classification == "{mng}"')["Edge_oscillates"].iloc[0]
+        mng_linetype   = classification_df.query(f'Classification == "{mng}"')["Line_type"].iloc[0]
+        if mng_oscillates:
+            oscillation_tag = " (~)"
+        else:
+            oscillation_tag = ""
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None],
+            mode='lines',
+            line=dict(color = mng_color_hex,
+                      width = default_edge_width,
+                      dash  = mng_linetype),
+            name = mng + oscillation_tag,
+            showlegend = True
+        ))
+
 
     # Add cutoff labels
     if add_cutoff_legend:

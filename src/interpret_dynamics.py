@@ -123,9 +123,6 @@ def find_rows_that_contains_interval(df, interval_name, lambda_val):
                                                   row['lower_inclusive'], 
                                                   row['upper_inclusive']), axis=1)]
 
-
-
-
 # -------------------------------------------------------------------------------------
 # ------------------------------- Classify the edge -----------------------------------
 # -------------------------------------------------------------------------------------
@@ -171,7 +168,7 @@ def classify_edge_dynamics(tuple_edge: tuple,
 
     # If the info is enough to classify
     if e_dynamics_rows.shape[0] == 1:
-        e_dynamics = str(e_dynamics_rows["Classification"][0])
+        e_dynamics = str(e_dynamics_rows["Classification"].iloc[0])
         return e_dynamics
     
     # If not, get more info
@@ -184,7 +181,7 @@ def classify_edge_dynamics(tuple_edge: tuple,
     
     # If the info is enough to classify
     if e_dynamics_rows.shape[0] == 1:
-        e_dynamics = str(e_dynamics_rows["Classification"][0])
+        e_dynamics = str(e_dynamics_rows["Classification"].iloc[0])
         return e_dynamics
 
     # If not, get more info
@@ -197,7 +194,7 @@ def classify_edge_dynamics(tuple_edge: tuple,
 
     # Info must be enough to classify at this point
     if e_dynamics_rows.shape[0] == 1:
-        e_dynamics = str(e_dynamics_rows["Classification"][0])
+        e_dynamics = str(e_dynamics_rows["Classification"].iloc[0])
         return e_dynamics
     # If not, something went wrong
     else:
@@ -227,21 +224,21 @@ def get_edge_Nmers_pDockQ(edge, N_models_cutoff):
 def get_edge_color_hex(graph_edge: igraph.Edge, classification_df: pd.DataFrame):
 
     edge_dynamics = graph_edge["dynamics"]
-    edge_color_hex = classification_df.query(f'Color_hex == "{edge_dynamics}"')["Color_hex"][0]
+    edge_color_hex = classification_df.query(f'Classification == "{edge_dynamics}"')["Color_hex"].iloc[0]
     return edge_color_hex
 
 # Linetype
 def get_edge_linetype(graph_edge: igraph.Edge, classification_df: pd.DataFrame):
     
     edge_dynamics = graph_edge["dynamics"]
-    edge_line_type = classification_df.query(f'Line_type == "{edge_dynamics}"')["Line_type"][0]
+    edge_line_type = classification_df.query(f'Classification == "{edge_dynamics}"')["Line_type"].iloc[0]
     return edge_line_type
 
 # Weight
 def get_edge_weight(graph_edge: igraph.Edge, classification_df: pd.DataFrame, default_edge_weight = 0.5):
 
     edge_dynamics = graph_edge["dynamics"]
-    edge_width_is_variable = classification_df.query(f'Variable_Edge_width == "{edge_dynamics}"')["Variable_Edge_width"][0]
+    edge_width_is_variable = classification_df.query(f'Classification == "{edge_dynamics}"')["Variable_Edge_width"].iloc[0]
 
     if edge_width_is_variable:
         
@@ -265,5 +262,5 @@ def get_edge_weight(graph_edge: igraph.Edge, classification_df: pd.DataFrame, de
 def get_edge_oscillation(graph_edge: igraph.Edge, classification_df: pd.DataFrame):
     
     edge_dynamics = graph_edge["dynamics"]
-    edge_line_type = classification_df.query(f'Edge_oscillates == "{edge_dynamics}"')["Edge_oscillates"][0]
+    edge_line_type = classification_df.query(f'Classification == "{edge_dynamics}"')["Edge_oscillates"].iloc[0]
     return edge_line_type

@@ -172,7 +172,7 @@ def parse_AF2_and_sequences(
     logger.debug(f"Resulting 2-mers graph:\n{graph_Nmers}")
 
     # Combined PPI graph
-    combined_graph, dynamic_proteins, dynamic_interactions = generate_combined_graph(
+    combined_graph, dynamic_proteins = generate_combined_graph(
         
         # Input
         graph_2mers, graph_Nmers, 
@@ -214,7 +214,7 @@ def parse_AF2_and_sequences(
     # Debug
     logger.debug(f"Resulting combined graph:\n{combined_graph}")
     logger.debug(f"Dynamic proteins:\n{dynamic_proteins}")
-    logger.debug(f"Dynamic interactions:\n{dynamic_interactions}")
+    # logger.debug(f"Dynamic interactions:\n{dynamic_interactions}")
 
     # Save reference monomers?
     if save_ref_structures:
@@ -245,8 +245,8 @@ def parse_AF2_and_sequences(
         "graph_2mers": graph_2mers,
         "graph_Nmers": graph_Nmers,
         "combined_graph": combined_graph,
-        "dynamic_proteins": dynamic_proteins,
-        "dynamic_interactions": dynamic_interactions
+        "dynamic_proteins": dynamic_proteins
+        # "dynamic_interactions": dynamic_interactions
     }
 
     return multimer_mapper_output
