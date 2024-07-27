@@ -3,15 +3,14 @@ import os
 import igraph
 import pandas as pd
 import numpy as np
-from Bio.PDB import Chain, Superimposer
-from Bio.PDB.Polypeptide import protein_letters_3to1
-import plotly.graph_objects as go           # For plotly plotting
-from plotly.offline import plot             # To allow displaying plots
+import plotly.graph_objects as go
+from plotly.offline import plot
 
 from utils.logger_setup import configure_logger
 from src.analyze_homooligomers import find_homooligomerization_breaks
 from utils.oscillations import oscillate_line, oscillate_circle
-
+from src.interpret_dynamics import read_classification_df, classify_edge_dynamics
+from src.coordinate_analyzer import add_domain_RMSD_against_reference
 
 # -----------------------------------------------------------------------------
 # PPI graph for 2-mers --------------------------------------------------------
@@ -193,6 +192,238 @@ def generate_Nmers_graph(pairwise_Nmers_df_F3: pd.DataFrame,
 # Combined PPI graph ----------------------------------------------------------
 # -----------------------------------------------------------------------------
 
+def add_edges_data(graph,
+                   pairwise_2mers_df: pd.DataFrame,
+                   pairwise_Nmers_df: pd.DataFrame,
+                   
+                   min_PAE_cutoff_2mers: int | float = 8.99,
+                   ipTM_cutoff_2mers: int | float = 0.240,
+                   
+                   # N-mers cutoffs
+                   min_PAE_cutoff_Nmers = 8.99,
+                   pDockQ_cutoff_Nmers = 0.022):
+    '''Adds 2-mers and N-mers data to integrate it as hovertext in plotly graph plots'''
+
+    # ----------------------------------------------------------------------------------------
+    # ---------------------------------- N-mers data -----------------------------------------
+    # ----------------------------------------------------------------------------------------
+    
+    # Pre-process N-mers pairwise interactions:
+    
+    # Initialize dataframe to store N_models
+    pairwise_Nmers_df_F1 = (pairwise_Nmers_df
+        .groupby(['protein1', 'protein2', 'proteins_in_model'])
+        # Compute the number of models on each pair
+        .size().reset_index(name='N_models')
+        .reset_index(drop=True)
+        )
+    # Count the number of models that surpass both cutoffs
+    for model_tuple, group in (pairwise_Nmers_df
+            # Unify the values on pDockQ and min_PAE the N-mer models with homooligomers
+            .groupby(["protein1", "protein2", "proteins_in_model", "rank"])
+            .agg({
+                'min_PAE': 'min',   # keep only the minimum value of min_PAE
+                'pDockQ': 'max'     # keep only the maximum value of pDockQ
+            }).reset_index()).groupby(['protein1', 'protein2', 'proteins_in_model']):
+        # Lists with models that surpass each cutoffs
+        list1 = list(group["min_PAE"] < min_PAE_cutoff_Nmers)
+        list2 = list(group["pDockQ"] > pDockQ_cutoff_Nmers)
+        # Compares both lists and see how many are True
+        N_models = sum([a and b for a, b in zip(list1, list2)])
+        pairwise_Nmers_df_F1.loc[
+            (pairwise_Nmers_df_F1["proteins_in_model"] == model_tuple[2]) &
+            (pairwise_Nmers_df_F1["protein1"] == model_tuple[0]) &
+            (pairwise_Nmers_df_F1["protein2"] == model_tuple[1]), "N_models"] = N_models
+    
+    # Extract best min_PAE and ipTM
+    pairwise_Nmers_df_F2 = (pairwise_Nmers_df
+        # Group by pairwise interaction
+        .groupby(['protein1', 'protein2', 'proteins_in_model'])
+        # Extract min_PAE
+        .agg({'pTM': 'max',
+                'ipTM': 'max',
+                'min_PAE': 'min',
+                'pDockQ': 'max'}
+                )
+        ).reset_index().merge(pairwise_Nmers_df_F1.filter(['protein1', 'protein2', 'proteins_in_model', 'N_models']), on=["protein1", "protein2", "proteins_in_model"])
+    
+    pairwise_Nmers_df_F2["extra_Nmer_proteins"] = ""
+    
+    for i, row in pairwise_Nmers_df_F2.iterrows():
+        extra_proteins = tuple(e for e in row["proteins_in_model"] if e not in (row["protein1"], row["protein2"]))
+        # Count how many times prot1 and 2 appears (are they modelled as dimers/trimers/etc)
+        count_prot1 = list(row["proteins_in_model"]).count(str(row["protein1"]))
+        count_prot2 = list(row["proteins_in_model"]).count(str(row["protein2"]))
+        if str(row["protein1"]) == str(row["protein2"]):
+            if count_prot1 > 1:
+                extra_proteins = extra_proteins + (f'{str(row["protein1"])} as {count_prot1}-mer',)
+        else:
+            if count_prot1 > 1:
+                extra_proteins = extra_proteins + (f'{str(row["protein1"])} as {count_prot1}-mer',)
+            if count_prot2 > 1:
+                extra_proteins = extra_proteins + (f'{str(row["protein2"])} as {count_prot1}-mer',)
+        pairwise_Nmers_df_F2.at[i, "extra_Nmer_proteins"] = extra_proteins
+    
+
+    # Initialize edge attribute to avoid AttributeError
+    graph.es["N_mers_data"] = None
+    
+    # Get protein info for each protein pair
+    for pair, data in pairwise_Nmers_df_F2.groupby(['protein1', 'protein2']):
+        
+        # Pair coming from the dataframe (sorted)
+        df_pair = sorted(pair)
+        
+        # Add info to the edges when the graph_pair matches the df_pair
+        for edge in graph.es:
+            source_name = graph.vs[edge.source]["name"]
+            target_name = graph.vs[edge.target]["name"]
+            
+            graph_pair = sorted((source_name, target_name))
+            
+            # Add the data when it is a match
+            if df_pair == graph_pair:
+                
+                filtered_data = data.filter(["pTM", "ipTM", "min_PAE", "pDockQ",
+                                                "N_models", "proteins_in_model", "extra_Nmer_proteins"])
+                
+                # If no info was added previously
+                if edge["N_mers_data"] is None:
+                    edge["N_mers_data"] = filtered_data
+                    
+                # If the edge contains N_mers data
+                else:
+                    # Append the data
+                    edge["N_mers_data"] = pd.concat([edge["N_mers_data"], filtered_data], ignore_index = True)
+    
+    # Add No data tag as N_mers_info in those pairs not explored in N-mers
+    for edge in graph.es:
+        if edge["N_mers_data"] is None:
+            edge["N_mers_info"] = "No data"
+            edge["N_mers_data"] = pd.DataFrame(columns=["pTM", "ipTM", "min_PAE", "pDockQ", "N_models", "proteins_in_model", "extra_Nmer_proteins"])
+        else:
+            # Convert data to a string
+            data_str = edge["N_mers_data"].filter(["pTM", "ipTM", "min_PAE", "pDockQ", "N_models", "proteins_in_model"]).to_string(index=False).replace('\n', '<br>')
+            edge["N_mers_info"] = data_str
+    
+    
+    
+    # ----------------------------------------------------------------------------------------
+    # ---------------------------------- 2-mers data -----------------------------------------
+    # ----------------------------------------------------------------------------------------
+    
+    # Pre-process pairwise interactions
+    pairwise_2mers_df_F1 = (pairwise_2mers_df[
+        # Filter the DataFrame based on the ipTM and min_PAE
+        (pairwise_2mers_df['min_PAE'] <= min_PAE_cutoff_2mers) &
+        (pairwise_2mers_df['ipTM'] >= ipTM_cutoff_2mers)]
+        # Group by pairwise interaction
+        .groupby(['protein1', 'protein2'])
+        # Compute the number of models for each pair that are kept after the filter
+        .size().reset_index(name='N_models')
+        .reset_index(drop=True)
+        )
+    
+    pairwise_2mers_df_F2 = (pairwise_2mers_df
+        # Group by pairwise interaction
+        .groupby(['protein1', 'protein2'])
+        # Extract min_PAE
+        .agg({'pTM': 'max',
+                'ipTM': 'max',
+                'min_PAE': 'min',
+                'pDockQ': 'max'}
+                )
+        ).reset_index().merge(pairwise_2mers_df_F1.filter(['protein1', 'protein2', 'N_models']), on=["protein1", "protein2"])
+    
+    
+    # Initialize 2_mers_data edge attribute to avoid AttributeErrors
+    graph.es["2_mers_data"] = None
+    
+    for pair, data in pairwise_2mers_df_F2.groupby(['protein1', 'protein2']):
+    
+        df_pair = sorted(pair)
+    
+        for edge in graph.es:
+            source_name = graph.vs[edge.source]["name"]
+            target_name = graph.vs[edge.target]["name"]
+            
+            graph_pair = sorted((source_name,target_name))
+            
+            # If the pair from the df is the same as the edge pair
+            if df_pair == graph_pair:
+                
+                # Extract interaction data
+                filtered_data = data.filter(["pTM", "ipTM", "min_PAE", "pDockQ", "N_models"])
+                
+                # If no info was added previously
+                if edge["2_mers_data"] is None:
+                    edge["2_mers_data"] = filtered_data
+                    
+                # If the edge contains 2_mers data (Which is not possible, I think...)
+                else:
+                    # DEBUG
+                    # print("WARNING: SOMETHING IS WRONG WITH AN EDGE!")
+                    # print("WARNING: There is an unknown inconsistency with the data...")
+                    # print("WARNING: Have you modelled by mistake a protein pair twice???")
+                    # print("WARNING: Edge that produced the warning:", (graph.vs[edge.source]["name"], graph.vs[edge.target]["name"]))
+                    
+                    # Append the data
+                    edge["2_mers_data"] = pd.concat([edge["2_mers_data"], filtered_data], ignore_index= True)
+        
+    for edge in graph.es:
+        
+        # If no data was found for the edge
+        if edge["2_mers_data"] is None:
+            
+            # DEBUG
+            # print("WARNING: SOMETHING IS WRONG WITH AN EDGE!")
+            # print("WARNING: There is an unknown inconsistency with the data...")
+            # print("WARNING: Did you left a protein pair without exploring its interaction???")
+            # print("WARNING: Edge that produced the warning:", (graph.vs[edge.source]["name"], graph.vs[edge.target]["name"]))
+            
+            # Add a label for missing data
+            edge["2_mers_info"] = "No rank surpass cutoff"
+            # And add an empty dataframe as 2_mers_data attribute
+            edge["2_mers_data"] = pd.DataFrame(columns=["pTM", "ipTM", "min_PAE", "pDockQ", "N_models"])
+        
+        else:
+            # Convert data to a string and add the attribute on the edge
+            edge["2_mers_info"] = edge["2_mers_data"].to_string(index=False).replace('\n', '<br>')
+
+# Function to add the IDs of the proteins
+def add_vertices_IDs(graph, prot_IDs, prot_names):
+    
+    for ID, name in zip(prot_IDs, prot_names):
+        for vertex in graph.vs:
+            if vertex["name"] == ID:
+                vertex["IDs"] = name
+                break
+
+# Function to add meaning column to vertex based on color
+# The logic based on color first is horrible, but it works...
+# Will be changed in a future version.
+def add_vertices_meaning(graph, vertex_color1='red', vertex_color2='green', vertex_color3 = 'orange', vertex_color_both='gray'):
+    
+    # Function to determine the meaning based on color
+    def get_meaning(row):
+        if row['color'] == vertex_color_both:
+            return 'Static protein'
+        elif row['color'] == vertex_color1:
+            return 'Dynamic protein (disappears in N-mers)'
+        elif row['color'] == vertex_color2:
+            return 'Dynamic protein (appears in N-mers)'
+        elif row['color'] == vertex_color3:
+            return 'Protein dynamics not explored in N-mers'
+        else:
+            return 'unknown'
+        
+    vertex_df = graph.get_vertex_dataframe()
+    # Apply the function to create the new 'meaning' column
+    vertex_df['meaning'] = vertex_df.apply(get_meaning, axis=1)
+    
+    graph.vs["meaning"] = vertex_df['meaning']
+
+
 # Combine 2-mers and N-mers graphs
 def generate_combined_graph(
         graph1, graph2,
@@ -251,589 +482,84 @@ def generate_combined_graph(
     if logger is None:
         configure_logger()
 
-    # To check if the computation was performed or not:
+    # To check if the computation was performed or not
     tested_Nmers_edges_df = pd.DataFrame(np.sort(pairwise_Nmers_df[['protein1', 'protein2']], axis=1),
                  columns=['protein1', 'protein2']).drop_duplicates().reset_index(drop = True)
-    
     tested_Nmers_edges_sorted = [tuple(sorted(tuple(row))) for i, row in tested_Nmers_edges_df.iterrows()]
     tested_Nmers_nodes = list(set(list(tested_Nmers_edges_df["protein1"]) + list(tested_Nmers_edges_df["protein2"])))
     
     # Get edges from both graphs
     edges_g1 = [(graph1.vs["name"][edge[0]], graph1.vs["name"][edge[1]]) for edge in graph1.get_edgelist()]
     edges_g2 = [(graph2.vs["name"][edge[0]], graph2.vs["name"][edge[1]]) for edge in graph2.get_edgelist()]
-    
-    if is_debug: 
-        print("\nedges_g1:", edges_g1)
-        print("edges_g2:", edges_g2)
-    
+
     # Sorted list of edges
     edges_g1_sort = sorted([tuple(sorted(t)) for t in edges_g1], key=lambda x: x[0])
     edges_g2_sort = sorted([tuple(sorted(t)) for t in edges_g2], key=lambda x: x[0])
-    
-    if is_debug: 
-        print("\nedges_g1_sort:", edges_g1_sort)
-        print("edges_g2_sort:", edges_g2_sort)
-    
+        
     # Make a combined edges set
     edges_comb = sorted(list(set(edges_g1_sort + edges_g2_sort)), key=lambda x: x[0])
-    
-    if is_debug: 
-        print("\nedges_comb:", edges_comb)
-    
+
     # Create a graph with the data
     graphC = igraph.Graph.TupleList(edges_comb, directed=False)
     
     # Extract its vertices and edges
-    nodes_gC = graphC.vs["name"]
     edges_gC = [(graphC.vs["name"][edge[0]], graphC.vs["name"][edge[1]]) for edge in graphC.get_edgelist()]
     edges_gC_sort = [tuple(sorted(edge)) for edge in edges_gC]
     
-    if is_debug: 
-        print("\nnodes_gC:", nodes_gC)
-        print("\nedges_gC:", edges_gC_sort)
-    
-    
-    # Create a df to keep track dynamic contacts
-    columns = ["protein1", "protein2", "only_in"]
-    dynamic_interactions = pd.DataFrame(columns = columns)
-    
-    
-    # Add edges and its colors ------------------------------------------------
-    edge_colors = []
-    for edge in edges_gC_sort:
-        # Shared by both graphs
-        if edge in edges_g1_sort and edge in edges_g2_sort:
-            edge_colors.append(edge_color_both)
-        # Edges only in 2-mers
-        elif edge in edges_g1_sort and edge not in edges_g2_sort:
-            # but not tested in N-mers
-            if edge not in tested_Nmers_edges_sorted:
-                edge_colors.append(edge_color3)
-                dynamic_interactions = pd.concat([dynamic_interactions,
-                                                  pd.DataFrame({"protein1": [edge[0]],
-                                                                "protein2": [edge[1]],
-                                                                "only_in": ["2mers-but_not_tested_in_Nmers"]})
-                                                  ], ignore_index = True)
-            # Edges only in 2-mers
-            else:
-                edge_colors.append(edge_color1)
-                dynamic_interactions = pd.concat([dynamic_interactions,
-                                                  pd.DataFrame({"protein1": [edge[0]],
-                                                                "protein2": [edge[1]],
-                                                                "only_in": ["2mers"]})
-                                                  ], ignore_index = True)
-        # Edges only in N-mers
-        elif edge not in edges_g1_sort and edge in edges_g2_sort:
-            edge_colors.append(edge_color2)
-            dynamic_interactions = pd.concat([dynamic_interactions,
-                                              pd.DataFrame({"protein1": [edge[0]],
-                                                            "protein2": [edge[1]],
-                                                            "only_in": ["Nmers"]})
-                                              ], ignore_index = True)
-        # This if something happens
-        else:
-            if is_debug: print("And This???:", edge)
-            raise ValueError("For some reason an edge that comes from the graphs to compare is not in either graphs...")
-    
-    graphC.es['color'] = edge_colors
+    # ----------------------------------------------------------------------------------------
+    # --------------------- Add vertex colors & meaning of the color -------------------------
+    # ----------------------------------------------------------------------------------------
 
-
-
-    # Add vertex colors -------------------------------------------------------
-    
+    # Create empty df to store dynamic proteins
     columns = ["protein", "only_in"]
     dynamic_proteins = pd.DataFrame(columns = columns)
 
     # Give each vertex a color
     vertex_colors = []
     for v in graphC.vs["name"]:
-        # Shared edges
+
+        # Shared edges in both in g1 and g2 (2-mers & N-mers)
         if v in graph1.vs["name"] and v in graph2.vs["name"]:
             vertex_colors.append(vertex_color_both)
-        # Edges only in g1
+        
+        # Edges only in g1 (2-mers)
         elif v in graph1.vs["name"] and v not in graph2.vs["name"]:
-            # Only in 2-mers, but not tested in N-mers
+
+            # Only in 2-mers, but not tested in N-mers (lacks info)
             if v not in tested_Nmers_nodes:
                 vertex_colors.append(vertex_color3)
                 dynamic_proteins = pd.concat([dynamic_proteins,
                                               pd.DataFrame({"protein": [v],
                                                             "only_in": ["2mers-but_not_tested_in_Nmers"]})
                                               ], ignore_index = True)
+            
+            # Only in 2-mers (with N-mers info)
             else:
                 vertex_colors.append(vertex_color1)
                 dynamic_proteins = pd.concat([dynamic_proteins,
                                               pd.DataFrame({"protein": [v],
                                                             "only_in": ["2mers"]})
                                               ], ignore_index = True)
-        # Edges only in g2
+        
+        # Edges only in g2 (N-mers)
         elif v not in graph1.vs["name"] and v in graph2.vs["name"]:
             vertex_colors.append(vertex_color2)
             dynamic_proteins = pd.concat([dynamic_proteins,
                                           pd.DataFrame({"protein": [v],
                                                         "only_in": ["Nmers"]})
                                           ], ignore_index = True)
+        
         # This if something happens
         else:
             raise ValueError("For some reason a node that comes from the graphs to compare is not in either graphs...")
         
     graphC.vs['color'] = vertex_colors
-    
-    # Functions to add meaning column to vertex and edges
-    def add_edges_meaning(graph, edge_color1='red', edge_color2='green', edge_color3 = 'orange', edge_color_both='black'):
-        
-        # Function to determine the meaning based on color
-        def get_meaning(row):
-            if row['color'] == edge_color_both:
-                return 'Static interaction'
-            elif row['color'] == edge_color1:
-                return 'Dynamic interaction (disappears in N-mers)'
-            elif row['color'] == edge_color2:
-                return 'Dynamic interaction (appears in N-mers)'
-            elif row['color'] == edge_color3:
-                return 'Interaction dynamics not explored in N-mers'
-            else:
-                return 'unknown'
-            
-        edge_df = graph.get_edge_dataframe()
-        # Apply the function to create the new 'meaning' column
-        edge_df['meaning'] = edge_df.apply(get_meaning, axis=1)
-        
-        graph.es["meaning"] = edge_df['meaning']
-        
-    # Functions to add meaning column to vertex and edges
-    def add_vertex_meaning(graph, vertex_color1='red', vertex_color2='green', vertex_color3 = 'orange', vertex_color_both='gray'):
-        
-        # Function to determine the meaning based on color
-        def get_meaning(row):
-            if row['color'] == vertex_color_both:
-                return 'Static protein'
-            elif row['color'] == vertex_color1:
-                return 'Dynamic protein (disappears in N-mers)'
-            elif row['color'] == vertex_color2:
-                return 'Dynamic protein (appears in N-mers)'
-            elif row['color'] == vertex_color3:
-                return 'Protein dynamics not explored in N-mers'
-            else:
-                return 'unknown'
-            
-        vertex_df = graph.get_vertex_dataframe()
-        # Apply the function to create the new 'meaning' column
-        vertex_df['meaning'] = vertex_df.apply(get_meaning, axis=1)
-        
-        graph.vs["meaning"] = vertex_df['meaning']
+    add_vertices_meaning(graphC, vertex_color1, vertex_color2, vertex_color3, vertex_color_both)
 
-    
-    def add_edges_data(graph, pairwise_2mers_df, pairwise_Nmers_df,
-                       min_PAE_cutoff_2mers = 4.5, ipTM_cutoff_2mers = 0.4,
-                       # N-mers cutoffs
-                       min_PAE_cutoff_Nmers = 2, pDockQ_cutoff_Nmers = 0.15):
-        '''Adds N-mers and 2-mers data to integrate it as hovertext in plotly graph plots'''
-                
-        # N-Mers data ---------------------------------------------------------
-        
-        # Pre-process N-mers pairwise interactions:
-        
-        # Initialize dataframe to store N_models
-        pairwise_Nmers_df_F1 = (pairwise_Nmers_df
-            .groupby(['protein1', 'protein2', 'proteins_in_model'])
-            # Compute the number of models on each pair
-            .size().reset_index(name='N_models')
-            .reset_index(drop=True)
-            )
-        # Count the number of models that surpass both cutoffs
-        for model_tuple, group in (pairwise_Nmers_df
-                # Unify the values on pDockQ and min_PAE the N-mer models with homooligomers
-                .groupby(["protein1", "protein2", "proteins_in_model", "rank"])
-                .agg({
-                    'min_PAE': 'min',   # keep only the minimum value of min_PAE
-                    'pDockQ': 'max'     # keep only the maximum value of pDockQ
-                }).reset_index()).groupby(['protein1', 'protein2', 'proteins_in_model']):
-            # Lists with models that surpass each cutoffs
-            list1 = list(group["min_PAE"] < min_PAE_cutoff_Nmers)
-            list2 = list(group["pDockQ"] > pDockQ_cutoff_Nmers)
-            # Compares both lists and see how many are True
-            N_models = sum([a and b for a, b in zip(list1, list2)])
-            pairwise_Nmers_df_F1.loc[
-                (pairwise_Nmers_df_F1["proteins_in_model"] == model_tuple[2]) &
-                (pairwise_Nmers_df_F1["protein1"] == model_tuple[0]) &
-                (pairwise_Nmers_df_F1["protein2"] == model_tuple[1]), "N_models"] = N_models
-        
-        # Extract best min_PAE and ipTM
-        pairwise_Nmers_df_F2 = (pairwise_Nmers_df
-            # Group by pairwise interaction
-            .groupby(['protein1', 'protein2', 'proteins_in_model'])
-            # Extract min_PAE
-            .agg({'pTM': 'max',
-                  'ipTM': 'max',
-                  'min_PAE': 'min',
-                  'pDockQ': 'max'}
-                 )
-            ).reset_index().merge(pairwise_Nmers_df_F1.filter(['protein1', 'protein2', 'proteins_in_model', 'N_models']), on=["protein1", "protein2", "proteins_in_model"])
-        
-        pairwise_Nmers_df_F2["extra_Nmer_proteins"] = ""
-        
-        for i, row in pairwise_Nmers_df_F2.iterrows():
-            extra_proteins = tuple(e for e in row["proteins_in_model"] if e not in (row["protein1"], row["protein2"]))
-            # Count how many times prot1 and 2 appears (are they modelled as dimers/trimers/etc)
-            count_prot1 = list(row["proteins_in_model"]).count(str(row["protein1"]))
-            count_prot2 = list(row["proteins_in_model"]).count(str(row["protein2"]))
-            if str(row["protein1"]) == str(row["protein2"]):
-                if count_prot1 > 1:
-                    extra_proteins = extra_proteins + (f'{str(row["protein1"])} as {count_prot1}-mer',)
-            else:
-                if count_prot1 > 1:
-                    extra_proteins = extra_proteins + (f'{str(row["protein1"])} as {count_prot1}-mer',)
-                if count_prot2 > 1:
-                    extra_proteins = extra_proteins + (f'{str(row["protein2"])} as {count_prot1}-mer',)
-            pairwise_Nmers_df_F2.at[i, "extra_Nmer_proteins"] = extra_proteins
-        
 
-        # Initialize edge attribute to avoid AttributeError
-        graph.es["N_mers_data"] = None
-        
-        # Get protein info for each protein pair
-        for pair, data in pairwise_Nmers_df_F2.groupby(['protein1', 'protein2']):
-            
-            # Pair coming from the dataframe (sorted)
-            df_pair = sorted(pair)
-            
-            # Add info to the edges when the graph_pair matches the df_pair
-            for edge in graph.es:
-                source_name = graph.vs[edge.source]["name"]
-                target_name = graph.vs[edge.target]["name"]
-                
-                graph_pair = sorted((source_name, target_name))
-                
-                # Add the data when it is a match
-                if df_pair == graph_pair:
-                    
-                    filtered_data = data.filter(["pTM", "ipTM", "min_PAE", "pDockQ",
-                                                 "N_models", "proteins_in_model", "extra_Nmer_proteins"])
-                    
-                    # If no info was added previously
-                    if edge["N_mers_data"] is None:
-                        edge["N_mers_data"] = filtered_data
-                        
-                    # If the edge contains N_mers data
-                    else:
-                        # Append the data
-                        edge["N_mers_data"] = pd.concat([edge["N_mers_data"], filtered_data], ignore_index = True)
-        
-        # Add No data tag as N_mers_info in those pairs not explored in N-mers
-        for edge in graph.es:
-            if edge["N_mers_data"] is None:
-                edge["N_mers_info"] = "No data"
-                edge["N_mers_data"] = pd.DataFrame(columns=["pTM", "ipTM", "min_PAE", "pDockQ", "N_models", "proteins_in_model", "extra_Nmer_proteins"])
-            else:
-                # Convert data to a string
-                data_str = edge["N_mers_data"].filter(["pTM", "ipTM", "min_PAE", "pDockQ", "N_models", "proteins_in_model"]).to_string(index=False).replace('\n', '<br>')
-                edge["N_mers_info"] = data_str
-        
-        
-        # 2-Mers data ---------------------------------------------------------
-        
-        # Pre-process pairwise interactions
-        pairwise_2mers_df_F1 = (pairwise_2mers_df[
-            # Filter the DataFrame based on the ipTM and min_PAE
-            (pairwise_2mers_df['min_PAE'] <= min_PAE_cutoff_2mers) &
-            (pairwise_2mers_df['ipTM'] >= ipTM_cutoff_2mers)]
-          # Group by pairwise interaction
-          .groupby(['protein1', 'protein2'])
-          # Compute the number of models for each pair that are kept after the filter
-          .size().reset_index(name='N_models')
-          .reset_index(drop=True)
-          )
-        
-        pairwise_2mers_df_F2 = (pairwise_2mers_df
-            # Group by pairwise interaction
-            .groupby(['protein1', 'protein2'])
-            # Extract min_PAE
-            .agg({'pTM': 'max',
-                  'ipTM': 'max',
-                  'min_PAE': 'min',
-                  'pDockQ': 'max'}
-                 )
-            ).reset_index().merge(pairwise_2mers_df_F1.filter(['protein1', 'protein2', 'N_models']), on=["protein1", "protein2"])
-        
-        
-        # Initialize 2_mers_data edge attribute to avoid AttributeErrors
-        graph.es["2_mers_data"] = None
-        
-        for pair, data in pairwise_2mers_df_F2.groupby(['protein1', 'protein2']):
-        
-            df_pair = sorted(pair)
-        
-            for edge in graph.es:
-                source_name = graph.vs[edge.source]["name"]
-                target_name = graph.vs[edge.target]["name"]
-                
-                graph_pair = sorted((source_name,target_name))
-                
-                # If the pair from the df is the same as the edge pair
-                if df_pair == graph_pair:
-                    
-                    # Extract interaction data
-                    filtered_data = data.filter(["pTM", "ipTM", "min_PAE", "pDockQ", "N_models"])
-                    
-                    # If no info was added previously
-                    if edge["2_mers_data"] is None:
-                        edge["2_mers_data"] = filtered_data
-                        
-                    # If the edge contains 2_mers data (Which is not possible, I think...)
-                    else:
-                        # DEBUG
-                        # print("WARNING: SOMETHING IS WRONG WITH AN EDGE!")
-                        # print("WARNING: There is an unknown inconsistency with the data...")
-                        # print("WARNING: Have you modelled by mistake a protein pair twice???")
-                        # print("WARNING: Edge that produced the warning:", (graph.vs[edge.source]["name"], graph.vs[edge.target]["name"]))
-                        
-                        # Append the data
-                        edge["2_mers_data"] = pd.concat([edge["2_mers_data"], filtered_data], ignore_index= True)
-            
-        for edge in graph.es:
-            
-            # If no data was found for the edge
-            if edge["2_mers_data"] is None:
-                
-                # DEBUG
-                # print("WARNING: SOMETHING IS WRONG WITH AN EDGE!")
-                # print("WARNING: There is an unknown inconsistency with the data...")
-                # print("WARNING: Did you left a protein pair without exploring its interaction???")
-                # print("WARNING: Edge that produced the warning:", (graph.vs[edge.source]["name"], graph.vs[edge.target]["name"]))
-                
-                # Add a label for missing data
-                edge["2_mers_info"] = "No rank surpass cutoff"
-                # And add an empty dataframe as 2_mers_data attribute
-                edge["2_mers_data"] = pd.DataFrame(columns=["pTM", "ipTM", "min_PAE", "pDockQ", "N_models"])
-            
-            else:
-                # Convert data to a string and add the attribute on the edge
-                edge["2_mers_info"] = edge["2_mers_data"].to_string(index=False).replace('\n', '<br>')
-                
-                
-    def modify_ambiguous_Nmers_edges(graph, edge_color4, edge_color6, N_models_cutoff, fraction_cutoff = 0.5):
-        for edge in graph.es:
-            all_are_bigger = all(list(edge["N_mers_data"]["N_models"] >= N_models_cutoff))
-            all_are_smaller = all(list(edge["N_mers_data"]["N_models"] < N_models_cutoff))
-            if not (all_are_bigger or all_are_smaller):
-                edge["meaning"] = "Ambiguous Dynamic (In some N-mers appear and in others disappear)"
-                edge["color"] = edge_color4
-                
-                # Also check if there is litt
-                total_models = len(list(edge["N_mers_data"]["N_models"]))
-                models_that_surpass_cutoffs = sum(edge["N_mers_data"]["N_models"] >= N_models_cutoff)
-                
-                if models_that_surpass_cutoffs / total_models >= fraction_cutoff:
-                    edge["meaning"] = "Predominantly static interaction"
-                    edge["color"] = edge_color6
-            
-            
-    def modify_indirect_interaction_edges(graph, edge_color5, pdockq_indirect_interaction_cutoff = 0.23, remove_indirect_interactions=True):
-        
-        # To remove indirect interaction edges
-        edges_to_remove = []
-        
-        for edge in graph.es:
-            if edge["meaning"] == 'Dynamic interaction (appears in N-mers)' or edge["2_mers_info"] == "No rank surpass cutoff" or edge["2_mers_data"].query(f'N_models >= {N_models_cutoff}').empty:
-                if np.mean(edge["N_mers_data"].query(f'N_models >= {N_models_cutoff}')["pDockQ"]) < pdockq_indirect_interaction_cutoff:
-                    edge["meaning"] = 'Indirect interaction'
-                    edge["color"] = edge_color5
-                    edges_to_remove.append(edge.index)
-        
-        if remove_indirect_interactions:
-            # Remove edges from the graph
-            graph.delete_edges(edges_to_remove)
-                        
-    
-    def add_nodes_IDs(graph, prot_IDs, prot_names):
-        
-        for ID, name in zip(prot_IDs, prot_names):
-            for vertex in graph.vs:
-                if vertex["name"] == ID:
-                    vertex["IDs"] = name
-                    break
-    
-    def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
-                                          pairwise_2mers_df, pairwise_Nmers_df,
-                                          domain_RMSD_plddt_cutoff, trimming_RMSD_plddt_cutoff):
-        
-        hydrogens = ('H', 'H1', 'H2', 'H3', 'HA', 'HA2', 'HA3', 'HB', 'HB1', 'HB2', 
-                     'HB3', 'HG2', 'HG3', 'HD2', 'HD3', 'HE2', 'HE3', 'HZ1', 'HZ2', 
-                     'HZ3', 'HG11', 'HG12', 'HG13', 'HG21', 'HG22', 'HG23', 'HZ', 'HD1',
-                     'HE1', 'HD11', 'HD12', 'HD13', 'HG', 'HG1', 'HD21', 'HD22', 'HD23',
-                     'NH1', 'NH2', 'HE', 'HH11', 'HH12', 'HH21', 'HH22', 'HE21', 'HE22',
-                     'HE2', 'HH', 'HH2')
-        
-        def create_model_chain_from_residues(residue_list, model_id=0, chain_id='A'):
-
-            # Create a Biopython Chain
-            chain = Chain.Chain(chain_id)
-
-            # Add atoms to the chain
-            for residue in residue_list:
-                chain.add(residue)
-                
-            return chain
-
-        def calculate_rmsd(chain1, chain2, trimming_RMSD_plddt_cutoff):
-            # Make sure both chains have the same number of atoms
-            if len(chain1) != len(chain2):
-                raise ValueError("Both chains must have the same number of atoms.")
-
-            # Initialize the Superimposer
-            superimposer = Superimposer()
-
-            # Extract atom objects from the chains (remove H atoms)
-            atoms1 = [atom for atom in list(chain1.get_atoms()) if atom.id not in hydrogens]
-            atoms2 = [atom for atom in list(chain2.get_atoms()) if atom.id not in hydrogens]
-            
-            # Check equal length
-            if len(atoms1) != len(atoms2):
-                raise ValueError("Something went wrong after H removal: len(atoms1) != len(atoms2)")
-            
-            # Get indexes with lower than trimming_RMSD_plddt_cutoff atoms in the reference 
-            indices_to_remove = [i for i, atom in enumerate(atoms1) if atom.bfactor is not None and atom.bfactor < domain_RMSD_plddt_cutoff]
-            
-            # Remove the atoms
-            for i in sorted(indices_to_remove, reverse=True):
-                del atoms1[i]
-                del atoms2[i]
-                
-            # Check equal length after removal
-            if len(atoms1) != len(atoms2):
-                raise ValueError("Something went wrong after less than pLDDT_cutoff atoms removal: len(atoms1) != len(atoms2)")
-
-            # Set the atoms to the Superimposer
-            superimposer.set_atoms(atoms1, atoms2)
-
-            # Calculate RMSD
-            rmsd = superimposer.rms
-
-            return rmsd
-        
-        def get_graph_protein_pairs(graph):
-            graph_pairs = []
-            
-            for edge in graph.es:
-                prot1 = edge.source_vertex["name"]
-                prot2 = edge.target_vertex["name"]
-                
-                graph_pairs.append((prot1,prot2))
-                graph_pairs.append((prot2,prot1))
-                
-            return graph_pairs
-        
-        print("Computing domain RMSD against reference and adding it to combined graph.")
-        
-        # Get all pairs in the graph
-        graph_pairs = get_graph_protein_pairs(graph)
-        
-        # Work protein by protein
-        for vertex in graph.vs:
-            
-            protein_ID = vertex["name"]
-            ref_structure = sliced_PAE_and_pLDDTs[protein_ID]["PDB_xyz"]
-            ref_residues = list(ref_structure.get_residues())
-            
-            # Add sub_domains_df to vertex
-            vertex["domains_df"] = domains_df.query(f'Protein_ID == "{protein_ID}"').filter(["Domain", "Start", "End", "Mean_pLDDT"])
-            
-            # Initialize dataframes to store RMSD
-            columns = ["Domain","Model","Chain", "Mean_pLDDT", "RMSD"]
-            vertex["RMSD_df"] = pd.DataFrame(columns = columns)
-            
-            print(f"   - Computing RMSD for {protein_ID}...")
-            
-            # Work domain by domain
-            for D, domain in domains_df.query(f'Protein_ID == "{protein_ID}"').iterrows():
-                
-                
-                # Do not compute RMSD for disordered domains
-                if domain["Mean_pLDDT"] < domain_RMSD_plddt_cutoff:
-                    continue
-                
-                # Start and end indexes for the domain
-                start = domain["Start"] - 1
-                end = domain["End"] - 1
-                domain_num = domain["Domain"]
-                
-                # Create a reference chain for the domain (comparisons are made against it)
-                ref_domain_chain = create_model_chain_from_residues(ref_residues[start:end])
-                
-                # Compute RMSD for 2-mers models that are part of interactions (use only rank 1)
-                for M, model in pairwise_2mers_df.query(f'(protein1 == "{protein_ID}" | protein2 == "{protein_ID}") & rank == 1').iterrows():
-                    
-                    prot1 = str(model["protein1"])
-                    prot2 = str(model["protein2"])
-                    
-                    model_proteins = (prot1, prot2)
-                    
-                    # If the model does not represents an interaction, jump to the next one
-                    if (prot1, prot2) not in graph_pairs:
-                        continue
-                    
-                    # Work chain by chain in the model
-                    for query_chain in model["model"].get_chains():
-                        query_chain_ID = query_chain.id
-                        query_chain_seq = "".join([protein_letters_3to1[res.get_resname()] for res in query_chain.get_residues()])
-                        
-                        # Compute RMSD only if sequence match
-                        if query_chain_seq == sliced_PAE_and_pLDDTs[protein_ID]["sequence"]:
-                            
-                            query_domain_residues = list(query_chain.get_residues())
-                            query_domain_chain = create_model_chain_from_residues(query_domain_residues[start:end])
-                            query_domain_mean_pLDDT = np.mean([list(res.get_atoms())[0].get_bfactor() for res in query_domain_chain.get_residues()])
-                            query_domain_RMSD = calculate_rmsd(ref_domain_chain, query_domain_chain, domain_RMSD_plddt_cutoff)
-                            
-                            query_domain_RMSD_data = pd.DataFrame({
-                                "Domain": [domain_num],
-                                "Model": [model_proteins],
-                                "Chain": [query_chain_ID],
-                                "Mean_pLDDT": [round(query_domain_mean_pLDDT, 1)],
-                                "RMSD": [round(query_domain_RMSD, 2)] 
-                                })
-                            
-                            vertex["RMSD_df"] = pd.concat([vertex["RMSD_df"], query_domain_RMSD_data], ignore_index = True)
-                
-                
-                # Compute RMSD for N-mers models that are part of interactions (use only rank 1)
-                for M, model in pairwise_Nmers_df.query(f'(protein1 == "{protein_ID}" | protein2 == "{protein_ID}") & rank == 1').iterrows():
-                    
-                    prot1 = model["protein1"]
-                    prot2 = model["protein2"]
-                    
-                    model_proteins = tuple(model["proteins_in_model"])
-                    
-                    # If the model does not represents an interaction, jump to the next one
-                    if (prot1, prot2) not in graph_pairs:
-                        continue
-                    
-                    # Work chain by chain in the model
-                    for query_chain in model["model"].get_chains():
-                        query_chain_ID = query_chain.id
-                        query_chain_seq = "".join([protein_letters_3to1[res.get_resname()] for res in query_chain.get_residues()])
-                        
-                        # Compute RMSD only if sequence match
-                        if query_chain_seq == sliced_PAE_and_pLDDTs[protein_ID]["sequence"]:
-                            
-                            query_domain_residues = list(query_chain.get_residues())
-                            query_domain_chain = create_model_chain_from_residues(query_domain_residues[start:end])
-                            query_domain_mean_pLDDT = np.mean([list(res.get_atoms())[0].get_bfactor() for res in query_domain_chain.get_residues()])
-                            query_domain_RMSD = calculate_rmsd(ref_domain_chain, query_domain_chain, domain_RMSD_plddt_cutoff)
-                            
-                            query_domain_RMSD_data = pd.DataFrame({
-                                "Domain": [domain_num],
-                                "Model": [model_proteins],
-                                "Chain": [query_chain_ID],
-                                "Mean_pLDDT": [round(query_domain_mean_pLDDT, 1)],
-                                "RMSD": [round(query_domain_RMSD, 2)]
-                                })
-                            
-                            vertex["RMSD_df"] = pd.concat([vertex["RMSD_df"], query_domain_RMSD_data], ignore_index = True)
-
-        # remove duplicates
-        for vertex in graph.vs:
-            vertex["RMSD_df"] = vertex["RMSD_df"].drop_duplicates().reset_index(drop = True)
+    # ----------------------------------------------------------------------------------------
+    # -------------- Add 2/N-mers data, homooligomeric states, RMSD, etc ---------------------
+    # ----------------------------------------------------------------------------------------
 
     def add_homooligomerization_state(graph,
                                       pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
@@ -866,20 +592,14 @@ def generate_combined_graph(
                 edge["homooligomerization_states"] = homooligomerization_states[source_name]
 
                 
-    # Add data to the combined graph to allow hovertext display later           
-    add_edges_meaning(graphC, edge_color1, edge_color2, edge_color3, edge_color_both)
-    add_vertex_meaning(graphC, vertex_color1, vertex_color2, vertex_color3, vertex_color_both)
+    # Add data to the combined graph to allow hovertext display later
     add_edges_data(graphC, pairwise_2mers_df, pairwise_Nmers_df,
                    min_PAE_cutoff_2mers = min_PAE_cutoff_2mers, ipTM_cutoff_2mers = ipTM_cutoff_2mers,
                    # N-mers cutoffs
                    min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers)
-    modify_ambiguous_Nmers_edges(graphC, edge_color4, edge_color6, N_models_cutoff, fraction_cutoff=predominantly_static_cutoff)
-    add_nodes_IDs(graphC, prot_IDs, prot_names)
+    add_vertices_IDs(graphC, prot_IDs, prot_names)
     add_domain_RMSD_against_reference(graphC, domains_df, sliced_PAE_and_pLDDTs,pairwise_2mers_df, pairwise_Nmers_df,
                                       domain_RMSD_plddt_cutoff, trimming_RMSD_plddt_cutoff)
-    modify_indirect_interaction_edges(graphC, edge_color5,
-                                      pdockq_indirect_interaction_cutoff = pdockq_indirect_interaction_cutoff,
-                                      remove_indirect_interactions = remove_indirect_interactions)
     add_homooligomerization_state(graphC,
                                   pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
                                   pairwise_Nmers_df = pairwise_Nmers_df,
@@ -888,6 +608,39 @@ def generate_combined_graph(
                                   pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
                                   N_models_cutoff = N_models_cutoff)
     
+
+    # ----------------------------------------------------------------------------------------
+    # -------------------------- Add edges dynamic classifications ---------------------------
+    # ----------------------------------------------------------------------------------------
+
+    # Dynamic classification of each edge is performed based on cfg/interaction_classification.tvs table
+
+    # Create a df to track dynamic interactions
+    edges_dynamics = []
+
+    # Analyze one edge of the combined graph at a time
+    for edge in edges_gC_sort:
+        
+        e_dynamic = classify_edge_dynamics(combined_edge = edge,
+                                           
+                                           # Graphs
+                                           graph_2mers   = graph1,
+                                           graph_Nmers   = graph2,
+                                           
+                                           # Sorted edges lists
+                                           sorted_edges_2mers_graph  = edges_g1_sort, 
+                                           sorted_edges_Nmers_graph  = edges_g2_sort,
+                                           sorted_edges_Comb_graph   = edges_gC_sort,
+                                           tested_Nmers_edges_sorted = tested_Nmers_edges_sorted)
+
+        edges_dynamics.append(e_dynamic)
+
+    graphC.es['dynamics'] = edges_dynamics
+
+    # ----------------------------------------------------------------------------------------
+    # -------------------------- Add dict with the used cutoffs ------------------------------
+    # ----------------------------------------------------------------------------------------
+
     # add cutoffs dict to the graph
     graphC["cutoffs_dict"] = dict(
         # 2-mers cutoffs
@@ -899,11 +652,12 @@ def generate_combined_graph(
         # For RMSD calculations
         domain_RMSD_plddt_cutoff = domain_RMSD_plddt_cutoff, trimming_RMSD_plddt_cutoff = trimming_RMSD_plddt_cutoff)
     
+
     # Add edges "name"
     graphC.es["name"] = [(graphC.vs["name"][tuple_edge[0]], graphC.vs["name"][tuple_edge[1]]) for tuple_edge in graphC.get_edgelist()]
     
     
-    return graphC, dynamic_proteins, dynamic_interactions
+    return graphC, dynamic_proteins
 
 
 # -----------------------------------------------------------------------------
@@ -1002,7 +756,9 @@ def igraph_to_plotly(
         save_html: str | None = None,
         
         # Edges visualization
-        edge_width: int = 2, self_loop_orientation: float = 0, self_loop_size: float | int = 2.5,
+        edge_width: int = 2,
+        self_loop_orientation: float = 0,
+        self_loop_size: float | int = 2.5,
         use_dot_dynamic_edges: bool = True, 
         
         # Nodes visualization
@@ -1062,6 +818,10 @@ def igraph_to_plotly(
     - fig: plotly.graph_objects.Figure, the interactive plot.
     """
     
+    # ----------------------------------------------------------------------------------
+    # --------------------------------- Initial setups ---------------------------------
+    # ----------------------------------------------------------------------------------
+
     # Adjust the scale of the values
     node_size = node_size * 10
     self_loop_size = self_loop_size / 10
@@ -1075,52 +835,34 @@ def igraph_to_plotly(
     # Extract node and edge positions from the layout
     pos = {vertex.index: layout[vertex.index] for vertex in graph.vs}
     
-    # Extract edge attributes. If they are not able, set them to a default value
-    try:
-        edge_colors = graph.es["color"]
-    except:
-        edge_colors = len(graph.get_edgelist()) * ["black"]
-        graph.es["color"] = len(graph.get_edgelist()) * ["black"]
-    try:
-        graph.es["meaning"]
-    except:
-        graph.es["meaning"] = len(graph.get_edgelist()) * ["Interactions"]
-    try:
-        graph.es["N_mers_info"]
-    except:
-        graph.es["N_mers_info"] = len(graph.get_edgelist()) * [""]
-    try:
-        graph.es["2_mers_info"]
-    except:
-        graph.es["2_mers_info"] = len(graph.get_edgelist()) * [""]
-    
-   
+    # Get the interaction classification dataframe
+    classification_df = read_classification_df()
+
+    # ----------------------------------------------------------------------------------
+    # --------------------------- Edges/interaction/vertex -----------------------------
+    # ----------------------------------------------------------------------------------
+
     # Create Scatter objects for edges, including self-loops
     edge_traces = []
     for edge in graph.es:
         
-        # Re-initialize default variables
-        edge_linetype = "solid"
-        edge_weight = 1
+        try:
+            # Get edge style based on meaning
+            edge_dynamics   = get_edge_dynamics(edge, classification_df)
+            edge_color      = get_edge_color(edge, classification_df)
+            edge_linetype   = get_edge_linetype(edge, classification_df)
+            edge_width      = get_edge_width(edge, classification_df)
+            edge_weight     = get_edge_weight(edge, classification_df)
+            edge_oscillates = get_edge_oscillates(edge, classification_df)
         
-        # Modify the edge representation depending on the "meaning" >>>>>>>>>>>
-        if ("Dynamic " in edge["meaning"] or "Indirect " in edge["meaning"]) and use_dot_dynamic_edges:
-            edge_linetype = "dot"
-            edge_weight = 0.5
-            
-        if edge["meaning"] == 'Static interaction' or edge["meaning"] == "Predominantly static interaction":
-            edge_weight = int(np.mean(list(edge["2_mers_data"]["N_models"]) + list(edge["N_mers_data"]["N_models"])) *\
-                              np.mean(list(edge["2_mers_data"]["ipTM"]) + list(edge["N_mers_data"]["ipTM"])) *\
-                              (1/ np.mean(list(edge["2_mers_data"]["min_PAE"]) + list(edge["N_mers_data"]["min_PAE"]))))
-            if edge_weight < 1:
-                edge_weight = 1
-                
-        elif "(appears in N-mers)" in edge["meaning"] or "Ambiguous Dynamic" in edge["meaning"]:
-            edge_weight = 1
-            
-        if edge["meaning"] == "Predominantly static interaction":
-            edge_linetype = "solid"
-        # Modify the edge representation depending on the "meaning" <<<<<<<<<<<
+        except:
+            # Use default values by now
+            edge_color      = "black"
+            edge_linetype   = "solid"
+            edge_width      = 2
+            edge_weight     = 0.5
+            edge_oscillates = True
+            edge_dynamics   = "Static"
             
         # ----------------- Draw a circle for homooligomerization edges (self-loops) ----------------------
         if edge.source == edge.target:
@@ -1150,8 +892,7 @@ def igraph_to_plotly(
                 circle_x = circle_x_rot
                 circle_y = circle_y_rot
             
-            if True:
-            # if edge["oscillates"]:
+            if edge_oscillates:
                 # Get the center of the circle oscillation line is performed with that point as reference
                 reference_point = np.array([np.mean(circle_x), np.mean(circle_y)])
                 oscillated_circle_x, oscillated_circle_y = oscillate_circle(reference_point = reference_point,
@@ -1164,33 +905,33 @@ def igraph_to_plotly(
                     x = oscillated_circle_x.tolist() + [None],
                     y = oscillated_circle_y.tolist() + [None],
                     mode = "lines",
-                    line = dict(color = edge_colors[edge.index], 
+                    line = dict(color = edge_color, 
                                 width = oscillation_width,
                                 dash  = edge_linetype),
                     hoverinfo   = 'skip',
                     text        = None,
-                    hovertext   = None,
-                    hoverlabel  = None,
                     showlegend  = False
                 )
 
                 # add text trace
                 edge_traces.append(oscillated_edge_trace)
             
-            # Add the self-loop edge trace
+            # Generate self-loop edge trace
             edge_trace = go.Scatter(
-                x=circle_x.tolist() + [None],
-                y=circle_y.tolist() + [None],
-                mode="lines",
-                line=dict(color=edge_colors[edge.index],
-                          width=int(edge_width*edge_weight),
-                          dash = edge_linetype),
-                hoverinfo="text",
-                text= [edge["meaning"] + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
-                hovertext=[edge["meaning"] + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
-                hoverlabel=dict(font=dict(family='Courier New', size=hovertext_size)),
-                showlegend=False
+                x = circle_x.tolist() + [None],
+                y = circle_y.tolist() + [None],
+                mode = "lines",
+                line = dict(color = edge_color,
+                            width = int(edge_width * edge_weight),
+                            dash  = edge_linetype),
+                hoverinfo  ="text",
+                text       = [edge_dynamics + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
+                hovertext  = [edge_dynamics + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
+                hoverlabel = dict(font=dict(family='Courier New', size=hovertext_size)),
+                showlegend = False
             )
+
+            # ------------- Add homooligomerization state data -----------------------
 
             # Calculate the center of the circle (this is to add text in the middle)
             circle_center_x = np.mean(circle_x)
@@ -1219,9 +960,7 @@ def igraph_to_plotly(
             intermediate_x = np.linspace(pos[edge.source][0], pos[edge.target][0], resolution + 2)
             intermediate_y = np.linspace(pos[edge.source][1], pos[edge.target][1], resolution + 2)
 
-            # If the edge is a positive interaction add some noise
-            # if edge["oscillate"]:
-            if True:
+            if edge_oscillates:
                 oscillated_x, oscillated_y = oscillate_line(start_point = pos[edge.source],
                                                             end_point   = pos[edge.target],
                                                             amplitude = oscillation_amplitude,
@@ -1232,13 +971,11 @@ def igraph_to_plotly(
                     x = oscillated_x.tolist() + [None],
                     y = oscillated_y.tolist() + [None],
                     mode = "lines",
-                    line = dict(color = edge_colors[edge.index], 
+                    line = dict(color = edge_color, 
                                 width = oscillation_width,
                                 dash  = edge_linetype),
                     hoverinfo   = 'skip',
                     text        = None,
-                    hovertext   = None,
-                    hoverlabel  = None,
                     showlegend  = False
                 )
                 # Add traces
@@ -1248,33 +985,45 @@ def igraph_to_plotly(
             edge_trace = go.Scatter(
                 x=intermediate_x.tolist() + [None],
                 y=intermediate_y.tolist() + [None],
-                mode="lines",
-                line=dict(color=edge_colors[edge.index], width=int(edge_width*edge_weight), dash = edge_linetype),
-                hoverinfo="text",  # Add hover text
-                text=[edge["meaning"] + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
-                hovertext=[edge["meaning"] + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
-                hoverlabel=dict(font=dict(family='Courier New', size=hovertext_size)),
-                showlegend=False
+                mode = "lines",
+                line = dict(color = edge_color,
+                            width = int(edge_width * edge_weight),
+                            dash  = edge_linetype),
+                hoverinfo   = "text",  # Add hover text
+                text        = [edge_dynamics + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
+                hovertext   = [edge_dynamics + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
+                hoverlabel  = dict(font=dict(family='Courier New', size=hovertext_size)),
+                showlegend  = False
             )
         
         # Add traces
         edge_traces.append(edge_trace)
     
     
+    # ----------------------------------------------------------------------------------
+    # ------------------------ Nodes/proteins/vertex traces ----------------------------
+    # ----------------------------------------------------------------------------------
+
     nodes_df = graph.get_vertex_dataframe()
     nodes_df["x_coord"] = [c[0] for c in layout.coords]
     nodes_df["y_coord"] = [c[1] for c in layout.coords]
     nodes_number = len(graph.get_vertex_dataframe())
+
+    # Color
     try:
         nodes_df["color"]
     except:
         # graph.vs["color"] = ["gray"] * nodes_number
         nodes_df["color"] = ["gray"] * nodes_number
+    
+    # Meaning
     try:
         nodes_df["meaning"]
     except:
         # graph.vs["meaning"] = ["Proteins"] * nodes_number
         nodes_df["meaning"] = ["Proteins"] * nodes_number
+
+    # ID
     try:
         nodes_df["IDs"]
     except:
@@ -1359,8 +1108,9 @@ def igraph_to_plotly(
     # Create the Figure and add traces
     fig = go.Figure(data=[*edge_traces, node_trace], layout=layout)
     
-    
-    # ------------------------------------ Labels ------------------------------------
+    # ----------------------------------------------------------------------------------
+    # ------------------------------- Legend Labels ------------------------------------
+    # ----------------------------------------------------------------------------------
 
     # Extract the colors (col) and label text (meaning: mng) from the combined graph
     set_edges_colors_meanings  = set([(col, mng) for col, mng in zip(graph.es["color"], graph.es["meaning"])])

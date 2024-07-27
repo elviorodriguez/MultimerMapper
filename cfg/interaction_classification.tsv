@@ -1,10 +1,10 @@
-Classification	2_mers	N_mers	N_mers_variation	N_mers_pDockQ	Color_name	Color_hex	Line_type	Add_noise	Edge_width
-Static	TRUE	TRUE	1	≥0	black         	#000000	solid	FALSE	variable
-Quasi-Static	TRUE	TRUE	≥0.5	≥0	blue          	#4477AA	solid	FALSE	variable
-Strong Positive	FALSE	TRUE	1	≥0.23	green         	#228833	solid	TRUE	variable
-Positive	FALSE	TRUE	≥0.5	≥0.23	green         	#228833	dot	TRUE	1
-Weak Positive	FALSE	TRUE	<0.5	≥0.23	cyan          	#66CCEE	dot	TRUE	1
-Weak Negative	TRUE	TRUE	<0.5	≥0	purple        	#AA3377	dot	FALSE	1
-Negative	TRUE	FALSE	0	≥0	red           	#EE6677	dot	FALSE	1
-Indirect	FALSE	TRUE	>0	<0.23	yellow        	#CCBB44	dot	FALSE	1
-No Data	TRUE	No data	No data	≥0	orange        	#e69f00	solid	FALSE	1
+Classification	2_mers	N_mers	Tested_in_N_mers	N_mers_variation	N_mers_pDockQ	Color_name	Color_hex	Line_type	Edge_oscillates	Edge_width
+Static	True	True	True	==1	>=0	black         	#000000	solid	FALSE	variable
+Strong Positive	False	True	True	==1	>=0.23	green         	#228833	solid	True	variable
+Positive	False	True	True	>=0.5	>=0.23	green         	#228833	dot	True	1
+Weak Positive	False	True	True	<0.5	>=0.23	cyan          	#66CCEE	solid	True	1
+Weak Negative	True	True	True	>=0.5	>=0	blue          	#4477AA	dot	FALSE	variable
+Negative	True	True	True	<0.5	>=0	purple        	#AA3377	dot	FALSE	1
+Strong Negative	True	False	True	==0	>=0	red           	#EE6677	dot	FALSE	1
+Indirect	False	True	True	>0	<0.23	yellow        	#CCBB44	dot	FALSE	1
+No N-mers Data	True	FALSE	FALSE	==0	>=0	orange        	#e69f00	solid	FALSE	1
