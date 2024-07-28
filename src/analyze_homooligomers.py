@@ -56,12 +56,18 @@ def check_if_skipped_homo_N_mers(homo_Nmers_models: set,
 
     
     models = sorted(list(homo_Nmers_models), key = len)
-    try:
-        biggest_homo_N_mer  = len(models[-1])
-    # In the case that not even the homo-3-mer is present, this will rise an exception (models == [])
-    except IndexError():
+    # In the case that not even the homo-3-mer is present:
+    if len(models) == 0:
         logger.warning(f"No homooligomerization states for {protein}")
         return [False]
+    biggest_homo_N_mer  = len(models[-1])
+
+    # try:
+    #     biggest_homo_N_mer  = len(models[-1])
+    # # In the case that not even the homo-3-mer is present, this will rise an exception (models == [])
+    # except IndexError():
+    #     logger.warning(f"No homooligomerization states for {protein}")
+    #     return [False]
     
     # Progress
     logger.info(f'Verifying homo-N-mers for {models[0][0]} (3-mers or bigger)')

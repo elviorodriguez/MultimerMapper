@@ -27,7 +27,7 @@ logger = mm.configure_logger(out_path=out_path)
 fasta_file = "/home/elvio/Desktop/Assemblies/BDF2_HDAC3/SIN3_proteins.fasta"
 AF2_2mers = "/home/elvio/Desktop/Assemblies/BDF2_HDAC3/2-mers"
 AF2_Nmers = "/home/elvio/Desktop/Assemblies/BDF2_HDAC3/N-mers"
-AF2_Nmers = None
+# AF2_Nmers = None
 out_path = "/home/elvio/Desktop/MM_SIN3"
 use_names = True 
 overwrite = True
@@ -38,14 +38,42 @@ graph_resolution_preset = "/home/elvio/Desktop/MM_SIN3/graph_resolution_preset.j
 
 ################################# Test 3 ######################################
 
-fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
-AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
-AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
+fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/NuA4_proteins.fasta"
+AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/N-mers"
 # AF2_Nmers = None
-out_path = "/home/elvio/Desktop/MM_interactive_test"
+out_path = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4"
 use_names = True 
 overwrite = True
-graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4/graph_resolution_preset.json"
+# graph_resolution_preset = None
+
+# logger = mm.configure_logger(out_path=out_path)
+
+###################### Test 4 (indirect interactions) #########################
+
+fasta_file = "tests/indirect_interactions/TINTIN.fasta"
+AF2_2mers = "tests/indirect_interactions/2-mers"
+AF2_Nmers = "tests/indirect_interactions/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/Assemblies/indirect_interaction_tests_N_mers"
+use_names = True 
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+graph_resolution_preset = None
+
+# logger = mm.configure_logger(out_path=out_path)
+
+################################ Test 5 (SIN3) ################################
+
+fasta_file = "/home/elvio/Desktop/Assemblies/SIN3/SIN3_proteins.fasta"
+AF2_2mers = "/home/elvio/Desktop/Assemblies/SIN3/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/Assemblies/SIN3/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/Assemblies/SIN3/MM_output"
+use_names = True 
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 graph_resolution_preset = None
 
 # logger = mm.configure_logger(out_path=out_path)

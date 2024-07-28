@@ -169,6 +169,14 @@ def classify_edge_dynamics(tuple_edge: tuple,
     # If the info is enough to classify
     if e_dynamics_rows.shape[0] == 1:
         e_dynamics = str(e_dynamics_rows["Classification"].iloc[0])
+        logger.debug(f"Found dynamic classification of edge: {tuple_edge}")
+        logger.debug(f"   - is_present_in_2mers: {is_present_in_2mers}")
+        logger.debug(f"   - is_present_in_Nmers: {is_present_in_Nmers}")
+        logger.debug(f"   - was_tested_in_Nmers: {was_tested_in_Nmers}")
+        logger.debug(f"   - Nmers_variation    : not reached")
+        logger.debug( "   - Nmers_mean_pdockq  : not reached")
+        logger.debug(f"   - Classification     : <--- {e_dynamics} --->")
+        logger.debug(f"   - True edge          : {true_edge}")
         return e_dynamics
     
     # If not, get more info
@@ -182,6 +190,14 @@ def classify_edge_dynamics(tuple_edge: tuple,
     # If the info is enough to classify
     if e_dynamics_rows.shape[0] == 1:
         e_dynamics = str(e_dynamics_rows["Classification"].iloc[0])
+        logger.debug(f"Found dynamic classification of edge: {tuple_edge}")
+        logger.debug(f"   - is_present_in_2mers: {is_present_in_2mers}")
+        logger.debug(f"   - is_present_in_Nmers: {is_present_in_Nmers}")
+        logger.debug(f"   - was_tested_in_Nmers: {was_tested_in_Nmers}")
+        logger.debug(f"   - Nmers_variation    : {Nmers_variation}")
+        logger.debug( "   - Nmers_mean_pdockq  : not reached")
+        logger.debug(f"   - Classification     : <--- {e_dynamics} --->")
+        logger.debug(f"   - True edge          : {true_edge}")
         return e_dynamics
 
     # If not, get more info
@@ -195,6 +211,14 @@ def classify_edge_dynamics(tuple_edge: tuple,
     # Info must be enough to classify at this point
     if e_dynamics_rows.shape[0] == 1:
         e_dynamics = str(e_dynamics_rows["Classification"].iloc[0])
+        logger.debug(f"Found dynamic classification of edge: {tuple_edge}")
+        logger.debug(f"   - is_present_in_2mers: {is_present_in_2mers}")
+        logger.debug(f"   - is_present_in_Nmers: {is_present_in_Nmers}")
+        logger.debug(f"   - was_tested_in_Nmers: {was_tested_in_Nmers}")
+        logger.debug(f"   - Nmers_variation    : {Nmers_variation}")
+        logger.debug(f"   - Nmers_mean_pdockq  : {Nmers_mean_pdockq}")
+        logger.debug(f"   - Classification     : <--- {e_dynamics} --->")
+        logger.debug(f"   - True edge          : {true_edge}")
         return e_dynamics
     # If not, something went wrong
     else:
@@ -211,13 +235,16 @@ def classify_edge_dynamics(tuple_edge: tuple,
 def get_edge_Nmers_variation(edge, N_models_cutoff: int):
 
     total_models = len(list(edge["N_mers_data"]["N_models"]))
-    models_that_surpass_cutoffs = sum(edge["N_mers_data"]["N_models"] >= N_models_cutoff)
+    predictions_that_surpass_cutoffs = sum(edge["N_mers_data"]["N_models"] >= N_models_cutoff)
 
-    Nmers_variation = models_that_surpass_cutoffs / total_models
+    Nmers_variation = predictions_that_surpass_cutoffs / total_models
 
     return Nmers_variation
 
 def get_edge_Nmers_pDockQ(edge, N_models_cutoff):
+    '''
+    Computes the mean pDockQ using only N-mers predictions that surpass cutoffs
+    '''
     return np.mean(edge["N_mers_data"].query(f'N_models >= {N_models_cutoff}')["pDockQ"])
 
 # Color

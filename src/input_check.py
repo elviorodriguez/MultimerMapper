@@ -1,5 +1,7 @@
 
 import os
+import json
+import sys
 from Bio import SeqIO, PDB
 from Bio.PDB.Polypeptide import protein_letters_3to1
 from logging import Logger
@@ -265,6 +267,52 @@ def merge_fasta_with_PDB_data(all_pdb_data: dict, prot_IDs: list, prot_names: li
         logger.info(f"    L       : {prot_lens[i]}")
     logger.info("")
 
+
+
+def check_graph_resolution_preset(graph_resolution_preset: str,
+                                  prot_IDs: list,
+                                  logger: Logger):
+    
+
+    if not os.path.isfile(os.path.expanduser(graph_resolution_preset)):
+        logger.warning(f"File not found: {graph_resolution_preset}")
+        choice = input("Do you want to provide a new file path? (1)\n Skip domain detection algorithm using preset? (2)\n Exit? (3)\n Enter 1, 2 or 3: ")
+        
+        if choice == '1':
+            graph_resolution_preset = input("Please provide the new file location: ")
+            logger.warning(f"New file location: {graph_resolution_preset}")
+            graph_resolution_preset = check_graph_resolution_preset(graph_resolution_preset, prot_IDs, logger)
+            return graph_resolution_preset
+            
+        elif choice == '2':
+            logger.warning("Skipping domain detection using graph_resolution_preset.")
+            graph_resolution_preset = None
+            return graph_resolution_preset
+        
+        elif choice == '3':
+            logger.info("Exiting MultimerMapper.")
+            sys.exit()
+
+        else:
+            logger.warning("Invalid choice. Skipping domain detection using graph_resolution_preset.")
+            graph_resolution_preset = None
+            return graph_resolution_preset
+    
+    # Read the json file
+    with open(graph_resolution_preset, 'r') as json_file:
+        graph_resolution_preset_dict = json.load(json_file)
+
+    # Check if all proteins have a preset value
+    for protein_ID in prot_IDs:
+        if protein_ID not in graph_resolution_preset_dict:
+            logger.error(f'The protein ID {protein_ID} have no resolution preset in {graph_resolution_preset}.')
+            logger.error( 'Please provide a proper graph resolution preset file or recompute it.')
+            logger.error( "Exiting MultimerMapper.")
+            sys.exit()
+
+    return graph_resolution_preset
+
+
 # -----------------------------------------------------------------------------
 # Main ------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -309,8 +357,14 @@ def main():
     all_pdb_data = extract_seqs_from_AF2_PDBs(args.AF2_2mers)
 
     # Combine the data from both 
-    merge_fasta_with_PDB_data(all_pdb_data, prot_IDs, prot_seqs, 
-                               prot_seqs, prot_lens, prot_N, use_names)
+    merge_fasta_with_PDB_data(all_pdb_data = all_pdb_data,
+                              prot_IDs = prot_IDs,
+                              prot_names = prot_names, 
+                              prot_seqs = prot_seqs,
+                              prot_lens = prot_lens,
+                              prot_N = prot_N,
+                              use_names = use_names)
+
 
 if __name__ == "__main__":
     main()

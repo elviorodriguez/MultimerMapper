@@ -3,7 +3,7 @@ import os
 
 from cfg.default_settings import *
 from utils.logger_setup import configure_logger
-from src.input_check import seq_input_from_fasta, extract_seqs_from_AF2_PDBs, merge_fasta_with_PDB_data
+from src.input_check import seq_input_from_fasta, extract_seqs_from_AF2_PDBs, merge_fasta_with_PDB_data, check_graph_resolution_preset
 from src.metrics_extractor import extract_AF2_metrics_from_JSON, generate_pairwise_2mers_df, generate_pairwise_Nmers_df
 from src.detect_domains import detect_domains
 from src.ppi_detector import filter_non_int_2mers_df, filter_non_int_Nmers_df
@@ -85,6 +85,12 @@ def parse_AF2_and_sequences(
     # Combine data
     merge_fasta_with_PDB_data(all_pdb_data, prot_IDs, prot_seqs, 
                                 prot_seqs, prot_lens, prot_N, use_names, logger = logger)
+    
+    # Verify the graph resolution preset
+    if graph_resolution_preset is not None:
+        graph_resolution_preset = check_graph_resolution_preset(graph_resolution_preset,
+                                                                prot_IDs,
+                                                                logger)
     
     # --------------------------------------------------------------------------
     # -------------------------- Metrics extraction ----------------------------

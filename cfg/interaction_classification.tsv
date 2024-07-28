@@ -6,5 +6,5 @@ Weak Positive	False	True	True	(0;0.5)	[0.23;1]	cyan          	#66CCEE	dot	True	F
 Weak Negative	True	True	True	[0.5;1)	[0;1]	blue          	#4477AA	solid	FALSE	TRUE
 Negative	True	True	True	(0;0.5)	[0;1]	purple        	#AA3377	dash	FALSE	FALSE
 Strong Negative	True	False	True	[0;0]	[0;1]	red           	#EE6677	dot	FALSE	FALSE
-Indirect	False	True	True	[0;0.5)	[0;0.23)	yellow        	#CCBB44	dot	FALSE	FALSE
+Indirect	False	True	True	(0;1]	[0;0.23)	yellow        	#CCBB44	dot	FALSE	FALSE
 No N-mers Data	True	FALSE	FALSE	[0;0]	[0;1]	orange        	#e69f00	solid	FALSE	FALSE
