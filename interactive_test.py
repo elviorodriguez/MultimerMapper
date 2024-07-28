@@ -24,6 +24,20 @@ logger = mm.configure_logger(out_path=out_path)
 
 ################################# Test 2 ######################################
 
+fasta_file = "/home/elvio/Desktop/Assemblies/BDF2_HDAC3/SIN3_proteins.fasta"
+AF2_2mers = "/home/elvio/Desktop/Assemblies/BDF2_HDAC3/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/Assemblies/BDF2_HDAC3/N-mers"
+AF2_Nmers = None
+out_path = "/home/elvio/Desktop/MM_SIN3"
+use_names = True 
+overwrite = True
+graph_resolution_preset = "/home/elvio/Desktop/MM_SIN3/graph_resolution_preset.json"
+# graph_resolution_preset = None
+
+# logger = mm.configure_logger(out_path=out_path)
+
+################################# Test 3 ######################################
+
 fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
 AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
 AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
@@ -32,9 +46,9 @@ out_path = "/home/elvio/Desktop/MM_interactive_test"
 use_names = True 
 overwrite = True
 graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# graph_resolution_preset = None
+graph_resolution_preset = None
 
-logger = mm.configure_logger(out_path=out_path)
+# logger = mm.configure_logger(out_path=out_path)
 
 ###############################################################################
 

@@ -45,6 +45,7 @@ def get_homo_N_mers_pairwise_df(pairwise_Nmers_df):
 
 
 def check_if_skipped_homo_N_mers(homo_Nmers_models: set,
+                                 protein,
                                  logger) -> list[bool]:
     '''
     Analyzes available homo-N-mers in search of inconsistencies with the
@@ -52,8 +53,15 @@ def check_if_skipped_homo_N_mers(homo_Nmers_models: set,
     this function returns a boolean list that indicates true if the predictions
     were performed correctly. 
     '''
+
+    
     models = sorted(list(homo_Nmers_models), key = len)
-    biggest_homo_N_mer  = len(models[-1])
+    try:
+        biggest_homo_N_mer  = len(models[-1])
+    # In the case that not even the homo-3-mer is present, this will rise an exception (models == [])
+    except IndexError():
+        logger.warning(f"No homooligomerization states for {protein}")
+        return [False]
     
     # Progress
     logger.info(f'Verifying homo-N-mers for {models[0][0]} (3-mers or bigger)')
@@ -175,7 +183,7 @@ def find_homooligomerization_breaks(pairwise_2mers_df_F3, pairwise_Nmers_df,
         
         homo_Nmers_models: set = set(protein_homo_N_mers_pairwise_df['proteins_in_model'])
         
-        is_ok = check_if_skipped_homo_N_mers(homo_Nmers_models, logger)
+        is_ok = check_if_skipped_homo_N_mers(homo_Nmers_models, protein, logger)
         
         # If any state was skipped
         if any(not ok for ok in is_ok):
