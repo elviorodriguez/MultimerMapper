@@ -1,5 +1,10 @@
-# MultimerMapper
 ![image](https://github.com/user-attachments/assets/a71fc1ea-eaaf-44db-baa3-3c78d16de612)
+
+# What is MultimerMapper?
+It is a computational tool for the integration, analysis and visualization of AlphaFold interaction landscapes.
+
+# What can I do with MultimerMapper?
+
 
 # Installation
 
