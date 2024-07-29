@@ -7,7 +7,7 @@ It is a computational tool for the integration, analysis and visualization of Al
 
 
 # Installation
-MultimerMapper requires Anaconda/Miniconda (Miniconda installation guide: https://docs.anaconda.com/miniconda/miniconda-install) to create an isolated environment for the program software.
+MultimerMapper requires Anaconda/Miniconda (Miniconda installation guide: https://docs.anaconda.com/miniconda/miniconda-install) to create an isolated environment for the software.
 To install it, clone the repo in the directory you want, cd to the repo and install the environment using conda:
 ```sh
 # Clone the repo
