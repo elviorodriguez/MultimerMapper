@@ -7,22 +7,28 @@ It is a computational tool for the integration, analysis and visualization of Al
 
 
 # Installation
-
-```
+MultimerMapper requires Anaconda/Miniconda (Miniconda installation guide: https://docs.anaconda.com/miniconda/miniconda-install) to create an isolated environment for the program software.
+To install it, clone the repo in the directory you want, cd to the repo and install the environment using conda:
+```sh
 # Clone the repo
-git clone
+git clone https://github.com/elviorodriguez/MultimerMapper.git
 
 # Go to repo dir
 cd MultimerMapper
 
-# Create MultimerMapper environment
-conda env create -f env.yml
+# Create "MultimerMapper" environment
+conda env create -f environment.yml
+```
+Every time you want to use MultimerMapper, activate the environment with the following command:
+```sh
+# Activate MultimerMapper env to run the pipeline
+conda activate MultimerMapper
 ```
 
 # Run test to verify it works
 
 
-```
+```sh
 # Activate MultimerMapper env to run the pipeline
 conda activate MultimerMapper
 
@@ -35,7 +41,7 @@ python multimer_mapper.py tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta tests/EA
 
 
 # Using manual_domains.tsv
-```
+```sh
 # Only 2-mers
 python multimer_mapper.py tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta tests/EAF6_EPL1_PHD1/2-mers --out_path tests/output_2mers --use_names --overwrite --manual_domains tests/EAF6_EPL1_PHD1/manual_domains.tsv
 
