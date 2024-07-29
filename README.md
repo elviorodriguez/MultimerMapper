@@ -1,4 +1,5 @@
 # MultimerMapper
+![image](https://github.com/user-attachments/assets/a71fc1ea-eaaf-44db-baa3-3c78d16de612)
 
 # Installation
 
