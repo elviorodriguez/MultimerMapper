@@ -13,3 +13,4 @@ dependencies:
   - ipython==8.20.0
   - pycairo==1.26.1
   - cairocffi==1.6.1
+  - scikit-learn==1.3.0
