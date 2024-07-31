@@ -546,7 +546,60 @@ def plot_rmsf(rmsf_values, domains_df,
         plt.show()
         
     plt.close()
-        
+
+def calculate_radius_of_gyration(coords):
+    """
+    Calculate the radius of gyration for a set of coordinates.
+    
+    Args:
+        coords (numpy.ndarray): Array of shape (n_atoms, 3) containing the x, y, z coordinates of atoms.
+    Returns:
+        float: The radius of gyration.
+    """
+    # Calculate the center of mass
+    center_of_mass = np.mean(coords, axis=0)
+    
+    # Calculate the squared distances from the center of mass
+    squared_distances = np.sum((coords - center_of_mass) ** 2, axis=1)
+    
+    # Calculate the mean squared distance
+    mean_squared_distance = np.mean(squared_distances)
+    
+    # Calculate the radius of gyration
+    radius_of_gyration = np.sqrt(mean_squared_distance)
+    
+    return radius_of_gyration
+
+def compute_rog_for_all_chains(all_coords):
+    """
+    Compute the radius of gyration for each set of chain coordinates.
+    
+    Args:
+    all_coords (numpy.ndarray): Array of shape (n_chains, n_atoms, 3) containing coordinates for multiple chains.
+    
+    Returns:
+    numpy.ndarray: Array of radius of gyration values for each chain.
+    """
+    rog_values = np.array([calculate_radius_of_gyration(chain_coords) for chain_coords in all_coords])
+    return rog_values
+
+
+def plot_traj_metadata(metadata_list, metadata_type: str, protein_trajectory_folder: str, protein_ID: str, filename_suffix: str):
+
+    plot_filename = os.path.join(protein_trajectory_folder, f'{protein_ID}_{filename_suffix}_traj_{metadata_type}.png')
+
+    plt.figure()
+    plt.plot(range(1, len(metadata_list) + 1 ), metadata_list)
+    plt.title(f'{protein_ID} {filename_suffix} {metadata_type}')
+    plt.xlabel("Trajectory Model (Nº)")
+    plt.ylabel(f"{metadata_type}")
+
+    plt.savefig(plot_filename)
+
+    plt.close()
+
+    
+
 def generate_protein_enrichment(proteins_in_models,
                                 b_factor_clusters,
                                 protein_ID,
@@ -646,12 +699,15 @@ class DomainSelect(PDB.Select):
 # -----------------------------------------------------------------------------
 
 # Helper fx to save trajectory file and metadata
-def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_trajectory_folder, 
+def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_trajectory_folder,
+                    
+                    RMSDs, mean_pLDDTs, ROGs,
+
                     aligned_chains, all_chain_types, all_chain_info, domain_start=None, domain_end=None):
     
     trajectory_file = os.path.join(protein_trajectory_folder, f'{protein_ID}_{filename_suffix}_traj.pdb')
     
-    df_cols = ['Traj_N', 'Type', 'Is_chain', 'Rank', 'Model']
+    df_cols = ['Traj_N', 'Type', 'Is_chain', 'Rank', 'Model', 'RMSD', 'pLDDT', 'ROG']
     trajectory_df = pd.DataFrame(columns=df_cols)
     
     io = PDB.PDBIO()
@@ -663,12 +719,15 @@ def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_traject
             model_name = f"MODEL_{i+1}_{chain_type}_{chain_info[0]}_{'-'.join(map(str, chain_info[1]))}_{chain_info[2]}"
             
             model_data = pd.DataFrame({
-                "Traj_N": [i+1], 
-                "Type": [chain_type],
+                "Traj_N"  : [i+1], 
+                "Type"    : [chain_type],
                 "Is_chain": [chain_info[0]],
-                "Rank": [chain_info[2]],
-                "Model": ['__vs__'.join(map(str, chain_info[1]))],
-            })
+                "Rank"    : [chain_info[2]],
+                "Model"   : ['__vs__'.join(map(str, chain_info[1]))],
+                "RMSD"    : [RMSDs[idx]],
+                "pLDDT"   : [mean_pLDDTs[idx]],
+                "ROG"     : [ROGs[idx]]
+                })
             trajectory_df = pd.concat([trajectory_df, model_data], ignore_index=True)
             
             io.set_structure(chain.parent)
@@ -677,6 +736,20 @@ def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_traject
             else:
                 io.save(f1, select=ChainSelect(chain), write_end=False)
             f1.write(f"ENDMDL\nTITLE     {model_name}\n")
+    
+    # Generate some plots
+    plot_traj_metadata(metadata_list = trajectory_df['RMSD'],
+                       metadata_type = "RMSD",
+                       protein_trajectory_folder = protein_trajectory_folder,
+                       protein_ID = protein_ID, filename_suffix = filename_suffix)
+    plot_traj_metadata(metadata_list = trajectory_df['pLDDT'],
+                       metadata_type = "Mean pLDDT",
+                       protein_trajectory_folder = protein_trajectory_folder,
+                       protein_ID = protein_ID, filename_suffix = filename_suffix)
+    plot_traj_metadata(metadata_list = trajectory_df['ROG'],
+                       metadata_type = "ROG",
+                       protein_trajectory_folder = protein_trajectory_folder,
+                       protein_ID = protein_ID, filename_suffix = filename_suffix)
     
     trajectory_df_file = os.path.join(protein_trajectory_folder, f'{protein_ID}_{filename_suffix}_traj.tsv')
     trajectory_df.to_csv(trajectory_df_file, sep="\t", index=False)
@@ -914,21 +987,39 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
         # Save domain trajectories
         domain_trajectory_folder = os.path.join(protein_trajectory_folder, domain_name)
         os.makedirs(domain_trajectory_folder, exist_ok=True)
+        domain_RMSD_traj_indices = np.argsort(domain_rmsd_values)
+        domain_weighted_RMSD_traj_indices = np.argsort(domain_weighted_rmsd_values)
 
-        save_trajectory(np.argsort(domain_rmsd_values),
+        # Compute some extra data (ROG and mean pLDDT per model)
+        domain_mean_pLDDTs = [np.mean(model_plddt_values) for model_plddt_values in domain_b_factors]
+        domain_ROGs = compute_rog_for_all_chains(domain_all_coords)
+
+        # RMSD traj
+        save_trajectory(sorted_indices = domain_RMSD_traj_indices,
                         protein_ID=domain_name,
                         filename_suffix=f'Dom{domain["Domain"]}_RMSD',
                         protein_trajectory_folder=domain_trajectory_folder,
+
+                        RMSDs = domain_rmsd_values,
+                        mean_pLDDTs = domain_mean_pLDDTs,
+                        ROGs = domain_ROGs,
+
                         aligned_chains=aligned_chains,
                         all_chain_types=all_chain_types,
                         all_chain_info=all_chain_info,
                         domain_start=domain_start,
                         domain_end=domain_end)
         
-        save_trajectory(np.argsort(domain_weighted_rmsd_values),
+        # Weighted RMSD traj
+        save_trajectory(sorted_indices = domain_weighted_RMSD_traj_indices,
                         protein_ID=domain_name,
                         filename_suffix=f'Dom{domain["Domain"]}_weighted_RMSD',
                         protein_trajectory_folder=domain_trajectory_folder,
+
+                        RMSDs = domain_weighted_rmsd_values,
+                        mean_pLDDTs = domain_mean_pLDDTs,
+                        ROGs = domain_ROGs,
+
                         aligned_chains=aligned_chains,
                         all_chain_types=all_chain_types,
                         all_chain_info=all_chain_info,
@@ -939,23 +1030,42 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     # ------------------- Compute whole protein trajectory --------------------
     # -------------------------------------------------------------------------
     
-    # Sort models by RMSD and weighted RMSD
-    sorted_rmsd_indices = np.argsort(rmsd_values)
-    sorted_weighted_rmsd_indices = np.argsort(weighted_rmsd_values)
+    # Output path
+    monomer_trajectory_folder = os.path.join(protein_trajectory_folder, f"{protein_ID}_monomer")
+
+    # Sort models by RMSD and weighted RMSD (RMSD trajectories)
+    monomer_RMSD_traj_indices = np.argsort(rmsd_values)
+    monomer_weighted_RMSD_traj_indices = np.argsort(weighted_rmsd_values)
+
+    # Compute some extra data (ROG and mean pLDDT per model)
+    monomer_mean_pLDDTs = [np.mean(model_per_res_plddt) for model_per_res_plddt in b_factors]
+    monomer_ROGs = compute_rog_for_all_chains(all_coords)
     
-    # Save trajectories
+    # Save RMSD traj and metadata
     logger.info(f"   - Generating RMSD trajectory files for whole {protein_ID}...")
-    rmsd_traj_file = save_trajectory(sorted_rmsd_indices,
+    rmsd_traj_file = save_trajectory(sorted_indices = monomer_RMSD_traj_indices,
                                      protein_ID = protein_ID,
                                      filename_suffix = "monomer_RMSD",
                                      protein_trajectory_folder = protein_trajectory_folder,
+
+                                     RMSDs = rmsd_values,
+                                     mean_pLDDTs = monomer_mean_pLDDTs,
+                                     ROGs = monomer_ROGs,
+
                                      aligned_chains = aligned_chains,
                                      all_chain_types = all_chain_types,
                                      all_chain_info = all_chain_info)
-    weighted_rmsd_traj_file = save_trajectory(sorted_weighted_rmsd_indices, 
+    
+    # Save weighted RMSD traj and metadata
+    weighted_rmsd_traj_file = save_trajectory(sorted_indices = monomer_weighted_RMSD_traj_indices, 
                                               protein_ID= protein_ID,
                                               filename_suffix = "monomer_weighted_RMSD",
                                               protein_trajectory_folder = protein_trajectory_folder,
+                                              
+                                              RMSDs = weighted_rmsd_values,
+                                              mean_pLDDTs = monomer_mean_pLDDTs,
+                                              ROGs = monomer_ROGs,
+
                                               aligned_chains = aligned_chains,
                                               all_chain_types = all_chain_types,
                                               all_chain_info = all_chain_info)
