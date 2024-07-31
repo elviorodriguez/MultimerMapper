@@ -1032,6 +1032,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     
     # Output path
     monomer_trajectory_folder = os.path.join(protein_trajectory_folder, f"{protein_ID}_monomer")
+    os.makedirs(monomer_trajectory_folder, exist_ok=True)
 
     # Sort models by RMSD and weighted RMSD (RMSD trajectories)
     monomer_RMSD_traj_indices = np.argsort(rmsd_values)
@@ -1046,7 +1047,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     rmsd_traj_file = save_trajectory(sorted_indices = monomer_RMSD_traj_indices,
                                      protein_ID = protein_ID,
                                      filename_suffix = "monomer_RMSD",
-                                     protein_trajectory_folder = protein_trajectory_folder,
+                                     protein_trajectory_folder = monomer_trajectory_folder,
 
                                      RMSDs = rmsd_values,
                                      mean_pLDDTs = monomer_mean_pLDDTs,
@@ -1060,7 +1061,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     weighted_rmsd_traj_file = save_trajectory(sorted_indices = monomer_weighted_RMSD_traj_indices, 
                                               protein_ID= protein_ID,
                                               filename_suffix = "monomer_weighted_RMSD",
-                                              protein_trajectory_folder = protein_trajectory_folder,
+                                              protein_trajectory_folder = monomer_trajectory_folder,
                                               
                                               RMSDs = weighted_rmsd_values,
                                               mean_pLDDTs = monomer_mean_pLDDTs,

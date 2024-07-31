@@ -84,8 +84,14 @@ def parse_AF2_and_sequences(
     all_pdb_data = extract_seqs_from_AF2_PDBs(AF2_2mers, AF2_Nmers, logger = logger)
 
     # Combine data
-    merge_fasta_with_PDB_data(all_pdb_data, prot_IDs, prot_seqs, 
-                                prot_seqs, prot_lens, prot_N, use_names, logger = logger)
+    merge_fasta_with_PDB_data(all_pdb_data = all_pdb_data,
+                              prot_IDs = prot_IDs,
+                              prot_names = prot_names, 
+                              prot_seqs = prot_seqs,
+                              prot_lens = prot_lens,
+                              prot_N = prot_N,
+                              use_names = use_names,
+                              logger = logger)
     
     # Verify the graph resolution preset
     if graph_resolution_preset is not None:
