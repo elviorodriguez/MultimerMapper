@@ -54,3 +54,27 @@ python multimer_mapper.py tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta tests/EA
 # Both 2-mers and N-mers
 python multimer_mapper.py tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta tests/EAF6_EPL1_PHD1/2-mers --AF2_Nmers tests/EAF6_EPL1_PHD1/N-mers --out_path tests/output_Nmers --use_names --overwrite --manual_domains tests/EAF6_EPL1_PHD1/manual_domains.tsv
 ```
+
+
+# Exploring pLDDT clusters
+
+## 
+Let's look at the example pLDDT clusters of PHD1 (tests/expected_output/RMSF_and_plddt_clusters/PHD1/PHD1-pLDDT_clusters.png):
+
+<Figure>
+
+We can see 2 clusters. The main difference between them is in the domain 6. If we open the metadata TSV file
+
+## Visualization of RMSD trajectories
+In ChimeraX, open the sample weighted RMSD trajectory located in tests/expected_output/monomer_trajectories/PHD1/PHD1_domain_6
+```sh
+# Re-align the models (set a high number) to the lowest RMSD model (it will always be #1.1)
+mm #1.2-1000 to #1.1
+
+# Apply AlphaFold pLDDT color scheme on the bfactor
+color bfactor palette alphafold
+
+# Open the slider on the model #1 series
+mseries slider #1
+```
+You can play/stop the slider, slow/accelerate it down using the buttons on the bottom-right slider. Once you find a good pose, you can save a video with the red record button.

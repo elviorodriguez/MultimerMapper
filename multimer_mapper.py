@@ -8,6 +8,7 @@ from src.metrics_extractor import extract_AF2_metrics_from_JSON, generate_pairwi
 from src.detect_domains import detect_domains
 from src.ppi_detector import filter_non_int_2mers_df, filter_non_int_Nmers_df
 from src.ppi_graphs import generate_2mers_graph, generate_Nmers_graph, generate_combined_graph, igraph_to_plotly
+from src.coordinate_analyzer import generate_RMSF_pLDDT_cluster_and_RMSD_trajectories
 from utils.temp_files_manager import setup_temp_file
 
 # Main MultimerMapper pipeline
@@ -365,15 +366,23 @@ if __name__ == "__main__":
     out_path = args.out_path
     overwrite = args.overwrite
     manual_domains = args.manual_domains
+    log_level = 'info'
     
     # --------------------------------------------------------------------------
     # --------------------------- Pipeline execution ---------------------------
     # --------------------------------------------------------------------------
 
     # Run the main MultimerMapper pipeline
-    multimer_mapper_output = parse_AF2_and_sequences(fasta_file, AF2_2mers, AF2_Nmers, out_path,
+    mm_output = parse_AF2_and_sequences(fasta_file, AF2_2mers, AF2_Nmers, out_path,
                                                      manual_domains = manual_domains,
                                                      use_names = use_names, overwrite = overwrite)
 
-    combined_graph_interactive = interactive_igraph_to_plotly(multimer_mapper_output["combined_graph"], out_path = out_path)
+    # Generate interactive 2D PPI graph
+    combined_graph_interactive = interactive_igraph_to_plotly(mm_output["combined_graph"],
+                                                              out_path = out_path,
+                                                              log_level = log_level)
     
+    # Generate RMSF, pLDDT clusters and RMSD trajectories
+    mm_traj = generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(mm_output = mm_output,
+                                                      out_path = out_path,
+                                                      log_level = log_level)
