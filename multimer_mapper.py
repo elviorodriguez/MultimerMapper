@@ -349,7 +349,10 @@ if __name__ == "__main__":
         help='Use protein names instead of IDs')
     
     parser.add_argument('--overwrite', action='store_true',
-        help='Overwrite existent folder')
+        help='If exists, overwrites the existent folder')
+    
+    parser.add_argument('--reduce_verbosity', action='store_true',
+        help='Changes logging level from INFO to WARNING')
     
     # --------------------------------------------------------------------------
     # --------------------- Command line arguments parsing ---------------------
@@ -366,7 +369,10 @@ if __name__ == "__main__":
     out_path = args.out_path
     overwrite = args.overwrite
     manual_domains = args.manual_domains
-    log_level = 'info'
+    if args.reduce_verbosity:
+        log_level = 'warn'
+    else:
+        log_level = 'info'
     
     # --------------------------------------------------------------------------
     # --------------------------- Pipeline execution ---------------------------
@@ -375,7 +381,9 @@ if __name__ == "__main__":
     # Run the main MultimerMapper pipeline
     mm_output = parse_AF2_and_sequences(fasta_file, AF2_2mers, AF2_Nmers, out_path,
                                                      manual_domains = manual_domains,
-                                                     use_names = use_names, overwrite = overwrite)
+                                                     use_names = use_names,
+                                                     overwrite = overwrite,
+                                                     log_level = log_level)
 
     # Generate interactive 2D PPI graph
     combined_graph_interactive = interactive_igraph_to_plotly(mm_output["combined_graph"],
@@ -384,5 +392,9 @@ if __name__ == "__main__":
     
     # Generate RMSF, pLDDT clusters and RMSD trajectories
     mm_traj = generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(mm_output = mm_output,
-                                                      out_path = out_path,
-                                                      log_level = log_level)
+                                                                out_path = out_path,
+                                                                log_level = log_level)
+    
+    # Progress
+    logger = configure_logger(out_path = out_path)
+    logger.info("MultimerMapper pipeline completed! Enjoy exploring your interactions!")

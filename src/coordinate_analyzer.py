@@ -982,6 +982,7 @@ def generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
         repeated_protein_IDs_cloud_mode: Literal["no_query_repeats",
                                                  "single_query_repeat",
                                                  "multiple_query_repeats"]  = "single_query_repeat",
+        log_level: str = 'info',
         logger: logging.Logger | None = None):
     
     
