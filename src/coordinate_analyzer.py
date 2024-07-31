@@ -611,7 +611,7 @@ def generate_protein_enrichment(proteins_in_models,
     
     default_mode = "single_query_repeat"
     if logger is None:
-        logger = configure_logger(out_path)
+        logger = configure_logger(out_path)(__name__)
     
     # Create a dictionary to store protein counts for each cluster
     cluster_protein_counts = {}
@@ -788,7 +788,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
 
     # Initialize the logger
     if logger is None:
-        logger = configure_logger(out_path, log_level = log_level)
+        logger = configure_logger(out_path, log_level = log_level)(__name__)
         
     # Progress
     logger.info(f"Starting coordinate analysis of individual {protein_ID} models:")

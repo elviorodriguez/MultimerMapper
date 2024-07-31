@@ -56,7 +56,7 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
                 |->
     '''
     if logger is None:
-        logger = configure_logger()
+        logger = configure_logger()(__name__)
     
     # Progress
     logger.info("INITIALIZING: extract_AF2_metrics_from_JSON")
@@ -287,7 +287,7 @@ def generate_pairwise_2mers_df(all_pdb_data: dict, out_path: str = ".", save_pai
                                 overwrite: bool = False, logger: Logger | None = None):
     
     if logger is None:
-        logger = configure_logger()
+        logger = configure_logger()(__name__)
 
     # Empty dataframe to store rank, pTMs, ipTMs, min_PAE to make graphs later on
     columns = ['protein1', 'protein2', 'length1', 'length2', 'rank', 'pTM', 'ipTM', 'min_PAE', 'pDockQ', 'PPV', 'model','diagonal_sub_PAE']
@@ -431,7 +431,7 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, out_path: str = ".", save_pai
                                 logger: Logger | None = None):
     
     if logger is None:
-        logger = configure_logger()
+        logger = configure_logger()(__name__)
     
     def generate_pair_combinations(values):
         '''Generates all possible pair combinations of the elements in "values",

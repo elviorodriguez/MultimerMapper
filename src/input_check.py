@@ -29,7 +29,7 @@ def seq_input_from_fasta(fasta_file_path: str, use_names: bool = True, logger: L
         (list)    (list)      (list)     (list)     (int)
     '''
     if logger is None:
-        logger = configure_logger()
+        logger = configure_logger()(__name__)
     
     # Initialize empty lists to store features of each protein
     prot_IDs = []
@@ -96,7 +96,7 @@ def remove_duplicate_predictions(all_pdb_data: dict, logger: Logger | None = Non
     encountered duplicates. Gives a warning for each encountered duplicate.
     '''
     if logger is None:
-        logger = configure_logger()
+        logger = configure_logger()(__name__)
     
     seen_sequences = set()
 
@@ -128,7 +128,7 @@ def extract_seqs_from_AF2_PDBs(AF2_2mers: str, AF2_Nmers: str = None, logger: Lo
         }
     '''
     if logger is None:
-        logger = configure_logger()
+        logger = configure_logger()(__name__)
     
     if AF2_Nmers is not None:
         folders_to_search = [AF2_2mers, AF2_Nmers]
@@ -200,7 +200,7 @@ def get_unique_pdb_sequences(all_pdb_data: dict):
 def compare_sequences(prot_seqs: list, PDB_sequences: list, logger: Logger | None = None):
 
     if logger is None:
-        logger = configure_logger()
+        logger = configure_logger()(__name__)
 
     # Progress
     logger.info("Detected proteins:")
@@ -239,7 +239,7 @@ def merge_fasta_with_PDB_data(all_pdb_data: dict, prot_IDs: list, prot_names: li
     '''
 
     if logger is None:
-        logger = configure_logger()
+        logger = configure_logger()(__name__)
     
     # Get unique sequences in PDB files
     PDB_sequences = get_unique_pdb_sequences(all_pdb_data)

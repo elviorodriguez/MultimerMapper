@@ -148,7 +148,7 @@ def classify_edge_dynamics(tuple_edge: tuple,
 
     # Configure logger
     if logger == None:
-        logger = configure_logger()
+        logger = configure_logger()(__name__)
 
     # True edge (The one passed is a tuple with the names of the proteins)
     true_edge = find_edge_by_vertex_attributes(graph_Comb, 'name', tuple_edge[0], tuple_edge[1])

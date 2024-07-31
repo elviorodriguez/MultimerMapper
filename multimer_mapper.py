@@ -58,7 +58,7 @@ def parse_AF2_and_sequences(
     # -------------- Initialize the logger and initial setup -------------------
     # --------------------------------------------------------------------------
     
-    logger = configure_logger(out_path, log_level = log_level)
+    logger = configure_logger(out_path, log_level = log_level)(__name__)
 
     # Create a tmp empty dir that erase itself when the program exits
     if AF2_Nmers is None:
@@ -268,7 +268,7 @@ def parse_AF2_and_sequences(
 def interactive_igraph_to_plotly(combined_graph, out_path: str, log_level = "info"):
 
     # Initialize the logger
-    logger = configure_logger(out_path, log_level = log_level)
+    logger = configure_logger(out_path, log_level = log_level)(__name__)
 
     # Convert combined PPI graph to interactive plotly
     save_html = out_path + "/2D_graph.html"
@@ -402,5 +402,5 @@ if __name__ == "__main__":
                                                                 log_level = log_level)
     
     # Progress
-    logger = configure_logger(out_path = out_path)
+    logger = configure_logger(out_path = out_path)(__name__)
     logger.info("MultimerMapper pipeline completed! Enjoy exploring your interactions!")

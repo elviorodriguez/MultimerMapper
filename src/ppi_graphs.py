@@ -480,7 +480,7 @@ def generate_combined_graph(
     """
     # Configure logger
     if logger is None:
-        configure_logger()
+        configure_logger()(__name__)
 
     # To check if the computation was performed or not
     tested_Nmers_edges_df = pd.DataFrame(np.sort(pairwise_Nmers_df[['protein1', 'protein2']], axis=1),

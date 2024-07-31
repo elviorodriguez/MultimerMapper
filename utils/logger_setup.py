@@ -23,7 +23,7 @@ def configure_logger(out_path = ".", log_level: str = "info"):
         level = logging.CRITICAL
     else:
         import sys
-        logger = configure_logger(out_path)
+        logger = configure_logger(out_path, log_level = "error")(__name__)
         logger.error(f"Unknown log_level: {log_level}")
         logger.error( "EXIT")
         sys.exit()
@@ -52,12 +52,12 @@ def configure_logger(out_path = ".", log_level: str = "info"):
         ]
     )
     
-    logger = logging.getLogger(__name__)
+    # logger = logging.getLogger(__name__)
     
     # Set matplotlib logger to warning level to reduce verbosity
     logging.getLogger('matplotlib').setLevel(logging.WARNING)
     logging.getLogger('PIL').setLevel(logging.WARNING)
     
-    return logger
+    return logging.getLogger
 
 

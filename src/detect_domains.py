@@ -46,7 +46,7 @@ def domains_from_pae_matrix_igraph(pae_matrix,
     Returns: a series of lists, where each list contains the indices of residues belonging to one cluster.
     '''
     if logger is None:
-        logger = configure_logger()
+        logger = configure_logger()(__name__)
 
     weights = 1/pae_matrix**pae_power
 
@@ -504,7 +504,7 @@ def convert_manual_domains_df_to_clusters(sliced_PAE_and_pLDDTs: dict, manual_do
         None
     '''
     if logger is None:
-        logger = configure_logger()
+        logger = configure_logger()(__name__)
 
     for P, protein_ID in enumerate(sliced_PAE_and_pLDDTs.keys()):
 
@@ -547,7 +547,7 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
     '''    
 
     if logger is None:
-        logger = configure_logger()
+        logger = configure_logger()(__name__)
 
     # Progress
     logger.info("")
