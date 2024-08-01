@@ -25,6 +25,18 @@ Every time you want to use MultimerMapper, activate the environment with the fol
 conda activate MultimerMapper
 ```
 
+## Add multimer_mapper alias (optional)
+You can add an alias to run MultimerMapper by running adding the following to your ```.bashrc``` file:
+```sh
+# Replace <user_name> with your user_name and <path_to_MM> with the repository path
+alias multimer_mapper="python /home/<user_name>/<path_to_MM>/multimer_mapper.py"
+```
+Restart the shell and you will be able to call MultimerMapper using ```multimer_mapper``` as a shell command.
+```
+# Display multimer_mapper help message
+multimer_mapper -h
+```
+
 # Verify installation
 You can verify the installation as follows.
 
