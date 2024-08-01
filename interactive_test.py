@@ -227,7 +227,7 @@ def find_parent_model_in_all_pdbs_data(query_model_tuple, query_rank, all_pdb_da
         prediction_ranks: list[int]               = sorted(all_pdb_data[prediction_path]["full_PDB_models"].keys())
         prediction_model_chain_letters: list[str] = [chain.id for chain in all_pdb_data[prediction_path]["full_PDB_models"][prediction_ranks[0]].get_chains()]
         prediction_protein_IDs: list[str]         = [all_pdb_data[prediction_path][letter]['protein_ID'] for letter in prediction_model_chain_letters]
-        prediction_protein_IDs_sorted: tuple(str) = tuple(sorted(prediction_protein_IDs))
+        prediction_protein_IDs_sorted: tuple[str] = tuple(sorted(prediction_protein_IDs))
         
         if sorted_query_model_tuple == prediction_protein_IDs_sorted:
             

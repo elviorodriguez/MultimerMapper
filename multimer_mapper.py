@@ -1,7 +1,16 @@
 
 import os
+import sys
+
 
 try:
+    # Get multimer_mapper installation path and current path
+    mm_path = os.path.dirname(os.path.realpath(__file__))
+    wd_path = os.getcwd()
+
+    # Set the working dir as the path to MultimerMapper repo 
+    os.chdir(mm_path)
+
     from cfg.default_settings import *
     from utils.logger_setup import configure_logger
     from src.input_check import seq_input_from_fasta, extract_seqs_from_AF2_PDBs, merge_fasta_with_PDB_data, check_graph_resolution_preset
@@ -12,9 +21,11 @@ try:
     from src.coordinate_analyzer import generate_RMSF_pLDDT_cluster_and_RMSD_trajectories
     from utils.temp_files_manager import setup_temp_file
 
+    # Get back the working dir as the path to MultimerMapper repo 
+    os.chdir(wd_path)
+
 except ModuleNotFoundError as e:
 
-    import sys
 
     print()
     print(f"The following exception was encountered when loading MultimerMapper package:")

@@ -7,7 +7,7 @@ from Bio.SeqUtils import seq1
 from Bio import PDB
 from scipy.spatial.transform import Rotation
 
-from src.coordinate_analyzer import plot_traj_metadata
+# from src.coordinate_analyzer import plot_traj_metadata
 
 def get_chain_sequence(chain: Chain):
     
