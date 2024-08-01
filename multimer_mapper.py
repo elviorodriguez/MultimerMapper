@@ -1,15 +1,34 @@
 
 import os
 
-from cfg.default_settings import *
-from utils.logger_setup import configure_logger
-from src.input_check import seq_input_from_fasta, extract_seqs_from_AF2_PDBs, merge_fasta_with_PDB_data, check_graph_resolution_preset
-from src.metrics_extractor import extract_AF2_metrics_from_JSON, generate_pairwise_2mers_df, generate_pairwise_Nmers_df
-from src.detect_domains import detect_domains
-from src.ppi_detector import filter_non_int_2mers_df, filter_non_int_Nmers_df
-from src.ppi_graphs import generate_2mers_graph, generate_Nmers_graph, generate_combined_graph, igraph_to_plotly
-from src.coordinate_analyzer import generate_RMSF_pLDDT_cluster_and_RMSD_trajectories
-from utils.temp_files_manager import setup_temp_file
+try:
+    from cfg.default_settings import *
+    from utils.logger_setup import configure_logger
+    from src.input_check import seq_input_from_fasta, extract_seqs_from_AF2_PDBs, merge_fasta_with_PDB_data, check_graph_resolution_preset
+    from src.metrics_extractor import extract_AF2_metrics_from_JSON, generate_pairwise_2mers_df, generate_pairwise_Nmers_df
+    from src.detect_domains import detect_domains
+    from src.ppi_detector import filter_non_int_2mers_df, filter_non_int_Nmers_df
+    from src.ppi_graphs import generate_2mers_graph, generate_Nmers_graph, generate_combined_graph, igraph_to_plotly
+    from src.coordinate_analyzer import generate_RMSF_pLDDT_cluster_and_RMSD_trajectories
+    from utils.temp_files_manager import setup_temp_file
+
+except ModuleNotFoundError as e:
+
+    import sys
+
+    print()
+    print(f"The following exception was encountered when loading MultimerMapper package:")
+    print(f"   - Exception: {e}")
+    print(f"   - Make sure you have installed and activated MultimerMapper environment")
+    print()
+    print( "To install it:")
+    print( "   $ conda env create -f MultimerMapper/environment.yml")
+    print()
+    print( "To activate it:")
+    print( "   $ conda activate MultimerMapper")
+    print()
+
+    sys.exit()
 
 # Main MultimerMapper pipeline
 def parse_AF2_and_sequences(
