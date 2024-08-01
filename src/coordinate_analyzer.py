@@ -204,6 +204,8 @@ from collections import Counter
 from wordcloud import WordCloud
 
 from utils.logger_setup import configure_logger
+from utils.pdb_utils import get_domain_atoms, ChainSelect, DomainSelect
+
 
 def get_monomers_models_from_pairwise_2mers(protein_ID: str, protein_seq: str,
                                             pairwise_2mers_df: pd.DataFrame):
@@ -675,28 +677,6 @@ def generate_protein_enrichment(proteins_in_models,
     return representative_proteins
 
 
-def get_domain_atoms(chain, start, end):
-    return [atom for atom in chain.get_atoms() if atom.name == 'CA' and start <= atom.get_parent().id[1] <= end]
-
-# ----------- Helper classes for selecting chains and domains -----------------
-
-class ChainSelect(PDB.Select):
-    def __init__(self, chain):
-        self.chain = chain
-
-    def accept_chain(self, chain):
-        return chain.id == self.chain.id
-    
-class DomainSelect(PDB.Select):
-    def __init__(self, chain, start, end):
-        self.chain = chain
-        self.start = start
-        self.end = end
-
-    def accept_residue(self, residue):
-        return (residue.get_parent().id == self.chain.id and 
-                self.start <= residue.id[1] <= self.end)
-# -----------------------------------------------------------------------------
 
 # Helper fx to save trajectory file and metadata
 def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_trajectory_folder,

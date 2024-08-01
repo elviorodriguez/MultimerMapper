@@ -1,21 +1,9 @@
+
+from utils.pdb_utils import calculate_distance
+
 # -----------------------------------------------------------------------------
 # Get contact information from 2-mers dataset ---------------------------------
 # -----------------------------------------------------------------------------
-
-# Computes 3D distance
-def calculate_distance(coord1, coord2):
-    """
-    Calculates and returns the Euclidean distance between two 3D coordinates.
-    
-    Parameters:
-        - coord1 (list/array): xyz coordinates 1.
-        - coord2 (list/array): xyz coordinates 2.
-    
-    Returns
-        - distance (float): Euclidean distance between coord1 and coord2
-    """
-    return np.sqrt(np.sum((np.array(coord2) - np.array(coord1))**2))
-
 
 def compute_contacts(pdb_filename, min_diagonal_PAE_matrix,
                      # Protein symbols/names/IDs
