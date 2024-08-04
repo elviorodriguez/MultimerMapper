@@ -15,6 +15,7 @@ It is a computational tool for the integration, analysis and visualization of Al
 - Metrics clustering analysis
 - Pseudo-molecular dynamics trajectories generation (RMSD trajectories)
 - Partner enrichment
+- Interface with combinatorial assembler
 - Much more comming!
 
 # How does it works?
