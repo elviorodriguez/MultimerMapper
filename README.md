@@ -60,7 +60,7 @@ multimer_mapper -h
 ```
 
 # Verify installation
-You can verify the installation as follows.
+You can verify the installation as follows:
 
 ```sh
 # Activate MultimerMapper env to run the pipeline
@@ -69,7 +69,7 @@ conda activate MultimerMapper
 # Take a look at the usage (this must give no errors)
 python multimer_mapper.py -h
 ```
-
+There is a testing dataset composed of three trypanosomatid proteins (EAF6, EPL1 and PHD1) with all possible 2-mers and N-mers combinations that reached convergence. First run the pipeline only with 2-mers, and take a look at the output.
 
 ```sh
 # Only 2-mers
