@@ -4,7 +4,26 @@
 It is a computational tool for the integration, analysis and visualization of AlphaFold interaction landscapes.
 
 # What can I do with MultimerMapper?
+- Automatic/semi-automatic/manual domain detection
+- Protein-protein interaction (PPI) prediction
+- PPI dynamics capturing
+- Protein dynamics capturing
+- Interactive PPI graph (2D) generation
+- Residue-residue contact (RRC) detection
+- Interactive RRC graph (3D) generation (BETA)
+- Interaction surface mapping (BETA)
+- Metrics clustering analysis
+- Pseudo-molecular dynamics trajectories generation (RMSD trajectories)
+- Partner enrichment
+- Much more comming!
 
+# How does it works?
+The software can perform several tasks by analyzing AF2-multimer (AF3 comming soon) predictions ensembles of different combinations of proteins separated in two different directories:
+
+    ```2-mers```: contains all possible pairwise interaction predictions of the set of proteins (homo-2-mers and hetero-2-mers)
+    ```N-mers (optional)```: contains diifferent combinations (3-mers, 4-mers, etc.) interaction predictions of the set of proteins that 
+    
+It maps all protein-protein interactions present in the predictions
 
 # Installation
 MultimerMapper requires Anaconda/Miniconda (Miniconda installation guide: https://docs.anaconda.com/miniconda/miniconda-install) to create an isolated environment for the software.
@@ -26,7 +45,7 @@ conda activate MultimerMapper
 ```
 
 ## Add multimer_mapper alias (optional)
-You can add an alias to run MultimerMapper by running adding the following to your ```.bashrc``` file:
+You can add an alias to run MultimerMapper by adding the following to your ```.bashrc``` file:
 ```sh
 # Replace <user_name> with your user_name and <path_to_MM> with the repository path
 alias multimer_mapper="python /home/<user_name>/<path_to_MM>/multimer_mapper.py"
