@@ -3,6 +3,8 @@
 # What is MultimerMapper?
 It is a computational tool for the integration, analysis and visualization of AlphaFold interaction landscapes.
 
+It is still under active development... So, keep an eye on it.
+
 # What can I do with MultimerMapper?
 - Automatic/semi-automatic/manual domain detection
 - Protein-protein interaction (PPI) prediction
