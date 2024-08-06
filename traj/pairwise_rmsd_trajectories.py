@@ -339,13 +339,17 @@ def get_pairwise_model_domains_data(pair_PDB_model: PDB.Model.Model,
                                    
                                     # Domains boundaries
                                     P1_dom_start: int, P1_dom_end: int,
-                                    P2_dom_start: int, P2_dom_end: int
+                                    P2_dom_start: int, P2_dom_end: int,
+
+                                    # Logger config
+                                    out_path: str, log_level = "info" 
                                     ):
     
     domains_data: dict = get_pairwise_domains_data(pair_PDB_model,
                                                    P1_full_seq, P2_full_seq,
                                                    P1_dom_start, P1_dom_end,
-                                                   P2_dom_start, P2_dom_end
+                                                   P2_dom_start, P2_dom_end,
+                                                   out_path = out_path, log_level= log_level
                                                   )
     
     pdockq, _ = calc_pdockq_for_traj(domains_data)
@@ -422,7 +426,10 @@ def generate_pairwise_domains_traj_dict(
                                 P1_full_seq = P1_full_seq, P2_full_seq = P2_full_seq,
                                                             
                                 P1_dom_start = P1_dom_start, P1_dom_end = P1_dom_end,
-                                P2_dom_start = P2_dom_start, P2_dom_end = P2_dom_end)
+                                P2_dom_start = P2_dom_start, P2_dom_end = P2_dom_end,
+                                
+                                out_path = out_path, log_level = log_level
+                                )
         
         # Unpack data
         P1_dom_residues = domains_data['P1_dom_residues']

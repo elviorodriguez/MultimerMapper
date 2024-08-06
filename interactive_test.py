@@ -98,9 +98,15 @@ mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
 
 # Generate RMSF, pLDDT clusters & RMSD trajectories for pairs of interacting proteins
 mm_pairwise_domain_traj = mm.generate_pairwise_domain_trajectories(
+    
+    # Pair of domains to get the trajectory
     P1_ID = 'EAF6', P1_dom = 2, 
-    P2_ID = 'EPL1', P2_dom = 4, mm_output = mm_output,
-    out_path = "/home/elvio/Desktop/test_pairwise_traj2",
+    P2_ID = 'EPL1', P2_dom = 4,
+    
+    mm_output = mm_output, out_path = out_path,
+    
+    # Configuration of the trajectory -----------------------------------
+    
     # One of ['domains_mean_plddt', 'domains_CM_dist', 'domains_pdockq'] 
     reference_metric = 'domains_pdockq',
     # One of [max, min]
