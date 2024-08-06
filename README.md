@@ -116,3 +116,5 @@ You can play/stop the slider, slow/accelerate it down using the buttons on the b
 
 https://github.com/user-attachments/assets/064b9c0c-820a-49c7-94f6-560877e95440
 
+# Do you want to combine MultimerMapper with your own pipelines programatically?
+Have a look at devs secction (for developers). There you will find explanaitions of MultimerMapper's main functionalities output data structures and their meaning.
