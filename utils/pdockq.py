@@ -25,7 +25,7 @@ def pdockq_parse_atm_record(line):
     return record
 
 def pdockq_read_pdb(pdbfile):
-    '''Read a pdb file predicted with AF and rewritten to conatin all chains
+    '''Read a pdb file predicted with AF and rewritten to contain all chains
     '''
 
     chain_coords, chain_plddt = {}, {}
@@ -108,7 +108,14 @@ def calc_pdockq(chain_coords, chain_plddt, t):
 # ---------------------------------------------------------------------------------------------
 
 # Modification to apply in pairwise trajectories
-def calc_pdockq_for_traj(coords1, plddt1, coords2, plddt2, t=8.0):
+def calc_pdockq_for_traj(domains_data, t=8.0):
+    
+    # Unpack data
+    coords1 = domains_data['P1_dom_coords']
+    plddt1  = domains_data['P1_dom_plddts']
+    coords2 = domains_data['P2_dom_coords']
+    plddt2  = domains_data['P2_dom_plddts']
+    
     # Calc 2-norm
     mat = np.append(coords1, coords2, axis=0)
     a_min_b = mat[:, np.newaxis, :] - mat[np.newaxis, :, :]

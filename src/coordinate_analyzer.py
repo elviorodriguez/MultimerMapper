@@ -830,7 +830,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
         rmsd_values.append(super_imposer.rms)
         
         # Apply rotation and translation to align the chain
-        super_imposer.apply(chain)
+        # super_imposer.apply(chain)                            # This modifies the original model in all_pdb_data. Not recommended
         aligned_chains.append(chain)
                 
         # Calculate weighted RMSD
@@ -949,7 +949,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
             domain_rmsd_values.append(super_imposer.rms)
 
             # Apply rotation and translation to align the domain
-            super_imposer.apply(chain)
+            # super_imposer.apply(chain)                            # This modifies the original model in all_pdb_data. Not recommended
             domain_aligned_chains.append(chain)
 
             # Calculate weighted RMSD for the domain
