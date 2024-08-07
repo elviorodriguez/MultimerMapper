@@ -98,18 +98,23 @@ mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
 
 # Generate RMSF, pLDDT clusters & RMSD trajectories for pairs of interacting proteins
 mm_pairwise_domain_traj = mm.generate_pairwise_domain_trajectories(
-    
     # Pair of domains to get the trajectory
     P1_ID = 'EAF6', P1_dom = 2, 
-    P2_ID = 'EPL1', P2_dom = 4,
-    
+    P2_ID = 'EAF6', P2_dom = 2,
     mm_output = mm_output, out_path = out_path,
     
     # Configuration of the trajectory -----------------------------------
-    
     # One of ['domains_mean_plddt', 'domains_CM_dist', 'domains_pdockq'] 
     reference_metric = 'domains_pdockq',
     # One of [max, min]
     ref_metric_method = max,
     # True or False
-    reversed_trajectory = True)
+    reversed_trajectory = False)
+
+# Generates the same trajectory, but with other domains as context
+mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
+                                                   mm_output,
+                                                   out_path,
+                                                   P3_ID = "EPL1", P3_dom = 4,
+                                                   sort_by= 'RMSD')
+

@@ -31,3 +31,19 @@ def find_most_similar(query_string, string_list):
     similarities = [SequenceMatcher(None, query_string, s).ratio() for s in string_list]
     most_similar_index = similarities.index(max(similarities))
     return string_list[most_similar_index]
+
+
+########################## Helper functions ######################################
+
+def find_all_indexes(string_list, target_string):
+    """
+    Returns a list of indexes of all occurrences of the target string in the list of strings.
+    
+    Parameters:
+        string_list (list of str): The list of strings to search within.
+        target_string (str): The string to find the indexes of.
+        
+    Returns:
+        list of int: The list of indexes where the target string occurs.
+    """
+    return [index for index, value in enumerate(string_list) if value == target_string]

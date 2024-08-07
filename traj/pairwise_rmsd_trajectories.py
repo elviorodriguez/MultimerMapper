@@ -10,6 +10,7 @@ from utils.logger_setup import configure_logger
 from utils.pdb_utils import get_chain_sequence, get_domain_data, calculate_distance
 from utils.pdockq import calc_pdockq_for_traj
 from src.coordinate_analyzer import calculate_weighted_rmsd
+from utils.find_most_similar_string import find_all_indexes
 
 # -----------------------------------------------------------------------------
 # ------------  Generate a dict with pairwise models information --------------
@@ -649,9 +650,6 @@ def add_pairwise_RMSD_traj_indexes(pairwise_domains_traj_dict: dict,
     pairwise_domains_traj_dict["traj_sorted_weighted_RMSDs_indices"] = get_sorted_indexes(weighted_rmsd_values)
 
 
-######################## Tests OK! Up to here... ##############################
-
-
 def generate_sorted_pairwise_domain_trajectory(
     pairwise_domains_traj_dict: dict,
     output_folder: str,
@@ -814,8 +812,198 @@ def generate_pairwise_domain_trajectories(
                                                    pairwise_domain_traj_dir,
                                                    sort_by = sort_method,
                                                    reversed_trajectory = reversed_trajectory)
+        
+    pairwise_domains_traj_dict["P1_ID"] = P1_ID
+    pairwise_domains_traj_dict["P2_ID"] = P2_ID
     
     return pairwise_domains_traj_dict
+
+#################################################################################
+########################## Add a third protein domain ###########################
+#################################################################################
+
+
+def get_third_domain_chain_from_parent_model(
+        full_model_parent_pdb, P3_full_seq, P3_domain_start, P3_domain_end,
+        
+        # To decide which chain use in cases with more than one occurence
+        P1_CM, P2_CM):
+    
+    # Extract chains and sequences from parent model
+    parent_model_chains    = [c for c in full_model_parent_pdb.get_chains()]
+    parent_model_sequences = [get_chain_sequence(c) for c in parent_model_chains]
+    
+    # Find the matching chain indexes for P3
+    matching_indexes = find_all_indexes(string_list   = parent_model_sequences,
+                                        target_string = P3_full_seq)
+    
+    # Create a Chain object to store residues
+    final_p3_chain = PDB.Chain.Chain('C')
+    
+    # Get average CM of domain pair
+    P1P2_CM           = (P1_CM + P2_CM) / 2
+    
+    # Empty list to keep only the closest to the domain pair
+    P3_chains         = []
+    P3_CMs            = []
+    P1P2_P3_distances = []
+    
+    for i in matching_indexes:
+        
+        temp_chain = PDB.Chain.Chain('C')
+        
+        P3_parent_chain = parent_model_chains[i]
+    
+        p3_residues, _, _, _ = get_domain_data(chain = P3_parent_chain,
+                                               start = P3_domain_start,
+                                               end   = P3_domain_end)
+        
+        # Create chain using residues, compute CM and distance
+        for residue in p3_residues:
+            temp_chain.add(residue.copy())
+        P3_CM        = temp_chain.center_of_mass()
+        P1P2_P3_dist = calculate_distance(P1P2_CM, P3_CM)
+        
+        # Append data
+        P3_chains        .append(temp_chain)
+        P3_CMs           .append(P3_CM)
+        P1P2_P3_distances.append(P1P2_P3_dist)
+    
+    # If the parent contain the third protein
+    try:
+        # Use the closest to the pair
+        min_dist_index = P1P2_P3_distances.index(min(P1P2_P3_distances))
+        final_p3_chain = P3_chains[min_dist_index]
+    # If it does not contain the third protein
+    except ValueError:
+        # Create a Chain object to store residues
+        final_p3_chain = PDB.Chain.Chain('C')
+    
+    return final_p3_chain
+
+
+def generate_sorted_pairwise_domain_trajectory_in_context(
+    pairwise_domains_traj_dict: dict,
+    P3_full_seq: str,
+    P3_domain_start: int,
+    P3_domain_end: int,
+    output_folder: str,
+    sort_by: Literal['RMSD', 'weighted_RMSD'] = 'RMSD',
+    # plot_metrics: bool = True,
+    reversed_trajectory = False
+    ):
+    
+    """
+    Generates a sorted pairwise domain trajectory and saves it as a PDB file.
+    Optionally plots trajectory metrics.
+
+    Args:
+        pairwise_domains_traj_dict (dict): Dictionary containing pairwise domain trajectory data.
+        output_folder (str): Path to the output folder.
+        sort_by (Literal['RMSD', 'weighted_RMSD']): Method to sort the trajectory. Defaults to 'RMSD'.
+        plot_metrics (bool): Whether to plot trajectory metrics. Defaults to True.
+
+    Returns:
+        None
+    """
+    # Create output folder if it doesn't exist
+    os.makedirs(output_folder, exist_ok=True)
+
+    # Determine which sorted indices to use
+    if sort_by == 'RMSD':
+        sorted_indices = pairwise_domains_traj_dict['traj_sorted_RMSDs_indices']
+    else:  # weighted_RMSD
+        sorted_indices = pairwise_domains_traj_dict['traj_sorted_weighted_RMSDs_indices']
+        
+    if reversed_trajectory:
+        sorted_indices = sorted_indices[::-1]
+
+    # Initialize a PDB structure
+    structure = PDB.Structure.Structure("sorted_trajectory")
+
+    # Iterate through sorted indices
+    for model_index, orig_index in enumerate(sorted_indices):
+        # Create a new model for each pair
+        model = PDB.Model.Model(model_index)
+        structure.add(model)
+
+        # Extract and add P1 domain
+        p1_chain = PDB.Chain.Chain('A')
+        p1_residues = pairwise_domains_traj_dict['P1_dom_resids'][orig_index]
+        for residue in p1_residues:
+            p1_chain.add(residue.copy())
+        model.add(p1_chain)
+
+        # Extract and add P2 domain
+        p2_chain = PDB.Chain.Chain('B')
+        p2_residues = pairwise_domains_traj_dict['P2_dom_resids'][orig_index]
+        for residue in p2_residues:
+            p2_chain.add(residue.copy())
+        model.add(p2_chain)
+
+        # Generate P3 domain
+        P1_CM = pairwise_domains_traj_dict['P1_dom_CM'][orig_index]
+        P2_CM = pairwise_domains_traj_dict['P2_dom_CM'][orig_index]
+        p3_chain = get_third_domain_chain_from_parent_model(
+                    full_model_parent_pdb = pairwise_domains_traj_dict['full_model_parent_pdb'][orig_index],
+                    P3_full_seq           = P3_full_seq,
+                    P3_domain_start       = P3_domain_start,
+                    P3_domain_end         = P3_domain_end,
+                    P1_CM                 = P1_CM,
+                    P2_CM                 = P2_CM)
+        model.add(p3_chain)
+    
+    # Save the structure to a PDB file
+    output_pdb_path = os.path.join(output_folder, f"sorted_trajectory_{sort_by}.pdb")
+    io = PDB.PDBIO()
+    io.set_structure(structure)
+    io.save(output_pdb_path)
+
+    # # Plot metrics if requested
+    # if plot_metrics:
+    #     plot_trajectory_metrics(pairwise_domains_traj_dict, sorted_indices, output_folder, sort_by)
+
+
+def generate_pairwise_domain_trajectory_in_context(pairwise_domains_traj_dict: dict,
+                                                   mm_output: dict,
+                                                   out_path: str,
+                                                   P3_ID: str, P3_dom: int,
+                                                   sort_by: str = 'RMSD'
+                                                   ):
+
+    # Check input
+    if P3_ID not in mm_output['prot_IDs']:
+        raise ValueError(f'The provided protein ID is not in mm_output. ID: {P3_ID}')
+    
+    # Get sequences and IDs
+    P1_ID  = pairwise_domains_traj_dict['P1_ID']
+    P1_dom = pairwise_domains_traj_dict['P1_dom_number']
+    P2_ID  = pairwise_domains_traj_dict['P2_ID']
+    P2_dom = pairwise_domains_traj_dict['P2_dom_number'] 
+    i3           = mm_output['prot_IDs'].index(P3_ID)
+    P3_full_seq  = mm_output['prot_seqs'][i3]
+    P3_dom_start = mm_output['domains_df'].query(f'Protein_ID == "{P3_ID}" & Domain == {P3_dom}')['Start'].iloc[0]
+    P3_dom_end   = mm_output['domains_df'].query(f'Protein_ID == "{P3_ID}" & Domain == {P3_dom}')['End'].iloc[0]
+
+    # Output folder for pairwise trajectories
+    pairwise_traj_dir = os.path.join(out_path, "pairwise_trajectories")
+    os.makedirs(pairwise_traj_dir, exist_ok=True)
+    
+    # Output folder for query domains pairwise trajectories
+    domain_traj_directory = f'{P1_ID}_Dom{P1_dom}__vs__{P2_ID}_Dom{P2_dom}__add__{P3_ID}_Dom{P3_dom}'
+    pairwise_domain_traj_dir = os.path.join(pairwise_traj_dir, domain_traj_directory)
+    os.makedirs(pairwise_domain_traj_dir, exist_ok=True)
+
+    generate_sorted_pairwise_domain_trajectory_in_context(
+                pairwise_domains_traj_dict = pairwise_domains_traj_dict,
+                P3_full_seq     = P3_full_seq,
+                P3_domain_start = P3_dom_start,
+                P3_domain_end   = P3_dom_end,
+                output_folder   = pairwise_domain_traj_dir,
+                sort_by         = 'RMSD',
+                # plot_metrics    = plot_metrics,
+                reversed_trajectory = False
+                )
 
 
 ################################## Test data ##################################
