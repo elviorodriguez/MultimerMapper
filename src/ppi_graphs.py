@@ -9,6 +9,7 @@ from plotly.offline import plot
 from utils.logger_setup import configure_logger
 from src.analyze_homooligomers import find_homooligomerization_breaks
 from utils.oscillations import oscillate_line, oscillate_circle
+from utils.combinations import find_untested_2mers
 from src.interpret_dynamics import read_classification_df, classify_edge_dynamics, classification_df,  get_edge_color_hex, get_edge_linetype, get_edge_weight, get_edge_oscillation
 from src.coordinate_analyzer import add_domain_RMSD_against_reference
 
@@ -195,6 +196,7 @@ def generate_Nmers_graph(pairwise_Nmers_df_F3: pd.DataFrame,
 def add_edges_data(graph,
                    pairwise_2mers_df: pd.DataFrame,
                    pairwise_Nmers_df: pd.DataFrame,
+                   untested_edges_tuples: list[tuple],
                    
                    min_PAE_cutoff_2mers: int | float = 8.99,
                    ipTM_cutoff_2mers: int | float = 0.240,
@@ -380,12 +382,21 @@ def add_edges_data(graph,
             # print("WARNING: There is an unknown inconsistency with the data...")
             # print("WARNING: Did you left a protein pair without exploring its interaction???")
             # print("WARNING: Edge that produced the warning:", (graph.vs[edge.source]["name"], graph.vs[edge.target]["name"]))
-            
-            # Add a label for missing data
-            edge["2_mers_info"] = "No rank surpass cutoff"
+
             # And add an empty dataframe as 2_mers_data attribute
             edge["2_mers_data"] = pd.DataFrame(columns=["pTM", "ipTM", "min_PAE", "pDockQ", "N_models"])
-        
+            
+            if tuple(sorted((graph.vs[edge.source]["name"], graph.vs[edge.target]["name"]))) in untested_edges_tuples:
+
+                # Add a label for missing data
+                edge["2_mers_info"] = "No data"
+
+
+            else:
+
+                # Add a label for missing data
+                edge["2_mers_info"] = "No rank surpass cutoff"
+                
         else:
             # Convert data to a string and add the attribute on the edge
             edge["2_mers_info"] = edge["2_mers_data"].to_string(index=False).replace('\n', '<br>')
@@ -422,6 +433,7 @@ def add_vertices_meaning(graph, vertex_color1='red', vertex_color2='green', vert
     vertex_df['meaning'] = vertex_df.apply(get_meaning, axis=1)
     
     graph.vs["meaning"] = vertex_df['meaning']
+
 
 
 # Combine 2-mers and N-mers graphs
@@ -495,9 +507,11 @@ def generate_combined_graph(
     # Sorted list of edges
     edges_g1_sort = sorted([tuple(sorted(t)) for t in edges_g1], key=lambda x: x[0])
     edges_g2_sort = sorted([tuple(sorted(t)) for t in edges_g2], key=lambda x: x[0])
+    # Get untested 2-mers combinations
+    untested_edges_tuples = sorted(list(find_untested_2mers(prot_IDs = prot_IDs, pairwise_2mers_df = pairwise_2mers_df)), key=lambda x: x[0])
         
     # Make a combined edges set
-    edges_comb = sorted(list(set(edges_g1_sort + edges_g2_sort)), key=lambda x: x[0])
+    edges_comb = sorted(list(set(edges_g1_sort + edges_g2_sort + untested_edges_tuples)), key=lambda x: x[0])
 
     # Create a graph with the data
     graphC = igraph.Graph.TupleList(edges_comb, directed=False)
@@ -594,6 +608,7 @@ def generate_combined_graph(
                 
     # Add data to the combined graph to allow hovertext display later
     add_edges_data(graphC, pairwise_2mers_df, pairwise_Nmers_df,
+                   untested_edges_tuples = untested_edges_tuples, 
                    # 2-mers cutoffs
                    min_PAE_cutoff_2mers = min_PAE_cutoff_2mers,
                    ipTM_cutoff_2mers = ipTM_cutoff_2mers,
@@ -638,6 +653,7 @@ def generate_combined_graph(
                                            # Sorted tuple edges lists
                                            sorted_edges_2mers_graph  = edges_g1_sort, 
                                            sorted_edges_Nmers_graph  = edges_g2_sort,
+                                           untested_edges_tuples     = untested_edges_tuples,
                                            tested_Nmers_edges_sorted = tested_Nmers_edges_sorted,
 
                                            classification_df = classification_df,

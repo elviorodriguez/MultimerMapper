@@ -139,6 +139,7 @@ def classify_edge_dynamics(tuple_edge: tuple,
 
                            sorted_edges_2mers_graph  : list[tuple], 
                            sorted_edges_Nmers_graph  : list[tuple],
+                           untested_edges_tuples     : list[tuple],
                            tested_Nmers_edges_sorted : list[tuple],
 
                            classification_df: pd.DataFrame = classification_df,
@@ -156,9 +157,31 @@ def classify_edge_dynamics(tuple_edge: tuple,
     # Get parameters for classification
     is_present_in_2mers = tuple_edge in sorted_edges_2mers_graph
     is_present_in_Nmers = tuple_edge in sorted_edges_Nmers_graph
+    was_tested_in_2mers = tuple_edge not in untested_edges_tuples
     was_tested_in_Nmers = tuple_edge in tested_Nmers_edges_sorted
 
-    # Classify
+    # Classify rows untested in 2-mers
+    e_dynamics_rows = (
+        classification_df
+        .query(f'Tested_in_2_mers == {was_tested_in_2mers}')
+    )
+    
+    # If the info is enough to classify
+    if e_dynamics_rows.shape[0] == 1:
+        e_dynamics = str(e_dynamics_rows["Classification"].iloc[0])
+        logger.debug(f"Found dynamic classification of edge: {tuple_edge}")
+        logger.debug(f"   - is_present_in_2mers: {is_present_in_2mers}")
+        logger.debug(f"   - is_present_in_Nmers: {is_present_in_Nmers}")
+        logger.debug(f"   - was_tested_in_2mers: {was_tested_in_2mers}")
+        logger.debug(f"   - was_tested_in_Nmers: {was_tested_in_Nmers}")
+        logger.debug(f"   - Nmers_variation    : not reached")
+        logger.debug( "   - Nmers_mean_pdockq  : not reached")
+        logger.debug(f"   - Classification     : <--- {e_dynamics} --->")
+        logger.debug(f"   - True edge          : {true_edge}")
+        return e_dynamics
+    
+
+    # Classify the rest of possibilities
     e_dynamics_rows = (
         classification_df
         .query(f'AF_2mers == {is_present_in_2mers}')
@@ -172,6 +195,7 @@ def classify_edge_dynamics(tuple_edge: tuple,
         logger.debug(f"Found dynamic classification of edge: {tuple_edge}")
         logger.debug(f"   - is_present_in_2mers: {is_present_in_2mers}")
         logger.debug(f"   - is_present_in_Nmers: {is_present_in_Nmers}")
+        logger.debug(f"   - was_tested_in_2mers: {was_tested_in_2mers}")
         logger.debug(f"   - was_tested_in_Nmers: {was_tested_in_Nmers}")
         logger.debug(f"   - Nmers_variation    : not reached")
         logger.debug( "   - Nmers_mean_pdockq  : not reached")
@@ -193,6 +217,7 @@ def classify_edge_dynamics(tuple_edge: tuple,
         logger.debug(f"Found dynamic classification of edge: {tuple_edge}")
         logger.debug(f"   - is_present_in_2mers: {is_present_in_2mers}")
         logger.debug(f"   - is_present_in_Nmers: {is_present_in_Nmers}")
+        logger.debug(f"   - was_tested_in_2mers: {was_tested_in_2mers}")
         logger.debug(f"   - was_tested_in_Nmers: {was_tested_in_Nmers}")
         logger.debug(f"   - Nmers_variation    : {Nmers_variation}")
         logger.debug( "   - Nmers_mean_pdockq  : not reached")
@@ -214,12 +239,14 @@ def classify_edge_dynamics(tuple_edge: tuple,
         logger.debug(f"Found dynamic classification of edge: {tuple_edge}")
         logger.debug(f"   - is_present_in_2mers: {is_present_in_2mers}")
         logger.debug(f"   - is_present_in_Nmers: {is_present_in_Nmers}")
+        logger.debug(f"   - was_tested_in_2mers: {was_tested_in_2mers}")
         logger.debug(f"   - was_tested_in_Nmers: {was_tested_in_Nmers}")
         logger.debug(f"   - Nmers_variation    : {Nmers_variation}")
         logger.debug(f"   - Nmers_mean_pdockq  : {Nmers_mean_pdockq}")
         logger.debug(f"   - Classification     : <--- {e_dynamics} --->")
         logger.debug(f"   - True edge          : {true_edge}")
         return e_dynamics
+    
     # If not, something went wrong
     else:
         logger.error(f"Something went wrong with dynamics classification of edge: {tuple_edge}")

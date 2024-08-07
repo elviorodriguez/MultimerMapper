@@ -113,8 +113,32 @@ mm_pairwise_domain_traj = mm.generate_pairwise_domain_trajectories(
 
 # Generates the same trajectory, but with other domains as context
 mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
-                                                   mm_output,
-                                                   out_path,
-                                                   P3_ID = "EPL1", P3_dom = 4,
-                                                   sort_by= 'RMSD')
+                                                    mm_output,
+                                                    out_path,
+                                                    P3_ID = "EPL1", P3_dom = 4,
+                                                    sort_by= 'RMSD')
+
+
+###############################################################################
+######################### N-mers sugestions test ##############################
+###############################################################################
+
+# for e in mm_output["combined_graph"].es:
+#     print("")
+#     print(f'-------------------------- Edge: {e["name"]} -------------------------------')
+#     print(f'   - 2_mers_data ({type(e["2_mers_data"])}):\n {e["2_mers_data"]}')
+#     # print(f'   - 2_mers_info ({type(e["2_mers_info"])}):')# {e["2_mers_info"]}')
+#     print(f'   - N_mers_data ({type(e["N_mers_data"])}):\n{e["N_mers_data"]}')
+#     # print(f'   - N_mers_info ({type(e["N_mers_info"])}):')# {e["N_mers_info"]}')
+#     print(f'   - homooligomerization_states ({type(e["homooligomerization_states"])}):\n{e["homooligomerization_states"]}')
+#     print(f'   - dynamics ({type(e["dynamics"])}):\n{e["dynamics"]}')
+    
+
+
+
+###############################################################################
+
+
+
+
 
