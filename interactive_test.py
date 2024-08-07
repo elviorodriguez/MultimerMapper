@@ -88,8 +88,8 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
 
 # Generate interactive graph
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
-    mm_output["combined_graph"], out_path = out_path)
-
+    mm_output["combined_graph"], out_path = out_path,
+    remove_interactions = ("Indirect",))
 
 # Generate RMSF, pLDDT clusters & RMSD trajectories considering models as monomers
 mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(

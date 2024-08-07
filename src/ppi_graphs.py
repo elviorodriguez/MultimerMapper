@@ -459,12 +459,12 @@ def generate_combined_graph(
         domain_RMSD_plddt_cutoff = 60, trimming_RMSD_plddt_cutoff = 70,
 
         # Other parameters
-        edge_color1='red', edge_color2='green', edge_color3 = 'orange', edge_color4 = 'purple',  edge_color5 = "pink",
-        edge_color6 = "blue", edge_color_both='black',
+        # edge_color1='red', edge_color2='green', edge_color3 = 'orange', edge_color4 = 'purple',  edge_color5 = "pink",
+        # edge_color6 = "blue", edge_color_both='black',
         vertex_color1='red', vertex_color2='green', vertex_color3='orange', vertex_color_both='gray',
         
         pdockq_indirect_interaction_cutoff = 0.23, predominantly_static_cutoff = 0.6,
-        remove_indirect_interactions = True,
+        # remove_interactions = ("Indirect",),
         
         is_debug = False, logger = None):
     """
@@ -785,7 +785,7 @@ def remove_edges_by_condition(graph: igraph.Graph, attribute: str, condition):
     - attribute (str): The edge attribute to check.
     - condition (function): A function that takes an attribute value and returns True if the edge should be removed.
     """
-    edges_to_remove = [e.index for e in graph.es if condition(e[attribute])]
+    edges_to_remove = [e.index for e in graph.es if e[attribute] == condition]
     graph.delete_edges(edges_to_remove)
 
 def indirect_condition(value):
@@ -828,7 +828,7 @@ def igraph_to_plotly(
         oscillation_amplitude: float = 0.02,
         oscillation_lines_frequency: int = 8, 
         oscillation_circles_frequency: int = 20,
-        remove_indirect_interactions: bool = True,
+        remove_interactions: tuple[str] | None = ("Indirect",),
         
         logger = None):
     
@@ -872,15 +872,14 @@ def igraph_to_plotly(
     self_loop_size = self_loop_size / 10
     default_edge_width = edge_width
 
-    # Remove indirect interactions?
-    if remove_indirect_interactions:
+    # DeepCopy the graph to avoid affecting the original
+    from copy import deepcopy
+    graph = deepcopy(graph)
 
-        # DeepCopy the graph to avoid affecting the original
-        from copy import deepcopy
-        graph = deepcopy(graph)
-            
+    # Remove indirect interactions or other type of interaction?
+    for interaction_type in remove_interactions:
         # Remove edges that meet the condition
-        remove_edges_by_condition(graph, attribute = 'dynamics', condition = indirect_condition)
+        remove_edges_by_condition(graph, attribute = 'dynamics', condition = interaction_type)
     
     # Generate layout if if was not provided
     if layout == None:

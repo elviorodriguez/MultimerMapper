@@ -244,12 +244,9 @@ def parse_AF2_and_sequences(
         trimming_RMSD_plddt_cutoff = trimming_RMSD_plddt_cutoff,
 
         # Style options (see cfg/default_settings module for their meaning)
-        edge_color1 = edge_color1, edge_color2 = edge_color2, edge_color3 = edge_color3, edge_color4 = edge_color4,
-        edge_color5 = edge_color5, edge_color6 = edge_color6, edge_color_both = edge_color_both,
+        # edge_color1 = edge_color1, edge_color2 = edge_color2, edge_color3 = edge_color3, edge_color4 = edge_color4,
+        # edge_color5 = edge_color5, edge_color6 = edge_color6, edge_color_both = edge_color_both,
         vertex_color1=vertex_color1, vertex_color2=vertex_color2, vertex_color3=vertex_color3, vertex_color_both=vertex_color_both,
-
-        # Remove indirect interactions?
-        remove_indirect_interactions = remove_indirect_interactions,
         
         # Is debug?
         is_debug = False, logger = logger)
@@ -295,7 +292,7 @@ def parse_AF2_and_sequences(
     return multimer_mapper_output
 
 
-def interactive_igraph_to_plotly(combined_graph, out_path: str, log_level = "info"):
+def interactive_igraph_to_plotly(combined_graph, out_path: str, log_level = "info", remove_interactions = ("Indirect",)):
 
     # Initialize the logger
     logger = configure_logger(out_path, log_level = log_level)(__name__)
@@ -328,6 +325,9 @@ def interactive_igraph_to_plotly(combined_graph, out_path: str, log_level = "inf
 
             # Add cutoff values to the legends?
             add_cutoff_legend = add_cutoff_legend,
+
+            # Discards interactions types from this list
+            remove_interactions = remove_interactions,
 
             # Logger
             logger = logger
