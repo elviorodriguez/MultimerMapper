@@ -169,16 +169,26 @@ def find_homooligomerization_breaks(pairwise_2mers_df_F3, pairwise_Nmers_df,
     # Initialize dict to store homooligomerization states of each protein
     homooligomerization_states: dict = {protein_ID: {"is_ok": [], "N_states": []} for protein_ID in homodim_prots}
     
+    # This manages the case in which there is no N-mers models for the homooligomerization states
     try:
         # Subset of Nmers_df corresponding to homo-N-mers
         homo_N_mers_pairwise_df = get_homo_N_mers_pairwise_df(pairwise_Nmers_df)
+
     except KeyError as e:
+        
         if pairwise_Nmers_df.empty:
             logger.warning("No N-mers passed... continuing.")
-            return homooligomerization_states
+            
+            # Set the dataframe as empty
+            homo_N_mers_pairwise_df = pairwise_Nmers_df
+            
+            # # Before it was returning the homooligomerization_states without modifications, which caused many problems later
+            # return homooligomerization_states
+
         else:
             logger.error(f"Unknown KeyError encountered: {e}")
             raise
+
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
         raise
@@ -189,7 +199,7 @@ def find_homooligomerization_breaks(pairwise_2mers_df_F3, pairwise_Nmers_df,
         
         homo_Nmers_models: set = set(protein_homo_N_mers_pairwise_df['proteins_in_model'])
         
-        is_ok = check_if_skipped_homo_N_mers(homo_Nmers_models, protein, logger)
+        is_ok: list[bool] = check_if_skipped_homo_N_mers(homo_Nmers_models, protein, logger)
         
         # If any state was skipped
         if any(not ok for ok in is_ok):
