@@ -91,6 +91,10 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     mm_output["combined_graph"], out_path = out_path,
     remove_interactions = ("Indirect",))
 
+suggested_combinations = mm.suggest_combinations(mm_output = mm_output, 
+                                                 # To ommit saving, change to None
+                                                 out_path = out_path)
+
 # Generate RMSF, pLDDT clusters & RMSD trajectories considering models as monomers
 mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
     mm_output = mm_output, out_path = out_path)
@@ -119,24 +123,13 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
                                                     sort_by= 'RMSD')
 
 
-###############################################################################
-######################### N-mers sugestions test ##############################
-###############################################################################
-
-# for e in mm_output["combined_graph"].es:
-#     print("")
-#     print(f'-------------------------- Edge: {e["name"]} -------------------------------')
-#     print(f'   - 2_mers_data ({type(e["2_mers_data"])}):\n {e["2_mers_data"]}')
-#     # print(f'   - 2_mers_info ({type(e["2_mers_info"])}):')# {e["2_mers_info"]}')
-#     print(f'   - N_mers_data ({type(e["N_mers_data"])}):\n{e["N_mers_data"]}')
-#     # print(f'   - N_mers_info ({type(e["N_mers_info"])}):')# {e["N_mers_info"]}')
-#     print(f'   - homooligomerization_states ({type(e["homooligomerization_states"])}):\n{e["homooligomerization_states"]}')
-#     print(f'   - dynamics ({type(e["dynamics"])}):\n{e["dynamics"]}')
-    
 
 
 
-###############################################################################
+
+
+
+
 
 
 

@@ -21,6 +21,7 @@ try:
     from src.coordinate_analyzer import generate_RMSF_pLDDT_cluster_and_RMSD_trajectories
     from utils.temp_files_manager import setup_temp_file
     from traj.pairwise_rmsd_trajectories import generate_pairwise_domain_trajectories, generate_pairwise_domain_trajectory_in_context
+    from utils.combinations import suggest_combinations
 
     # Get back the working dir as the path to MultimerMapper repo 
     os.chdir(wd_path)
@@ -430,6 +431,9 @@ if __name__ == "__main__":
     mm_traj = generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(mm_output = mm_output,
                                                                 out_path = out_path,
                                                                 log_level = log_level)
+    
+    # Generate suggested combinations files
+    sug_combs = suggest_combinations(mm_output = mm_output, out_path = out_path)
     
     # Progress
     logger = configure_logger(out_path = out_path)(__name__)
