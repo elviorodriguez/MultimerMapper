@@ -685,7 +685,7 @@ def compute_contacts(mm_output: dict,
         sliced_PAE_and_pLDDTs = sliced_PAE_and_pLDDTs,
 
         # Cutoffs that define a contact between residue centroids
-        contact_distance = 8.0,
+        contact_distance = contact_distance_cutoff,
         contact_PAE_cutoff = contact_PAE_cutoff,
         contact_pLDDT_cutoff = contact_pLDDT_cutoff,
         
