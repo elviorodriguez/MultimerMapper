@@ -90,8 +90,11 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
 # Generate interactive graph
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
     mm_output["combined_graph"], out_path = out_path,
+    
+    # You can remove specific interaction types from the graph
     remove_interactions = ("Indirect",))
 
+# Get suggested combinations
 suggested_combinations = mm.suggest_combinations(mm_output = mm_output, 
                                                  # To ommit saving, change to None
                                                  out_path = out_path)
@@ -100,10 +103,16 @@ suggested_combinations = mm.suggest_combinations(mm_output = mm_output,
 mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
     mm_output = mm_output, out_path = out_path)
 
+# Contacts extraction
 import multimer_mapper as mm
 mm_contacts = mm.compute_contacts(mm_output, out_path)
 
-# Generate RMSF, pLDDT clusters & RMSD trajectories for pairs of interacting proteins
+
+###############################################################################
+############################# Advanced features ###############################
+###############################################################################
+
+# Generate RMSD trajectories for pairs of interacting protein domains
 mm_pairwise_domain_traj = mm.generate_pairwise_domain_trajectories(
     # Pair of domains to get the trajectory
     P1_ID = 'EAF6', P1_dom = 2, 
@@ -111,6 +120,7 @@ mm_pairwise_domain_traj = mm.generate_pairwise_domain_trajectories(
     mm_output = mm_output, out_path = out_path,
     
     # Configuration of the trajectory -----------------------------------
+    
     # One of ['domains_mean_plddt', 'domains_CM_dist', 'domains_pdockq'] 
     reference_metric = 'domains_pdockq',
     # One of [max, min]
@@ -127,50 +137,8 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 
 
 ###############################################################################
-############################### MM main run ###################################
+################################## TESTS ######################################
 ###############################################################################
-
-# pairwise_df
-['protein1', 'protein2', 'proteins_in_model', 'length1', 'length2',
- 'rank', 'pTM', 'ipTM', 'min_PAE', 'pDockQ', 'PPV', 'model', 'diagonal_sub_PAE']
-pairwise_Nmers_df          = mm_output['pairwise_Nmers_df']
-
-# pairwise_df_F3
-['protein1', 'protein2', 'proteins_in_model', 'N_models', 'min_PAE', 'pDockQ']
-filtered_pairwise_Nmers_df = mm_output['pairwise_Nmers_df_F3']
-
-
-
-
-# code
-models_that_surpass_cutoff = [tuple(row) for i, row in filtered_pairwise_Nmers_df.filter(["protein1", "protein2", "proteins_in_model"]).iterrows()]
-
-# For progress bar
-total_models_that_surpass_cutoff = [tuple(row) for i, row in pairwise_Nmers_df.query("rank == 1").filter(["protein1", "protein2", "proteins_in_model"]).iterrows() if tuple(row) in models_that_surpass_cutoff]
-total_models_num = len(total_models_that_surpass_cutoff)
-model_num = 0
-
-    
-print("Are in models_that_surpass_cutoff:")
-for i, pairwise_Nmers_df_row in pairwise_Nmers_df.query("rank == 1").iterrows():
-    
-    # Skip models that do not surpass cutoffs
-    row_prot1 = str(pairwise_Nmers_df_row["protein1"])
-    row_prot2 = str(pairwise_Nmers_df_row["protein2"])
-    row_prot_in_mod = tuple(pairwise_Nmers_df_row["proteins_in_model"])
-    if (row_prot1, row_prot2, row_prot_in_mod) not in models_that_surpass_cutoff:
-        continue
-
-    print((row_prot1, row_prot2, row_prot_in_mod))
-    
-    model_num += 1
-
-print(f'Expected: {total_models_num}')
-print(f'Obtained: {model_num}')
-
-
-
-
 
 
 
