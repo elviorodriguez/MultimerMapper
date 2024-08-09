@@ -6,7 +6,7 @@ from pathlib import Path
 # Logging function & formats  --------------------------------------------------
 # ------------------------------------------------------------------------------
 
-def configure_logger(out_path = ".", log_level: str = "info"):
+def configure_logger(out_path = ".", log_level: str = "info", clear_root_handlers: bool = False):
 
     # Set logging level
     if log_level == "notset":
@@ -43,6 +43,15 @@ def configure_logger(out_path = ".", log_level: str = "info"):
     console_handler.setFormatter(console_formatter)
     file_handler.setFormatter(file_formatter)
     
+    # Clear the root handlers
+    if clear_root_handlers:
+
+        # Clear existing handlers if any (this ensures that basicConfig doesn't get ignored)
+        root_logger = logging.getLogger()
+        if root_logger.hasHandlers():
+            root_logger.handlers.clear()
+
+
     # Configure logging
     logging.basicConfig(
         level=level,

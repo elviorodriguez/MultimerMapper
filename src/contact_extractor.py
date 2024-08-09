@@ -136,16 +136,15 @@ def compute_contacts_2mers(pdb_filename, min_diagonal_PAE_matrix,
     CM_b = highest_pLDDT_PDB_b.center_of_mass()
     
     # Progress
-    logger.info( '----------------------------------------------------------------------------')
     logger.info(f'Computing interface residues for {protein_ID_a}__vs__{protein_ID_b} pair...')
-    logger.info(f'Protein A: {protein_ID_a}')
-    logger.info(f'Protein B: {protein_ID_b}')
-    logger.info(f'Length A: {len_a}')
-    logger.info(f'Length B: {len_b}')
-    logger.info(f'PAE rows: {PAE_num_rows}')
-    logger.info(f'PAE cols: {PAE_num_cols}')
-    logger.info(f'Center of Mass A: {CM_a}')
-    logger.info(f'Center of Mass B: {CM_b}')
+    logger.debug(f'Protein A: {protein_ID_a}')
+    logger.debug(f'Protein B: {protein_ID_b}')
+    logger.debug(f'Length A: {len_a}')
+    logger.debug(f'Length B: {len_b}')
+    logger.debug(f'PAE rows: {PAE_num_rows}')
+    logger.debug(f'PAE cols: {PAE_num_cols}')
+    logger.debug(f'Center of Mass A: {CM_a}')
+    logger.debug(f'Center of Mass B: {CM_b}')
     
     # Chimera code to select residues from interfaces easily
     chimera_code = "sel "
@@ -181,10 +180,10 @@ def compute_contacts_2mers(pdb_filename, min_diagonal_PAE_matrix,
                 pair_distance = get_centroid_distance(res_a, res_b)
                 
                 if pair_distance < contact_distance:
-                    logger.info(f'Residue pair: {res_a.id[1]} {res_b.id[1]}')
-                    logger.info(f'  - PAE       = {pair_PAE}')
-                    logger.info(f'  - min_pLDDT = {pair_min_pLDDT}')
-                    logger.info(f'  - distance  = {pair_distance}')
+                    logger.debug(f'Residue pair: {res_a.id[1]} {res_b.id[1]}')
+                    logger.debug(f'  - PAE       = {pair_PAE}')
+                    logger.debug(f'  - min_pLDDT = {pair_min_pLDDT}')
+                    logger.debug(f'  - distance  = {pair_distance}')
                     
                     # Add residue pairs to chimera code to select residues easily
                     chimera_code += f"/a:{res_a.id[1]} /b:{res_b.id[1]} "
@@ -235,6 +234,10 @@ def compute_contacts_2mers(pdb_filename, min_diagonal_PAE_matrix,
     contacts_2mers_df['V_ab'] = [CM_ab / norm_ab] * len(contacts_2mers_df)  # Unitary vector AB
     contacts_2mers_df['V_ba'] = [CM_ba / norm_ba] * len(contacts_2mers_df)  # Unitary vector BA
     
+    # Progress
+    number_of_contacts: int = contacts_2mers_df.shape[0]
+    logger.info(f'   - Nº of contacts found: {number_of_contacts}')
+
     return contacts_2mers_df, chimera_code
 
 
@@ -257,6 +260,9 @@ def compute_contacts_2mers_batch(pdb_models_list: list[PDB.Model.Model], min_dia
     '''
     if logger is None:
         logger = configure_logger()(__name__)
+
+    logger.info("INITIALIZING: Compute residue-residue contacts for 2-mers dataset...")
+    logger.info("")
 
     # Empty df to store results
     columns = ["protein_ID_a", "protein_ID_b", "res_a", "res_b", "AA_a", "AA_b",
@@ -304,8 +310,12 @@ def compute_contacts_2mers_batch(pdb_models_list: list[PDB.Model.Model], min_dia
         
         # For progress bar
         model_num += 1
+        logger.info("")
         logger.info(print_progress_bar(model_num, total_models, text = " (2-mers contacts)", progress_length = 40))
         logger.info("")
+    
+    logger.info("FINISHED: Compute residue-residue contacts for 2-mers dataset.")
+    logger.info("")
     
     return contacts_2mers_df, chimera_code_dict
 
@@ -385,7 +395,6 @@ def compute_contacts_from_pairwise_2mers_df(filtered_pairwise_2mers_df, pairwise
 # -----------------------------------------------------------------------------
 
 def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sliced_PAE_and_pLDDTs,
-                           out_path: str,
                            # Cutoff parameters
                            contact_distance = 8.0, PAE_cutoff = 3, pLDDT_cutoff = 70,
                            logger: Logger | None = None):
@@ -455,23 +464,22 @@ def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sl
     CM_b = highest_pLDDT_PDB_b.center_of_mass()
     
     # Progress
-    logger.info( '----------------------------------------------------------------------------')
-    logger.info(f'Computing interface residues for ({protein_ID_a}, {protein_ID_b}) N-mer pair...')
-    logger.info(f'Model: {str(proteins_in_model)}')
-    logger.info(f'Protein A: {protein_ID_a}')
-    logger.info(f'Protein B: {protein_ID_b}')
-    logger.info(f'Length A: {len_a}')
-    logger.info(f'Length B: {len_b}')
-    logger.info(f'PAE rows: {PAE_num_rows}')
-    logger.info(f'PAE cols: {PAE_num_cols}')
-    logger.info(f'Center of Mass A: {CM_a}')
-    logger.info(f'Center of Mass B: {CM_b}')
+    logger.info(f'Computing interface residues for ({protein_ID_a}, {protein_ID_b}) pair...')
+    logger.info(f'   - Model: {str(proteins_in_model)}')
+    logger.info(f'   - Chains: ({chain_a.id}, {chain_b.id})')
+    logger.debug(f'Protein A: {protein_ID_a}')
+    logger.debug(f'Protein B: {protein_ID_b}')
+    logger.debug(f'Length A: {len_a}')
+    logger.debug(f'Length B: {len_b}')
+    logger.debug(f'PAE rows: {PAE_num_rows}')
+    logger.debug(f'PAE cols: {PAE_num_cols}')
+    logger.debug(f'Center of Mass A: {CM_a}')
+    logger.debug(f'Center of Mass B: {CM_b}')
     
     # Chimera code to select residues from interfaces easily
     chimera_code = "sel "
     
     # Compute contacts
-    contacts = []
     for res_a in chain_a:
         
         # Normalized residue position from highest pLDDT model (subtract CM)
@@ -501,10 +509,10 @@ def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sl
                 pair_distance = get_centroid_distance(res_a, res_b)
                 
                 if pair_distance < contact_distance:
-                    logger.info(f'Residue pair: {res_a.id[1]} {res_b.id[1]}')
-                    logger.info(f'  - PAE       = {pair_PAE}')
-                    logger.info(f'  - min_pLDDT = {pair_min_pLDDT}')
-                    logger.info(f'  - distance  = {pair_distance}')
+                    logger.debug(f'Residue pair: {res_a.id[1]} {res_b.id[1]}')
+                    logger.debug(f'  - PAE       = {pair_PAE}')
+                    logger.debug(f'  - min_pLDDT = {pair_min_pLDDT}')
+                    logger.debug(f'  - distance  = {pair_distance}')
                     
                     # Add residue pairs to chimera code to select residues easily
                     chimera_code += f"/{chain_a_id}:{res_a.id[1]} /{chain_b_id}:{res_b.id[1]} "
@@ -573,6 +581,9 @@ def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sl
     contacts_Nmers_df['V_ab'] = [CM_ab / norm_ab] * len(contacts_Nmers_df)  # Unitary vector AB
     contacts_Nmers_df['V_ba'] = [CM_ba / norm_ba] * len(contacts_Nmers_df)  # Unitary vector BA
     
+    # Progress
+    number_of_contacts: int = contacts_Nmers_df.shape[0]
+    logger.info(f'   - Nº of contacts found: {number_of_contacts}')
     
     return contacts_Nmers_df, chimera_code
 
@@ -585,7 +596,6 @@ def compute_contacts_from_pairwise_Nmers_df(pairwise_Nmers_df, filtered_pairwise
     if logger is None:
         logger = configure_logger()(__name__)
     
-    logger.info("")
     logger.info("INITIALIZING: Compute residue-residue contacts for N-mers dataset...")
     logger.info("")
     
@@ -602,7 +612,8 @@ def compute_contacts_from_pairwise_Nmers_df(pairwise_Nmers_df, filtered_pairwise
     models_that_surpass_cutoff = [tuple(row) for i, row in filtered_pairwise_Nmers_df.filter(["protein1", "protein2", "proteins_in_model"]).iterrows()]
     
     # For progress bar
-    total_models = len(models_that_surpass_cutoff)
+    total_models_that_surpass_cutoff = [tuple(row) for i, row in pairwise_Nmers_df.query("rank == 1").filter(["protein1", "protein2", "proteins_in_model"]).iterrows() if tuple(row) in models_that_surpass_cutoff]
+    total_models_num = len(total_models_that_surpass_cutoff)
     model_num = 0
 
     # Chimera code dict to store contacts
@@ -630,8 +641,12 @@ def compute_contacts_from_pairwise_Nmers_df(pairwise_Nmers_df, filtered_pairwise
         
         # For progress bar
         model_num += 1
-        logger.info(print_progress_bar(model_num, total_models, text = " (N-mers contacts)", progress_length = 40))
         logger.info("")
+        logger.info(print_progress_bar(model_num, total_models_num, text = " (N-mers contacts)", progress_length = 40))
+        logger.info("")
+    
+    logger.info("FINISHED: Compute residue-residue contacts for N-mers dataset.")
+    logger.info("")
     
     return contacts_Nmers_df, chimera_code_Nmers_dict
 
@@ -649,6 +664,10 @@ def compute_contacts(mm_output: dict,
                      log_level: str = "info") -> dict:
     
     logger = configure_logger(out_path = out_path, log_level = log_level)(__name__)
+
+    # Avoids this warning: Mean of empty slice.
+    import warnings
+    warnings.filterwarnings("ignore", category=RuntimeWarning, module="numpy.core.fromnumeric")
 
     # Unpack data
     pairwise_2mers_df     = mm_output['pairwise_2mers_df']

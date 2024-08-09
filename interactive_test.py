@@ -11,7 +11,7 @@ pd.set_option( 'display.max_columns' , None )
 fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
 AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
 AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
-AF2_Nmers = None
+# AF2_Nmers = None
 out_path = "/home/elvio/Desktop/MM_interactive_test2"
 use_names = True 
 overwrite = True
@@ -74,8 +74,9 @@ graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 ############################### MM main run ###################################
 ###############################################################################
 
-log_level = 'debug'
-logger = mm.configure_logger(out_path = out_path, log_level = log_level)(__name__)
+import multimer_mapper as mm
+log_level = 'info'
+logger = mm.configure_logger(out_path = out_path, log_level = log_level, clear_root_handlers = True)(__name__)
 
 # Run the main MultimerMapper pipeline
 mm_output = mm.parse_AF2_and_sequences(fasta_file,
@@ -129,9 +130,43 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 ############################### MM main run ###################################
 ###############################################################################
 
+# pairwise_df
+['protein1', 'protein2', 'proteins_in_model', 'length1', 'length2',
+ 'rank', 'pTM', 'ipTM', 'min_PAE', 'pDockQ', 'PPV', 'model', 'diagonal_sub_PAE']
+pairwise_Nmers_df          = mm_output['pairwise_Nmers_df']
+
+# pairwise_df_F3
+['protein1', 'protein2', 'proteins_in_model', 'N_models', 'min_PAE', 'pDockQ']
+filtered_pairwise_Nmers_df = mm_output['pairwise_Nmers_df_F3']
 
 
 
+
+# code
+models_that_surpass_cutoff = [tuple(row) for i, row in filtered_pairwise_Nmers_df.filter(["protein1", "protein2", "proteins_in_model"]).iterrows()]
+
+# For progress bar
+total_models_that_surpass_cutoff = [tuple(row) for i, row in pairwise_Nmers_df.query("rank == 1").filter(["protein1", "protein2", "proteins_in_model"]).iterrows() if tuple(row) in models_that_surpass_cutoff]
+total_models_num = len(total_models_that_surpass_cutoff)
+model_num = 0
+
+    
+print("Are in models_that_surpass_cutoff:")
+for i, pairwise_Nmers_df_row in pairwise_Nmers_df.query("rank == 1").iterrows():
+    
+    # Skip models that do not surpass cutoffs
+    row_prot1 = str(pairwise_Nmers_df_row["protein1"])
+    row_prot2 = str(pairwise_Nmers_df_row["protein2"])
+    row_prot_in_mod = tuple(pairwise_Nmers_df_row["proteins_in_model"])
+    if (row_prot1, row_prot2, row_prot_in_mod) not in models_that_surpass_cutoff:
+        continue
+
+    print((row_prot1, row_prot2, row_prot_in_mod))
+    
+    model_num += 1
+
+print(f'Expected: {total_models_num}')
+print(f'Obtained: {model_num}')
 
 
 
