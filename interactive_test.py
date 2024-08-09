@@ -11,8 +11,8 @@ pd.set_option( 'display.max_columns' , None )
 fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
 AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
 AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/MM_interactive_test"
+AF2_Nmers = None
+out_path = "/home/elvio/Desktop/MM_interactive_test2"
 use_names = True 
 overwrite = True
 graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
@@ -99,6 +99,8 @@ suggested_combinations = mm.suggest_combinations(mm_output = mm_output,
 mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
     mm_output = mm_output, out_path = out_path)
 
+import multimer_mapper as mm
+mm_contacts = mm.compute_contacts(mm_output, out_path)
 
 # Generate RMSF, pLDDT clusters & RMSD trajectories for pairs of interacting proteins
 mm_pairwise_domain_traj = mm.generate_pairwise_domain_trajectories(
@@ -123,7 +125,9 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
                                                     sort_by= 'RMSD')
 
 
-
+###############################################################################
+############################### MM main run ###################################
+###############################################################################
 
 
 

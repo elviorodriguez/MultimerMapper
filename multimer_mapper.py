@@ -20,8 +20,11 @@ try:
     from src.ppi_graphs import generate_2mers_graph, generate_Nmers_graph, generate_combined_graph, igraph_to_plotly
     from src.coordinate_analyzer import generate_RMSF_pLDDT_cluster_and_RMSD_trajectories
     from utils.temp_files_manager import setup_temp_file
-    from traj.pairwise_rmsd_trajectories import generate_pairwise_domain_trajectories, generate_pairwise_domain_trajectory_in_context
     from utils.combinations import suggest_combinations
+    from src.contact_extractor import compute_contacts
+
+    # These are for interactive usage
+    from traj.pairwise_rmsd_trajectories import generate_pairwise_domain_trajectories, generate_pairwise_domain_trajectory_in_context
 
     # Get back the working dir as the path to MultimerMapper repo 
     os.chdir(wd_path)
