@@ -448,7 +448,7 @@ def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sl
         logger = configure_logger()(__name__)
 
     # Empty df to store results
-    columns = ["protein_ID_a", "protein_ID_b", "proteins_in_model", "res_a", "res_b", "AA_a", "AA_b",
+    columns = ["protein_ID_a", "protein_ID_b", "proteins_in_model", "rank", "res_a", "res_b", "AA_a", "AA_b",
                 "res_name_a", "res_name_b", "PAE", "pLDDT_a", "pLDDT_b", "min_pLDDT", "pTM",
                 "ipTM", "pDockQ", "min_PAE", "N_models", "distance", "xyz_a", "xyz_b", "CM_a", "CM_b"]
     contacts_Nmers_df = pd.DataFrame(columns=columns)  
@@ -457,6 +457,7 @@ def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sl
     protein_ID_a            = pairwise_Nmers_df_row["protein1"]
     protein_ID_b            = pairwise_Nmers_df_row["protein2"]
     proteins_in_model       = pairwise_Nmers_df_row["proteins_in_model"]
+    model_rank              = pairwise_Nmers_df_row["rank"]
     pdb_model               = pairwise_Nmers_df_row["model"]
     min_diagonal_PAE_matrix = pairwise_Nmers_df_row["diagonal_sub_PAE"]
     pTM                     = pairwise_Nmers_df_row["pTM"]
@@ -506,9 +507,8 @@ def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sl
     CM_b = highest_pLDDT_PDB_b.center_of_mass()
     
     # Progress
-    logger.info(f'Computing interface residues for ({protein_ID_a}, {protein_ID_b}) pair...')
-    logger.info(f'   - Model: {str(proteins_in_model)}')
-    logger.info(f'   - Chains: ({chain_a.id}, {chain_b.id})')
+    # logger.info(f'   - Model: {str(proteins_in_model)}')
+    # logger.info(f'   - Chains: ({chain_a.id}, {chain_b.id})')
     logger.debug(f'Protein A: {protein_ID_a}')
     logger.debug(f'Protein B: {protein_ID_b}')
     logger.debug(f'Length A: {len_a}')
@@ -562,29 +562,30 @@ def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sl
                     # Add contact pair to dict
                     contacts = pd.DataFrame({
                         # Save them as 0 base
-                        "protein_ID_a": [protein_ID_a],
-                        "protein_ID_b": [protein_ID_b],
-                        "proteins_in_model": [proteins_in_model],
-                        "res_a": [residue_id_a - 1],
-                        "res_b": [residue_id_b - 1],
-                        "AA_a": [seq1(res_a.get_resname())],      # Get the amino acid of chain A in the contact
-                        "AA_b": [seq1(res_b.get_resname())],      # Get the amino acid of chain B in the contact
-                        "res_name_a": [seq1(res_a.get_resname()) + str(residue_id_a)],
-                        "res_name_b": [seq1(res_b.get_resname()) + str(residue_id_b)],
-                        "PAE": [pair_PAE],
-                        "pLDDT_a": [res_pLDDT_a],
-                        "pLDDT_b": [res_pLDDT_b],
-                        "min_pLDDT": [pair_min_pLDDT],
-                        "pTM": "",
-                        "ipTM": "",
-                        "pDockQ": "",
-                        "min_PAE": "",
-                        "N_models": "",
-                        "distance": [pair_distance],
-                        "xyz_a": [residue_xyz_a],
-                        "xyz_b": [residue_xyz_b],
-                        "CM_a": [np.array([0,0,0])],
-                        "CM_b": [np.array([0,0,0])]})
+                        "protein_ID_a"      : [protein_ID_a],
+                        "protein_ID_b"      : [protein_ID_b],
+                        "proteins_in_model" : [proteins_in_model],
+                        "rank"              : [model_rank],
+                        "res_a"             : [residue_id_a - 1],
+                        "res_b"             : [residue_id_b - 1],
+                        "AA_a"              : [seq1(res_a.get_resname())],      # Get the amino acid of chain A in the contact
+                        "AA_b"              : [seq1(res_b.get_resname())],      # Get the amino acid of chain B in the contact
+                        "res_name_a"        : [seq1(res_a.get_resname()) + str(residue_id_a)],
+                        "res_name_b"        : [seq1(res_b.get_resname()) + str(residue_id_b)],
+                        "PAE"               : [pair_PAE],
+                        "pLDDT_a"           : [res_pLDDT_a],
+                        "pLDDT_b"           : [res_pLDDT_b],
+                        "min_pLDDT"         : [pair_min_pLDDT],
+                        "pTM"               : "",
+                        "ipTM"              : "",
+                        "pDockQ"            : "",
+                        "min_PAE"           : "",
+                        "N_models"          : "",
+                        "distance"          : [pair_distance],
+                        "xyz_a"             : [residue_xyz_a],
+                        "xyz_b"             : [residue_xyz_b],
+                        "CM_a"              : [np.array([0,0,0])],
+                        "CM_b"              : [np.array([0,0,0])]})
                     
                     contacts_Nmers_df = pd.concat([contacts_Nmers_df, contacts], ignore_index = True)
     
@@ -625,7 +626,7 @@ def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sl
     
     # Progress
     number_of_contacts: int = contacts_Nmers_df.shape[0]
-    logger.info(f'   - Nº of contacts found: {number_of_contacts}')
+    logger.info(f'   - Nº of contacts found (rank_{model_rank}): {number_of_contacts}')
     
     return contacts_Nmers_df, chimera_code
 
@@ -639,14 +640,13 @@ def compute_contacts_from_pairwise_Nmers_df(pairwise_Nmers_df, filtered_pairwise
         logger = configure_logger()(__name__)
     
     logger.info("INITIALIZING: Compute residue-residue contacts for N-mers dataset...")
-    logger.info("")
     
     # Check if pairwise_2mers_df was passed by mistake
     if "proteins_in_model" not in pairwise_Nmers_df.columns:
         raise ValueError("Provided dataframe seems to come from 2-mers data. To compute contacts coming from 2-mers models, please, use compute_contacts_from_pairwise_2mers_df function.")
     
     # Empty df to store results
-    columns = ["protein_ID_a", "protein_ID_b", "proteins_in_model", "res_a", "res_b", "AA_a", "AA_b",
+    columns = ["protein_ID_a", "protein_ID_b", "proteins_in_model", "rank", "res_a", "res_b", "AA_a", "AA_b",
                 "res_name_a", "res_name_b", "PAE", "pLDDT_a", "pLDDT_b", "min_pLDDT", "pTM",
                 "ipTM", "pDockQ", "min_PAE", "N_models", "distance", "xyz_a", "xyz_b", "CM_a", "CM_b"]
     contacts_Nmers_df = pd.DataFrame(columns=columns)
@@ -654,14 +654,18 @@ def compute_contacts_from_pairwise_Nmers_df(pairwise_Nmers_df, filtered_pairwise
     models_that_surpass_cutoff = [tuple(row) for i, row in filtered_pairwise_Nmers_df.filter(["protein1", "protein2", "proteins_in_model"]).iterrows()]
     
     # For progress bar
-    total_models_that_surpass_cutoff = [tuple(row) for i, row in pairwise_Nmers_df.query("rank == 1").filter(["protein1", "protein2", "proteins_in_model"]).iterrows() if tuple(row) in models_that_surpass_cutoff]
+    total_models_that_surpass_cutoff = [tuple(row) for i, row in pairwise_Nmers_df.filter(["protein1", "protein2", "proteins_in_model"]).iterrows() if tuple(row) in models_that_surpass_cutoff]
     total_models_num = len(total_models_that_surpass_cutoff)
     model_num = 0
+    already_being_computing_pairs = []
 
     # Chimera code dict to store contacts
     chimera_code_Nmers_dict: dict = {}
+
+    # Sort the dataframe, just in case
+    pairwise_Nmers_df = pairwise_Nmers_df.sort_values(by=["pair_chains_and_model_tuple", "rank"])
     
-    for i, pairwise_Nmers_df_row in pairwise_Nmers_df.query("rank == 1").iterrows():
+    for i, pairwise_Nmers_df_row in pairwise_Nmers_df.iterrows():
         
         # Skip models that do not surpass cutoffs
         row_prot1 = str(pairwise_Nmers_df_row["protein1"])
@@ -670,6 +674,16 @@ def compute_contacts_from_pairwise_Nmers_df(pairwise_Nmers_df, filtered_pairwise
         if (row_prot1, row_prot2, row_prot_in_mod) not in models_that_surpass_cutoff:
             continue
         
+        # For progress following
+        pair_chains_tuple          : tuple = tuple([c.id for c in pairwise_Nmers_df_row["model"].get_chains()])
+        pair_chains_and_model_tuple: tuple = (pair_chains_tuple, row_prot_in_mod)
+        if pair_chains_and_model_tuple not in already_being_computing_pairs:
+            logger.info("")
+            logger.info(print_progress_bar(model_num, total_models_num, text = " (N-mers contacts)", progress_length = 40))
+            logger.info("")
+            logger.info(f'Computing interface residues for ({pair_chains_tuple[0]}: {row_prot1}, {pair_chains_tuple[1]}: {row_prot2}) pair in {row_prot_in_mod}...')
+            already_being_computing_pairs.append(pair_chains_and_model_tuple)
+
         # Compute contacts for those models that surpass cutoff
         contacts_Nmers_df_i, chimera_code = compute_contacts_Nmers(
             pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sliced_PAE_and_pLDDTs,
@@ -683,9 +697,10 @@ def compute_contacts_from_pairwise_Nmers_df(pairwise_Nmers_df, filtered_pairwise
         
         # For progress bar
         model_num += 1
-        logger.info("")
-        logger.info(print_progress_bar(model_num, total_models_num, text = " (N-mers contacts)", progress_length = 40))
-        logger.info("")
+    
+    logger.info("")
+    logger.info(print_progress_bar(model_num, total_models_num, text = " (N-mers contacts)", progress_length = 40))
+    logger.info("")
     
     logger.info("FINISHED: Compute residue-residue contacts for N-mers dataset.")
     logger.info("")
