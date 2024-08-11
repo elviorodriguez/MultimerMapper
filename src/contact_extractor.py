@@ -762,6 +762,10 @@ def compute_contacts(mm_output: dict,
         contact_pLDDT_cutoff = contact_pLDDT_cutoff,
         
         logger = logger)
+    
+    # Force converting rank columns to ints
+    contacts_2mers_df['rank'] = contacts_2mers_df['rank'].astype(int)
+    contacts_Nmers_df['rank'] = contacts_Nmers_df['rank'].astype(int)
 
     # Pack results
     mm_contacts = {

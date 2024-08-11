@@ -696,7 +696,7 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, out_path: str = ".", save_pai
         pairwise_Nmers_df.at[i, "pair_chains_tuple"] = pair_chains_tuple
         pairwise_Nmers_df.at[i, "pair_chains_and_model_tuple"] = pair_chains_and_model_tuple
 
-    # Sort the df by this column first and then by rank (pair_chains_and_model_tuple is a unique identifier of the pair inside the N-mer model)
-    pairwise_Nmers_df = pairwise_Nmers_df.sort_values(by=["pair_chains_and_model_tuple", "rank"])
+    # Sort the df by these columns first and then by rank (pair_chains_and_model_tuple is a unique identifier of the pair inside the N-mer model)
+    pairwise_Nmers_df = pairwise_Nmers_df.sort_values(by=["proteins_in_model", "pair_chains_and_model_tuple", "rank"])
 
     return pairwise_Nmers_df
