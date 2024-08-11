@@ -10,6 +10,7 @@ from re import search
 from itertools import combinations
 from copy import deepcopy
 from logging import Logger
+from tempfile import NamedTemporaryFile
 
 from utils.logger_setup import configure_logger
 from utils.progress_bar import print_progress_bar
@@ -496,29 +497,21 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, out_path: str = ".", save_pai
         return model_copy
     
     def compute_pDockQ_for_Nmer_pair(pair_sub_PDB):
-        # Save the  structure to a temporary file in memory
-        tmp_file = "tmp.pdb"
-        pdbio = PDBIO()
-        pdbio.set_structure(pair_sub_PDB)
-        pdbio.save(tmp_file)
-        
-        
-        chain_coords, chain_plddt = pdockq_read_pdb(tmp_file)       # Read chains
-        if len(chain_coords.keys())<2:                              # Check chains
-            raise ValueError('Only one chain in pdbfile' + most_similar_pdb_file_path)
-        t=8 # Distance threshold, set to 8 Å
-        pdockq, ppv = calc_pdockq(chain_coords, chain_plddt, t)
-        pdockq = np.round(pdockq, 3)
-        ppv = np.round(ppv, 5)
-        
-        # Remove tmp.pdb
-        try:
-            os.remove(tmp_file)
-        except FileNotFoundError:
-            logger.error(f"The file {tmp_file} does not exist.")
-        except Exception as e:
-            logger.error(f"An error occurred: {e}")
-                
+        # Create a temporary file in memory
+        with NamedTemporaryFile(delete=False, suffix=".pdb") as tmp_file:
+            pdbio = PDBIO()
+            pdbio.set_structure(pair_sub_PDB)
+            pdbio.save(tmp_file.name)  # Save structure to the temporary file
+
+            chain_coords, chain_plddt = pdockq_read_pdb(tmp_file.name)  # Read chains
+            if len(chain_coords.keys()) < 2:  # Check chains
+                raise ValueError('Only one chain in pdbfile')
+
+            t = 8  # Distance threshold, set to 8 Å
+            pdockq, ppv = calc_pdockq(chain_coords, chain_plddt, t)
+            pdockq = np.round(pdockq, 3)
+            ppv = np.round(ppv, 5)
+
         return pdockq, ppv
     
     valid_chains = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"]
