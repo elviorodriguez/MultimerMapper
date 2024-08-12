@@ -139,3 +139,82 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 ###############################################################################
 ################################## TESTS ######################################
 ###############################################################################
+
+
+import matplotlib.pyplot as plt
+
+domains_df = mm_output['domains_df']
+
+
+# 2-mers contacts ---------------------------------
+ID_a = mm_output['prot_IDs'][0]    # EPL1
+ID_b = mm_output['prot_IDs'][1]    # EAF6
+L_a  = mm_output['prot_lens'][0]
+L_b  = mm_output['prot_lens'][1]
+domains_a = domains_df[domains_df['Protein_ID'] == ID_a]
+domains_b = domains_df[domains_df['Protein_ID'] == ID_b]
+ab_contacts_df = mm_contacts['contacts_2mers_df'].query(
+    f'protein_ID_a == "{ID_a}" & protein_ID_b == "{ID_b}"')
+r_a  = ab_contacts_df["res_a"]
+r_b  = ab_contacts_df["res_b"]
+
+# Create a scatter plot
+plt.scatter(r_a, r_b, s = 1)
+
+# Set axis limits
+plt.xlim(0, L_a - 1)  # Set x-axis limits from 0 to 6
+plt.ylim(0, L_b - 1)  # Set y-axis limits from 5 to 40
+
+# Add vertical lines for domains of protein A
+for _, row in domains_a.iterrows():
+    plt.axvline(x=row['Start'] - 1, color='black', linestyle='--', linewidth=0.5)
+    plt.axvline(x=row['End'], color='black', linestyle='--', linewidth=0.5)
+
+# Add horizontal lines for domains of protein B
+for _, row in domains_b.iterrows():
+    plt.axhline(y=row['Start'] - 1, color='black', linestyle='--', linewidth=0.5)
+    plt.axhline(y=row['End'], color='black', linestyle='--', linewidth=0.5)
+
+# Add titles and labels
+plt.title(f'{ID_a} vs {ID_b} contacts (2-mers)')
+plt.xlabel(f'{ID_a}')
+plt.ylabel(f'{ID_b}')
+
+# Show the plot
+plt.show()
+
+
+# N-mers contacts ---------------------------------
+ID_a = mm_output['prot_IDs'][0]    # EPL1
+ID_b = mm_output['prot_IDs'][1]    # EAF6
+L_a  = mm_output['prot_lens'][0]
+L_b  = mm_output['prot_lens'][1]
+ab_contacts_df = mm_contacts['contacts_Nmers_df'].query(
+    f'protein_ID_a == "{ID_b}" & protein_ID_b == "{ID_a}"')
+r_a  = ab_contacts_df["res_a"]
+r_b  = ab_contacts_df["res_b"]
+
+# Create a scatter plot
+plt.scatter(r_b, r_a, s = 1)
+
+# Set axis limits
+plt.xlim(0, L_a - 1)  # Set x-axis limits from 0 to 6
+plt.ylim(0, L_b - 1)  # Set y-axis limits from 5 to 40
+
+# Add vertical lines for domains of protein A
+for _, row in domains_a.iterrows():
+    plt.axvline(x=row['Start'] - 1, color='black', linestyle='--', linewidth=0.5)
+    plt.axvline(x=row['End'], color='black', linestyle='--', linewidth=0.5)
+
+# Add horizontal lines for domains of protein B
+for _, row in domains_b.iterrows():
+    plt.axhline(y=row['Start'] - 1, color='black', linestyle='--', linewidth=0.5)
+    plt.axhline(y=row['End'], color='black', linestyle='--', linewidth=0.5)
+
+# Add titles and labels
+plt.title(f'{ID_a} vs {ID_b} contacts (N-mers)')
+plt.xlabel(f'{ID_a}')
+plt.ylabel(f'{ID_b}')
+
+# Show the plot
+plt.show()
