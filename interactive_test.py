@@ -8,15 +8,15 @@ pd.set_option( 'display.max_columns' , None )
 
 ################################# Test 1 ######################################
 
-fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
-AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
-AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/MM_interactive_test"
-use_names = True 
-overwrite = True
-graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# graph_resolution_preset = None
+# fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
+# AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
+# AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/MM_interactive_test"
+# use_names = True 
+# overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# # graph_resolution_preset = None
 
 ###############################################################################
 
@@ -69,6 +69,20 @@ graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 # graph_resolution_preset = None
 
 # ###############################################################################
+
+######################## Test 6 (multivalency detection) ######################
+
+fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
+AF2_2mers = "tests/multivalency_test/2-mers"
+AF2_Nmers = "tests/multivalency_test/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/MM_multivalency_test"
+use_names = True 
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+graph_resolution_preset = None
+
+###############################################################################
 
 ###############################################################################
 ############################### MM main run ###################################
@@ -147,7 +161,7 @@ import numpy as np
 def get_pair_matrices(mm_contacts, protein_pair):
     sorted_pair = tuple(sorted(protein_pair))
     result = {sorted_pair: {}}
-    
+
     # Handle 2mers
     for key, value in mm_contacts['matrices_2mers'].items():
         if tuple(sorted(key[0])) == sorted_pair:
@@ -204,6 +218,18 @@ def get_all_pair_matrices(mm_contacts):
         # Only add to result if there are matrices for this pair
         if pair_matrices[sorted_pair]:
             result[sorted_pair] = pair_matrices[sorted_pair]
+            
+    # Orient matrices consistently
+    for pair in pair_matrices.keys():
+        expected_dim = None
+        for k, d in pair_matrices[pair].items():
+            for sub_k, m in d.items():
+                if expected_dim is None:
+                    expected_dim = d[sub_k].shape
+                elif expected_dim != d[sub_k].shape:
+                    pair_matrices[pair][k][sub_k] = pair_matrices[pair][k][sub_k].T
+                else:                
+                    continue
     
     return result
 
@@ -218,7 +244,22 @@ def get_all_pair_matrices(mm_contacts):
 #     for key in matrices.keys():
 #         print(f'   {key}')
 #     print()
-        
+
+def print_matrix_dimensions(all_pair_matrices):
+    for pair in all_pair_matrices.keys():
+        print()
+        print(f'----------------- Pair: {pair} -----------------')
+        for k, d in all_pair_matrices[pair].items():        
+            print(f'Model {k}')
+            print(f'   - PAE shape       : {d["PAE"].shape}')
+            print(f'   - min_pLDDT shape : {d["min_pLDDT"].shape}')
+            print(f'   - distance shape  : {d["distance"].shape}')
+            print(f'   - is_contact shape: {d["is_contact"].shape}')
+
+
+# # Usage
+# all_pair_matrices = get_all_pair_matrices(mm_contacts)
+# print_matrix_dimensions(all_pair_matrices)
 
 def visualize_pair_matrices(all_pair_matrices, mm_output, pair=None, matrix_types=['is_contact', 'PAE', 'min_pLDDT', 'distance'], 
                             combine_models=False, max_models=5, aspect_ratio = 'equal'):
@@ -318,21 +359,19 @@ def visualize_pair_matrices(all_pair_matrices, mm_output, pair=None, matrix_type
                         print("   OK! Jumping to next pair or exiting...")
                         break
 
-# Usage
+# Extract matrices, separate it into pairs and verify correct dimensions
 all_pair_matrices = get_all_pair_matrices(mm_contacts)
+print_matrix_dimensions(all_pair_matrices)
+
 
 # Visualize all pairs, all matrix types, models separately
 visualize_pair_matrices(all_pair_matrices, mm_output)
-
 # Visualize a specific pair
 visualize_pair_matrices(all_pair_matrices, mm_output, pair=('EAF6', 'EPL1'))
-
 # Visualize only certain matrix types
 visualize_pair_matrices(all_pair_matrices, mm_output, matrix_types=['is_contact'], max_models = 100)
-
 # Combine all models into a single plot
 visualize_pair_matrices(all_pair_matrices, mm_output, combine_models=True)
-
 # Limit the number of models to visualize
 visualize_pair_matrices(all_pair_matrices, mm_output, max_models=100)
 
@@ -341,31 +380,43 @@ visualize_pair_matrices(all_pair_matrices, mm_output, max_models=100)
 ############################### Clustering ####################################
 ###############################################################################
 
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import AgglomerativeClustering
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-from sklearn.cluster import DBSCAN, KMeans
-from sklearn.metrics import silhouette_score
+
 
 '''
 This implementation does the following:
 
- 1) preprocess_matrices: Removes models with no contacts.
- 2) create_feature_vector: Creates a feature vector for each model by flattening and concatenating all matrix types.
-cluster_models:
+1) Preprocessing and Feature Extraction:
 
-Applies PCA to reduce dimensionality while retaining 95% of the variance.
-Uses DBSCAN for clustering, which can handle noise and varying cluster densities.
-Tries different eps values for DBSCAN and selects the best one based on silhouette score.
+    - preprocess_matrices(all_pair_matrices, pair) extracts valid models (contact matrices) for a given pair of proteins.
+    - create_feature_vector(matrices) transforms these matrices into feature vectors, which are numerical representations suitable for clustering.
+
+2) Feature Scaling and Dimensionality Reduction:
+
+    - Scaling: The feature vectors are standardized using StandardScaler(). This ensures that all features contribute equally to the clustering algorithm by centering them around a mean of 0 and scaling them to have a standard deviation of 1.
+    -PCA (Principal Component Analysis): The scaled features are reduced to a lower-dimensional space while retaining 95% of the variance (PCA(n_components=0.95)). This step reduces computational complexity and noise in the data.
+
+3)Clustering:
+
+    - The code iterates over a range of possible cluster numbers (n_clusters from 2 to max_clusters) and performs Agglomerative Clustering.
+    - For each n_clusters, the clustering labels are computed, and the Silhouette Score is calculated, which measures how similar each point is to its own cluster compared to other clusters.
+    - If the Silhouette Score is above a certain threshold (silhouette_threshold), the corresponding clustering configuration is considered valid. Otherwise, the data is treated as belonging to a single cluster.
+
+4) Cluster Visualization:
+
+    -After determining the optimal number of clusters, the code visualizes the clusters by averaging the contact matrices in each cluster and plotting them.
+
+5) The main function cluster_and_visualize ties everything together and can be run for each protein pair.
 
 
-visualize_clusters: Visualizes the average contact matrix for each cluster.
-
-The main function cluster_and_visualize ties everything together and can be run for each protein pair.
-This approach should be able to:
-
-Handle models with fewer contacts by considering them as part of the same cluster if they're similar enough.
-Utilize information from all matrix types (is_contact, PAE, min_pLDDT, distance) to make clustering decisions.
-Identify different binding sites (if they exist) by separating models into different clusters.
+This approach is able to:
+    
+    Handle models with fewer contacts by considering them as part of the same cluster if they're similar enough.
+    Utilize information from all matrix types (is_contact, PAE, min_pLDDT, distance) to make clustering decisions.
+    Identify different binding sites (if they exist) by separating models into different clusters.
 '''
 
 def preprocess_matrices(all_pair_matrices, pair):
@@ -381,55 +432,62 @@ def create_feature_vector(matrices):
         features.extend(matrices[matrix_type].flatten())
     return np.array(features)
 
-def cluster_models(all_pair_matrices, pair):
-    # Preprocess to remove models with no contacts
+def cluster_models(all_pair_matrices, pair, max_clusters=5, silhouette_threshold=0.25):
     valid_models = preprocess_matrices(all_pair_matrices, pair)
     
     if len(valid_models) == 0:
         print(f"No valid models found for pair {pair}")
-        return None, None, None
+        return None, None
     
-    print(f"Number of valid models: {len(valid_models)}")
-    
-    # Create feature vectors
     feature_vectors = np.array([create_feature_vector(matrices) for matrices in valid_models.values()])
     
-    # Standardize features
+    # Ensure feature_vectors is 2D
+    if feature_vectors.ndim == 1:
+        feature_vectors = feature_vectors.reshape(-1, 1)
+    
     scaler = StandardScaler()
     scaled_features = scaler.fit_transform(feature_vectors)
     
-    # Apply PCA for dimensionality reduction
-    pca = PCA(n_components=0.95)  # Retain 95% of variance
+    pca = PCA(n_components=0.95)
     reduced_features = pca.fit_transform(scaled_features)
-    
-    print(f"Number of PCA components: {reduced_features.shape[1]}")
-
-    # Cluster using DBSCAN
+        
+    # Ensure reduced_features is 2D
+    if reduced_features.ndim == 1:
+        reduced_features = reduced_features.reshape(-1, 1)
+      
     best_silhouette = -1
-    best_eps = None
-    best_labels = None
+    best_n_clusters = 1
+    best_labels = np.zeros(len(valid_models))
     
-    for eps in np.arange(0.1, 2.0, 0.1):
-        dbscan = DBSCAN(eps=eps, min_samples=2)
-        labels = dbscan.fit_predict(reduced_features)
-        
-        if len(set(labels)) > 1:  # More than one cluster
-            score = silhouette_score(reduced_features, labels)
-            if score > best_silhouette:
-                best_silhouette = score
-                best_eps = eps
-                best_labels = labels
+    for n_clusters in range(2, max_clusters + 1):
+        try:
+            if len(reduced_features.shape) == 2 and reduced_features.shape[0] >= n_clusters:
+                # Perform clustering
+                clustering = AgglomerativeClustering(n_clusters=n_clusters)
+                labels = clustering.fit_predict(reduced_features)
+                
+                if len(set(labels)) > 1:  # Ensure at least two clusters are formed
+                    silhouette_avg = silhouette_score(reduced_features, labels)
+                    
+                    print(f"Agglomerative Clustering with {n_clusters} clusters: Silhouette Score = {silhouette_avg}")
+                    
+                    # Store best clustering based on Silhouette Score
+                    if silhouette_avg > best_silhouette:
+                        best_silhouette = silhouette_avg
+                        best_labels = labels
+                        best_n_clusters = n_clusters
+            else:
+                print(f"Agglomerative Clustering with {n_clusters} clusters: skipped due to insufficient data shape.")
+        except Exception as e:
+            print(f"Agglomerative Clustering with {n_clusters} clusters caused an error: {str(e)}")
     
-    if best_labels is None:
-        print(f"DBSCAN could not find optimal clustering for pair {pair}")
-        print("Attempting K-means clustering as fallback")
-        
-        # Try K-means with 2 clusters as a fallback
-        kmeans = KMeans(n_clusters=2, random_state=42)
-        best_labels = kmeans.fit_predict(reduced_features)
-        
-        # print(f"Could not find optimal clustering for pair {pair}")
-        # return None, None
+    # If best silhouette score is below the threshold, consider it as a single cluster
+    if best_silhouette < silhouette_threshold:
+        print(f"Silhouette score {best_silhouette} is below the threshold {silhouette_threshold}. Considering as a single cluster.")
+        best_n_clusters = 1
+        best_labels = np.zeros(len(valid_models))
+    
+    print(f"Best number of clusters: {best_n_clusters}, Best Silhouette Score: {best_silhouette}")
     
     return list(valid_models.keys()), best_labels
 
@@ -438,6 +496,9 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels):
         return
     
     n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+    if n_clusters == 0:
+        n_clusters = 1
+    
     print(f"Number of clusters: {n_clusters}")
     
     plt.figure(figsize=(10, 8))
@@ -454,132 +515,14 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels):
     plt.tight_layout()
     plt.show()
 
-# Main function to run the clustering
 def cluster_and_visualize(all_pair_matrices, pair):
     model_keys, labels = cluster_models(all_pair_matrices, pair)
     if labels is not None:
         visualize_clusters(all_pair_matrices, pair, model_keys, labels)
     else:
-        print(f"Clustering failed for pair {pair}")
+        print(f"   - Clustering failed for pair {pair}")
 
 # Usage
 for pair in all_pair_matrices.keys():
     print(f"\nProcessing pair: {pair}")
     cluster_and_visualize(all_pair_matrices, pair)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ###############################################################################
-# ################################# TESTS 2 #####################################
-# ###############################################################################
-
-# # Query pair ------------------------------------------------------------------
-
-# ['EPL1', 'EAF6', 'PHD1']
-# # Proteins data
-# ia = 1
-# ib = 2
-# ID_a = mm_output['prot_IDs'][ia]    # EPL1
-# ID_b = mm_output['prot_IDs'][ib]    # EAF6
-# query_tuple_pair = tuple(sorted([ID_a, ID_b]))
-# L_a  = mm_output['prot_lens'][ia]
-# L_b  = mm_output['prot_lens'][ib]
-
-# # Domains data
-# domains_df = mm_output['domains_df']
-# domains_a = domains_df[domains_df['Protein_ID'] == ID_a]
-# domains_b = domains_df[domains_df['Protein_ID'] == ID_b]
-
-# # 2-mers contact map ----------------------------------------------------------
-
-# # Unpack contacts for the pair
-# ab_2mers_contacts_df = mm_contacts['contacts_2mers_df'].query(
-#     f'protein_ID_a == "{ID_a}" & protein_ID_b == "{ID_b}"')
-# if ab_2mers_contacts_df.empty:
-#     ab_2mers_contacts_df = mm_contacts['contacts_2mers_df'].query(
-#         f'protein_ID_a == "{ID_b}" & protein_ID_b == "{ID_a}"')
-#     r_a  = ab_2mers_contacts_df["res_b"]
-#     r_b  = ab_2mers_contacts_df["res_a"]
-# else:
-#     r_a  = ab_2mers_contacts_df["res_a"]
-#     r_b  = ab_2mers_contacts_df["res_b"]
-
-# # Create a scatter plot
-# plt.scatter(r_a, r_b, s = 1)
-
-# # Set axis limits
-# plt.xlim(0, L_a - 1)  # Set x-axis limits from 0 to 6
-# plt.ylim(0, L_b - 1)  # Set y-axis limits from 5 to 40
-
-# # Add vertical lines for domains of protein A
-# for _, row in domains_a.iterrows():
-#     plt.axvline(x=row['Start'] - 1, color='black', linestyle='--', linewidth=0.5)
-#     plt.axvline(x=row['End'], color='black', linestyle='--', linewidth=0.5)
-
-# # Add horizontal lines for domains of protein B
-# for _, row in domains_b.iterrows():
-#     plt.axhline(y=row['Start'] - 1, color='black', linestyle='--', linewidth=0.5)
-#     plt.axhline(y=row['End'], color='black', linestyle='--', linewidth=0.5)
-
-# # Add titles and labels
-# plt.title(f'{ID_a} vs {ID_b} contacts (2-mers)')
-# plt.xlabel(f'{ID_a}')
-# plt.ylabel(f'{ID_b}')
-
-# # Show the plot
-# plt.show()
-
-
-# # N-mers contact map ----------------------------------------------------------
-
-# # Unpack contacts for the pair
-# ab_Nmers_contacts_df = mm_contacts['contacts_Nmers_df'].query(
-#     f'protein_ID_a == "{ID_a}" & protein_ID_b == "{ID_b}"')
-# if ab_Nmers_contacts_df.empty:
-#     ab_Nmers_contacts_df = mm_contacts['contacts_Nmers_df'].query(
-#         f'protein_ID_a == "{ID_b}" & protein_ID_b == "{ID_a}"')
-#     r_a  = ab_Nmers_contacts_df["res_b"]
-#     r_b  = ab_Nmers_contacts_df["res_a"]
-# else:
-#     r_a  = ab_Nmers_contacts_df["res_a"]
-#     r_b  = ab_Nmers_contacts_df["res_b"]
-    
-# # Create a scatter plot
-# plt.scatter(r_a, r_b, s = 1)
-
-# # Set axis limits
-# plt.xlim(0, L_a - 1)  # Set x-axis limits from 0 to 6
-# plt.ylim(0, L_b - 1)  # Set y-axis limits from 5 to 40
-
-# # Add vertical lines for domains of protein A
-# for _, row in domains_a.iterrows():
-#     plt.axvline(x=row['Start'] - 1, color='black', linestyle='--', linewidth=0.5)
-#     plt.axvline(x=row['End'], color='black', linestyle='--', linewidth=0.5)
-
-# # Add horizontal lines for domains of protein B
-# for _, row in domains_b.iterrows():
-#     plt.axhline(y=row['Start'] - 1, color='black', linestyle='--', linewidth=0.5)
-#     plt.axhline(y=row['End'], color='black', linestyle='--', linewidth=0.5)
-
-# # Add titles and labels
-# plt.title(f'{ID_a} vs {ID_b} contacts (N-mers)')
-# plt.xlabel(f'{ID_a}')
-# plt.ylabel(f'{ID_b}')
-
-# # Show the plot
-# plt.show()
