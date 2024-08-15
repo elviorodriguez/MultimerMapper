@@ -256,73 +256,15 @@ def get_centroid_distance(res_a, res_b):
 #     return contacts_2mers_df, chimera_code, model_data
 
 
-def compute_contacts_2mers(pdb_filename,
-                           min_diagonal_PAE_matrix: np.array,
-                           model_rank             : int,
-                           protein_ID_a, protein_ID_b,
-                           sliced_PAE_and_pLDDTs, filtered_pairwise_2mers_df,
-                           contact_distance = 8.0, PAE_cutoff = 3, pLDDT_cutoff = 70,
-                           logger: Logger | None = None):
-    if logger is None:
-        logger = configure_logger()(__name__)
+
+'''
 
     # DataFrame initialization outside the loop
     results = []
-
-    parser = PDB.PDBParser(QUIET=True)
-    structure = pdb_filename if isinstance(pdb_filename, PDB.Model.Model) else parser.get_structure('complex', pdb_filename)[0]
-    chains = [chain for chain in structure.get_chains()]
-    
-    if len(chains) != 2:
-        raise ValueError("PDB should have exactly 2 chains")
-    
-    chain_a, chain_b = chains
-
-    len_a = len(chain_a)
-    len_b = len(chain_b)
-    PAE_num_rows, PAE_num_cols = min_diagonal_PAE_matrix.shape
-
-    if len_a != PAE_num_rows or len_b != PAE_num_cols:
-        raise ValueError("PAE matrix dimensions do not match chain lengths")
-
-    highest_pLDDT_PDB_a = sliced_PAE_and_pLDDTs[protein_ID_a]["PDB_xyz"]
-    highest_pLDDT_PDB_b = sliced_PAE_and_pLDDTs[protein_ID_b]["PDB_xyz"]
-
-    if len(highest_pLDDT_PDB_a) != len_a or len(highest_pLDDT_PDB_b) != len_b:
-        raise ValueError("Chain lengths do not match pLDDT structure lengths")
-
     CM_a = highest_pLDDT_PDB_a.center_of_mass()
     CM_b = highest_pLDDT_PDB_b.center_of_mass()
-
-    logger.debug(f'Protein A: {protein_ID_a}, Length: {len_a}')
-    logger.debug(f'Protein B: {protein_ID_b}, Length: {len_b}')
-    
-    # Use numpy arrays for faster operations
-    model_data = {
-        'PAE': np.zeros((len_a, len_b)),
-        'min_pLDDT': np.zeros((len_a, len_b)),
-        'distance': np.zeros((len_a, len_b)),
-        'is_contact': np.zeros((len_a, len_b), dtype=bool)
-    }
-
-    chimera_code = {}
-
-    # Precompute residue positions and pLDDT values for faster access in loops
-    residues_a = [(res, res["CA"].get_bfactor(), highest_pLDDT_PDB_a[res.id[1]].center_of_mass() - CM_a) for res in chain_a]
-    residues_b = [(res, res["CA"].get_bfactor(), highest_pLDDT_PDB_b[res.id[1]].center_of_mass() - CM_b) for res in chain_b]
-
-    for i, (res_a, res_pLDDT_a, residue_xyz_a) in enumerate(residues_a):
-        for j, (res_b, res_pLDDT_b, residue_xyz_b) in enumerate(residues_b):
-            pair_PAE = get_PAE_for_residue_pair(res_a, res_b, min_diagonal_PAE_matrix, True)
-            pair_min_pLDDT = get_min_pLDDT_for_residue_pair(res_a, res_b)
-            pair_distance = get_centroid_distance(res_a, res_b)
-
-            model_data['PAE'][i, j] = pair_PAE
-            model_data['min_pLDDT'][i, j] = pair_min_pLDDT
-            model_data['distance'][i, j] = pair_distance
-            model_data['is_contact'][i, j] = (pair_PAE < PAE_cutoff and 
-                                              pair_min_pLDDT > pLDDT_cutoff and 
-                                              pair_distance < contact_distance)
+    highest_pLDDT_PDB_a[res.id[1]].center_of_mass() - CM_a
+    highest_pLDDT_PDB_b[res.id[1]].center_of_mass() - CM_b
 
             if model_data['is_contact'][i, j]:
                 result = {
@@ -353,7 +295,7 @@ def compute_contacts_2mers(pdb_filename,
     # Create the DataFrame once after the loop
     contacts_2mers_df = pd.DataFrame(results)
 
-    # Add ipTM, min_PAE, and N_models
+        # Add ipTM, min_PAE, and N_models
     data_row = filtered_pairwise_2mers_df[(filtered_pairwise_2mers_df['protein1'] == protein_ID_a) & (filtered_pairwise_2mers_df['protein2'] == protein_ID_b)]
     contacts_2mers_df["ipTM"] = float(data_row["ipTM"])
     contacts_2mers_df["min_PAE"] = float(data_row["min_PAE"])
@@ -380,12 +322,169 @@ def compute_contacts_2mers(pdb_filename,
         contacts_2mers_df['CM_ba'] = []
         contacts_2mers_df['V_ab'] = []
         contacts_2mers_df['V_ba'] = []
+    
+    # # Precompute residue positions and pLDDT values for faster access in loops
+    # residues_a = [(res, res["CA"].get_bfactor()) for res in chain_a]
+    # residues_b = [(res, res["CA"].get_bfactor()) for res in chain_b]
 
-    number_of_contacts = contacts_2mers_df.shape[0]
+    # for i, (res_a, res_pLDDT_a) in enumerate(residues_a):
+    #     for j, (res_b, res_pLDDT_b) in enumerate(residues_b):
+    #         pair_PAE = get_PAE_for_residue_pair(res_a, res_b, min_diagonal_PAE_matrix, True)
+    #         pair_min_pLDDT = get_min_pLDDT_for_residue_pair(res_a, res_b)
+    #         pair_distance = get_centroid_distance(res_a, res_b)
+
+    #         model_data['PAE'][i, j] = pair_PAE
+    #         model_data['min_pLDDT'][i, j] = pair_min_pLDDT
+    #         model_data['distance'][i, j] = pair_distance
+    #         model_data['is_contact'][i, j] = (pair_PAE < PAE_cutoff and 
+    #                                           pair_min_pLDDT > pLDDT_cutoff and 
+    #                                           pair_distance < contact_distance)
+
+
+
+
+
+   # Empty df and dicts to store results
+    columns = ["protein_ID_a", "protein_ID_b", "rank", "res_a", "res_b", "AA_a", "AA_b",
+               "res_name_a", "res_name_b", "PAE", "pLDDT_a", "pLDDT_b", "min_pLDDT",
+               "ipTM", "min_PAE", "N_models", "distance", "xyz_a", "xyz_b", "CM_a", "CM_b"]
+    contacts_2mers_df = pd.DataFrame(columns=columns)
+    chimera_code_dict: dict = {}
+
+    
+    contacts_2mers_df_i, chimera_code, 
+
+        chimera_code_dict[sorted_tuple_model] = chimera_code
+        contacts_2mers_df = pd.concat([contacts_2mers_df, contacts_2mers_df_i], ignore_index = True)
+
+
+    return contacts_2mers_df, chimera_code_dict, 
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+    contacts_2mers_df, chimera_code_2mers_dict, 
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    contacts_2mers_df['rank'] = contacts_2mers_df['rank'].astype(int)
+    contacts_2mers_df['tuple_pair'] = [tuple(sorted([p1, p2])) for p1, p2 in zip(contacts_2mers_df['protein_ID_a'], contacts_2mers_df['protein_ID_b']) ]
+            "chimera_code_2mers": chimera_code_2mers_dict,
+        "contacts_2mers_df" : contacts_2mers_df,
+
+'''
+
+
+def compute_contacts_2mers(pdb_filename,
+                           min_diagonal_PAE_matrix: np.array,
+                           model_rank             : int,
+                           protein_ID_a, protein_ID_b,
+                           sliced_PAE_and_pLDDTs, filtered_pairwise_2mers_df,
+                           contact_distance = 8.0, PAE_cutoff = 3, pLDDT_cutoff = 70,
+                           logger: Logger | None = None):
+    
+    if logger is None:
+        logger = configure_logger()(__name__)
+
+    # Get the PDB.Model.Model object of the model
+    parser = PDB.PDBParser(QUIET=True)
+    structure = pdb_filename if isinstance(pdb_filename, PDB.Model.Model) else parser.get_structure('complex', pdb_filename)[0]
+    chains = [chain for chain in structure.get_chains()]
+    
+    if len(chains) != 2:
+        raise ValueError("PDB should have exactly 2 chains")
+    
+    # Get chains and matrix dimensions
+    chain_a, chain_b = chains
+    len_a = len(chain_a)
+    len_b = len(chain_b)
+    PAE_num_rows, PAE_num_cols = min_diagonal_PAE_matrix.shape
+
+    # Make some checks
+    if len_a != PAE_num_rows or len_b != PAE_num_cols:
+        raise ValueError("PAE matrix dimensions do not match chain lengths")
+    highest_pLDDT_PDB_a = sliced_PAE_and_pLDDTs[protein_ID_a]["PDB_xyz"]
+    highest_pLDDT_PDB_b = sliced_PAE_and_pLDDTs[protein_ID_b]["PDB_xyz"]
+    if len(highest_pLDDT_PDB_a) != len_a or len(highest_pLDDT_PDB_b) != len_b:
+        raise ValueError("Chain lengths do not match pLDDT structure lengths")
+
+    logger.debug(f'Protein A: {protein_ID_a}, Length: {len_a}')
+    logger.debug(f'Protein B: {protein_ID_b}, Length: {len_b}')
+    
+    # Compute min_inter_pLDDT matrix
+    plddt_a = np.array([ res["CA"].get_bfactor() for res in chain_a ])
+    plddt_b = np.array([ res["CA"].get_bfactor() for res in chain_b ])
+    plddt_a_matrix = plddt_a[:, np.newaxis]
+    plddt_b_matrix = plddt_b[np.newaxis, :]
+    min_pLDDT_matrix = np.minimum(plddt_a_matrix, plddt_b_matrix)
+
+    # Compute distance matrix
+    xyz_a = np.array([ res.center_of_mass() for res in chain_a ])
+    xyz_b = np.array([ res.center_of_mass() for res in chain_b ])
+    xyz_a_matrix = np.array([coord for coord in xyz_a])
+    xyz_b_matrix = np.array([coord for coord in xyz_b])
+    distance_matrix = np.linalg.norm(xyz_a_matrix[:, np.newaxis] - xyz_b_matrix, axis=2)
+
+    # Get the correct minimum interaction PAE orientation
+    if distance_matrix.shape != min_diagonal_PAE_matrix.shape:
+        min_diagonal_PAE_matrix = min_diagonal_PAE_matrix.T
+
+    # Make a last check
+    if min_pLDDT_matrix.shape != distance_matrix.shape != min_diagonal_PAE_matrix.shape:
+        raise ValueError("min_pLDDT_matrix, distance_matrix and min_diagonal_PAE_matrix dimensions do not match for pair ({protein_ID_a}, {protein_ID_b})")
+    
+    # Standardize matrix orientation to match the sorted tuple pair
+    sorted_tuple_pair = tuple(sorted([protein_ID_a, protein_ID_b]))
+    if sorted_tuple_pair[0] == protein_ID_a:
+        standardized_dimensions = (len_a, len_b)
+    else:
+        standardized_dimensions = (len_b, len_a)
+    if min_pLDDT_matrix.shape != standardized_dimensions:
+        min_diagonal_PAE_matrix = min_diagonal_PAE_matrix.T
+        min_pLDDT_matrix        = min_pLDDT_matrix       .T
+        distance_matrix         = distance_matrix        .T
+        
+        
+    # Create contact mask
+    contact_mask = (min_diagonal_PAE_matrix < PAE_cutoff) & \
+                   (min_pLDDT_matrix > pLDDT_cutoff) & \
+                   (distance_matrix < contact_distance)
+
+    # Pack everything into a dict
+    model_data = {
+        'PAE': min_diagonal_PAE_matrix,
+        'min_pLDDT': min_pLDDT_matrix,
+        'distance': distance_matrix,
+        'is_contact': contact_mask
+    }
+
+    number_of_contacts = sum(sum(model_data['is_contact']))
     logger.info(f'   - Nº of contacts found (rank_{model_rank}): {number_of_contacts}')
 
-    return contacts_2mers_df, chimera_code, model_data
-
+    return model_data
 
 
 # Wrapper for compute_contacts
@@ -413,12 +512,7 @@ def compute_contacts_2mers_batch(pdb_models_list             : list[PDB.Model.Mo
 
     logger.info("INITIALIZING: Compute residue-residue contacts for 2-mers dataset...")
 
-    # Empty df and dicts to store results
-    columns = ["protein_ID_a", "protein_ID_b", "rank", "res_a", "res_b", "AA_a", "AA_b",
-               "res_name_a", "res_name_b", "PAE", "pLDDT_a", "pLDDT_b", "min_pLDDT",
-               "ipTM", "min_PAE", "N_models", "distance", "xyz_a", "xyz_b", "CM_a", "CM_b"]
-    contacts_2mers_df = pd.DataFrame(columns=columns)
-    chimera_code_dict: dict = {}
+    # Empty dict to store results
     all_models_data: dict = {}
         
     # Check if all lists have the same length
@@ -455,7 +549,7 @@ def compute_contacts_2mers_batch(pdb_models_list             : list[PDB.Model.Mo
             already_being_computing_pairs.append(sorted_tuple_model)
                 
         # Compute contacts for pair
-        contacts_2mers_df_i, chimera_code, model_data = compute_contacts_2mers(
+        model_data = compute_contacts_2mers(
             pdb_filename = pdb_model,
             min_diagonal_PAE_matrix = PAE_matrix,
             model_rank = model_rank,
@@ -468,8 +562,6 @@ def compute_contacts_2mers_batch(pdb_models_list             : list[PDB.Model.Mo
             logger = logger)
         
         # Pack the results
-        chimera_code_dict[sorted_tuple_model] = chimera_code
-        contacts_2mers_df = pd.concat([contacts_2mers_df, contacts_2mers_df_i], ignore_index = True)
         all_models_data[model_ID] = model_data
         
         # For progress bar
@@ -481,7 +573,7 @@ def compute_contacts_2mers_batch(pdb_models_list             : list[PDB.Model.Mo
     logger.info("FINISHED: Compute residue-residue contacts for 2-mers dataset.")
     logger.info("")
     
-    return contacts_2mers_df, chimera_code_dict, all_models_data
+    return all_models_data
 
 
 
@@ -507,10 +599,8 @@ def compute_contacts_from_pairwise_2mers_df(filtered_pairwise_2mers_df, pairwise
     - contact_pLDDT_cutoff (float): minimum PAE value to consider a contact (0 to 100). Default = 70.
     
     Returns:
-    - contacts_2mers_df (pandas.DataFrame): contains contact information. 
-        columns = ["protein_ID_a", "protein_ID_b", "res_a", "res_b", "AA_a", "AA_b", "res_name_a", "res_name_b", "PAE",
-                   "pLDDT_a", "pLDDT_b", "min_pLDDT", "ipTM", "min_PAE", "N_models", "distance", "xyz_a", "xyz_b", "CM_a",
-                   "CM_b"]
+    - matrices_2mers: dict[dict[np.arrays]]
+
     '''
 
     if logger is None:
@@ -555,7 +645,7 @@ def compute_contacts_from_pairwise_2mers_df(filtered_pairwise_2mers_df, pairwise
             protein_ID_b_list           .append(prot_b_id)
             chains_IDs_list             .append(chains_IDs_tuple)
     
-    contacts_2mers_df, chimera_code_2mers_dict, matrices_2mers = compute_contacts_2mers_batch(
+    matrices_2mers = compute_contacts_2mers_batch(
         pdb_models_list = pdb_models_list,
         min_diagonal_PAE_matrix_list = min_diagonal_PAE_matrix_list,
         rank_list = rank_list,
@@ -570,7 +660,7 @@ def compute_contacts_from_pairwise_2mers_df(filtered_pairwise_2mers_df, pairwise
         pLDDT_cutoff = contact_pLDDT_cutoff,
         logger=logger)
     
-    return contacts_2mers_df, chimera_code_2mers_dict, matrices_2mers
+    return matrices_2mers
 
 
 # -----------------------------------------------------------------------------
@@ -583,89 +673,25 @@ def compute_contacts_from_pairwise_2mers_df(filtered_pairwise_2mers_df, pairwise
 # Get contact information from N-mers dataset ---------------------------------
 # -----------------------------------------------------------------------------
 
-def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sliced_PAE_and_pLDDTs,
-                           # Cutoff parameters
-                           contact_distance = 8.0, PAE_cutoff = 3, pLDDT_cutoff = 70,
-                           logger: Logger | None = None):
-    '''
-    
-    '''
-
-    if logger is None:
-        logger = configure_logger()(__name__)
-
+'''
     # Empty df to store results
     columns = ["protein_ID_a", "protein_ID_b", "proteins_in_model", "rank", "res_a", "res_b", "AA_a", "AA_b",
                 "res_name_a", "res_name_b", "PAE", "pLDDT_a", "pLDDT_b", "min_pLDDT", "pTM",
                 "ipTM", "pDockQ", "min_PAE", "N_models", "distance", "xyz_a", "xyz_b", "CM_a", "CM_b"]
     contacts_Nmers_df = pd.DataFrame(columns=columns)  
-    
-    # Get data frow df
-    protein_ID_a            = pairwise_Nmers_df_row["protein1"]
-    protein_ID_b            = pairwise_Nmers_df_row["protein2"]
     proteins_in_model       = pairwise_Nmers_df_row["proteins_in_model"]
-    model_rank              = pairwise_Nmers_df_row["rank"]
-    pdb_model               = pairwise_Nmers_df_row["model"]
-    min_diagonal_PAE_matrix = pairwise_Nmers_df_row["diagonal_sub_PAE"]
     pTM                     = pairwise_Nmers_df_row["pTM"]
     ipTM                    = pairwise_Nmers_df_row["ipTM"]
     min_PAE                 = pairwise_Nmers_df_row["min_PAE"]
     pDockQ                  = pairwise_Nmers_df_row["pDockQ"]
-    # PPV                     = pairwise_Nmers_df_row["PPV"]
-    
-    # Check if Bio.PDB.Model.Model object is OK
-    if type(pdb_model) != PDB.Model.Model:
-        raise ValueError(f"{pdb_model} is not of class Bio.PDB.Model.Model.")
-    
-    # Extract chain IDs
-    chains_list = [chain_ID.id for chain_ID in pdb_model.get_chains()]
-    if len(chains_list) != 2: raise ValueError(f"PDB model {pdb_model} have a number of chains different than 2")
-    chain_a_id, chain_b_id = chains_list
-
-    # Extract chains
-    chain_a = pdb_model[chain_a_id]
-    chain_b = pdb_model[chain_b_id]
-
-    # Length of proteins
-    len_a = len(chain_a)
-    len_b = len(chain_b)
-    
-    # Get the number of rows and columns
-    PAE_num_rows, PAE_num_cols = min_diagonal_PAE_matrix.shape
-        
-    # Match matrix dimensions with chains
-    if len_a == PAE_num_rows and len_b == PAE_num_cols:
-        a_is_row = True
-    elif len_b == PAE_num_rows and len_a == PAE_num_cols: 
-        a_is_row = False
-    else:
-        raise ValueError("PAE matrix dimensions does not match chain lengths")
-            
-    # Extract Bio.PDB.Chain.Chain objects from highest mean pLDDT model
-    highest_pLDDT_PDB_a = sliced_PAE_and_pLDDTs[protein_ID_a]["PDB_xyz"]
-    highest_pLDDT_PDB_b = sliced_PAE_and_pLDDTs[protein_ID_b]["PDB_xyz"]
-    
-    # Check that sequence lengths are consistent
-    if len(highest_pLDDT_PDB_a) != len_a: raise ValueError(f"Length of chain {chain_a} of {protein_ID_a} from PDB file do not match the length of its corresponding highest mean pLDDT structure.")
-    if len(highest_pLDDT_PDB_b) != len_b: raise ValueError(f"Length of chain {chain_b} of {protein_ID_a} from PDB file do not match the length of its corresponding highest mean pLDDT structure.")
     
     # Center of mass of each chain extracted from lowest pLDDT model
     CM_a = highest_pLDDT_PDB_a.center_of_mass()
     CM_b = highest_pLDDT_PDB_b.center_of_mass()
-    
-    # Progress
-    # logger.info(f'   - Model: {str(proteins_in_model)}')
-    # logger.info(f'   - Chains: ({chain_a.id}, {chain_b.id})')
-    logger.debug(f'Protein A: {protein_ID_a}')
-    logger.debug(f'Protein B: {protein_ID_b}')
-    logger.debug(f'Length A: {len_a}')
-    logger.debug(f'Length B: {len_b}')
-    logger.debug(f'PAE rows: {PAE_num_rows}')
-    logger.debug(f'PAE cols: {PAE_num_cols}')
     logger.debug(f'Center of Mass A: {CM_a}')
     logger.debug(f'Center of Mass B: {CM_b}')
     
-    # Chimera code to select residues from interfaces easily
+  # Chimera code to select residues from interfaces easily
     chimera_code = "sel "
 
     # Initialize matrices for clustering
@@ -787,11 +813,172 @@ def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sl
     
     # Progress
     number_of_contacts: int = contacts_Nmers_df.shape[0]
+
+    return contacts_Nmers_df, chimera_code,
+
+
+
+
+
+
+
+
+
+
+    contacts_Nmers_df_i, chimera_code, 
+    contacts_Nmers_df = pd.concat([contacts_Nmers_df, contacts_Nmers_df_i], ignore_index = True)
+    chimera_code_Nmers_dict[tuple(sorted(row_prot_in_mod))] = chimera_code
+    return contacts_Nmers_df, chimera_code_Nmers_dict, 
+
+
+
+
+
+
+        # Empty df to store results
+    columns = ["protein_ID_a", "protein_ID_b", "proteins_in_model", "rank", "res_a", "res_b", "AA_a", "AA_b",
+                "res_name_a", "res_name_b", "PAE", "pLDDT_a", "pLDDT_b", "min_pLDDT", "pTM",
+                "ipTM", "pDockQ", "min_PAE", "N_models", "distance", "xyz_a", "xyz_b", "CM_a", "CM_b"]
+    contacts_Nmers_df = pd.DataFrame(columns=columns)
+    # Chimera code dict to store contacts
+    chimera_code_Nmers_dict: dict = {}
+
+    
+
+
+
+
+        contacts_Nmers_df, chimera_code_Nmers_dict, 
+    # Force converting rank columns to ints
+    contacts_Nmers_df['rank'] = contacts_Nmers_df['rank'].astype(int)
+
+    # Add columns with unique tuple identifiers for the pair (useful for clustering)
+
+    contacts_Nmers_df['tuple_pair'] = [tuple(sorted([p1, p2])) for p1, p2 in zip(contacts_Nmers_df['protein_ID_a'], contacts_Nmers_df['protein_ID_b']) ]
+
+        "contacts_Nmers_df" : contacts_Nmers_df,
+        "chimera_code_Nmers": chimera_code_Nmers_dict,
+
+'''
+
+
+
+
+
+def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sliced_PAE_and_pLDDTs,
+                           # Cutoff parameters
+                           contact_distance = 8.0, PAE_cutoff = 3, pLDDT_cutoff = 70,
+                           logger: Logger | None = None):
+    '''
+    
+    '''
+
+    if logger is None:
+        logger = configure_logger()(__name__)
+    
+    # Get data frow df
+    protein_ID_a            = pairwise_Nmers_df_row["protein1"]
+    protein_ID_b            = pairwise_Nmers_df_row["protein2"]
+    sorted_tuple_pair       = pairwise_Nmers_df_row["sorted_tuple_pair"]
+    model_rank              = pairwise_Nmers_df_row["rank"]
+    pdb_model               = pairwise_Nmers_df_row["model"]
+    min_diagonal_PAE_matrix = pairwise_Nmers_df_row["diagonal_sub_PAE"]
+
+    # Check if Bio.PDB.Model.Model object is OK
+    if type(pdb_model) != PDB.Model.Model:
+        raise ValueError(f"{pdb_model} is not of class Bio.PDB.Model.Model.")
+    
+    # Extract chain IDs
+    chains_list = [chain_ID.id for chain_ID in pdb_model.get_chains()]
+    if len(chains_list) != 2:
+        raise ValueError(f"PDB model {pdb_model} have a number of chains different than 2")
+    chain_a_id, chain_b_id = chains_list
+
+    # Extract chains
+    chain_a = pdb_model[chain_a_id]
+    chain_b = pdb_model[chain_b_id]
+
+    # Length of proteins
+    len_a = len(chain_a)
+    len_b = len(chain_b)
+    
+    # Get the number of rows and columns
+    PAE_num_rows, PAE_num_cols = min_diagonal_PAE_matrix.shape
+        
+    # Match matrix dimensions with chains
+    if len_a == PAE_num_rows and len_b == PAE_num_cols:
+        a_is_row = True
+    elif len_b == PAE_num_rows and len_a == PAE_num_cols: 
+        a_is_row = False
+    else:
+        raise ValueError("PAE matrix dimensions does not match chain lengths")
+            
+    # Check that sequence lengths are consistent
+    highest_pLDDT_PDB_a = sliced_PAE_and_pLDDTs[protein_ID_a]["PDB_xyz"]
+    highest_pLDDT_PDB_b = sliced_PAE_and_pLDDTs[protein_ID_b]["PDB_xyz"]
+    if len(highest_pLDDT_PDB_a) != len_a:
+        raise ValueError(f"Length of chain {chain_a} of {protein_ID_a} from PDB file do not match the length of its corresponding highest mean pLDDT structure.")
+    if len(highest_pLDDT_PDB_b) != len_b:
+        raise ValueError(f"Length of chain {chain_b} of {protein_ID_a} from PDB file do not match the length of its corresponding highest mean pLDDT structure.")
+    
+    # Debug
+    logger.debug(f'Protein A: {protein_ID_a}')
+    logger.debug(f'Protein B: {protein_ID_b}')
+    logger.debug(f'Length A: {len_a}')
+    logger.debug(f'Length B: {len_b}')
+    logger.debug(f'PAE rows: {PAE_num_rows}')
+    logger.debug(f'PAE cols: {PAE_num_cols}')
+    
+    # Compute min_inter_pLDDT matrix
+    plddt_a = np.array([ res["CA"].get_bfactor() for res in chain_a ])
+    plddt_b = np.array([ res["CA"].get_bfactor() for res in chain_b ])
+    plddt_a_matrix = plddt_a[:, np.newaxis]
+    plddt_b_matrix = plddt_b[np.newaxis, :]
+    min_pLDDT_matrix = np.minimum(plddt_a_matrix, plddt_b_matrix)
+
+    # Compute distance matrix
+    xyz_a = np.array([ res.center_of_mass() for res in chain_a ])
+    xyz_b = np.array([ res.center_of_mass() for res in chain_b ])
+    xyz_a_matrix = np.array([coord for coord in xyz_a])
+    xyz_b_matrix = np.array([coord for coord in xyz_b])
+    distance_matrix = np.linalg.norm(xyz_a_matrix[:, np.newaxis] - xyz_b_matrix, axis=2)
+
+    # Get the correct minimum interaction PAE orientation
+    if distance_matrix.shape != min_diagonal_PAE_matrix.shape:
+        min_diagonal_PAE_matrix = min_diagonal_PAE_matrix.T
+
+    # Make a last check
+    if min_pLDDT_matrix.shape != distance_matrix.shape != min_diagonal_PAE_matrix.shape:
+        raise ValueError("min_pLDDT_matrix, distance_matrix and min_diagonal_PAE_matrix dimensions do not match for pair ({protein_ID_a}, {protein_ID_b})")
+    
+    # Standardize matrix orientation to match the tuple
+    if sorted_tuple_pair[0] == protein_ID_a:
+        standardized_dimensions = (len_a, len_b)
+    else:
+        standardized_dimensions = (len_b, len_a)
+    if min_pLDDT_matrix.shape != standardized_dimensions:
+        min_diagonal_PAE_matrix = min_diagonal_PAE_matrix.T
+        min_pLDDT_matrix        = min_pLDDT_matrix       .T
+        distance_matrix         = distance_matrix        .T
+        
+    # Create contact mask
+    contact_mask = (min_diagonal_PAE_matrix < PAE_cutoff) & \
+                   (min_pLDDT_matrix > pLDDT_cutoff) & \
+                   (distance_matrix < contact_distance)
+
+    # Pack everything into a dict
+    model_data = {
+        'PAE': min_diagonal_PAE_matrix,
+        'min_pLDDT': min_pLDDT_matrix,
+        'distance': distance_matrix,
+        'is_contact': contact_mask
+    }
+
+    number_of_contacts = sum(sum(model_data['is_contact']))
     logger.info(f'   - Nº of contacts found (rank_{model_rank}): {number_of_contacts}')
     
-    return contacts_Nmers_df, chimera_code, model_data
-
-
+    return model_data
+ 
 def compute_contacts_from_pairwise_Nmers_df(pairwise_Nmers_df, filtered_pairwise_Nmers_df, sliced_PAE_and_pLDDTs,
                                             # Cutoffs
                                             contact_distance_cutoff = 8.0, contact_PAE_cutoff = 3, contact_pLDDT_cutoff = 70,
@@ -805,12 +992,7 @@ def compute_contacts_from_pairwise_Nmers_df(pairwise_Nmers_df, filtered_pairwise
     # Check if pairwise_2mers_df was passed by mistake
     if "proteins_in_model" not in pairwise_Nmers_df.columns:
         raise ValueError("Provided dataframe seems to come from 2-mers data. To compute contacts coming from 2-mers models, please, use compute_contacts_from_pairwise_2mers_df function.")
-    
-    # Empty df to store results
-    columns = ["protein_ID_a", "protein_ID_b", "proteins_in_model", "rank", "res_a", "res_b", "AA_a", "AA_b",
-                "res_name_a", "res_name_b", "PAE", "pLDDT_a", "pLDDT_b", "min_pLDDT", "pTM",
-                "ipTM", "pDockQ", "min_PAE", "N_models", "distance", "xyz_a", "xyz_b", "CM_a", "CM_b"]
-    contacts_Nmers_df = pd.DataFrame(columns=columns)
+
     
     models_that_surpass_cutoff = [tuple(row) for i, row in filtered_pairwise_Nmers_df.filter(["protein1", "protein2", "proteins_in_model"]).iterrows()]
     
@@ -819,9 +1001,6 @@ def compute_contacts_from_pairwise_Nmers_df(pairwise_Nmers_df, filtered_pairwise
     total_models_num = len(total_models_that_surpass_cutoff)
     model_num = 0
     already_being_computing_pairs = []
-
-    # Chimera code dict to store contacts
-    chimera_code_Nmers_dict: dict = {}
 
     # Dictionary to store data for all models for clustering
     all_models_data: dict = {}
@@ -851,15 +1030,13 @@ def compute_contacts_from_pairwise_Nmers_df(pairwise_Nmers_df, filtered_pairwise
             already_being_computing_pairs.append(pair_chains_and_model_tuple)
 
         # Compute contacts for those models that surpass cutoff
-        contacts_Nmers_df_i, chimera_code, model_data = compute_contacts_Nmers(
+        model_data = compute_contacts_Nmers(
             pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sliced_PAE_and_pLDDTs,
             # Cutoff parameters
             contact_distance = contact_distance_cutoff, PAE_cutoff = contact_PAE_cutoff, pLDDT_cutoff = contact_pLDDT_cutoff,
             logger = logger)
         
         # Pack the results
-        contacts_Nmers_df = pd.concat([contacts_Nmers_df, contacts_Nmers_df_i], ignore_index = True)
-        chimera_code_Nmers_dict[tuple(sorted(row_prot_in_mod))] = chimera_code
         all_models_data[model_ID] = model_data
         
         # For progress bar
@@ -875,8 +1052,8 @@ def compute_contacts_from_pairwise_Nmers_df(pairwise_Nmers_df, filtered_pairwise
     except ZeroDivisionError:
         logger.warn("No N-mers surpass cutoff or there are no N-mers models.")
         logger.warn("")
-    
-    return contacts_Nmers_df, chimera_code_Nmers_dict, all_models_data
+
+    return all_models_data
 
 
 # -----------------------------------------------------------------------------
@@ -905,7 +1082,7 @@ def compute_contacts(mm_output: dict,
     sliced_PAE_and_pLDDTs = mm_output['sliced_PAE_and_pLDDTs']
 
     # Compute 2-mers contacts
-    contacts_2mers_df, chimera_code_2mers_dict, matrices_2mers = compute_contacts_from_pairwise_2mers_df(
+    matrices_2mers = compute_contacts_from_pairwise_2mers_df(
 
         # Input
         pairwise_2mers_df = pairwise_2mers_df,
@@ -920,7 +1097,7 @@ def compute_contacts(mm_output: dict,
         logger = logger)
 
     # Compute N-mers contacts
-    contacts_Nmers_df, chimera_code_Nmers_dict, matrices_Nmers = compute_contacts_from_pairwise_Nmers_df(
+    matrices_Nmers = compute_contacts_from_pairwise_Nmers_df(
 
         # Input
         pairwise_Nmers_df = pairwise_Nmers_df, 
@@ -934,22 +1111,10 @@ def compute_contacts(mm_output: dict,
         
         logger = logger)
     
-    # Force converting rank columns to ints
-    contacts_2mers_df['rank'] = contacts_2mers_df['rank'].astype(int)
-    contacts_Nmers_df['rank'] = contacts_Nmers_df['rank'].astype(int)
-
-    # Add columns with unique tuple identifiers for the pair (useful for clustering)
-    contacts_2mers_df['tuple_pair'] = [tuple(sorted([p1, p2])) for p1, p2 in zip(contacts_2mers_df['protein_ID_a'], contacts_2mers_df['protein_ID_b']) ]
-    contacts_Nmers_df['tuple_pair'] = [tuple(sorted([p1, p2])) for p1, p2 in zip(contacts_Nmers_df['protein_ID_a'], contacts_Nmers_df['protein_ID_b']) ]
-
     # Pack results
     mm_contacts = {
-        "contacts_2mers_df" : contacts_2mers_df,
-        "contacts_Nmers_df" : contacts_Nmers_df,
-        "chimera_code_2mers": chimera_code_2mers_dict,
-        "chimera_code_Nmers": chimera_code_Nmers_dict,
-        "matrices_2mers"    : matrices_2mers,
-        "matrices_Nmers"    : matrices_Nmers
+        "matrices_2mers": matrices_2mers,
+        "matrices_Nmers": matrices_Nmers
     }
     
     return mm_contacts

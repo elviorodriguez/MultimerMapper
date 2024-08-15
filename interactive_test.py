@@ -8,17 +8,17 @@ pd.set_option( 'display.max_columns' , None )
 
 ################################# Test 1 ######################################
 
-# fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
-# AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
-# AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/MM_interactive_test"
-# use_names = True 
-# overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# # graph_resolution_preset = None
+fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
+AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
+AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/MM_interactive_test"
+use_names = True 
+overwrite = True
+graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# graph_resolution_preset = None
 
-###############################################################################
+##############################################################################
 
 # ################################# Test 2 ######################################
 
@@ -153,3 +153,14 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 ###############################################################################
 ################################## TESTS ######################################
 ###############################################################################
+
+from src.analyze_multivalency import *
+
+all_pair_matrices = get_all_pair_matrices(mm_contacts)
+
+print_matrix_dimensions(all_pair_matrices)
+
+# # Visualize all pairs, all matrix types, models separately
+visualize_pair_matrices(all_pair_matrices, mm_output)
+
+results = cluster_all_pairs(all_pair_matrices, mm_output)

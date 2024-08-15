@@ -424,6 +424,17 @@ def generate_pairwise_2mers_df(all_pdb_data: dict, out_path: str = ".", save_pai
             pairwise_2mers_df.drop(columns=['model', 'diagonal_sub_PAE']).to_csv(save_path, sep='\t', index=False)
             logger.info(f"Saved pairwise 2-mers data to {save_path}")
 
+
+    # Add some useful columns for later
+    pairwise_2mers_df["sorted_tuple_pair"] = ""
+    for i, pairwise_2mers_df_row in pairwise_2mers_df.iterrows():
+
+        # Create the tuples
+        sorted_tuple_pair = tuple(sorted([pairwise_2mers_df_row["protein1"], pairwise_2mers_df_row['protein2']]))
+        
+        # Assign the tuples to the corresponding columns
+        pairwise_2mers_df.at[i, "sorted_tuple_pair"] = sorted_tuple_pair
+
     return pairwise_2mers_df
 
 # N-mers pairwise data generation
@@ -687,14 +698,17 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, out_path: str = ".", save_pai
     # Add some useful columns for later
     pairwise_Nmers_df["pair_chains_tuple"] = ""
     pairwise_Nmers_df["pair_chains_and_model_tuple"] = ""
+    pairwise_Nmers_df["sorted_tuple_pair"] = ""
     for i, pairwise_Nmers_df_row in pairwise_Nmers_df.iterrows():
         # Create the tuples
         row_prot_in_mod = tuple(pairwise_Nmers_df_row["proteins_in_model"])
         pair_chains_tuple = tuple([c.id for c in pairwise_Nmers_df_row["model"].get_chains()])
         pair_chains_and_model_tuple = (pair_chains_tuple, row_prot_in_mod)
+        sorted_tuple_pair = tuple(sorted([pairwise_Nmers_df_row["protein1"], pairwise_Nmers_df_row['protein2']]))
         # Assign the tuples to the corresponding columns
-        pairwise_Nmers_df.at[i, "pair_chains_tuple"] = pair_chains_tuple
+        pairwise_Nmers_df.at[i, "pair_chains_tuple"]           = pair_chains_tuple
         pairwise_Nmers_df.at[i, "pair_chains_and_model_tuple"] = pair_chains_and_model_tuple
+        pairwise_Nmers_df.at[i, "sorted_tuple_pair"]           = sorted_tuple_pair
 
     # Sort the df by these columns first and then by rank (pair_chains_and_model_tuple is a unique identifier of the pair inside the N-mer model)
     pairwise_Nmers_df = pairwise_Nmers_df.sort_values(by=["proteins_in_model", "pair_chains_and_model_tuple", "rank"])

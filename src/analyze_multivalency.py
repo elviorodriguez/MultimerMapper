@@ -298,12 +298,16 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5, silhouette_threshold
     - list: A list of model keys corresponding to the clustered models.
     - np.ndarray: An array of cluster labels for each model.
     """
+    print("   Preprocessing inter-chain PAE, minimum-pLDDT, distogram and contacts...")
+
     valid_models = preprocess_matrices(all_pair_matrices, pair)
     
     if len(valid_models) == 0:
-        print(f"No valid models found for pair {pair}")
+        print(f"   No valid models found for pair {pair}")
         return None, None
     
+    print("   Generating feature vectors...")
+
     feature_vectors = np.array([create_feature_vector(matrices) for matrices in valid_models.values()])
     
     # Ensure feature_vectors is 2D
@@ -313,6 +317,8 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5, silhouette_threshold
     scaler = StandardScaler()
     scaled_features = scaler.fit_transform(feature_vectors)
     
+    print("   Reducing features dimensionality...")
+
     pca = PCA(n_components=0.95)
     reduced_features = pca.fit_transform(scaled_features)
         
@@ -334,7 +340,7 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5, silhouette_threshold
                 if len(set(labels)) > 1:  # Ensure at least two clusters are formed
                     silhouette_avg = silhouette_score(reduced_features, labels)
                     
-                    print(f"Agglomerative Clustering with {n_clusters} clusters: Silhouette Score = {silhouette_avg}")
+                    print(f"   Agglomerative Clustering with {n_clusters} clusters: Silhouette Score = {silhouette_avg}")
                     
                     # Store best clustering based on Silhouette Score
                     if silhouette_avg > best_silhouette:
@@ -342,65 +348,67 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5, silhouette_threshold
                         best_labels = labels
                         best_n_clusters = n_clusters
             else:
-                print(f"Agglomerative Clustering with {n_clusters} clusters: skipped due to insufficient data shape.")
+                print(f"   Agglomerative Clustering with {n_clusters} clusters: skipped due to insufficient data shape.")
         except Exception as e:
-            print(f"Agglomerative Clustering with {n_clusters} clusters caused an error: {str(e)}")
+            print(f"   Agglomerative Clustering with {n_clusters} clusters caused an error: {str(e)}")
     
     # If best silhouette score is below the threshold, consider it as a single cluster
     if best_silhouette < silhouette_threshold:
-        print(f"Silhouette score {best_silhouette} is below the threshold {silhouette_threshold}. Considering as a single cluster.")
+        print(f"   Silhouette score {best_silhouette} is below the threshold {silhouette_threshold}. Considering as a single cluster.")
         best_n_clusters = 1
         best_labels = np.zeros(len(valid_models))
+    else:
+        print(f"   Silhouette score {best_silhouette} is above the threshold {silhouette_threshold}. Considering {best_n_clusters} cluster")
     
-    print(f"Best number of clusters: {best_n_clusters}, Best Silhouette Score: {best_silhouette}")
+    print(f"   Best number of clusters: {best_n_clusters}, Best Silhouette Score: {best_silhouette}")
     
     return list(valid_models.keys()), best_labels
 
-def visualize_clusters(all_pair_matrices, pair, model_keys, labels):
-    """
-    Visualizes the clusters by plotting the average contact matrices for each cluster.
+# def visualize_clusters(all_pair_matrices, pair, model_keys, labels):
+#     """
+#     Visualizes the clusters by plotting the average contact matrices for each cluster.
     
-    Parameters:
-    - all_pair_matrices (dict): Dictionary containing the pair matrices.
-    - pair (tuple): A tuple representing the protein pair being visualized.
-    - model_keys (list): List of model keys corresponding to the clustered models.
-    - labels (np.ndarray): An array of cluster labels for each model.
+#     Parameters:
+#     - all_pair_matrices (dict): Dictionary containing the pair matrices.
+#     - pair (tuple): A tuple representing the protein pair being visualized.
+#     - model_keys (list): List of model keys corresponding to the clustered models.
+#     - labels (np.ndarray): An array of cluster labels for each model.
     
-    Returns:
-    - dict: A dictionary containing cluster information with cluster IDs as keys,
-            where each key contains the models and the average matrix for that cluster.
-    """
+#     Returns:
+#     - dict: A dictionary containing cluster information with cluster IDs as keys,
+#             where each key contains the models and the average matrix for that cluster.
+#     """
     
-    if labels is None:
-        return
+#     if labels is None:
+#         return
     
-    cluster_dict = {}
-    n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
-    if n_clusters == 0:
-        n_clusters = 1
+#     cluster_dict = {}
+#     n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+#     if n_clusters == 0:
+#         n_clusters = 1
     
-    print(f"Number of clusters: {n_clusters}")
+#     print(f"   Number of clusters: {n_clusters}")
     
-    plt.figure(figsize=(10, 8))
+#     plt.figure(figsize=(10, 8))
     
-    for cluster in range(n_clusters):
-        cluster_models = [model for model, label in zip(model_keys, labels) if label == cluster]
-        avg_contact_matrix = np.mean([all_pair_matrices[pair][model]['is_contact'] for model in cluster_models], axis=0)
+#     for cluster in range(n_clusters):
+#         cluster_models = [model for model, label in zip(model_keys, labels) if label == cluster]
+#         avg_contact_matrix = np.mean([all_pair_matrices[pair][model]['is_contact'] for model in cluster_models], axis=0)
         
-        cluster_dict[cluster] = {
-            'models': cluster_models,
-            'average_matrix': avg_contact_matrix
-        }        
+#         cluster_dict[cluster] = {
+#             'models': cluster_models,
+#             'average_matrix': avg_contact_matrix
+#         }        
         
-        plt.subplot(2, (n_clusters + 1) // 2, cluster + 1)
-        plt.imshow(avg_contact_matrix, cmap='viridis')
-        plt.title(f"Cluster {cluster} (n={len(cluster_models)})")
-        plt.colorbar()
+#         plt.subplot(2, (n_clusters + 1) // 2, cluster + 1)
+#         plt.imshow(avg_contact_matrix, cmap='viridis')
+#         plt.title(f"Cluster {cluster} (n={len(cluster_models)})")
+#         plt.colorbar()
     
-    plt.tight_layout()
-    plt.show()
+#     plt.tight_layout()
+#     plt.show()
     
-    return cluster_dict
+#     return cluster_dict
 
 
 def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output):
@@ -427,7 +435,11 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output):
     if n_clusters == 0:
         n_clusters = 1
 
-    print(f"Number of clusters: {n_clusters}")
+    print(f"   Number of clusters: {n_clusters}")
+    if n_clusters > 1:
+        print(f"   Contact distribution of the models represent a MULTIVALENT interaction with at least {n_clusters} modes")
+    else:
+        print( "   Contact distribution of the models represent a MONOVALENT interaction")
 
     protein_a, protein_b = pair
     ia, ib = mm_output['prot_IDs'].index(protein_a), mm_output['prot_IDs'].index(protein_b)
@@ -498,7 +510,7 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output):
     if labels is not None:
         return visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output)
     else:
-        print(f"   - Clustering failed for pair {pair}")
+        print(f"   Clustering failed for pair {pair}")
         return None
 
 # # Usage
@@ -518,6 +530,9 @@ def cluster_all_pairs(all_pair_matrices, mm_output):
     - dict: A dictionary where each key is a pair, and the value is another dictionary containing
             cluster IDs as keys, with models and the average matrix for each cluster.
     """
+
+    print("INITIALIZING: Multivalency detection algorithm...")
+
     all_clusters = {}
     
     for pair in all_pair_matrices.keys():
@@ -525,6 +540,9 @@ def cluster_all_pairs(all_pair_matrices, mm_output):
         cluster_info = cluster_and_visualize(all_pair_matrices, pair, mm_output)
         if cluster_info:
             all_clusters[pair] = cluster_info
+
+    print("")
+    print("FINISHED: Multivalency detection algorithm.")
     
     return all_clusters
 
