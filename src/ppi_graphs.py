@@ -458,15 +458,10 @@ def generate_combined_graph(
         # For RMSD calculations
         domain_RMSD_plddt_cutoff = 60, trimming_RMSD_plddt_cutoff = 70,
 
-        # Other parameters
-        # edge_color1='red', edge_color2='green', edge_color3 = 'orange', edge_color4 = 'purple',  edge_color5 = "pink",
-        # edge_color6 = "blue", edge_color_both='black',
+        # Vertex colors
         vertex_color1='red', vertex_color2='green', vertex_color3='orange', vertex_color_both='gray',
         
-        pdockq_indirect_interaction_cutoff = 0.23, predominantly_static_cutoff = 0.6,
-        # remove_interactions = ("Indirect",),
-        
-        is_debug = False, logger = None):
+        logger = None):
     """
     Compares two graphs and create a new graph with colored edges and vertices based on their differences.
 
@@ -575,6 +570,7 @@ def generate_combined_graph(
     # -------------- Add 2/N-mers data, homooligomeric states, RMSD, etc ---------------------
     # ----------------------------------------------------------------------------------------
 
+    # Helper function
     def add_homooligomerization_state(graph,
                                       pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
                                       pairwise_Nmers_df = pairwise_Nmers_df,

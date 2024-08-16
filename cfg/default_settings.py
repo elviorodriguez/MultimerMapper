@@ -93,12 +93,6 @@ trimming_RMSD_plddt_cutoff = 70
 # ------------- For PPI classification and interactive PPI graph -------------
 # ----------------------------------------------------------------------------
 
-# Standard pDockQ value from Bryant et al (Nature 2022)
-pdockq_indirect_interaction_cutoff = 0.23
-
-# if 50% of the N-mer models show interaction => solid blue line edge
-predominantly_static_cutoff = 0.5
-
 # Color blind friendly palette (Paul Tol's + orange)
 PT_palette = {
     "black"         : "#000000",
@@ -115,19 +109,19 @@ PT_palette = {
 
 # # You can call it like this: PT_palette["orange"]
 
-# Default interactive combined graph colors
-edge_color1=PT_palette["red"]           # 
-edge_color2=PT_palette["green"]         # 
-edge_color3=PT_palette["orange"]        # 
-edge_color4=PT_palette["cyan"]          # 
-edge_color5=PT_palette["yellow"]        # 
-edge_color6=PT_palette["blue"]          # 
-edge_color_both=PT_palette["black"]     # 
+# # Default interactive combined graph colors
+# edge_color1=PT_palette["red"]           # 
+# edge_color2=PT_palette["green"]         # 
+# edge_color3=PT_palette["orange"]        # 
+# edge_color4=PT_palette["cyan"]          # 
+# edge_color5=PT_palette["yellow"]        # 
+# edge_color6=PT_palette["blue"]          # 
+# edge_color_both=PT_palette["black"]     # 
 
-vertex_color1=PT_palette["red"]         # 
-vertex_color2=PT_palette["green"]       # 
-vertex_color3=PT_palette["orange"]      # 
-vertex_color_both=PT_palette["gray"]    # 
+vertex_color1     = PT_palette["red"]
+vertex_color2     = PT_palette["green"]
+vertex_color3     = PT_palette["orange"]
+vertex_color_both = PT_palette["gray"]
 
 # Remove indirect interactions from combined graph? (mediated by a 3rd protein)
 remove_indirect_interactions = True
@@ -162,6 +156,27 @@ add_cutoff_legend = False
 # Save reference structures of each protein as PDB file? (<out_path>/PDB_ref_monomers dir)
 save_ref_structures = True
 
+# ----------------------------------------------------------------------------
+# -------------------------- For contact detection ---------------------------
+# ----------------------------------------------------------------------------
+
+contact_distance_cutoff: float | int = 8.0
+contact_PAE_cutoff     : float | int = 9
+contact_pLDDT_cutoff   : float | int = 60
+
+# ----------------------------------------------------------------------------
+# -------------------------- For contact detection ---------------------------
+# ----------------------------------------------------------------------------
+
+# Silhouette threshold to surpass in order to consider multivalent interaction
+multivalency_silhouette_threshold = 0.3
+
+# Maximum valency to test (max_contact_clusters modes of interactions)
+max_contact_clusters = 5
+
+# Save/display the contact clusters with PCA plots?
+display_contact_clusters = True
+save_contact_clusters    = True
 
 # ----------------------------------------------------------------------------
 #------------------------ To modify default settings -------------------------

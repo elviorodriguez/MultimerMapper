@@ -21,7 +21,8 @@ try:
     from src.coordinate_analyzer import generate_RMSF_pLDDT_cluster_and_RMSD_trajectories
     from utils.temp_files_manager import setup_temp_file
     from utils.combinations import suggest_combinations
-    from src.contact_extractor import compute_contacts
+    from src.contact_extractor import compute_pairwise_contacts, visualize_pair_matrices
+    from src.analyze_multivalency import cluster_all_pairs
 
     # These are for interactive usage
     from traj.pairwise_rmsd_trajectories import generate_pairwise_domain_trajectories, generate_pairwise_domain_trajectory_in_context
@@ -63,6 +64,8 @@ def parse_AF2_and_sequences(
     display_PAE_domains_inline = display_PAE_domains_inline, save_domains_html = save_domains_html,
     save_domains_tsv = save_domains_tsv,
     show_PAE_along_backbone = show_PAE_along_backbone,
+    display_contact_clusters = display_contact_clusters,
+    save_contact_clusters = save_contact_clusters,
 
     # 2-mers cutoffs
     min_PAE_cutoff_2mers = min_PAE_cutoff_2mers, ipTM_cutoff_2mers = ipTM_cutoff_2mers,
@@ -71,19 +74,23 @@ def parse_AF2_and_sequences(
     min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
 
     # General cutoff
-    N_models_cutoff = N_models_cutoff, pdockq_indirect_interaction_cutoff = pdockq_indirect_interaction_cutoff,
+    N_models_cutoff = N_models_cutoff,
+
+    # Contacts cutoffs
+    contact_distance_cutoff = contact_distance_cutoff,
+    contact_PAE_cutoff      = contact_PAE_cutoff,
+    contact_pLDDT_cutoff    = contact_pLDDT_cutoff,
+
+    # For multivalency detection (contact clustering)
+    multivalency_silhouette_threshold = multivalency_silhouette_threshold,
+    max_contact_clusters = max_contact_clusters,
 
     # For RMSD calculations
     domain_RMSD_plddt_cutoff = domain_RMSD_plddt_cutoff,
     trimming_RMSD_plddt_cutoff = trimming_RMSD_plddt_cutoff,
-    predominantly_static_cutoff = predominantly_static_cutoff,
 
     # Edges and vertex colors of combined graph (see cfg/default_settings module for their meaning)
-    edge_color1 = edge_color1, edge_color2 = edge_color2, edge_color3 = edge_color3, edge_color4 = edge_color4,
-    edge_color5 = edge_color5, edge_color6 = edge_color6, edge_color_both = edge_color_both,
     vertex_color1=vertex_color1, vertex_color2=vertex_color2, vertex_color3=vertex_color3, vertex_color_both=vertex_color_both,
-
-    remove_indirect_interactions = remove_indirect_interactions,
     
     # Set it to "error" to reduce verbosity
     log_level: str = log_level, overwrite = overwrite):
@@ -240,20 +247,16 @@ def parse_AF2_and_sequences(
         
         # General cutoffs
         N_models_cutoff = N_models_cutoff,
-        pdockq_indirect_interaction_cutoff = pdockq_indirect_interaction_cutoff, 
-        predominantly_static_cutoff = predominantly_static_cutoff,
 
         # For RMSD calculations
         domain_RMSD_plddt_cutoff = domain_RMSD_plddt_cutoff,
         trimming_RMSD_plddt_cutoff = trimming_RMSD_plddt_cutoff,
 
         # Style options (see cfg/default_settings module for their meaning)
-        # edge_color1 = edge_color1, edge_color2 = edge_color2, edge_color3 = edge_color3, edge_color4 = edge_color4,
-        # edge_color5 = edge_color5, edge_color6 = edge_color6, edge_color_both = edge_color_both,
         vertex_color1=vertex_color1, vertex_color2=vertex_color2, vertex_color3=vertex_color3, vertex_color_both=vertex_color_both,
         
         # Is debug?
-        is_debug = False, logger = logger)
+        logger = logger)
     
     # Debug
     logger.debug(f"Resulting combined graph:\n{combined_graph}")
@@ -277,6 +280,7 @@ def parse_AF2_and_sequences(
         "prot_seqs": prot_seqs,
         "prot_lens": prot_lens,
         "prot_N": prot_N,
+        "out_path": out_path,
         "all_pdb_data": all_pdb_data,
         "sliced_PAE_and_pLDDTs": sliced_PAE_and_pLDDTs,
         "domains_df": domains_df,
@@ -289,9 +293,29 @@ def parse_AF2_and_sequences(
         "graph_2mers": graph_2mers,
         "graph_Nmers": graph_Nmers,
         "combined_graph": combined_graph,
-        "dynamic_proteins": dynamic_proteins
-        # "dynamic_interactions": dynamic_interactions
+        "dynamic_proteins": dynamic_proteins,
+        # "dynamic_interactions": dynamic_interactions,
     }
+
+        
+    # Compute contacts and add it to output
+    pairwise_contact_matrices = compute_pairwise_contacts(multimer_mapper_output,
+                                                          out_path = out_path,
+                                                          contact_distance_cutoff = contact_distance_cutoff,
+                                                          contact_PAE_cutoff      = contact_PAE_cutoff,
+                                                          contact_pLDDT_cutoff    = contact_pLDDT_cutoff,
+                                                          )
+    multimer_mapper_output["pairwise_contact_matrices"] = pairwise_contact_matrices
+
+    # Cluster contacts and add it to output
+    contacts_clusters = cluster_all_pairs(pairwise_contact_matrices, 
+                                          multimer_mapper_output,
+                                          max_clusters              = max_contact_clusters,
+                                          silhouette_threshold      = multivalency_silhouette_threshold,
+                                          show_plot = display_contact_clusters,
+                                          save_plot = save_contact_clusters,
+                                          log_level = log_level)    
+    multimer_mapper_output["contacts_clusters"] = contacts_clusters
 
     return multimer_mapper_output
 

@@ -1,231 +1,15 @@
 
+import os
+from logging import Logger
 import numpy as np
 import matplotlib.pyplot as plt
-from itertools import combinations_with_replacement
+import matplotlib.colors as mcolors
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
-
-def get_pair_matrices(mm_contacts, protein_pair):
-    sorted_pair = tuple(sorted(protein_pair))
-    result = {sorted_pair: {}}
-
-    # Handle 2mers
-    for key, value in mm_contacts['matrices_2mers'].items():
-        if tuple(sorted(key[0])) == sorted_pair:
-            result[sorted_pair][key] = value
-    
-    # Handle Nmers
-    for key, value in mm_contacts['matrices_Nmers'].items():
-        proteins, chains, rank = key
-        chain_a, chain_b = chains
-        
-        # Find indices of the proteins in the pair
-        try:
-            idx_a = proteins.index(sorted_pair[0])
-            idx_b = proteins.index(sorted_pair[1])
-            
-            # Check if the chains match the protein indices
-            if (chains == (chr(65 + idx_a), chr(65 + idx_b)) or 
-                chains == (chr(65 + idx_b), chr(65 + idx_a))):
-                result[sorted_pair][key] = value
-        except ValueError:
-            # If one of the proteins is not in the key, skip this entry
-            continue
-    
-    return result
-
-# # Example usage:
-# protein_pair = ('EAF6', 'EPL1')
-# result = get_pair_matrices(mm_contacts, protein_pair)
-# for k in result.keys():
-#     print(f'Available models for pair: {k}')
-#     for sub_k in result[k].keys():
-#         print(f'   {sub_k}')
-        
-
-def get_all_pair_matrices(mm_contacts):
-    # Get all unique protein IDs
-    all_proteins = set()
-    for key in mm_contacts['matrices_2mers'].keys():
-        all_proteins.update(key[0])
-    for key in mm_contacts['matrices_Nmers'].keys():
-        all_proteins.update(key[0])
-    
-    # Generate all possible pairs (including self-pairs)
-    all_pairs = list(combinations_with_replacement(sorted(all_proteins), 2))
-    
-    # Initialize result dictionary
-    result = {}
-    
-    # Process each pair
-    for pair in all_pairs:
-        sorted_pair = tuple(sorted(pair))
-        pair_matrices = get_pair_matrices(mm_contacts, sorted_pair)
-        
-        # Only add to result if there are matrices for this pair
-        if pair_matrices[sorted_pair]:
-            result[sorted_pair] = pair_matrices[sorted_pair]
-            
-    # Orient matrices consistently
-    for pair in pair_matrices.keys():
-        expected_dim = None
-        for k, d in pair_matrices[pair].items():
-            for sub_k, m in d.items():
-                if expected_dim is None:
-                    expected_dim = d[sub_k].shape
-                elif expected_dim != d[sub_k].shape:
-                    pair_matrices[pair][k][sub_k] = pair_matrices[pair][k][sub_k].T
-                else:                
-                    continue
-    
-    return result
-
-# # Example usage:
-# all_pair_matrices = get_all_pair_matrices(mm_contacts)
-
-# # Print results
-# for pair, matrices in all_pair_matrices.items():
-#     print(f'Protein pair: {pair}')
-#     print(f'Number of matrices: {len(matrices)}')
-#     print('Matrix keys:')
-#     for key in matrices.keys():
-#         print(f'   {key}')
-#     print()
-
-# Debugging function
-def print_matrix_dimensions(all_pair_matrices):
-    for pair in all_pair_matrices.keys():
-        print()
-        print(f'----------------- Pair: {pair} -----------------')
-        for k, d in all_pair_matrices[pair].items():        
-            print(f'Model {k}')
-            print(f'   - PAE shape       : {d["PAE"].shape}')
-            print(f'   - min_pLDDT shape : {d["min_pLDDT"].shape}')
-            print(f'   - distance shape  : {d["distance"].shape}')
-            print(f'   - is_contact shape: {d["is_contact"].shape}')
-
-
-# # Usage
-# all_pair_matrices = get_all_pair_matrices(mm_contacts)
-# print_matrix_dimensions(all_pair_matrices)
-
-# Debugging function
-def visualize_pair_matrices(all_pair_matrices, mm_output, pair=None, matrix_types=['is_contact', 'PAE', 'min_pLDDT', 'distance'], 
-                            combine_models=False, max_models=5, aspect_ratio = 'equal'):
-    domains_df = mm_output['domains_df']
-    prot_lens = {prot: length for prot, length in zip(mm_output['prot_IDs'], mm_output['prot_lens'])}
-    
-    if pair is None:
-        pairs = list(all_pair_matrices.keys())
-    else:
-        pairs = sorted([pair])
-    
-    for pair in pairs:
-        
-        print()
-        print(f'Protein pair: {pair}')
-        
-        protein_a, protein_b = pair
-        L_a, L_b = prot_lens[protein_a], prot_lens[protein_b]
-        domains_a = domains_df[domains_df['Protein_ID'] == protein_a]
-        domains_b = domains_df[domains_df['Protein_ID'] == protein_b]
-        
-        models = list(all_pair_matrices[pair].keys())
-        n_models = min(len(models), max_models)
-        
-        if combine_models:
-            fig, axs = plt.subplots(1, len(matrix_types), figsize=(5*len(matrix_types), 5), squeeze=False)
-            fig.suptitle(f"{protein_a} vs {protein_b}")
-            
-            for j, matrix_type in enumerate(matrix_types):
-                combined_matrix = np.zeros((L_a, L_b))
-                for model in models[:n_models]:
-                    matrix = all_pair_matrices[pair][model][matrix_type]
-                    if matrix.shape != (L_a, L_b):
-                        matrix = matrix.T
-                    combined_matrix += matrix
-                combined_matrix /= n_models
-                
-                vmin = 0 if matrix_type == 'is_contact' else None
-                vmax = 1 if matrix_type == 'is_contact' else None
-                
-                im = axs[0, j].imshow(combined_matrix, aspect= aspect_ratio, vmin=vmin, vmax=vmax)
-                axs[0, j].set_title(matrix_type)
-                axs[0, j].set_xlim([0, L_b])
-                axs[0, j].set_ylim([0, L_a])
-                plt.colorbar(im, ax=axs[0, j])
-                
-                # Add domain lines
-                for _, row in domains_a.iterrows():
-                    axs[0, j].axhline(y=row['Start'] - 1, color='red', linestyle='--', linewidth=0.5)
-                    axs[0, j].axhline(y=row['End'], color='red', linestyle='--', linewidth=0.5)
-                for _, row in domains_b.iterrows():
-                    axs[0, j].axvline(x=row['Start'] - 1, color='red', linestyle='--', linewidth=0.5)
-                    axs[0, j].axvline(x=row['End'], color='red', linestyle='--', linewidth=0.5)
-                
-                axs[0, j].set_xlabel(protein_b)
-                axs[0, j].set_ylabel(protein_a)
-            
-            plt.tight_layout()
-            plt.show()
-        
-        else:
-            for m, model in enumerate(models[:n_models]):
-                fig, axs = plt.subplots(1, len(matrix_types), figsize=(5*len(matrix_types), 5), squeeze=False)
-                fig.suptitle(f"{protein_a} vs {protein_b} - Model: {model}")
-                
-                for j, matrix_type in enumerate(matrix_types):
-                    matrix = all_pair_matrices[pair][model][matrix_type]
-                    if matrix.shape != (L_a, L_b):
-                        matrix = matrix.T
-                        
-                    vmin = 0 if matrix_type == 'is_contact' else None
-                    vmax = 1 if matrix_type == 'is_contact' else None
-                    
-                    im = axs[0, j].imshow(matrix, aspect = aspect_ratio , vmin=vmin, vmax=vmax)
-                    axs[0, j].set_title(matrix_type)
-                    axs[0, j].set_xlim([0, L_b])
-                    axs[0, j].set_ylim([0, L_a])
-                    plt.colorbar(im, ax=axs[0, j])
-                    
-                    # Add domain lines
-                    for _, row in domains_a.iterrows():
-                        axs[0, j].axhline(y=row['Start'] - 1, color='red', linestyle='--', linewidth=0.5)
-                        axs[0, j].axhline(y=row['End'], color='red', linestyle='--', linewidth=0.5)
-                    for _, row in domains_b.iterrows():
-                        axs[0, j].axvline(x=row['Start'] - 1, color='red', linestyle='--', linewidth=0.5)
-                        axs[0, j].axvline(x=row['End'], color='red', linestyle='--', linewidth=0.5)
-                    
-                    axs[0, j].set_xlabel(protein_b)
-                    axs[0, j].set_ylabel(protein_a)
-                
-                plt.tight_layout()
-                plt.show()
-                
-                if m < n_models:
-                    user_input = input(f"   ({m+1}/{n_models}) {model} - Enter (next) - q (quit): ")
-                    if user_input.lower() == 'q':
-                        print("   OK! Jumping to next pair or exiting...")
-                        break
-
-# # Extract matrices, separate it into pairs and verify correct dimensions
-# all_pair_matrices = get_all_pair_matrices(mm_contacts)
-# print_matrix_dimensions(all_pair_matrices)
-
-
-# # Visualize all pairs, all matrix types, models separately
-# visualize_pair_matrices(all_pair_matrices, mm_output)
-# # Visualize a specific pair
-# visualize_pair_matrices(all_pair_matrices, mm_output, pair=('EAF6', 'EPL1'))
-# # Visualize only certain matrix types
-# visualize_pair_matrices(all_pair_matrices, mm_output, matrix_types=['is_contact'], max_models = 100)
-# # Combine all models into a single plot
-# visualize_pair_matrices(all_pair_matrices, mm_output, combine_models=True)
-# # Limit the number of models to visualize
-# visualize_pair_matrices(all_pair_matrices, mm_output, max_models=100)
+from utils.logger_setup import configure_logger
 
 
 ###############################################################################
@@ -284,7 +68,8 @@ def create_feature_vector(matrices):
         features.extend(matrices[matrix_type].flatten())
     return np.array(features)
 
-def cluster_models(all_pair_matrices, pair, max_clusters=5, silhouette_threshold=0.25):
+def cluster_models(all_pair_matrices, pair, max_clusters=5, silhouette_threshold=0.25,
+                   logger: Logger | None = None):
     """
     Clusters models based on their feature vectors using Agglomerative Clustering.
     
@@ -298,15 +83,20 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5, silhouette_threshold
     - list: A list of model keys corresponding to the clustered models.
     - np.ndarray: An array of cluster labels for each model.
     """
-    print("   Preprocessing inter-chain PAE, minimum-pLDDT, distogram and contacts...")
+    
+    if logger is None:
+        logger = configure_logger()(__name__)
+
+
+    logger.info("   Preprocessing inter-chain PAE, minimum-pLDDT, distogram and contacts...")
 
     valid_models = preprocess_matrices(all_pair_matrices, pair)
     
     if len(valid_models) == 0:
-        print(f"   No valid models found for pair {pair}")
+        logger.warn(f"   No valid models found for pair {pair}")
         return None, None
     
-    print("   Generating feature vectors...")
+    logger.info("   Generating feature vectors...")
 
     feature_vectors = np.array([create_feature_vector(matrices) for matrices in valid_models.values()])
     
@@ -317,18 +107,22 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5, silhouette_threshold
     scaler = StandardScaler()
     scaled_features = scaler.fit_transform(feature_vectors)
     
-    print("   Reducing features dimensionality...")
+    logger.info("   Reducing features dimensionality...")
 
     pca = PCA(n_components=0.95)
     reduced_features = pca.fit_transform(scaled_features)
         
+    # Get the explained variance ratio for the first two components
+    explained_variance = pca.explained_variance_ratio_ * 100
+      
     # Ensure reduced_features is 2D
     if reduced_features.ndim == 1:
         reduced_features = reduced_features.reshape(-1, 1)
-      
+
     best_silhouette = -1
     best_n_clusters = 1
     best_labels = np.zeros(len(valid_models))
+
     
     for n_clusters in range(2, max_clusters + 1):
         try:
@@ -340,7 +134,7 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5, silhouette_threshold
                 if len(set(labels)) > 1:  # Ensure at least two clusters are formed
                     silhouette_avg = silhouette_score(reduced_features, labels)
                     
-                    print(f"   Agglomerative Clustering with {n_clusters} clusters: Silhouette Score = {silhouette_avg}")
+                    logger.info(f"   Agglomerative Clustering with {n_clusters} clusters: Silhouette Score = {silhouette_avg}")
                     
                     # Store best clustering based on Silhouette Score
                     if silhouette_avg > best_silhouette:
@@ -348,70 +142,40 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5, silhouette_threshold
                         best_labels = labels
                         best_n_clusters = n_clusters
             else:
-                print(f"   Agglomerative Clustering with {n_clusters} clusters: skipped due to insufficient data shape.")
+                logger.info(f"   Agglomerative Clustering with {n_clusters} clusters: skipped due to insufficient data shape.")
         except Exception as e:
-            print(f"   Agglomerative Clustering with {n_clusters} clusters caused an error: {str(e)}")
+            logger.warn(f"   Agglomerative Clustering with {n_clusters} clusters caused an error: {str(e)}")
     
     # If best silhouette score is below the threshold, consider it as a single cluster
     if best_silhouette < silhouette_threshold:
-        print(f"   Silhouette score {best_silhouette} is below the threshold {silhouette_threshold}. Considering as a single cluster.")
+        logger.info(f"   Silhouette score {best_silhouette} is below the threshold {silhouette_threshold}. Considering as a single cluster.")
         best_n_clusters = 1
-        best_labels = np.zeros(len(valid_models))
+        best_labels = [0] * len(valid_models)
     else:
-        print(f"   Silhouette score {best_silhouette} is above the threshold {silhouette_threshold}. Considering {best_n_clusters} cluster")
+        logger.info(f"   Silhouette score {best_silhouette} is above the threshold {silhouette_threshold}. Considering {best_n_clusters} cluster")
     
-    print(f"   Best number of clusters: {best_n_clusters}, Best Silhouette Score: {best_silhouette}")
+    logger.info(f"   Best number of clusters: {best_n_clusters}, Best Silhouette Score: {best_silhouette}")
     
-    return list(valid_models.keys()), best_labels
+    return list(valid_models.keys()), best_labels, reduced_features, explained_variance
 
-# def visualize_clusters(all_pair_matrices, pair, model_keys, labels):
-#     """
-#     Visualizes the clusters by plotting the average contact matrices for each cluster.
+# Helper
+def convert_to_hex_colors(list_of_int: list[int], color_map = 'tab10'):
     
-#     Parameters:
-#     - all_pair_matrices (dict): Dictionary containing the pair matrices.
-#     - pair (tuple): A tuple representing the protein pair being visualized.
-#     - model_keys (list): List of model keys corresponding to the clustered models.
-#     - labels (np.ndarray): An array of cluster labels for each model.
+    # Get the colormap
+    cmap = plt.get_cmap(color_map).colors
     
-#     Returns:
-#     - dict: A dictionary containing cluster information with cluster IDs as keys,
-#             where each key contains the models and the average matrix for that cluster.
-#     """
+    # Number of colors in cmap
+    n_colors = len(cmap)
     
-#     if labels is None:
-#         return
+    list_of_colors = [mcolors.to_hex(cmap[number % n_colors]) for number in list_of_int]
     
-#     cluster_dict = {}
-#     n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
-#     if n_clusters == 0:
-#         n_clusters = 1
-    
-#     print(f"   Number of clusters: {n_clusters}")
-    
-#     plt.figure(figsize=(10, 8))
-    
-#     for cluster in range(n_clusters):
-#         cluster_models = [model for model, label in zip(model_keys, labels) if label == cluster]
-#         avg_contact_matrix = np.mean([all_pair_matrices[pair][model]['is_contact'] for model in cluster_models], axis=0)
-        
-#         cluster_dict[cluster] = {
-#             'models': cluster_models,
-#             'average_matrix': avg_contact_matrix
-#         }        
-        
-#         plt.subplot(2, (n_clusters + 1) // 2, cluster + 1)
-#         plt.imshow(avg_contact_matrix, cmap='viridis')
-#         plt.title(f"Cluster {cluster} (n={len(cluster_models)})")
-#         plt.colorbar()
-    
-#     plt.tight_layout()
-#     plt.show()
-    
-#     return cluster_dict
+    return list_of_colors
 
 
-def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output):
+def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
+                       reduced_features = None, explained_variance = None,
+                       show_plot = True, save_plot = True,
+                       logger: Logger | None = None):
     """
     Visualizes the clusters by plotting the average contact matrices for each cluster, 
     including domain borders as dashed lines and arranging plots side by side.
@@ -427,6 +191,10 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output):
     - dict: A dictionary containing cluster information with cluster IDs as keys,
             where each key contains the models and the average matrix for that cluster.
     """
+
+    if logger is None:
+        logger = configure_logger()(__name__)
+
     if labels is None:
         return
     
@@ -435,24 +203,35 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output):
     if n_clusters == 0:
         n_clusters = 1
 
-    print(f"   Number of clusters: {n_clusters}")
+    logger.info(f"   Number of clusters: {n_clusters}")
     if n_clusters > 1:
-        print(f"   Contact distribution of the models represent a MULTIVALENT interaction with at least {n_clusters} modes")
+        logger.info(f"   Contact distribution of the models represent a MULTIVALENT interaction with at least {n_clusters} modes")
     else:
-        print( "   Contact distribution of the models represent a MONOVALENT interaction")
+        logger.info( "   Contact distribution of the models represent a MONOVALENT interaction")
 
     protein_a, protein_b = pair
     ia, ib = mm_output['prot_IDs'].index(protein_a), mm_output['prot_IDs'].index(protein_b)
     L_a, L_b = mm_output['prot_lens'][ia], mm_output['prot_lens'][ib]
     domains_a = mm_output['domains_df'][mm_output['domains_df']['Protein_ID'] == protein_a]
     domains_b = mm_output['domains_df'][mm_output['domains_df']['Protein_ID'] == protein_b]
+    
+    # Create a combined plot with the PCA on the left and contact maps on the right
+    fig, axs = plt.subplots(1, n_clusters + 1, figsize=(5 * (n_clusters + 1), 5))
 
-    fig, axs = plt.subplots(1, n_clusters, figsize=(5 * n_clusters, 5))
+    if reduced_features is not None or explained_variance is not None:
 
-    if n_clusters == 1:
-        axs = [axs]  # Ensure axs is iterable if only one cluster
+        # PCA Plot
+        ax_pca = axs[0]
+        ax_pca.scatter(reduced_features[:, 0] / 100, reduced_features[:, 1] / 100, 
+                    c=convert_to_hex_colors(labels), s=50, alpha=0.7)
+        ax_pca.set_title(f"PCA Plot for {pair}")
+        ax_pca.set_xlabel(f"Principal Component 1 ({explained_variance[0]:.2f}% variance)")
+        ax_pca.set_ylabel(f"Principal Component 2 ({explained_variance[1]:.2f}% variance)")
+        ax_pca.grid(True)
+        ax_pca.set_aspect('equal', adjustable='box')
 
-    for cluster, ax in zip(range(n_clusters), axs):
+    # Contact Map Plots
+    for cluster, ax in zip(range(n_clusters), axs[1:]):
         cluster_models = [model for model, label in zip(model_keys, labels) if label == cluster]
         avg_contact_matrix = np.mean([all_pair_matrices[pair][model]['is_contact'] for model in cluster_models], axis=0)
 
@@ -472,7 +251,7 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output):
         }
         
         im = ax.imshow(avg_contact_matrix, cmap='viridis', aspect='equal')
-        ax.set_title(f"Cluster {cluster} (n={len(cluster_models)})")
+        ax.set_title(f"Contacts cluster {cluster} (n={len(cluster_models)})")
         plt.colorbar(im, ax=ax)
 
         # Add domain lines
@@ -489,13 +268,29 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output):
         ax.set_ylabel(y_label)
 
     plt.tight_layout()
-    plt.show()
 
+    if save_plot:
+        # Create a directory for saving plots
+        output_dir = os.path.join(mm_output['out_path'], 'contact_clusters')
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Save the plot to a file
+        plot_filename = f"{protein_a}__vs__{protein_b}-contact_clusters.png"
+        plot_path = os.path.join(output_dir, plot_filename)
+        plt.savefig(plot_path, dpi=600)
+        logger.info(f"   Plot saved to {plot_path}")
+
+    if show_plot:
+        plt.show()
+
+    plt.close()
+    
     return cluster_dict
 
 
 
-def cluster_and_visualize(all_pair_matrices, pair, mm_output):
+def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5, silhouette_threshold=0.25,
+                          show_plot = True, save_plot = True, logger: Logger | None= None):
     """
     Clusters the models and visualizes the resulting clusters for a given protein pair.
     
@@ -506,11 +301,26 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output):
     Returns:
     - None: Displays a plot of the clustered matrices.
     """
-    model_keys, labels = cluster_models(all_pair_matrices, pair)
+    if logger is None:
+        logger = configure_logger()(__name__)
+
+    model_keys, labels, reduced_features, explained_variance = cluster_models(all_pair_matrices, pair,
+                                                                              max_clusters         = max_clusters,
+                                                                              silhouette_threshold = silhouette_threshold,
+                                                                              logger               = logger)
     if labels is not None:
-        return visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output)
+        return visualize_clusters(all_pair_matrices  = all_pair_matrices,
+                                  pair               = pair,
+                                  model_keys         = model_keys,
+                                  labels             = labels,
+                                  mm_output          = mm_output,
+                                  reduced_features   = reduced_features,
+                                  explained_variance = explained_variance,
+                                  show_plot          = show_plot,
+                                  save_plot          = save_plot,
+                                  logger             = logger)
     else:
-        print(f"   Clustering failed for pair {pair}")
+        logger.error(f"   Clustering failed for pair {pair}")
         return None
 
 # # Usage
@@ -519,30 +329,41 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output):
 #     cluster_and_visualize(all_pair_matrices, pair)
 
 
-def cluster_all_pairs(all_pair_matrices, mm_output):
+def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5, silhouette_threshold=0.25,
+                      show_plot = True, save_plot = True, log_level = 'info'):
     """
     Clusters and visualizes all protein pairs in the given dictionary.
 
     Parameters:
-    - all_pair_matrices (dict): Dictionary containing the pair matrices.
+    - mm_contacts (dict): Dictionary containing the pair matrices.
+    - mm_output (dict): Dictionary containing the main MultimerMapper output (parse_AF2_and_sequences)
 
     Returns:
     - dict: A dictionary where each key is a pair, and the value is another dictionary containing
             cluster IDs as keys, with models and the average matrix for each cluster.
     """
 
-    print("INITIALIZING: Multivalency detection algorithm...")
+    logger = configure_logger(out_path = mm_output['out_path'],
+                              log_level = log_level)(__name__)
+
+    logger.info("INITIALIZING: Multivalency detection algorithm...")
 
     all_clusters = {}
     
-    for pair in all_pair_matrices.keys():
-        print(f"\nProcessing pair: {pair}")
-        cluster_info = cluster_and_visualize(all_pair_matrices, pair, mm_output)
+    for pair in mm_contacts.keys():
+        logger.info(f"\nProcessing pair: {pair}")
+        cluster_info = cluster_and_visualize(mm_contacts, pair, mm_output,
+                                             max_clusters = max_clusters,
+                                             # Parameter to optimize
+                                             silhouette_threshold = silhouette_threshold,
+                                             show_plot = show_plot,
+                                             save_plot = save_plot,
+                                             logger    = logger)
         if cluster_info:
             all_clusters[pair] = cluster_info
 
-    print("")
-    print("FINISHED: Multivalency detection algorithm.")
+    logger.info("")
+    logger.info("FINISHED: Multivalency detection algorithm.")
     
     return all_clusters
 

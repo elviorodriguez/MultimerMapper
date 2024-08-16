@@ -15,6 +15,7 @@ AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
 out_path = "/home/elvio/Desktop/MM_interactive_test"
 use_names = True 
 overwrite = True
+auto_domain_detection = False
 graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 # graph_resolution_preset = None
 
@@ -72,15 +73,16 @@ graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 
 ######################## Test 6 (multivalency detection) ######################
 
-fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
-AF2_2mers = "tests/multivalency_test/2-mers"
-AF2_Nmers = "tests/multivalency_test/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/MM_multivalency_test"
-use_names = True 
-overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-graph_resolution_preset = None
+# fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
+# AF2_2mers = "tests/multivalency_test/2-mers"
+# AF2_Nmers = "tests/multivalency_test/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/MM_multivalency_test"
+# use_names = True 
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
@@ -99,6 +101,7 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
                                        out_path,
                                        use_names = use_names,
                                        overwrite = overwrite,
+                                       auto_domain_detection = auto_domain_detection,
                                        graph_resolution_preset = graph_resolution_preset)
 
 # Generate interactive graph
@@ -117,14 +120,24 @@ suggested_combinations = mm.suggest_combinations(mm_output = mm_output,
 mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
     mm_output = mm_output, out_path = out_path)
 
-# Contacts extraction
-import multimer_mapper as mm
-mm_contacts = mm.compute_contacts(mm_output, out_path)
+# # Contacts extraction
+# import multimer_mapper as mm
+# mm_contacts = mm.compute_pairwise_contacts(mm_output, out_path)
 
 
 ###############################################################################
 ############################# Advanced features ###############################
 ###############################################################################
+
+mm.visualize_pair_matrices(mm_output,
+                           pair=None,
+                           matrix_types=['is_contact', 'PAE', 'min_pLDDT', 'distance'], 
+                           # Combine all models into one single average matrix?
+                           combine_models=False,
+                           # Max number of models to display
+                           max_models=5,
+                           # Can be set to 'auto'
+                           aspect_ratio = 'equal')
 
 # Generate RMSD trajectories for pairs of interacting protein domains
 mm_pairwise_domain_traj = mm.generate_pairwise_domain_trajectories(
@@ -157,6 +170,7 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 from src.analyze_multivalency import *
 
 all_pair_matrices = get_all_pair_matrices(mm_contacts)
+all_pair_matrices[list(all_pair_matrices.keys())[0]][(('RuvBL1', 'RuvBL2'), ('A', 'B'), 1)].keys()
 
 print_matrix_dimensions(all_pair_matrices)
 
