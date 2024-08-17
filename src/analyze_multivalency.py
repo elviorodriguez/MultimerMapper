@@ -2,6 +2,7 @@
 import os
 from logging import Logger
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from sklearn.metrics import silhouette_score
@@ -10,6 +11,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
 from utils.logger_setup import configure_logger
+from utils.combinations import get_untested_2mer_pairs, get_tested_Nmer_pairs
 
 
 ###############################################################################
@@ -369,3 +371,48 @@ def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5, silhouette_thresho
 
 # mm_contact_clusters = cluster_all_pairs(all_pair_matrices, mm_output)
 # mm_contact_clusters[('RuvBL1', 'RuvBL2')][0]["average_matrix"]
+
+def add_cluster_contribution_by_dataset(mm_output):
+    
+    # Unpack necessary data
+    contacts_clusters         = mm_output['contacts_clusters']
+    pairwise_contact_matrices = mm_output['pairwise_contact_matrices']
+
+    # Get untested 2-mer and tested N-mer pairs     
+    untested_2mers_edges_tuples = get_untested_2mer_pairs(mm_output)
+    tested_Nmers_edges_tuples   = get_tested_Nmer_pairs(mm_output)
+
+    # For each pair
+    for tuple_pair in contacts_clusters.keys():
+
+        # bools stating if the pair was tested or not
+        was_tested_in_2mers = tuple_pair not in untested_2mers_edges_tuples
+        was_tested_in_Nmers = tuple_pair in tested_Nmers_edges_tuples
+
+        for cluster_n in contacts_clusters[tuple_pair].keys():
+
+            # Add testing information (bool) to contacts_clusters
+            mm_output['contacts_clusters'][tuple_pair][cluster_n]['was_tested_in_2mers'] = was_tested_in_2mers
+            mm_output['contacts_clusters'][tuple_pair][cluster_n]['was_tested_in_Nmers'] = was_tested_in_Nmers
+
+            # Get the model IDs that comes from 2-mers and N-mers
+            IDs_2mers_models = [ model_id for model_id in mm_output['contacts_clusters'][tuple_pair][cluster_n]['models'] if len(model_id[0]) == 2 ]
+            IDs_Nmers_models = [ model_id for model_id in mm_output['contacts_clusters'][tuple_pair][cluster_n]['models'] if len(model_id[0])  > 2 ]
+
+            # Get contact matrices from 2-mers and N-mers
+            matrices_2mers = [ pairwise_contact_matrices[tuple_pair][model_ID]['is_contact'] for model_ID in IDs_2mers_models ]
+            matrices_Nmers = [ pairwise_contact_matrices[tuple_pair][model_ID]['is_contact'] for model_ID in IDs_Nmers_models ]
+
+            # Compute average matrices
+            avg_2mers_contact_matrix = np.mean(matrices_2mers, axis=0)
+            avg_Nmers_contact_matrix = np.mean(matrices_Nmers, axis=0)
+
+            # If there is no contacts in 2/N-mers dataset, create an empty array with the shape of the other
+            if np.isnan(avg_2mers_contact_matrix).any():
+                avg_2mers_contact_matrix = np.zeros_like(avg_Nmers_contact_matrix)
+            if np.isnan(avg_Nmers_contact_matrix).any():
+                avg_Nmers_contact_matrix = np.zeros_like(avg_2mers_contact_matrix)
+
+            # Add average 2/N-mer matrices to contact clusters
+            mm_output['contacts_clusters'][tuple_pair][cluster_n]['avg_2mers_contact_matrix'] = avg_2mers_contact_matrix
+            mm_output['contacts_clusters'][tuple_pair][cluster_n]['avg_Nmers_contact_matrix'] = avg_Nmers_contact_matrix

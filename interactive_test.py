@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import numpy as np
 import pandas as pd
 import multimer_mapper as mm
 
@@ -175,11 +176,39 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 ################################## TESTS ######################################
 ###############################################################################
 
-# Each interacting pairs have contact clusters
+tuple_pair = ('EAF6', 'EAF6')
+cluster_n = 0
+
+# ----------------------- Contact clusters dict -------------------------------
+
+# Each interacting pairs have contact clusters / contact maps
 mm_output['contacts_clusters'].keys()
 
-# Number of clusters for the speficif protein
-len(mm_output['contacts_clusters'][('EAF6', 'EAF6')].keys())
+# Number of clusters for the speficif protein 
+len(mm_output['contacts_clusters'][tuple_pair].keys())
+
+# Models apporting to cluster 0 and their average matrix
+mm_output['contacts_clusters'][tuple_pair][cluster_n]['models']
+mm_output['contacts_clusters'][tuple_pair][cluster_n]['average_matrix']
+
+# I need to add this information
+mm_output['contacts_clusters'][tuple_pair][cluster_n]['average_2mers_matrix']
+mm_output['contacts_clusters'][tuple_pair][cluster_n]['average_Nmers_matrix']
+
+IDs_2mers_models = [ model_id for model_id in mm_output['contacts_clusters'][tuple_pair][cluster_n]['models'] if len(model_id[0]) == 2 ]
+IDs_Nmers_models = [ model_id for model_id in mm_output['contacts_clusters'][tuple_pair][cluster_n]['models'] if len(model_id[0])  > 2 ]
+
+
+# ----------------------- Contact clusters dict -------------------------------
+
+# Available pairs with contacts
+mm_output['pairwise_contact_matrices'].keys()
+
+# Available models for the pair
+mm_output['pairwise_contact_matrices'][('EAF6', 'EAF6')].keys()
+
+# For each model, we have ['PAE', 'min_pLDDT', 'distance', 'is_contact'] matrices
+mm_output['pairwise_contact_matrices'][('EAF6', 'EAF6')][(('EAF6', 'EAF6'), ('A', 'B'), 1)].keys()
 
 def print_contact_clusters_number(mm_output):
     

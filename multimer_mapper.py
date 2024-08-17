@@ -22,7 +22,7 @@ try:
     from utils.temp_files_manager import setup_temp_file
     from utils.combinations import suggest_combinations
     from src.contact_extractor import compute_pairwise_contacts, visualize_pair_matrices
-    from src.analyze_multivalency import cluster_all_pairs
+    from src.analyze_multivalency import cluster_all_pairs, add_cluster_contribution_by_dataset
 
     # These are for interactive usage
     from traj.pairwise_rmsd_trajectories import generate_pairwise_domain_trajectories, generate_pairwise_domain_trajectory_in_context
@@ -252,6 +252,8 @@ def parse_AF2_and_sequences(
                                           log_level = log_level)    
     multimer_mapper_output["contacts_clusters"] = contacts_clusters
 
+    # Add cluster contribution by 2/N-mers dataset
+    add_cluster_contribution_by_dataset(multimer_mapper_output)
 
     # --------------------------------------------------------------------------
     # ----------------------- 2D PPI graph generation --------------------------

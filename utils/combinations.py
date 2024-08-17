@@ -1,6 +1,7 @@
 
 import os
 import itertools
+import numpy as np
 import pandas as pd
 import igraph
 from itertools import combinations
@@ -55,6 +56,18 @@ def find_untested_2mers(prot_IDs: list[str], pairwise_2mers_df: pd.DataFrame):
             untested.append(possible_comb)
     
     return set(sorted(untested))
+
+# Get untested in 2-mer pairs
+def get_untested_2mer_pairs(mm_output):
+
+    # Unpack necessary data
+    prot_IDs          = mm_output['prot_IDs']
+    pairwise_2mers_df = mm_output['pairwise_2mers_df']
+
+    # Get untested pairs
+    untested_2mers_edges_tuples = sorted(list(find_untested_2mers(prot_IDs = prot_IDs, pairwise_2mers_df = pairwise_2mers_df)), key=lambda x: x[0])
+
+    return untested_2mers_edges_tuples
     
 
 # -----------------------------------------------------------------------------
@@ -165,6 +178,18 @@ def find_untested_Nmers(combined_graph: igraph.Graph, pairwise_Nmers_df: pd.Data
             untested.append(possible_comb)
     
     return set(sorted(untested))
+
+
+def get_tested_Nmer_pairs(mm_output):
+
+    # Unpack necessary data
+    pairwise_Nmers_df = mm_output['pairwise_Nmers_df']
+
+    tested_Nmers_edges_df = pd.DataFrame(np.sort(pairwise_Nmers_df[['protein1', 'protein2']], axis=1),
+                 columns=['protein1', 'protein2']).drop_duplicates().reset_index(drop = True)
+    tested_Nmers_edges_tuples   = [tuple(sorted(tuple(row))) for i, row in tested_Nmers_edges_df.iterrows()]
+
+    return tested_Nmers_edges_tuples
     
 
 

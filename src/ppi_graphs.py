@@ -10,7 +10,7 @@ from utils.logger_setup import configure_logger
 from src.analyze_homooligomers import find_homooligomerization_breaks
 from utils.oscillations import oscillate_line, oscillate_circle
 from utils.combinations import find_untested_2mers
-from src.interpret_dynamics import read_classification_df, classify_edge_dynamics, classification_df,  get_edge_color_hex, get_edge_linetype, get_edge_weight, get_edge_oscillation
+from src.interpret_dynamics import read_classification_df, classify_edge_dynamics, classification_df, get_edge_color_hex, get_edge_linetype, get_edge_weight, get_edge_oscillation
 from src.coordinate_analyzer import add_domain_RMSD_against_reference
 
 # -----------------------------------------------------------------------------
@@ -435,6 +435,9 @@ def add_vertices_meaning(graph, vertex_color1='red', vertex_color2='green', vert
     graph.vs["meaning"] = vertex_df['meaning']
 
 
+def add_valency(graph):
+    pass
+
 
 # Combine 2-mers and N-mers graphs
 def generate_combined_graph(
@@ -493,6 +496,7 @@ def generate_combined_graph(
     domains_df            = mm_output['domains_df']
     sliced_PAE_and_pLDDTs = mm_output['sliced_PAE_and_pLDDTs']
     pairwise_2mers_df_F3  = mm_output['pairwise_2mers_df_F3']
+    
     
     # Prot IDs and prot names to add them to the graph as hovertext later on
     prot_IDs   = mm_output['prot_IDs']
@@ -579,9 +583,6 @@ def generate_combined_graph(
     # -------------- Add 2/N-mers data, homooligomeric states, RMSD, etc ---------------------
     # ----------------------------------------------------------------------------------------
 
-    # Add valency
-    # def add_valency(graph)
-
     # Helper function
     def add_homooligomerization_state(graph,
                                       pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
@@ -613,6 +614,9 @@ def generate_combined_graph(
                 # Add its homooligomerization state data
                 edge["homooligomerization_states"] = homooligomerization_states[source_name]
 
+    
+    # # Add valency
+    # add_valency(graphC)
                 
     # Add data to the combined graph to allow hovertext display later
     add_edges_data(graphC, pairwise_2mers_df, pairwise_Nmers_df,

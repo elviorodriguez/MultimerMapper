@@ -1,0 +1,11 @@
+Classification	AF_2mers	AF_Nmers	Tested_in_2_mers	Tested_in_N_mers	N_mers_variation	Color_name	Color_hex	Line_type	Edge_oscillates	Variable_Edge_width
+Static	True	True	True	True	[1;1]	black         	#000000	solid	False	True
+Strong Positive	False	True	True	True	[1;1]	green         	#228833	solid	True	True
+Positive	False	True	True	True	[0.5;1)	green         	#228833	dash	True	False
+Weak Positive	False	True	True	True	(0;0.5)	cyan          	#66CCEE	dot	True	False
+Weak Negative	True	True	True	True	[0.5;1)	blue          	#4477AA	solid	False	True
+Negative	True	True	True	True	(0;0.5)	purple        	#AA3377	dash	False	False
+Strong Negative	True	False	True	True	[0;0]	red           	#EE6677	dot	False	False
+Indirect	False	True	True	True	(0;1]	yellow        	#CCBB44	dot	False	False
+No N-mers Data	True	False	True	False	[0;0]	orange        	#e69f00	solid	False	False
+No 2-mers Data	False	False	False	False	[0;0]	orange	#e69f00	dash	False	False
