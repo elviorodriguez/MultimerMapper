@@ -351,7 +351,7 @@ def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5, silhouette_thresho
     all_clusters = {}
     
     for pair in mm_contacts.keys():
-        logger.info(f"\nProcessing pair: {pair}")
+        logger.info(f"Processing pair: {pair}")
         cluster_info = cluster_and_visualize(mm_contacts, pair, mm_output,
                                              max_clusters = max_clusters,
                                              # Parameter to optimize

@@ -107,9 +107,13 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
 # Generate interactive graph
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
     mm_output["combined_graph"], out_path = out_path,
+    layout_algorithm = 'kk',    
     
     # You can remove specific interaction types from the graph
-    remove_interactions = ("Indirect",))
+    remove_interactions = ("Indirect",),
+    
+    # Answer y automatically
+    automatic_true = True)
 
 # Get suggested combinations
 suggested_combinations = mm.suggest_combinations(mm_output = mm_output, 
@@ -120,15 +124,19 @@ suggested_combinations = mm.suggest_combinations(mm_output = mm_output,
 mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
     mm_output = mm_output, out_path = out_path)
 
-# # Contacts extraction
-# import multimer_mapper as mm
-# mm_contacts = mm.compute_pairwise_contacts(mm_output, out_path)
+
+###############################################################################
+############################### Access output #################################
+###############################################################################
+
+mm_output.keys()
 
 
 ###############################################################################
 ############################# Advanced features ###############################
 ###############################################################################
 
+# For visualization of contact clusters data
 mm.visualize_pair_matrices(mm_output,
                            pair=None,
                            matrix_types=['is_contact', 'PAE', 'min_pLDDT', 'distance'], 
@@ -167,14 +175,19 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 ################################## TESTS ######################################
 ###############################################################################
 
-from src.analyze_multivalency import *
+# Each interacting pairs have contact clusters
+mm_output['contacts_clusters'].keys()
 
-all_pair_matrices = get_all_pair_matrices(mm_contacts)
-all_pair_matrices[list(all_pair_matrices.keys())[0]][(('RuvBL1', 'RuvBL2'), ('A', 'B'), 1)].keys()
+# Number of clusters for the speficif protein
+len(mm_output['contacts_clusters'][('EAF6', 'EAF6')].keys())
 
-print_matrix_dimensions(all_pair_matrices)
+def print_contact_clusters_number(mm_output):
+    
+    # Everything together
+    for pair in mm_output['contacts_clusters'].keys():
+  
+        # Extract the Nº of contact clusters for the pair (valency)
+        clusters = len(mm_output['contacts_clusters'][('EAF6', 'EAF6')].keys())
+        print(f'Pair {pair} interact through {clusters} modes')
 
-# # Visualize all pairs, all matrix types, models separately
-visualize_pair_matrices(all_pair_matrices, mm_output)
-
-results = cluster_all_pairs(all_pair_matrices, mm_output)
+print_contact_clusters_number(mm_output)

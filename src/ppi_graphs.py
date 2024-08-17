@@ -438,13 +438,9 @@ def add_vertices_meaning(graph, vertex_color1='red', vertex_color2='green', vert
 
 # Combine 2-mers and N-mers graphs
 def generate_combined_graph(
-        graph1, graph2,
-        pairwise_2mers_df, pairwise_Nmers_df,
-        domains_df, sliced_PAE_and_pLDDTs,
-        pairwise_2mers_df_F3,
 
-        # Prot IDs and prot names to add them to the graph as hovertext later on
-        prot_IDs, prot_names,
+        # MultimerMapper output dict
+        mm_output: dict,
 
         # 2-mers cutoffs
         min_PAE_cutoff_2mers = 8.99, ipTM_cutoff_2mers = 0.240,
@@ -488,6 +484,19 @@ def generate_combined_graph(
     # Configure logger
     if logger is None:
         configure_logger()(__name__)
+
+    # Unpack data
+    graph1                = mm_output['graph_2mers']
+    graph2                = mm_output['graph_Nmers']
+    pairwise_2mers_df     = mm_output['pairwise_2mers_df']
+    pairwise_Nmers_df     = mm_output['pairwise_Nmers_df']
+    domains_df            = mm_output['domains_df']
+    sliced_PAE_and_pLDDTs = mm_output['sliced_PAE_and_pLDDTs']
+    pairwise_2mers_df_F3  = mm_output['pairwise_2mers_df_F3']
+    
+    # Prot IDs and prot names to add them to the graph as hovertext later on
+    prot_IDs   = mm_output['prot_IDs']
+    prot_names = mm_output['prot_names']
 
     # To check if the computation was performed or not
     tested_Nmers_edges_df = pd.DataFrame(np.sort(pairwise_Nmers_df[['protein1', 'protein2']], axis=1),
@@ -570,6 +579,9 @@ def generate_combined_graph(
     # -------------- Add 2/N-mers data, homooligomeric states, RMSD, etc ---------------------
     # ----------------------------------------------------------------------------------------
 
+    # Add valency
+    # def add_valency(graph)
+
     # Helper function
     def add_homooligomerization_state(graph,
                                       pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
@@ -615,7 +627,7 @@ def generate_combined_graph(
     add_vertices_IDs(graphC, prot_IDs, prot_names)
 
     add_domain_RMSD_against_reference(graphC, domains_df, sliced_PAE_and_pLDDTs,pairwise_2mers_df, pairwise_Nmers_df,
-                                      domain_RMSD_plddt_cutoff, trimming_RMSD_plddt_cutoff)
+                                      domain_RMSD_plddt_cutoff, trimming_RMSD_plddt_cutoff, logger = logger)
     
     add_homooligomerization_state(graphC,
                                   pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
@@ -690,8 +702,10 @@ def generate_combined_graph(
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 # -----------------------------------------------------------------------------
-# 2D graph (protein level): interactive representation ------------------------
+# ----------- 2D graph (protein level): interactive representation ------------
 # -----------------------------------------------------------------------------
+
+# Helper functions ------------------------------------------------------------
 
 def format_homooligomerization_states(homooligomerization_states, logger):
 
@@ -784,8 +798,9 @@ def remove_edges_by_condition(graph: igraph.Graph, attribute: str, condition):
     edges_to_remove = [e.index for e in graph.es if e[attribute] == condition]
     graph.delete_edges(edges_to_remove)
 
-def indirect_condition(value):
-    return value == "Indirect"
+# def indirect_condition(value):
+#     return value == "Indirect"
+
 # ------------------------------------------------------------------------------------
 
 # Convert igraph graph to interactive plotly plot

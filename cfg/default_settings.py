@@ -123,8 +123,8 @@ vertex_color2     = PT_palette["green"]
 vertex_color3     = PT_palette["orange"]
 vertex_color_both = PT_palette["gray"]
 
-# Remove indirect interactions from combined graph? (mediated by a 3rd protein)
-remove_indirect_interactions = True
+# Which interactions do not take int account in interactive combined graph?
+remove_interactions_from_ppi_graph = ("Indirect",)      # (indirect: mediated by a 3rd protein)
 
 # ----- For homooligomerization edges (self-loops) ---------------------------
 # 0: up, 0.25: left, 0.5: down, 0.75: right
@@ -148,6 +148,16 @@ save_html = "2D_PPI_graph.html"
 # Add cutoffs labels to keep track cutoffs values that generated the graph
 # Highly recommended if you are experimenting with cutoffs in other organisms
 add_cutoff_legend = False
+
+# Layout generation algorithm ------------------------------------------------
+
+# Have a look at https://igraph.org/python/tutorial/0.9.8/tutorial.html
+# for more info about layout algorithms
+available_layout = ['fr', 'kk', 'circle', 'drl', 'lgl', 'random', 'rt', 'rt_circular', ]
+ppi_graph_layout_algorithm = available_layout[0]
+
+# If True, the first generated interactive PPI graph will be saved, without asking
+igraph_to_plotly_automatic_true = False
 
 # ----------------------------------------------------------------------------
 # ------------------------- For coordinate analysis --------------------------

@@ -1,11 +1,18 @@
+
+from logging import Logger
 import pandas as pd
 import numpy as np
 from Bio.PDB import Chain, Superimposer
 from Bio.PDB.Polypeptide import protein_letters_3to1
 
+from utils.logger_setup import configure_logger
+
+
 def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
                                         pairwise_2mers_df, pairwise_Nmers_df,
-                                        domain_RMSD_plddt_cutoff, trimming_RMSD_plddt_cutoff):
+                                        domain_RMSD_plddt_cutoff,
+                                        trimming_RMSD_plddt_cutoff,
+                                        logger: Logger | None = None):
     
     hydrogens = ('H', 'H1', 'H2', 'H3', 'HA', 'HA2', 'HA3', 'HB', 'HB1', 'HB2', 
                     'HB3', 'HG2', 'HG3', 'HD2', 'HD3', 'HE2', 'HE3', 'HZ1', 'HZ2', 
@@ -13,6 +20,9 @@ def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
                     'HE1', 'HD11', 'HD12', 'HD13', 'HG', 'HG1', 'HD21', 'HD22', 'HD23',
                     'NH1', 'NH2', 'HE', 'HH11', 'HH12', 'HH21', 'HH22', 'HE21', 'HE22',
                     'HE2', 'HH', 'HH2')
+    
+    if logger is None:
+        logger = configure_logger()(__name__)
     
     def create_model_chain_from_residues(residue_list, model_id=0, chain_id='A'):
 
@@ -42,7 +52,7 @@ def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
             raise ValueError("Something went wrong after H removal: len(atoms1) != len(atoms2)")
         
         # Get indexes with lower than trimming_RMSD_plddt_cutoff atoms in the reference 
-        indices_to_remove = [i for i, atom in enumerate(atoms1) if atom.bfactor is not None and atom.bfactor < domain_RMSD_plddt_cutoff]
+        indices_to_remove = [i for i, atom in enumerate(atoms1) if atom.bfactor is not None and atom.bfactor < trimming_RMSD_plddt_cutoff]
         
         # Remove the atoms
         for i in sorted(indices_to_remove, reverse=True):
@@ -73,7 +83,7 @@ def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
             
         return graph_pairs
     
-    print("Computing domain RMSD against reference and adding it to combined graph.")
+    logger.info("Computing domain RMSD against reference and adding it to combined graph.")
     
     # Get all pairs in the graph
     graph_pairs = get_graph_protein_pairs(graph)
@@ -92,7 +102,7 @@ def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
         columns = ["Domain","Model","Chain", "Mean_pLDDT", "RMSD"]
         vertex["RMSD_df"] = pd.DataFrame(columns = columns)
         
-        print(f"   - Computing RMSD for {protein_ID}...")
+        logger.info(f"   - Computing RMSD for {protein_ID}...")
         
         # Work domain by domain
         for D, domain in domains_df.query(f'Protein_ID == "{protein_ID}"').iterrows():

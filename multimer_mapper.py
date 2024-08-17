@@ -153,6 +153,16 @@ def parse_AF2_and_sequences(
     pairwise_Nmers_df = generate_pairwise_Nmers_df(all_pdb_data, out_path = out_path, save_pairwise_data = save_pairwise_data, 
                                                 overwrite = overwrite, logger = logger)
     
+    # Save reference monomers?
+    if save_ref_structures:
+
+        logger.info("Saving PDB reference monomer structures...")
+
+        from src.save_ref_pdbs import save_reference_pdbs
+
+        save_reference_pdbs(sliced_PAE_and_pLDDTs = sliced_PAE_and_pLDDTs,
+                            out_path = out_path,
+                            overwrite = overwrite)    
 
     # --------------------------------------------------------------------------
     # --------------------------- Domain detection -----------------------------
@@ -201,6 +211,47 @@ def parse_AF2_and_sequences(
     logger.info(f"   - N-mers proteins: {unique_Nmers_proteins}")
     logger.info(f"   - N-mers PPIs:\n{pairwise_Nmers_df_F3}")
 
+    multimer_mapper_output = {
+        "prot_IDs": prot_IDs,
+        "prot_names": prot_names,
+        "prot_seqs": prot_seqs,
+        "prot_lens": prot_lens,
+        "prot_N": prot_N,
+        "out_path": out_path,
+        "all_pdb_data": all_pdb_data,
+        "sliced_PAE_and_pLDDTs": sliced_PAE_and_pLDDTs,
+        "domains_df": domains_df,
+        "pairwise_2mers_df": pairwise_2mers_df,
+        "pairwise_Nmers_df": pairwise_Nmers_df,
+        "pairwise_2mers_df_F3": pairwise_2mers_df_F3,
+        "pairwise_Nmers_df_F3": pairwise_Nmers_df_F3,
+        "unique_2mers_proteins": unique_2mers_proteins,
+        "unique_Nmers_proteins": unique_Nmers_proteins
+    }
+        
+    # --------------------------------------------------------------------------
+    # ------------------ Contacts detection and clustering ---------------------
+    # --------------------------------------------------------------------------
+        
+    # Compute contacts and add it to output
+    pairwise_contact_matrices = compute_pairwise_contacts(multimer_mapper_output,
+                                                          out_path = out_path,
+                                                          contact_distance_cutoff = contact_distance_cutoff,
+                                                          contact_PAE_cutoff      = contact_PAE_cutoff,
+                                                          contact_pLDDT_cutoff    = contact_pLDDT_cutoff,
+                                                          )
+    multimer_mapper_output["pairwise_contact_matrices"] = pairwise_contact_matrices
+
+    # Cluster contacts (extract valency) and add it to output
+    contacts_clusters = cluster_all_pairs(pairwise_contact_matrices, 
+                                          multimer_mapper_output,
+                                          max_clusters              = max_contact_clusters,
+                                          silhouette_threshold      = multivalency_silhouette_threshold,
+                                          show_plot = display_contact_clusters,
+                                          save_plot = save_contact_clusters,
+                                          log_level = log_level)    
+    multimer_mapper_output["contacts_clusters"] = contacts_clusters
+
 
     # --------------------------------------------------------------------------
     # ----------------------- 2D PPI graph generation --------------------------
@@ -221,23 +272,19 @@ def parse_AF2_and_sequences(
     graph_Nmers = generate_Nmers_graph(pairwise_Nmers_df_F3 = pairwise_Nmers_df_F3,
                                         out_path = out_path,
                                         overwrite = True)
+    
+    # Add results to output dict
+    multimer_mapper_output["graph_2mers"] = graph_2mers
+    multimer_mapper_output["graph_Nmers"] = graph_Nmers
 
     # Debug
-    logger.debug(f"Resulting 2-mers graph:\n{graph_Nmers}")
+    logger.debug(f"Resulting N-mers graph:\n{graph_Nmers}")
 
     # Combined PPI graph
     combined_graph, dynamic_proteins = generate_combined_graph(
         
         # Input
-        graph_2mers, graph_Nmers, 
-        pairwise_2mers_df = pairwise_2mers_df,
-        pairwise_Nmers_df = pairwise_Nmers_df, 
-        domains_df = domains_df,
-        sliced_PAE_and_pLDDTs = sliced_PAE_and_pLDDTs,
-        pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
-        
-        # Prot_IDs and names to add them to the graph
-        prot_IDs = prot_IDs, prot_names = prot_names,
+        mm_output = multimer_mapper_output,
         
         # 2-mers cutoffs
         min_PAE_cutoff_2mers = min_PAE_cutoff_2mers, ipTM_cutoff_2mers = ipTM_cutoff_2mers,
@@ -263,64 +310,20 @@ def parse_AF2_and_sequences(
     logger.debug(f"Dynamic proteins:\n{dynamic_proteins}")
     # logger.debug(f"Dynamic interactions:\n{dynamic_interactions}")
 
-    # Save reference monomers?
-    if save_ref_structures:
+    # Add combined graph output
+    multimer_mapper_output["combined_graph"]   = combined_graph
+    multimer_mapper_output["dynamic_proteins"] = dynamic_proteins
 
-        logger.info("Saving PDB reference monomer structures...")
-
-        from src.save_ref_pdbs import save_reference_pdbs
-
-        save_reference_pdbs(sliced_PAE_and_pLDDTs = sliced_PAE_and_pLDDTs,
-                            out_path = out_path,
-                            overwrite = overwrite)
-        
-    multimer_mapper_output = {
-        "prot_IDs": prot_IDs,
-        "prot_names": prot_names,
-        "prot_seqs": prot_seqs,
-        "prot_lens": prot_lens,
-        "prot_N": prot_N,
-        "out_path": out_path,
-        "all_pdb_data": all_pdb_data,
-        "sliced_PAE_and_pLDDTs": sliced_PAE_and_pLDDTs,
-        "domains_df": domains_df,
-        "pairwise_2mers_df": pairwise_2mers_df,
-        "pairwise_Nmers_df": pairwise_Nmers_df,
-        "pairwise_2mers_df_F3": pairwise_2mers_df_F3,
-        "pairwise_Nmers_df_F3": pairwise_Nmers_df_F3,
-        "unique_2mers_proteins": unique_2mers_proteins,
-        "unique_Nmers_proteins": unique_Nmers_proteins,
-        "graph_2mers": graph_2mers,
-        "graph_Nmers": graph_Nmers,
-        "combined_graph": combined_graph,
-        "dynamic_proteins": dynamic_proteins,
-        # "dynamic_interactions": dynamic_interactions,
-    }
-
-        
-    # Compute contacts and add it to output
-    pairwise_contact_matrices = compute_pairwise_contacts(multimer_mapper_output,
-                                                          out_path = out_path,
-                                                          contact_distance_cutoff = contact_distance_cutoff,
-                                                          contact_PAE_cutoff      = contact_PAE_cutoff,
-                                                          contact_pLDDT_cutoff    = contact_pLDDT_cutoff,
-                                                          )
-    multimer_mapper_output["pairwise_contact_matrices"] = pairwise_contact_matrices
-
-    # Cluster contacts and add it to output
-    contacts_clusters = cluster_all_pairs(pairwise_contact_matrices, 
-                                          multimer_mapper_output,
-                                          max_clusters              = max_contact_clusters,
-                                          silhouette_threshold      = multivalency_silhouette_threshold,
-                                          show_plot = display_contact_clusters,
-                                          save_plot = save_contact_clusters,
-                                          log_level = log_level)    
-    multimer_mapper_output["contacts_clusters"] = contacts_clusters
 
     return multimer_mapper_output
 
 
-def interactive_igraph_to_plotly(combined_graph, out_path: str, log_level = "info", remove_interactions = ("Indirect",)):
+def interactive_igraph_to_plotly(combined_graph,
+                                 out_path: str,
+                                 log_level = log_level,
+                                 remove_interactions = remove_interactions_from_ppi_graph,
+                                 layout_algorithm = ppi_graph_layout_algorithm,
+                                 automatic_true = igraph_to_plotly_automatic_true):
 
     # Initialize the logger
     logger = configure_logger(out_path, log_level = log_level)(__name__)
@@ -330,10 +333,13 @@ def interactive_igraph_to_plotly(combined_graph, out_path: str, log_level = "inf
     
     while True:
 
+        logger.info('INITIALIZING: converting igraph combined graph to interactive PPI graph...')
+
         combined_graph_interactive = igraph_to_plotly(
 
             # Input
-            graph = combined_graph, layout = None,
+            graph = combined_graph,
+            layout = layout_algorithm,
 
             # Aspect of homooligomerization edges
             self_loop_orientation = self_loop_orientation,
@@ -361,20 +367,29 @@ def interactive_igraph_to_plotly(combined_graph, out_path: str, log_level = "inf
             logger = logger
         )
         
-        logger.info('Default layout generation algorithm is Fruchterman-Reingold ("fr")')
-        logger.info('This algorithm is stochastic. Try several layouts and save the one you like.')
+        if automatic_true:
+            logger.info("   Enjoy your interactive PPI graph!")
+            return combined_graph_interactive
+        
+        logger.info('   Default layout generation algorithm is Fruchterman-Reingold ("fr")')
+        logger.info('   This algorithm is stochastic. Try several layouts and save the one you like.')
+        logger.info('   If you have changed it to a non stochastic algorithm, it will not be modified.')
+        logger.info('   You can set automatic_true = True to skip the prompting.')
 
         while True:
-            user_input = input("\nDo you like the plot? (y/n): ").strip().lower()
+            prompt = "   Do you like the plot? (y/n): "
+            logger.info(prompt)
+            user_input = input().strip().lower()
+            logger.info(f'   Answer: {user_input}')
             
             if user_input == 'y':
-                logger.info("Great! Enjoy your interactive PPI graph.")
+                logger.info("   Great! Enjoy your interactive PPI graph.")
                 return combined_graph_interactive
             elif user_input == 'n':
-                logger.info("Generating a new PPI graph layout and graph...")
+                logger.info("   Generating a new PPI graph layout and graph...")
                 break
             else:
-                logger.info("Invalid input. Please enter 'y' or 'n'.")
+                logger.info("   Invalid input. Please enter 'y' or 'n'.")
 
 
 ###############################################################################
