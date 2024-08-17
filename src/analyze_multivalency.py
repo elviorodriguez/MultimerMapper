@@ -414,5 +414,20 @@ def add_cluster_contribution_by_dataset(mm_output):
                 avg_Nmers_contact_matrix = np.zeros_like(avg_2mers_contact_matrix)
 
             # Add average 2/N-mer matrices to contact clusters
-            mm_output['contacts_clusters'][tuple_pair][cluster_n]['avg_2mers_contact_matrix'] = avg_2mers_contact_matrix
-            mm_output['contacts_clusters'][tuple_pair][cluster_n]['avg_Nmers_contact_matrix'] = avg_Nmers_contact_matrix
+            mm_output['contacts_clusters'][tuple_pair][cluster_n]['average_2mers_matrix'] = avg_2mers_contact_matrix
+            mm_output['contacts_clusters'][tuple_pair][cluster_n]['average_Nmers_matrix'] = avg_Nmers_contact_matrix
+
+
+# ---------------------------------------------------------------------
+# --------------------- Debugging functions ---------------------------
+# ---------------------------------------------------------------------
+
+def print_contact_clusters_number(mm_output):
+    
+    # Everything together
+    for pair in mm_output['contacts_clusters'].keys():
+  
+        # Extract the Nº of contact clusters for the pair (valency)
+        clusters = len(mm_output['contacts_clusters'][('EAF6', 'EAF6')].keys())
+        print(f'Pair {pair} interact through {clusters} modes')
+
