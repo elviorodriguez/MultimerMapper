@@ -418,9 +418,9 @@ def add_cluster_contribution_by_dataset(mm_output):
             mm_output['contacts_clusters'][tuple_pair][cluster_n]['average_Nmers_matrix'] = avg_Nmers_contact_matrix
 
 
-# ---------------------------------------------------------------------
-# --------------------- Debugging functions ---------------------------
-# ---------------------------------------------------------------------
+# --------------------------------------------------------------------------
+# ----------------------- Debugging/Helper functions -----------------------
+# --------------------------------------------------------------------------
 
 def print_contact_clusters_number(mm_output):
     
@@ -428,6 +428,22 @@ def print_contact_clusters_number(mm_output):
     for pair in mm_output['contacts_clusters'].keys():
   
         # Extract the Nº of contact clusters for the pair (valency)
-        clusters = len(mm_output['contacts_clusters'][('EAF6', 'EAF6')].keys())
+        clusters = len(mm_output['contacts_clusters'][pair].keys())
         print(f'Pair {pair} interact through {clusters} modes')
 
+
+def get_multivalent_pairs(mm_output):
+
+    multivalent_pairs: dict = {}
+
+    for pair in mm_output['contacts_clusters'].keys():
+
+        sorted_tuple_pair = tuple(sorted(pair))
+
+        # Extract the Nº of contact clusters for the pair (valency)
+        valency_number = len(mm_output['contacts_clusters'][pair].keys())
+
+        if valency_number > 1:
+            multivalent_pairs[sorted_tuple_pair] = valency_number
+    
+    return multivalent_pairs

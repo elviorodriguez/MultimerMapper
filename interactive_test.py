@@ -9,16 +9,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ################################# Test 1 ######################################
 
-fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
-AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
-AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/MM_interactive_test"
-use_names = True 
-overwrite = True
-auto_domain_detection = False
-graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# graph_resolution_preset = None
+# fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
+# AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
+# AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/MM_interactive_test"
+# use_names = True 
+# overwrite = True
+# auto_domain_detection = False
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# # graph_resolution_preset = None
 
 ##############################################################################
 
@@ -74,16 +74,16 @@ graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 
 ######################## Test 6 (multivalency detection) ######################
 
-# fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
-# AF2_2mers = "tests/multivalency_test/2-mers"
-# AF2_Nmers = "tests/multivalency_test/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/MM_multivalency_test"
-# use_names = True 
-# overwrite = True
-# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# auto_domain_detection = True
-# graph_resolution_preset = None
+fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
+AF2_2mers = "tests/multivalency_test/2-mers"
+AF2_Nmers = "tests/multivalency_test/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/MM_multivalency_test"
+use_names = True 
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+auto_domain_detection = True
+graph_resolution_preset = None
 
 ###############################################################################
 
@@ -131,6 +131,14 @@ mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
 ###############################################################################
 
 mm_output.keys()
+sorted_tuple_pair = ('RuvBL1', 'RuvBL2')
+mm_output['contacts_clusters'][sorted_tuple_pair].keys()
+
+mm_output["combined_graph"].es[0]['valency']['cluster_n']
+
+import igraph
+list(mm_output["combined_graph"].es['name'])
+igraph.plot(mm_output["combined_graph"])
 
 
 ###############################################################################
@@ -176,7 +184,47 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 ################################## TESTS ######################################
 ###############################################################################
 
+combined_graph = mm_output['combined_graph']
+
+for p, prot_ID in enumerate(combined_graph.vs['name']):
+    print(combined_graph.vs[p]['name'] == prot_ID)
+    
+
+
+
+# I have to add 'ref_PDB_model'
+['name', 'color', 'meaning', 'IDs', 'domains_df', 'RMSD_df']
+combined_graph.vertex_attributes()
+combined_graph.vs['name']
+combined_graph.vs['IDs']
+combined_graph.vs['meaning']
+combined_graph.vs['ref_PDB_model']                  # <---------------- PDB.Model.Model
+
+
+# I have to add 'valency'
+['N_mers_data', 'N_mers_info', '2_mers_data', '2_mers_info',
+ 'homooligomerization_states', 'dynamics', 'name']
+combined_graph.edge_attributes()
+combined_graph.es['name']
+combined_graph.es['dynamics']
+combined_graph.es['homooligomerization_states']
+combined_graph.es['valency']                        # <---------------- dict
+
+
+# To search ref pdb
+protein_ID = 'EAF6'
+mm_output['sliced_PAE_and_pLDDTs'][protein_ID].keys()
+mm_output['sliced_PAE_and_pLDDTs'][protein_ID]['PDB_xyz']
+mm_output['sliced_PAE_and_pLDDTs'][protein_ID]['PDB_xyz']
+
+
+###############################################################################
+################### For residue-residue contacts graph ########################
+###############################################################################
+
 tuple_pair = tuple(sorted(['EAF6', 'EAF6']))
+tuple_pair = tuple(sorted(['EAF6', 'EPL1']))
+tuple_pair = tuple(sorted(['EAF6', 'PHD1']))
 cluster_n = 0
 
 # ----------------------- Contact clusters dict -------------------------------
@@ -200,15 +248,11 @@ mm_output['contacts_clusters'][tuple_pair][cluster_n]['was_tested_in_Nmers']
 from src.analyze_multivalency import print_contact_clusters_number
 print_contact_clusters_number(mm_output)
 
+mm_output['contacts_clusters'][tuple_pair][0]
 
-# ----------------------- Contact clusters dict -------------------------------
+    
+    
 
-# Available pairs with contacts
-mm_output['pairwise_contact_matrices'].keys()
 
-# Available models for the pair
-mm_output['pairwise_contact_matrices'][tuple_pair].keys()
-model_0 = list(mm_output['pairwise_contact_matrices'][tuple_pair].keys())[0]
 
-# For each model, we have ['PAE', 'min_pLDDT', 'distance', 'is_contact'] matrices
-mm_output['pairwise_contact_matrices'][tuple_pair][model_0].keys()
+

@@ -5,13 +5,17 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from plotly.offline import plot
+from Bio import PDB
+from copy import deepcopy
+from logging import Logger
 
 from utils.logger_setup import configure_logger
 from src.analyze_homooligomers import find_homooligomerization_breaks
 from utils.oscillations import oscillate_line, oscillate_circle
-from utils.combinations import find_untested_2mers
+from utils.combinations import find_untested_2mers, get_untested_2mer_pairs, get_tested_Nmer_pairs
 from src.interpret_dynamics import read_classification_df, classify_edge_dynamics, classification_df, get_edge_color_hex, get_edge_linetype, get_edge_weight, get_edge_oscillation
 from src.coordinate_analyzer import add_domain_RMSD_against_reference
+from src.analyze_multivalency import get_multivalent_pairs
 
 # -----------------------------------------------------------------------------
 # PPI graph for 2-mers --------------------------------------------------------
@@ -434,9 +438,130 @@ def add_vertices_meaning(graph, vertex_color1='red', vertex_color2='green', vert
     
     graph.vs["meaning"] = vertex_df['meaning']
 
+def add_vertices_len_and_seq(graph, mm_output):
 
-def add_valency(graph):
-    pass
+    # Initialize empty model ref_PDB_model attribute
+    graph.vs['len'] = None
+    graph.vs['seq'] = None
+
+    for p, prot_ID in enumerate(graph.vs['name']):
+        
+        # Get index
+        prot_index = mm_output['prot_IDs'].index(prot_ID)
+
+        # Retrieve data and save it
+        graph.vs[p]['len'] = mm_output['prot_lens'][prot_index]
+        graph.vs[p]['seq'] = mm_output['prot_seqs'][prot_index]
+
+
+def add_vertices_ref_pdb_chain(graph, mm_output):
+    
+    # Initialize empty model ref_PDB_model attribute
+    graph.vs['ref_PDB_chain'] = None
+
+    for p, prot_ID in enumerate(graph.vs['name']):
+        graph.vs[p]['ref_PDB_chain'] = deepcopy(mm_output['sliced_PAE_and_pLDDTs'][prot_ID]['PDB_xyz'])
+
+
+def add_edges_valency(graph, mm_output, logger: Logger | None = None):
+
+    if logger is None:
+        logger = configure_logger()(__name__)
+
+    # # Get multivalent pairs
+    # multivalent_pairs = get_multivalent_pairs(mm_output)
+
+    # Edges to add
+    edges_to_add   = []
+    valency_to_add = []
+
+    # Get untested 2-mer and tested N-mer pairs     
+    untested_2mers_edges_tuples = get_untested_2mer_pairs(mm_output)
+    tested_Nmers_edges_tuples   = get_tested_Nmer_pairs(mm_output)
+
+    # Initialize empty valency attribute
+    graph.es['valency'] = {
+        'cluster_n' : 0,
+        'models': [],
+        'average_matrix': None,
+        'was_tested_in_2mers' : False,
+        'was_tested_in_Nmers' : False,
+        'average_2mers_matrix' : None,
+        'average_Nmers_matrix' : None,
+        }
+
+    for e, tuple_pair in enumerate(graph.es['name']):
+        
+        sorted_tuple_pair = tuple(sorted(tuple_pair))
+        
+        try:
+            mm_output['contacts_clusters'][sorted_tuple_pair].keys()
+        # Not tested pairs have no key in contact_clusters
+        except KeyError:
+
+            # This is to create empty arrays for untested pairs
+
+            edge = graph.es[e]
+            source_vertex_len = graph.vs[edge.source]['len']
+            target_vertex_len = graph.vs[edge.target]['len']
+
+            source_vertex_name = graph.vs[edge.source]['name']
+
+            if source_vertex_name == sorted_tuple_pair[0]:
+                graph.es[e]['valency']['average_matrix']       = np.zeros((source_vertex_len, target_vertex_len))
+                graph.es[e]['valency']['average_2mers_matrix'] = graph.es[e]['valency']['average_matrix'] 
+                graph.es[e]['valency']['average_Nmers_matrix'] = graph.es[e]['valency']['average_matrix'] 
+            else:
+                graph.es[e]['valency']['average_matrix']       = np.zeros((target_vertex_len, source_vertex_len))
+                graph.es[e]['valency']['average_2mers_matrix'] = graph.es[e]['valency']['average_matrix'] 
+                graph.es[e]['valency']['average_Nmers_matrix'] = graph.es[e]['valency']['average_matrix']
+            
+            graph.es[e]['valency']['was_tested_in_2mers'] = sorted_tuple_pair not in untested_2mers_edges_tuples
+            graph.es[e]['valency']['was_tested_in_Nmers'] = sorted_tuple_pair in tested_Nmers_edges_tuples
+
+            continue
+        except Exception as e:
+            logger.error( 'An unknown exception was raised during the addition of valency to combined PPI graph:')
+            logger.error(f'   - Error: {e}')
+            logger.error(f'   - tuple_pair that caused the exception: {tuple_pair}')
+            logger.error( '   - MultimerMapper will continue...')
+            logger.error( '   - Results may be unreliable or it will crash later...')
+            continue
+        
+        for contact_cluster_n in mm_output['contacts_clusters'][sorted_tuple_pair].keys():
+            
+            if contact_cluster_n > 0:
+
+                edges_to_add.append(e)
+                mm_output['contacts_clusters'][sorted_tuple_pair][contact_cluster_n]['cluster_n'] = contact_cluster_n
+                valency_to_add.append(mm_output['contacts_clusters'][sorted_tuple_pair][contact_cluster_n])
+
+            else:
+                # Add valency and cluster number data
+                graph.es[e]['valency'] = mm_output['contacts_clusters'][sorted_tuple_pair][contact_cluster_n]
+                graph.es[e]['valency']['cluster_n'] = contact_cluster_n
+        
+    # Add multivalent edges
+    for i, e in enumerate(edges_to_add):
+
+        edge_to_duplicate = graph.es[e]
+
+        # Get the source and target vertices of the edge
+        source, target = edge_to_duplicate.tuple
+
+        # Get the current attributes of the edge
+        current_attributes = edge_to_duplicate.attributes()
+
+        # Create a new edge
+        new_edge = graph.add_edge(source, target)
+
+        # Modify the attributes as needed
+        modified_attributes = deepcopy(current_attributes)
+        modified_attributes['valency'] = valency_to_add[i]
+
+        # Set the attributes for the new edge
+        for attr, value in modified_attributes.items():
+            new_edge[attr] = value
 
 
 # Combine 2-mers and N-mers graphs
@@ -529,7 +654,7 @@ def generate_combined_graph(
     edges_gC_sort = [tuple(sorted(edge)) for edge in edges_gC]
     
     # ----------------------------------------------------------------------------------------
-    # --------------------- Add vertex colors & meaning of the color -------------------------
+    # ------------------------ Add vertex colors & meaning of the color ----------------------
     # ----------------------------------------------------------------------------------------
 
     # Create empty df to store dynamic proteins
@@ -578,7 +703,6 @@ def generate_combined_graph(
     graphC.vs['color'] = vertex_colors
     add_vertices_meaning(graphC, vertex_color1, vertex_color2, vertex_color3, vertex_color_both)
 
-
     # ----------------------------------------------------------------------------------------
     # -------------- Add 2/N-mers data, homooligomeric states, RMSD, etc ---------------------
     # ----------------------------------------------------------------------------------------
@@ -615,8 +739,18 @@ def generate_combined_graph(
                 edge["homooligomerization_states"] = homooligomerization_states[source_name]
 
     
-    # # Add valency
-    # add_valency(graphC)
+    # Add vertices IDs, len, seq, PDB chain and domain RMSD
+    add_vertices_IDs(graphC, prot_IDs, prot_names)
+    add_vertices_len_and_seq(graphC, mm_output)
+    add_vertices_ref_pdb_chain(graphC, mm_output)
+    add_domain_RMSD_against_reference(graphC, domains_df, sliced_PAE_and_pLDDTs,pairwise_2mers_df, pairwise_Nmers_df,
+                                      domain_RMSD_plddt_cutoff, trimming_RMSD_plddt_cutoff, logger = logger)
+    
+    # Add edges "name"
+    graphC.es["name"] = [(graphC.vs["name"][tuple_edge[0]], graphC.vs["name"][tuple_edge[1]]) for tuple_edge in graphC.get_edgelist()]
+    
+    # Add valency
+    add_edges_valency(graphC, mm_output)
                 
     # Add data to the combined graph to allow hovertext display later
     add_edges_data(graphC, pairwise_2mers_df, pairwise_Nmers_df,
@@ -627,12 +761,7 @@ def generate_combined_graph(
                    # N-mers cutoffs
                    min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
                    pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers)
-    
-    add_vertices_IDs(graphC, prot_IDs, prot_names)
 
-    add_domain_RMSD_against_reference(graphC, domains_df, sliced_PAE_and_pLDDTs,pairwise_2mers_df, pairwise_Nmers_df,
-                                      domain_RMSD_plddt_cutoff, trimming_RMSD_plddt_cutoff, logger = logger)
-    
     add_homooligomerization_state(graphC,
                                   pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
                                   pairwise_Nmers_df = pairwise_Nmers_df,
@@ -690,10 +819,6 @@ def generate_combined_graph(
         N_models_cutoff = N_models_cutoff,
         # For RMSD calculations
         domain_RMSD_plddt_cutoff = domain_RMSD_plddt_cutoff, trimming_RMSD_plddt_cutoff = trimming_RMSD_plddt_cutoff)
-    
-
-    # Add edges "name"
-    graphC.es["name"] = [(graphC.vs["name"][tuple_edge[0]], graphC.vs["name"][tuple_edge[1]]) for tuple_edge in graphC.get_edgelist()]
     
     
     return graphC, dynamic_proteins
@@ -888,7 +1013,6 @@ def igraph_to_plotly(
     default_edge_width = edge_width
 
     # DeepCopy the graph to avoid affecting the original
-    from copy import deepcopy
     graph = deepcopy(graph)
 
     # Remove indirect interactions or other type of interaction?
