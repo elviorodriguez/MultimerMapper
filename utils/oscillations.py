@@ -135,3 +135,73 @@ def oscillate_circle(reference_point: np.array,
 
 # plt.legend()
 # plt.show()
+
+# ########################################################################
+# ###################### Parabolas and oscillation #######################
+# ########################################################################
+
+
+def generate_parabolic_points(start, end, valency, resolution=200):
+    # Determine direction based on valency (odd: positive, even: negative)
+    direction = 1 if valency % 2 != 0 else -1
+    
+    # Calculate the maximum shift based on valency
+    max_shift = (valency + 1) // 2 * direction * 0.1  # Adjust 0.1 to change the curve intensity
+    
+    # Generate t values from 0 to 1
+    t = np.linspace(0, 1, resolution)
+    
+    # Calculate the midpoint
+    mid = (start + end) / 2
+    
+    # Calculate the perpendicular vector
+    perp = np.array([-(end[1] - start[1]), end[0] - start[0]])
+    perp = perp / np.linalg.norm(perp)
+    
+    # Generate points along the parabola
+    points = (1-t)[:, np.newaxis] * start + t[:, np.newaxis] * end + \
+             (4 * max_shift * t * (1-t))[:, np.newaxis] * perp
+    
+    return points
+
+
+
+def generate_oscillating_parabolic_points(start_point, end_point, valency, 
+                                          amplitude=0.02, frequency=8, resolution=200):
+    # Determine direction based on valency (odd: positive, even: negative)
+    direction = 1 if valency % 2 != 0 else -1
+    
+    # Calculate the maximum shift based on valency
+    max_shift = (valency + 1) // 2 * direction * 0.1  # Adjust 0.1 to change the curve intensity
+    
+    # Generate t values from 0 to 1
+    t = np.linspace(0, 1, resolution)
+    
+    # Calculate the midpoint
+    mid = (start_point + end_point) / 2
+    
+    # Calculate the perpendicular vector
+    perp = np.array([-(end_point[1] - start_point[1]), end_point[0] - start_point[0]])
+    perp = perp / np.linalg.norm(perp)
+    
+    # Generate points along the parabola
+    points = (1-t)[:, np.newaxis] * start_point + t[:, np.newaxis] * end_point + \
+             (4 * max_shift * t * (1-t))[:, np.newaxis] * perp
+    
+    # Calculate the length of the parabolic curve
+    lengths = np.cumsum(np.sqrt(np.sum(np.diff(points, axis=0)**2, axis=1)))
+    total_length = lengths[-1]
+    
+    # Generate oscillation
+    oscillation = amplitude * np.sin(frequency * np.linspace(0, 4 * np.pi, resolution))
+    
+    # Calculate tangent and normal vectors along the curve
+    tangents = np.diff(points, axis=0)
+    tangents = np.vstack([tangents, tangents[-1]])  # Repeat last tangent for consistency
+    tangents = tangents / np.linalg.norm(tangents, axis=1)[:, np.newaxis]
+    normals = np.array([-tangents[:, 1], tangents[:, 0]]).T
+    
+    # Apply oscillation perpendicular to the curve
+    oscillated_points = points + (oscillation[:, np.newaxis] * normals)
+    
+    return oscillated_points[:, 0], oscillated_points[:, 1]

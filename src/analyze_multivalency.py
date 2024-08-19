@@ -447,3 +447,21 @@ def get_multivalent_pairs(mm_output):
             multivalent_pairs[sorted_tuple_pair] = valency_number
     
     return multivalent_pairs
+
+
+
+
+# --------------------------------------------------------------------------
+# ------------------------ Find multivalency states ------------------------
+# --------------------------------------------------------------------------
+
+
+def find_multivalency_breaks(mm_output):
+
+    multivalent_pairs = get_multivalent_pairs(mm_output)
+    
+    pass
+
+def add_multivalency_state(graph, mm_output):
+
+    pass

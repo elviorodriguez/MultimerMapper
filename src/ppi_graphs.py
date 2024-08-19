@@ -11,11 +11,11 @@ from logging import Logger
 
 from utils.logger_setup import configure_logger
 from src.analyze_homooligomers import find_homooligomerization_breaks
-from utils.oscillations import oscillate_line, oscillate_circle
+from utils.oscillations import oscillate_line, oscillate_circle, generate_parabolic_points, generate_oscillating_parabolic_points
 from utils.combinations import find_untested_2mers, get_untested_2mer_pairs, get_tested_Nmer_pairs
 from src.interpret_dynamics import read_classification_df, classify_edge_dynamics, classification_df, get_edge_color_hex, get_edge_linetype, get_edge_weight, get_edge_oscillation
 from src.coordinate_analyzer import add_domain_RMSD_against_reference
-from src.analyze_multivalency import get_multivalent_pairs
+from src.analyze_multivalency import add_multivalency_state
 
 # -----------------------------------------------------------------------------
 # PPI graph for 2-mers --------------------------------------------------------
@@ -749,6 +749,8 @@ def generate_combined_graph(
     # Add edges "name"
     graphC.es["name"] = [(graphC.vs["name"][tuple_edge[0]], graphC.vs["name"][tuple_edge[1]]) for tuple_edge in graphC.get_edgelist()]
     
+
+
     # Add valency
     add_edges_valency(graphC, mm_output)
                 
@@ -769,6 +771,8 @@ def generate_combined_graph(
                                   min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
                                   pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
                                   N_models_cutoff = N_models_cutoff)
+    
+    add_multivalency_state(graphC, mm_output)
     
 
     # ----------------------------------------------------------------------------------------
@@ -873,6 +877,9 @@ def format_homooligomerization_states(homooligomerization_states, logger):
     
     return formatted_N_states.rstrip("|")
         
+def format_multivalency_states(multivalency_states, logger):
+    pass
+
 
 # Generate a layout (using only static edges)
 def generate_layout_for_combined_graph(
@@ -1047,6 +1054,7 @@ def igraph_to_plotly(
             edge_linetype   = get_edge_linetype(edge, classification_df)
             edge_weight     = get_edge_weight(edge, classification_df)
             edge_oscillates = get_edge_oscillation(edge, classification_df)
+            edge_valency    = edge['valency']['cluster_n']
         
         except:
             # Use default values by now
@@ -1062,6 +1070,11 @@ def igraph_to_plotly(
             resolution = 200 # (number of points)
             theta = np.linspace(0, 2*np.pi, resolution)
             radius = self_loop_size
+
+            # If edge is multivalent, increase the circle radius proportionally to the valency number
+            if edge_valency > 0:
+                # 20 % increase of the radius for each valency point increase
+                radius = radius * (1 + edge_valency * 0.2)
             
             # Adjust the position of the circle
             circle_x = pos[edge.source][0] + radius * np.cos(theta)
@@ -1124,39 +1137,63 @@ def igraph_to_plotly(
             )
 
             # ------------- Add homooligomerization state data -----------------------
+            
+            # Add it only once
+            if edge_valency == 0:
 
-            # Calculate the center of the circle (this is to add text in the middle)
-            circle_center_x = np.mean(circle_x)
-            circle_center_y = np.mean(circle_y)
-            formatted_N_states = format_homooligomerization_states(edge["homooligomerization_states"], logger = logger)
+                # Calculate the center of the circle (this is to add text in the middle)
+                circle_center_x = np.mean(circle_x)
+                circle_center_y = np.mean(circle_y)
+                formatted_N_states = format_homooligomerization_states(edge["homooligomerization_states"], logger = logger)
 
-            # Add text in the center with homooligomerization state info
-            text_trace = go.Scatter(
-                x=[circle_center_x],
-                y=[circle_center_y],
-                mode='text',
-                text=[formatted_N_states],
-                textposition="middle center",
-                hoverinfo='none',
-                showlegend=False
-            )
+                # Add text in the center with homooligomerization state info
+                text_trace = go.Scatter(
+                    x=[circle_center_x],
+                    y=[circle_center_y],
+                    mode='text',
+                    text=[formatted_N_states],
+                    textposition="middle center",
+                    hoverinfo='none',
+                    showlegend=False
+                )
 
-            # add text trace
-            edge_traces.append(text_trace)
+                # add text trace
+                edge_traces.append(text_trace)
 
         # ----------------- Draw a line for heteromeric edges ----------------------
         else:
+            start_point = np.array(pos[edge.source])
+            end_point   = np.array(pos[edge.target])
             
-            # Generate additional points along the edge
-            resolution = 200
-            intermediate_x = np.linspace(pos[edge.source][0], pos[edge.target][0], resolution + 2)
-            intermediate_y = np.linspace(pos[edge.source][1], pos[edge.target][1], resolution + 2)
+            
+            # Generate straight line for valency 0
+            if edge_valency == 0:
+                resolution = 200
+                intermediate_x = np.linspace(start_point[0], end_point[0], resolution)
+                intermediate_y = np.linspace(start_point[1], end_point[1], resolution)
+            
+            # Curve the line if it comes from a multivalent interaction
+            else:
+                points = generate_parabolic_points(start_point, end_point, edge_valency)
+                intermediate_x, intermediate_y = points[:, 0], points[:, 1]
 
+            # Add oscillations?
             if edge_oscillates:
-                oscillated_x, oscillated_y = oscillate_line(start_point = pos[edge.source],
-                                                            end_point   = pos[edge.target],
-                                                            amplitude = oscillation_amplitude,
-                                                            frequency = oscillation_lines_frequency)
+                
+                # For monovalent (lines)
+                if edge_valency == 0:
+                    oscillated_x, oscillated_y = oscillate_line(start_point = pos[edge.source],
+                                                                end_point   = pos[edge.target],
+                                                                amplitude = oscillation_amplitude,
+                                                                frequency = oscillation_lines_frequency)
+                # For multivalent  (parabolas)
+                else:
+                    oscillated_x, oscillated_y = generate_oscillating_parabolic_points(
+                                    start_point, end_point, edge_valency,
+                                    amplitude  = oscillation_amplitude,
+                                    frequency  = oscillation_lines_frequency,
+                                    resolution = 200
+                                )                    
                 
                 # Add the oscillated edge trace
                 oscillated_edge_trace = go.Scatter(
@@ -1187,6 +1224,10 @@ def igraph_to_plotly(
                 hoverlabel  = dict(font=dict(family='Courier New', size=hovertext_size)),
                 showlegend  = False
             )
+
+            # Add multivalency state for multivalent pairs only for multivalent state 1
+            if edge_valency == 1:
+                pass
         
         # Add traces
         edge_traces.append(edge_trace)
