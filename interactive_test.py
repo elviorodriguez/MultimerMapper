@@ -200,7 +200,7 @@ combined_graph.vertex_attributes()
 combined_graph.vs['name']
 combined_graph.vs['IDs']
 combined_graph.vs['meaning']
-combined_graph.vs['ref_PDB_model']                  # <---------------- PDB.Model.Model
+combined_graph.vs[0]['ref_PDB_chain']               # <---------------- PDB.Model.Model
 
 
 # I have to add 'valency'
