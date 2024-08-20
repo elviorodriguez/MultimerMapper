@@ -16,3 +16,13 @@ again the pipeline from the command line after saving).
 
 # # Example custom cfg. Uncomment below line to reduce verbosity
 # log_level: str = "warn"
+
+
+# remove_interactions_from_ppi_graph
+remove_interactions_from_ppi_graph = ("Indirect", "No 2-mers Data")
+
+# auto_domain_detection
+auto_domain_detection = True
+
+# self_loop_size (radius)
+self_loop_size = 6

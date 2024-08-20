@@ -10,7 +10,10 @@ from utils.logger_setup import configure_logger
 # -------------------------------------------------------------------------------------
 
 def read_classification_df(path: str = "cfg/interaction_classification.tsv"):
-    classification_df = pd.read_csv(path, sep= "\t")
+
+    from __main__ import mm_path
+
+    classification_df = pd.read_csv(mm_path + '/' + path, sep= "\t")
     return classification_df
 
 classification_df = read_classification_df()

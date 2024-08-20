@@ -642,6 +642,7 @@ def generate_combined_graph(
     edges_g2_sort = sorted([tuple(sorted(t)) for t in edges_g2], key=lambda x: x[0])
     # Get untested 2-mers combinations
     untested_edges_tuples = sorted(list(find_untested_2mers(prot_IDs = prot_IDs, pairwise_2mers_df = pairwise_2mers_df)), key=lambda x: x[0])
+    proteins_with_untested_edges = {item for tup in untested_edges_tuples for item in tup}
         
     # Make a combined edges set
     edges_comb = sorted(list(set(edges_g1_sort + edges_g2_sort + untested_edges_tuples)), key=lambda x: x[0])
@@ -696,9 +697,17 @@ def generate_combined_graph(
                                                         "only_in": ["Nmers"]})
                                           ], ignore_index = True)
         
+        # For untested nodes
+        elif (v not in graph1.vs["name"] and v not in graph2.vs["name"]) and v in proteins_with_untested_edges:
+             logger.warning(f'Protein {v} is not present in both 2-mers and N-mers PPI graph and is involved in an untested edge. Classifying as untested...')
+             vertex_colors.append("#e69f00")
+
         # This if something happens
         else:
-            raise ValueError("For some reason a node that comes from the graphs to compare is not in either graphs...")
+            logger.error('For some reason the node {v} is not in either graphs and also is not involved in an untested edge...')
+            logger.error('   The node {v} will be classified as unknown (red color).')
+            logger.error('   MultimerMapper will continue anyways. Results might be unreliable or it might crash later...')
+            vertex_colors.append("red")
         
     graphC.vs['color'] = vertex_colors
     add_vertices_meaning(graphC, vertex_color1, vertex_color2, vertex_color3, vertex_color_both)

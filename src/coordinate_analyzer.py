@@ -386,20 +386,30 @@ def calculate_weighted_rmsd(coords1, coords2, weights):
     return np.sqrt(np.sum(weighted_diff_sq) / np.sum(weights))
 
 
-def determine_num_clusters(data_matrix, method='silhouette'):
+def determine_num_clusters(data_matrix, method='silhouette', logger: Logger | None = None):
+
     if method == 'silhouette':
+
         silhouette_scores = []
         max_clusters = min(len(data_matrix), 10)
+
         for k in range(2, max_clusters + 1):
-            kmeans = KMeans(n_clusters=k, random_state=42, n_init = "auto")
-            cluster_labels = kmeans.fit_predict(data_matrix)
-            silhouette_avg = silhouette_score(data_matrix, cluster_labels)
-            silhouette_scores.append(silhouette_avg)
+            try:
+                kmeans = KMeans(n_clusters=k, random_state=42, n_init = "auto")
+                cluster_labels = kmeans.fit_predict(data_matrix)
+                silhouette_avg = silhouette_score(data_matrix, cluster_labels)
+                silhouette_scores.append(silhouette_avg)
+            except Exception as e:
+                logger.warn(f"   k-means pLDDT clustering with {k} clusters caused an error: {str(e)}")
+                logger.warn(f"   Assigning silhouette score of 0 for k={k}")
+                silhouette_scores.append(0)
+
         optimal_clusters = silhouette_scores.index(max(silhouette_scores)) + 2
+
         return optimal_clusters
 
     else:
-        raise ValueError("Unsupported method. Use 'silhouette' or 'gap'.")
+        raise ValueError("Unsupported method. Use 'silhouette'.")
 
 def cluster_curves(curve_lists, domains_df: pd.DataFrame | None = None,
                    num_clusters=None, method='interactive',
@@ -408,7 +418,8 @@ def cluster_curves(curve_lists, domains_df: pd.DataFrame | None = None,
                    plot_width_factor: float | int = 0.05,
                    plot_height: float | int = 10,
                    fontsize: int = 30,
-                   show_plot: bool = False):
+                   show_plot: bool = False,
+                   logger: Logger | None = None):
     """
     Clusters curves based on similarity.
 
@@ -424,6 +435,9 @@ def cluster_curves(curve_lists, domains_df: pd.DataFrame | None = None,
     Returns:
         List[int]: Cluster assignments for each curve.
     """
+    if logger is None:
+        logger = configure_logger()(__name__)
+
     data_matrix = np.vstack(curve_lists)
 
     if num_clusters is None:
@@ -444,7 +458,7 @@ def cluster_curves(curve_lists, domains_df: pd.DataFrame | None = None,
             num_clusters = int(input("Enter the number of clusters (K): "))
 
         elif method in ['silhouette']:
-            num_clusters = determine_num_clusters(data_matrix, method)
+            num_clusters = determine_num_clusters(data_matrix, method, logger = logger)
 
     kmeans = KMeans(n_clusters=num_clusters, random_state=42, n_init = 'auto')
     cluster_assignments = kmeans.fit_predict(data_matrix)
@@ -892,7 +906,8 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                                        x_label = "Position",
                                        protein_ID = protein_ID,
                                        filename = plddt_clusters_filename,
-                                       show_plot = False)
+                                       show_plot = False,
+                                       logger = logger)
     
     # Save pLDDT clusters metadata
     plddt_clust_df_cols = ['Cluster', 'Type', 'Is_chain', 'Rank', 'Model', 'Representative_Partner']
