@@ -179,10 +179,13 @@ contact_pLDDT_cutoff   : float | int = 60
 # ----------------------------------------------------------------------------
 
 # Silhouette threshold to surpass in order to consider multivalent interaction
-multivalency_silhouette_threshold = 0.3
+multivalency_silhouette_threshold: float = 0.3
+
+# Contacts must be less similar than this to be considered separate clusters (0 to 1)
+multivalency_contact_similarity_threshold: float = 0.7
 
 # Maximum valency to test (max_contact_clusters modes of interactions)
-max_contact_clusters = 5
+max_contact_clusters: int = 5
 
 # Save/display the contact clusters with PCA plots?
 display_contact_clusters = True

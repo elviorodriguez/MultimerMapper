@@ -17,6 +17,8 @@ again the pipeline from the command line after saving).
 # # Example custom cfg. Uncomment below line to reduce verbosity
 # log_level: str = "warn"
 
+# show_PAE_along_backbone
+show_PAE_along_backbone = False
 
 # remove_interactions_from_ppi_graph
 remove_interactions_from_ppi_graph = ("Indirect", "No 2-mers Data")

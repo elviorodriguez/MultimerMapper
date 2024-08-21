@@ -70,7 +70,9 @@ def create_feature_vector(matrices):
         features.extend(matrices[matrix_type].flatten())
     return np.array(features)
 
-def cluster_models(all_pair_matrices, pair, max_clusters=5, silhouette_threshold=0.25,
+def cluster_models(all_pair_matrices, pair, max_clusters=5,
+                   silhouette_threshold=0.25,
+                   contact_similarity_threshold = 0.7,
                    logger: Logger | None = None):
     """
     Clusters models based on their feature vectors using Agglomerative Clustering.
@@ -93,6 +95,7 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5, silhouette_threshold
     logger.info("   Preprocessing inter-chain PAE, minimum-pLDDT, distogram and contacts...")
 
     valid_models = preprocess_matrices(all_pair_matrices, pair)
+    valid_models_keys = list(valid_models.keys())
     
     if len(valid_models) == 0:
         logger.warn(f"   No valid models found for pair {pair}")
@@ -147,12 +150,46 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5, silhouette_threshold
                 logger.info(f"   Agglomerative Clustering with {n_clusters} clusters: skipped due to insufficient data shape.")
         except Exception as e:
             logger.warn(f"   Agglomerative Clustering with {n_clusters} clusters caused an error: {str(e)}")
-    
+
+    # Compute the boolean contact matrices for each cluster to compare them
+    bool_contacts_matrices_per_cluster = []
+    for cluster in set(best_labels):
+        cluster_models = [model for model, label in zip(valid_models_keys, best_labels) if label == cluster]
+        cluster_bool_contact_matrix = np.mean([all_pair_matrices[pair][model]['is_contact'] for model in cluster_models], axis=0) > 0
+        bool_contacts_matrices_per_cluster.append(cluster_bool_contact_matrix)
+
+    bool_matrices_stack = np.array([matrix.flatten() for matrix in bool_contacts_matrices_per_cluster])
+    active_positions_mask = np.any(bool_matrices_stack, axis=0)
+    filtered_bool_matrices = bool_matrices_stack[:, active_positions_mask]
+
+    # Compute similarity based on intersection-over-union (IoU) for each pair of clusters
+    num_clusters = len(filtered_bool_matrices)
+    similarity_matrix = np.zeros((num_clusters, num_clusters))
+    for i in range(num_clusters):
+        for j in range(i + 1, num_clusters):
+            intersection = np.sum(np.logical_and(filtered_bool_matrices[i], filtered_bool_matrices[j]))
+            union = np.sum(np.logical_or(filtered_bool_matrices[i], filtered_bool_matrices[j]))
+            similarity = intersection / union if union > 0 else 0
+            similarity_matrix[i, j] = similarity
+            similarity_matrix[j, i] = similarity
+
+    logger.info(f"   Contacts similarity matrix between best clusters:\n{similarity_matrix}")
+
+    too_similar = np.any(similarity_matrix > contact_similarity_threshold)
+
     # If best silhouette score is below the threshold, consider it as a single cluster
     if best_silhouette < silhouette_threshold:
         logger.info(f"   Silhouette score {best_silhouette} is below the threshold {silhouette_threshold}. Considering as a single cluster.")
         best_n_clusters = 1
         best_labels = [0] * len(valid_models)
+    
+    # If best silhouette score produce too similar contacts, consider it as a single cluster
+    elif too_similar:
+        logger.info(f"   Contacts are too similar (more than {contact_similarity_threshold * 100}% shared contacts). Considering as a single cluster.")
+        best_n_clusters = 1
+        best_labels = [0] * len(valid_models)
+    
+    # Consider the best_n_clusters as the number of contact cluster (valency)
     else:
         logger.info(f"   Silhouette score {best_silhouette} is above the threshold {silhouette_threshold}. Considering {best_n_clusters} cluster")
     
@@ -291,7 +328,8 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
 
 
 
-def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5, silhouette_threshold=0.25,
+def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
+                          silhouette_threshold=0.25, contact_similarity_threshold = 0.7,
                           show_plot = True, save_plot = True, logger: Logger | None= None):
     """
     Clusters the models and visualizes the resulting clusters for a given protein pair.
@@ -309,6 +347,7 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5, si
     model_keys, labels, reduced_features, explained_variance = cluster_models(all_pair_matrices, pair,
                                                                               max_clusters         = max_clusters,
                                                                               silhouette_threshold = silhouette_threshold,
+                                                                              contact_similarity_threshold = contact_similarity_threshold,
                                                                               logger               = logger)
     if labels is not None:
         return visualize_clusters(all_pair_matrices  = all_pair_matrices,
@@ -331,7 +370,8 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5, si
 #     cluster_and_visualize(all_pair_matrices, pair)
 
 
-def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5, silhouette_threshold=0.25,
+def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5,
+                      silhouette_threshold=0.25, contact_similarity_threshold = 0.7,
                       show_plot = True, save_plot = True, log_level = 'info'):
     """
     Clusters and visualizes all protein pairs in the given dictionary.
@@ -358,6 +398,7 @@ def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5, silhouette_thresho
                                              max_clusters = max_clusters,
                                              # Parameter to optimize
                                              silhouette_threshold = silhouette_threshold,
+                                             contact_similarity_threshold = contact_similarity_threshold,
                                              show_plot = show_plot,
                                              save_plot = save_plot,
                                              logger    = logger)
