@@ -61,12 +61,12 @@ def preprocess_matrices(all_pair_matrices, pair):
             valid_models[model] = matrices
     return valid_models
 
-def create_feature_vector(matrices):
+def create_feature_vector(matrices, types_of_matrices_to_use = ['is_contact', 'PAE', 'min_pLDDT', 'distance']):
     '''
     Transforms the output matrices from mm_contacts into feature vectors, which are numerical representations suitable for clustering.
     '''
     features = []
-    for matrix_type in ['is_contact', 'PAE', 'min_pLDDT', 'distance']:
+    for matrix_type in types_of_matrices_to_use:
         features.extend(matrices[matrix_type].flatten())
     return np.array(features)
 
@@ -153,7 +153,7 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
 
     # Compute the boolean contact matrices for each cluster to compare them
     bool_contacts_matrices_per_cluster = []
-    for cluster in set(best_labels):
+    for cluster in range(len(set(best_labels))):
         cluster_models = [model for model, label in zip(valid_models_keys, best_labels) if label == cluster]
         cluster_bool_contact_matrix = np.mean([all_pair_matrices[pair][model]['is_contact'] for model in cluster_models], axis=0) > 0
         bool_contacts_matrices_per_cluster.append(cluster_bool_contact_matrix)
@@ -185,9 +185,49 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
     
     # If best silhouette score produce too similar contacts, consider it as a single cluster
     elif too_similar:
-        logger.info(f"   Contacts are too similar (more than {contact_similarity_threshold * 100}% shared contacts). Considering as a single cluster.")
-        best_n_clusters = 1
-        best_labels = [0] * len(valid_models)
+        logger.info(f"   There are contact clusters that are too similar (more than {contact_similarity_threshold * 100}% shared contacts)")
+
+        # Create a dictionary to store which clusters should be merged
+        merge_groups = {}
+        for i in range(num_clusters):
+            for j in range(i + 1, num_clusters):
+                if similarity_matrix[i, j] > contact_similarity_threshold:
+                    logger.info(f"   Merging clusters {i} and {j} due to similarity of {round(similarity_matrix[i, j]*100)}%")
+                    min_label = min(i, j)
+                    max_label = max(i, j)
+                    if min_label not in merge_groups:
+                        merge_groups[min_label] = set()
+                    merge_groups[min_label].add(max_label)
+
+        # Create a mapping from old labels to new labels
+        label_mapping = {}
+        for i in range(num_clusters):
+            if i in merge_groups:
+                label_mapping[i] = i
+                for j in merge_groups[i]:
+                    label_mapping[j] = i
+            elif i not in label_mapping:
+                label_mapping[i] = i
+
+        # Apply the mapping to get the final labels
+        final_labels = [label_mapping[label] for label in best_labels]
+        
+        # Reassign labels to be consecutive integers starting from 0
+        unique_labels = sorted(set(final_labels))
+        label_mapping = {old: new for new, old in enumerate(unique_labels)}
+        final_labels = [label_mapping[label] for label in final_labels]
+        
+        final_n_clusters = len(set(final_labels))
+
+        # Log the final number of clusters and their status
+        if final_n_clusters < best_n_clusters:
+            logger.info(f"   Reduced the number of clusters from {best_n_clusters} to {final_n_clusters} after merging similar clusters.")
+        else:
+            logger.info(f"   Number of clusters retained: {final_n_clusters}")
+
+        best_labels = final_labels
+        best_n_clusters = final_n_clusters
+        print(f"BEST LABELS: {best_labels}")
     
     # Consider the best_n_clusters as the number of contact cluster (valency)
     else:

@@ -70,3 +70,6 @@ def configure_logger(out_path = ".", log_level: str = "info", clear_root_handler
     return logging.getLogger
 
 
+default_error_msgs = { 0: '   - MultimerMapper will continue anyways...',
+                       1: '   - Results may be unreliable or the program will crash later...'
+}

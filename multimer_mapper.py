@@ -422,6 +422,9 @@ if __name__ == "__main__":
     parser.add_argument('--AF2_Nmers', type = str, default = None,
         help='Path to the directory containing AF2 Nmers PDB files')
     
+    parser.add_argument('--N_value', type = int, default = 4,
+        help='Current value of N (Only 2-mers => N=2 | 2+3-mers => N=3 | 2+3+4-mers => N=4 | ...). This is to suggest combinations.')
+    
     parser.add_argument('--out_path', type = str, default = None,
         help='Output directory to store results')
     
@@ -435,7 +438,7 @@ if __name__ == "__main__":
         help='If exists, overwrites the existent folder')
     
     parser.add_argument('--reduce_verbosity', action='store_true',
-        help='Changes logging level from INFO to WARNING')
+        help='Changes logging level from INFO to WARNING (only displays warnings and errors)')
     
     # --------------------------------------------------------------------------
     # --------------------- Command line arguments parsing ---------------------
@@ -445,13 +448,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Depackage arguments
-    use_names = args.use_names
-    fasta_file = args.fasta_file
-    AF2_2mers = args.AF2_2mers
-    AF2_Nmers = args.AF2_Nmers
-    out_path = args.out_path
-    overwrite = args.overwrite
-    manual_domains = args.manual_domains
+    use_names       = args.use_names
+    fasta_file      = args.fasta_file
+    AF2_2mers       = args.AF2_2mers
+    AF2_Nmers       = args.AF2_Nmers
+    out_path        = args.out_path
+    overwrite       = args.overwrite
+    manual_domains  = args.manual_domains
+    N_value         = args.N_value
     if args.reduce_verbosity:
         log_level = 'warn'
     else:
@@ -478,9 +482,14 @@ if __name__ == "__main__":
                                                                 out_path = out_path,
                                                                 log_level = log_level)
     
+    
+    
     # Generate suggested combinations files
-    sug_combs = suggest_combinations(mm_output = mm_output, out_path = out_path)
+    sug_combs = suggest_combinations(mm_output = mm_output,
+                                     out_path = out_path,
+                                     log_level = log_level,
+                                     max_N = N_value + 1)
     
     # Progress
-    logger = configure_logger(out_path = out_path)(__name__)
+    logger = configure_logger(out_path = out_path, log_level = log_level)(__name__)
     logger.info("MultimerMapper pipeline completed! Enjoy exploring your interactions!")

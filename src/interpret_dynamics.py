@@ -11,7 +11,7 @@ from utils.logger_setup import configure_logger
 
 def read_classification_df(path: str = "cfg/interaction_classification.tsv"):
 
-    from __main__ import mm_path
+    from multimer_mapper import mm_path
 
     classification_df = pd.read_csv(mm_path + '/' + path, sep= "\t")
     return classification_df
@@ -135,7 +135,7 @@ def find_rows_that_contains_interval(df, interval_name, lambda_val):
 def classify_edge_dynamics(tuple_edge: tuple,
                            
                            # Combined Graph
-                           graph_Comb: igraph.Graph,
+                           true_edge: igraph.Edge,
 
                            # Cutoff
                            N_models_cutoff: int,
@@ -154,8 +154,8 @@ def classify_edge_dynamics(tuple_edge: tuple,
     if logger == None:
         logger = configure_logger()(__name__)
 
-    # True edge (The one passed is a tuple with the names of the proteins)
-    true_edge = find_edge_by_vertex_attributes(graph_Comb, 'name', tuple_edge[0], tuple_edge[1])
+    # # True edge (The one passed is a tuple with the names of the proteins)
+    # true_edge = find_edge_by_vertex_attributes(graph_Comb, 'name', tuple_edge[0], tuple_edge[1])
     
     # Get parameters for classification
     is_present_in_2mers = tuple_edge in sorted_edges_2mers_graph
@@ -255,7 +255,12 @@ def classify_edge_dynamics(tuple_edge: tuple,
         logger.error(f"Something went wrong with dynamics classification of edge: {tuple_edge}")
         logger.error(f"  - Edge: {true_edge}")
         logger.error(f"  - Filtered classification_df (e_dynamics_rows:\n{e_dynamics_rows}")
-        raise ValueError()
+        logger.error( "  - MultimerMapper will continue...")
+        e_dynamics = "ERROR"
+        logger.error(f"  - Edge dynamics will be classified as {e_dynamics}")
+        logger.error( "  - Results may be unreliable or the program may crash later...")
+        return e_dynamics
+
 
 
 # -------------------------------------------------------------------------------------

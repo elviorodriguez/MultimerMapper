@@ -186,12 +186,20 @@ def find_homooligomerization_breaks(pairwise_2mers_df_F3, pairwise_Nmers_df,
             # return homooligomerization_states
 
         else:
-            logger.error(f"Unknown KeyError encountered: {e}")
-            raise
+            logger.error( "Unknown KeyError encountered inside find_homooligomerization_breaks")
+            logger.error(f"   - KeyError encountered: {e}")
+            logger.error( "   - pairwise_Nmers_df was expecting to be empty:")
+            logger.error(f"   - pairwise_Nmers_df content:n\ {pairwise_Nmers_df}")
+            logger.error( '   - MultimerMapper will continue...')
+            logger.error( '   - Results may be unreliable or it will crash later...')
 
     except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}")
-        raise
+        logger.error(f"An unexpected error occurred inside find_homooligomerization_breaks:")
+        logger.error(f"   - Error: {e}")
+        logger.error( "   - get_homo_N_mers_pairwise_df() failed analyzing pairwise_Nmers_df")
+        logger.error(f"   - pairwise_Nmers_df content:n\ {pairwise_Nmers_df}")
+        logger.error( '   - MultimerMapper will continue anyways...')
+        logger.error( '   - Results may be unreliable or the program will crash later...')
            
     for protein in homodim_prots:
         
@@ -236,6 +244,12 @@ def find_homooligomerization_breaks(pairwise_2mers_df_F3, pairwise_Nmers_df,
             
             # Add if it surpass cutoff to N_states
             homooligomerization_states[protein]["N_states"].append(all_have_at_least_one_interactor)
+        
+        # For proteins that the last state computed (N) is positive, add the suggestion to compute N+1
+        if all(ok for ok in is_ok) and (homooligomerization_states[protein]["N_states"][-1] == True):
+
+            homooligomerization_states[protein]["is_ok"]   .append(False)
+            homooligomerization_states[protein]["N_states"].append(None)
     
     return homooligomerization_states
             

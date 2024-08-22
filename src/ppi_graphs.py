@@ -9,7 +9,7 @@ from Bio import PDB
 from copy import deepcopy
 from logging import Logger
 
-from utils.logger_setup import configure_logger
+from utils.logger_setup import configure_logger, default_error_msgs
 from src.analyze_homooligomers import find_homooligomerization_breaks
 from utils.oscillations import oscillate_line, oscillate_circle, generate_parabolic_points, generate_oscillating_parabolic_points
 from utils.combinations import find_untested_2mers, get_untested_2mer_pairs, get_tested_Nmer_pairs
@@ -524,8 +524,8 @@ def add_edges_valency(graph, mm_output, logger: Logger | None = None):
             logger.error( 'An unknown exception was raised during the addition of valency to combined PPI graph:')
             logger.error(f'   - Error: {e}')
             logger.error(f'   - tuple_pair that caused the exception: {tuple_pair}')
-            logger.error( '   - MultimerMapper will continue...')
-            logger.error( '   - Results may be unreliable or it will crash later...')
+            logger.error(default_error_msgs[0])
+            logger.error(default_error_msgs[1])
             continue
         
         for contact_cluster_n in mm_output['contacts_clusters'][sorted_tuple_pair].keys():
@@ -743,9 +743,55 @@ def generate_combined_graph(
 
             # If it is a homooligomer
             if source_name == target_name:
+                
+                try:
+                    # Add its homooligomerization state data
+                    edge["homooligomerization_states"] = homooligomerization_states[source_name]
 
-                # Add its homooligomerization state data
-                edge["homooligomerization_states"] = homooligomerization_states[source_name]
+                # The edge was added because it was not tested?
+                except KeyError:
+                    
+                    # Get dynamics in this case to verify if it is indirect
+                    e_dynamic = classify_edge_dynamics(tuple_edge = tuple(sorted(edge['name'])),
+                                                       true_edge = edge,
+                                                       
+                                                       # Cutoffs
+                                                       N_models_cutoff = N_models_cutoff,
+                                                       
+                                                       # Sorted tuple edges lists
+                                                       sorted_edges_2mers_graph  = edges_g1_sort, 
+                                                       sorted_edges_Nmers_graph  = edges_g2_sort,
+                                                       untested_edges_tuples     = untested_edges_tuples,
+                                                       tested_Nmers_edges_sorted = tested_Nmers_edges_sorted,
+                                                       
+                                                       classification_df = classification_df,
+                                                       logger = logger)
+                                    
+                    if e_dynamic == 'Indirect':
+                        logger.warning(f'Homooligomerization of indirect edge: ({source_name}, {target_name})')
+                        logger.warning( '   homooligomerization_states will be set as empty indicating that it comes from an indirect interaction...')
+                        # Add its homooligomerization state data
+                        edge["homooligomerization_states"] = {"is_ok": [], "N_states": [],
+                                                              "error"     : True,
+                                                              "error_type": "Indirect edge"}
+
+                    else:
+                        logger.error(f'KeyError appeared during homooligomerization state detection of {source_name}')
+                        logger.error( '   MultimerMapper will continue anyways...')
+                        logger.error( '   combined_graph will contain the key generated_from_key_error in "homooligomerization_states" attribute')
+                        logger.error(f'   You can check the edge {edge["name"]} for more info...')
+
+                        # Add its homooligomerization state data as error
+                        edge["homooligomerization_states"] = {"is_ok": [], "N_states": [],
+                                                              "error"     : True,
+                                                              "error_type": "KeyError on edge not classified as Indirect"}
+
+
+                except Exception as e:
+                    logger.error(f'An unexpected error appeared during homooligomerization state detection of {source_name}')
+                    logger.error(f'   Exception: {e}')
+                    logger.error( '   MultimerMapper will continue anyways...')
+                    logger.error( '   Results may be unreliable or it may crash later...')
 
     
     # Add vertices IDs, len, seq, PDB chain and domain RMSD
@@ -794,12 +840,12 @@ def generate_combined_graph(
     edges_dynamics = []
 
     # Analyze one edge of the combined graph at a time
-    for edge in edges_gC_sort:
+    for edge in graphC.es:
         
-        e_dynamic = classify_edge_dynamics(tuple_edge = edge,
-                                           
-                                           # Graph
-                                           graph_Comb = graphC,
+        tuple_edge = tuple(sorted(edge['name']))
+
+        e_dynamic = classify_edge_dynamics(tuple_edge = tuple_edge,
+                                           true_edge = edge,
                                            
                                            # Cutoffs
                                            N_models_cutoff = N_models_cutoff,
@@ -850,6 +896,20 @@ def generate_combined_graph(
 # Helper functions ------------------------------------------------------------
 
 def format_homooligomerization_states(homooligomerization_states, logger):
+
+    try:
+        # For homooligomerization states that come from indirect interactions (or are conflictive)
+        if homooligomerization_states['error']:
+            return ""
+    # If there is no conflict, just continue
+    except KeyError:
+        pass
+    except Exception as e:
+        logger.error( 'Something went wrong inside format_homooligomerization_states:')
+        logger.error(f'   - Error: {e}')
+        logger.error(f'   - homooligomerization_states: {homooligomerization_states}')
+        logger.error(default_error_msgs[0])
+        logger.error(default_error_msgs[1])
 
     # Style definitions
     def apply_style(N, style: int):
@@ -1139,8 +1199,8 @@ def igraph_to_plotly(
                             width = int(edge_width * edge_weight),
                             dash  = edge_linetype),
                 hoverinfo  ="text",
-                text       = [edge_dynamics + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
-                hovertext  = [edge_dynamics + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
+                text       = [edge_dynamics + f' {edge["name"]} - Contacts cluster  {edge["valency"]["cluster_n"]} (size = {len(edge["valency"]["models"])})' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
+                hovertext  = [edge_dynamics + f' {edge["name"]} - Contacts cluster  {edge["valency"]["cluster_n"]} (size = {len(edge["valency"]["models"])})' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
                 hoverlabel = dict(font=dict(family='Courier New', size=hovertext_size)),
                 showlegend = False
             )
@@ -1228,14 +1288,17 @@ def igraph_to_plotly(
                             width = int(edge_width * edge_weight),
                             dash  = edge_linetype),
                 hoverinfo   = "text",  # Add hover text
-                text        = [edge_dynamics + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
-                hovertext   = [edge_dynamics + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
+                text        = [edge_dynamics + f' {edge["name"]} - Contacts cluster  {edge["valency"]["cluster_n"]} (size = {len(edge["valency"]["models"])})' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
+                hovertext   = [edge_dynamics + f' {edge["name"]} - Contacts cluster  {edge["valency"]["cluster_n"]} (size = {len(edge["valency"]["models"])})' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
                 hoverlabel  = dict(font=dict(family='Courier New', size=hovertext_size)),
                 showlegend  = False
             )
 
             # Add multivalency state for multivalent pairs only for multivalent state 1
             if edge_valency == 1:
+
+                # Locate the text in the middle of both vertex
+                text_position = (end_point + start_point) / 2
                 pass
         
         # Add traces

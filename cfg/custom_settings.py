@@ -21,10 +21,14 @@ again the pipeline from the command line after saving).
 show_PAE_along_backbone = False
 
 # remove_interactions_from_ppi_graph
-remove_interactions_from_ppi_graph = ("Indirect", "No 2-mers Data")
+# remove_interactions_from_ppi_graph = ("Indirect", "No 2-mers Data")
 
 # auto_domain_detection
 auto_domain_detection = True
 
 # self_loop_size (radius)
 self_loop_size = 6
+
+
+multivalency_silhouette_threshold         = 0.3
+multivalency_contact_similarity_threshold = 0.35

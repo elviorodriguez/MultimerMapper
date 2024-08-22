@@ -4,10 +4,13 @@ import itertools
 import numpy as np
 import pandas as pd
 import igraph
+from logging import Logger
 from itertools import combinations
 from typing import Set, Tuple
 from copy import deepcopy
 from collections import Counter
+
+from utils.logger_setup import configure_logger
 
 
 # -----------------------------------------------------------------------------
@@ -80,8 +83,12 @@ def compute_node_combinations(
     graph: igraph.Graph,
     min_N: int = 3,
     max_N: int = 4,
-    remove_interactions: Tuple[str, ...] = ("Indirect", "No 2-mers Data")
+    remove_interactions: Tuple[str, ...] = ("Indirect", "No 2-mers Data"),
+    logger: Logger | None = None
 ) -> Set[Tuple[str, ...]]:
+    
+    if logger is None:
+        logger = configure_logger()(__name__)
     
     # Deep copy the graph to avoid affecting the original
     graph = deepcopy(graph)
@@ -92,10 +99,10 @@ def compute_node_combinations(
     )
     
     if min_N < 3:
-        print("min_N cannot be set below 3. Setting min_N=3.")
+        logger.warn(f'min_N (={min_N}) cannot be set below 3. Setting min_N = 3.')
         min_N = 3
     if min_N > max_N:
-        print("min_N cannot be bigger than max_N. Setting min_N=max_N.")
+        logger.warn(f'min_N (={min_N}) cannot be bigger than max_N (={max_N}). Setting min_N = max_N.')
         min_N = max_N
     
     result_combinations = set()
@@ -166,11 +173,14 @@ def get_user_Nmers_combinations(pairwise_Nmers_df: pd.DataFrame):
     return tested_Nmers
 
 def find_untested_Nmers(combined_graph: igraph.Graph, pairwise_Nmers_df: pd.DataFrame,
-                        min_N: int = 3, max_N: int = 4) -> list[tuple[str]]:
+                        min_N: int = 3, max_N: int = 4, logger: Logger | None = None) -> list[tuple[str]]:
+    
+    if logger is None:
+        logger = configure_logger()(__name__)
     
     untested = []
     
-    all_possible_comb = compute_node_combinations(combined_graph, min_N = min_N, max_N = max_N)
+    all_possible_comb = compute_node_combinations(combined_graph, min_N = min_N, max_N = max_N, logger = logger)
     user_comb         = get_user_Nmers_combinations(pairwise_Nmers_df)
     
     for possible_comb in all_possible_comb:
@@ -197,7 +207,9 @@ def get_tested_Nmer_pairs(mm_output):
 # ------------------- To generate files with suggestions ----------------------
 # -----------------------------------------------------------------------------
 
-def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, max_N: int = 4):
+def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, max_N: int = 4, log_level: str = "info"):
+
+    logger = configure_logger(out_path = mm_output['out_path'], log_level = log_level)(__name__)
 
     # Unpack data
     combined_graph   : igraph.Graph = mm_output['combined_graph']
@@ -213,20 +225,26 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
     list_of_untested_2mers = list(list_of_untested_2mers)
 
     # List homooligomeric edges
-    homo_oligomeric_edges: list[igraph.Edge] = [ e for e in combined_graph.es if e['homooligomerization_states'] is not None ]
+    # homo_oligomeric_edges: list[igraph.Edge] = [ e for e in combined_graph.es if e['homooligomerization_states'] is not None]
+    homo_oligomeric_edges: list[igraph.Edge] = [
+        e for e in combined_graph.es
+        if e['homooligomerization_states'] is not None
+        and e['homooligomerization_states'].get('error') is None
+    ]
 
     # Get homooligomeric last N_state for which the last computed homooligomeric state is positive and repeat it +1 times (it is necessary to increment the homo-N-mer)
     list_of_homo_oligomeric_Nstates_plus_one:  list[tuple[str]] = [ (e["name"][0],) * (2 + len(e['homooligomerization_states']['N_states']) + 1) for e in homo_oligomeric_edges if e['homooligomerization_states']['N_states'][-1] == True ]
     list_of_homo_oligomeric_Nstates_plus_one = list(list_of_homo_oligomeric_Nstates_plus_one)
 
     # Get homooligomeric edges for which there is problems (it is necessary to compute intermediate homo-N-mer or the homo-3-mer)
-    homo_oligomeric_edges_inconsistent: list[igraph.Edge] = [ e for e in homo_oligomeric_edges if None in e['homooligomerization_states']['is_ok'] ]
-    list_of_homo_oligomeric_Nstates_inconsistent:  list[tuple[str]] = [ (e["name"][0],) * (2 + e['homooligomerization_states']['is_ok'].index(None) + 1 )  for e in homo_oligomeric_edges_inconsistent ]
+    homo_oligomeric_edges_inconsistent: list[igraph.Edge] = [ e for e in homo_oligomeric_edges if False in e['homooligomerization_states']['is_ok'] ]
+    list_of_homo_oligomeric_Nstates_inconsistent:  list[tuple[str]] = [ (e["name"][0],) * (2 + e['homooligomerization_states']['is_ok'].index(False) + 1 ) for e in homo_oligomeric_edges_inconsistent ]
     list_of_homo_oligomeric_Nstates_inconsistent = list(list_of_homo_oligomeric_Nstates_inconsistent)
 
     # Get all possible combinations > 2, and remove those that the user have already computed
     list_of_untested_Nmers: list[tuple[str]] = find_untested_Nmers(combined_graph, pairwise_Nmers_df,
-                                                                   min_N = min_N, max_N = max_N)
+                                                                   min_N = min_N, max_N = max_N,
+                                                                   logger = logger)
     list_of_untested_Nmers = list(list_of_untested_Nmers)
     
 
@@ -238,19 +256,19 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
         combination_suggestions_path = os.path.join(out_path, "combinations_suggestions")
         os.makedirs(combination_suggestions_path, exist_ok = True)
 
-        fasta_names_save_path = os.path.join(combination_suggestions_path, "combinations_suggestions_names.fasta")
-        fasta_IDs_save_path = os.path.join(combination_suggestions_path, "combinations_suggestions_IDs.fasta")
-        TSV_names_list_save_path = os.path.join(combination_suggestions_path, "sug_names_list.txt")
-        TSV_IDs_list_save_path = os.path.join(combination_suggestions_path, "sug_IDs_list.txt")
-        csv_save_path = os.path.join(combination_suggestions_path, "combinations_suggestions.csv")
+        fasta_names_save_path       = os.path.join(combination_suggestions_path, "combinations_suggestions_names.fasta")
+        fasta_IDs_save_path         = os.path.join(combination_suggestions_path, "combinations_suggestions_IDs.fasta")
+        TSV_names_list_save_path    = os.path.join(combination_suggestions_path, "sug_names_list.txt")
+        TSV_IDs_list_save_path      = os.path.join(combination_suggestions_path, "sug_IDs_list.txt")
+        csv_save_path               = os.path.join(combination_suggestions_path, "combinations_suggestions.csv")
 
-        suggest_combinations_names = [ [prot_names[prot_IDs.index(p)] for p in comb] for comb in suggested_combinations ]
-        suggest_combinations_seqs = [ [prot_seqs[prot_IDs.index(p)] for p in comb] for comb in suggested_combinations ]
-        suggest_combinations_fasta_names = [ '__vs__'.join(comb) for comb in suggest_combinations_names ]
-        suggest_combinations_fasta_IDs = [ '__vs__'.join(comb) for comb in suggested_combinations ]
-        suggest_combinations_fasta_seqs = [ ':'.join(comb) for comb in suggest_combinations_seqs ]
-        suggest_combinations_txt_names = [ '\t'.join(comb) for comb in suggest_combinations_names ]
-        suggest_combinations_txt_IDs = [ '\t'.join(comb) for comb in suggested_combinations ]
+        suggest_combinations_names          = [ [prot_names[prot_IDs.index(p)] for p in comb] for comb in suggested_combinations ]
+        suggest_combinations_seqs           = [ [prot_seqs[prot_IDs.index(p)] for p in comb] for comb in suggested_combinations ]
+        suggest_combinations_fasta_names    = [ '__vs__'.join(comb) for comb in suggest_combinations_names ]
+        suggest_combinations_fasta_IDs      = [ '__vs__'.join(comb) for comb in suggested_combinations ]
+        suggest_combinations_fasta_seqs     = [ ':'.join(comb) for comb in suggest_combinations_seqs ]
+        suggest_combinations_txt_names      = [ '\t'.join(comb) for comb in suggest_combinations_names ]
+        suggest_combinations_txt_IDs        = [ '\t'.join(comb) for comb in suggested_combinations ]
 
         with open(fasta_names_save_path, 'w') as fasta_names, open(fasta_IDs_save_path, 'w') as fasta_IDs:
             for names, IDs, seqs in zip(suggest_combinations_fasta_names, suggest_combinations_fasta_IDs, suggest_combinations_fasta_seqs):
