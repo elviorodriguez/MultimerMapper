@@ -153,29 +153,12 @@ mm_output['contacts_clusters'][sorted_tuple_pair].keys()
 mm_output["combined_graph"].es.attributes()
 mm_output["combined_graph"].es[0]['valency']['cluster_n']
 
-import igraph
-list(mm_output["combined_graph"].es['name'])
-mm_output["combined_graph"].es[2]['dynamics']
-
-for at in mm_output["combined_graph"].es[3].attributes():
-    print("")
-    print(f"------------------ {at} ------------------")
-    print(mm_output["combined_graph"].es[3][at])
-    
-
-for at in mm_output["combined_graph"].es[2].attributes():
-    print("")
-    print(f"------------------ {at} ------------------")
-    print(mm_output["combined_graph"].es[2][at])
-    
-igraph.plot(mm_output["combined_graph"])
-
 
 ###############################################################################
 ############################# Advanced features ###############################
 ###############################################################################
 
-# For visualization of contact clusters data
+# For visualization of contacts data
 mm.visualize_pair_matrices(mm_output,
                            pair=None,
                            matrix_types=['is_contact', 'PAE', 'min_pLDDT', 'distance'], 

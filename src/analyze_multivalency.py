@@ -547,9 +547,10 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
 
 
 def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
-                          silhouette_threshold=0.25,
-                          contact_similarity_threshold = 0.7,
-                          contact_fraction_threshold = 0.5,
+                          contacts_clustering_method    = "contact_fraction_comparison",
+                          silhouette_threshold          = 0.25,
+                          contact_similarity_threshold  = 0.7,
+                          contact_fraction_threshold    = 0.5,
                           show_plot = True, save_plot = True, logger: Logger | None= None):
     """
     Clusters the models and visualizes the resulting clusters for a given protein pair.
@@ -565,10 +566,11 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
         logger = configure_logger()(__name__)
 
     model_keys, labels, reduced_features, explained_variance = cluster_models(all_pair_matrices, pair,
-                                                                              max_clusters         = max_clusters,
-                                                                              silhouette_threshold = silhouette_threshold,
+                                                                              method                       = contacts_clustering_method,
+                                                                              max_clusters                 = max_clusters,
+                                                                              silhouette_threshold         = silhouette_threshold,
                                                                               contact_similarity_threshold = contact_similarity_threshold,
-                                                                              contact_fraction_threshold = contact_fraction_threshold,
+                                                                              contact_fraction_threshold   = contact_fraction_threshold,
                                                                               logger               = logger)
     if labels is not None:
         return visualize_clusters(all_pair_matrices  = all_pair_matrices,
@@ -593,6 +595,7 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
 
 
 def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5,
+                      contacts_clustering_method = "contact_fraction_comparison",
                       silhouette_threshold=0.25,
                       contact_similarity_threshold = 0.7,
                       contact_fraction_threshold = 0.5,
@@ -621,9 +624,10 @@ def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5,
         cluster_info = cluster_and_visualize(mm_contacts, pair, mm_output,
                                              max_clusters = max_clusters,
                                              # Parameter to optimize
-                                             silhouette_threshold = silhouette_threshold,
+                                             contacts_clustering_method   = contacts_clustering_method,
+                                             silhouette_threshold         = silhouette_threshold,
                                              contact_similarity_threshold = contact_similarity_threshold,
-                                             contact_fraction_threshold = contact_fraction_threshold,
+                                             contact_fraction_threshold   = contact_fraction_threshold,
                                              show_plot = show_plot,
                                              save_plot = save_plot,
                                              logger    = logger)
