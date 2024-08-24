@@ -178,14 +178,25 @@ contact_pLDDT_cutoff   : float | int = 60
 # -------------------------- For contact detection ---------------------------
 # ----------------------------------------------------------------------------
 
+# default is "contact_fraction_comparison" (MCFT), the rest are experimental
+contact_clustering_method = ["contact_similarity_matrix",
+                             "agglomerative_clustering",
+                             "contact_fraction_comparison"][2]
+
+# For Agglomerative Hierarchical Clustering + Silhouette (experimental) ------
 # Silhouette threshold to surpass in order to consider multivalent interaction
 multivalency_silhouette_threshold: float = 0.3
 
+# For Agglomerative Hierarchical Clustering + Silhouette (experimental) ------
+
 # Contacts must be less similar than this to be considered separate clusters (0 to 1)
 multivalency_contact_similarity_threshold: float = 0.7
-
 # Maximum valency to test (max_contact_clusters modes of interactions)
 max_contact_clusters: int = 5
+
+# For MCFT (Merging by Contact Fraction Threshold) - DEFAULT -----------------
+ 
+contact_fraction_threshold: float = 0.5
 
 # Save/display the contact clusters with PCA plots?
 display_contact_clusters = True

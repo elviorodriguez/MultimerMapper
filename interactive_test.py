@@ -74,16 +74,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ######################## Test 6 (multivalency detection) ######################
 
-fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
-AF2_2mers = "tests/multivalency_test/2-mers"
-AF2_Nmers = "tests/multivalency_test/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/MM_multivalency_test"
-use_names = True 
-overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-auto_domain_detection = True
-graph_resolution_preset = None
+# fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
+# AF2_2mers = "tests/multivalency_test/2-mers"
+# AF2_Nmers = "tests/multivalency_test/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/MM_multivalency_test"
+# use_names = True 
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
@@ -94,7 +94,7 @@ AF2_2mers = "/home/elvio/Desktop/homomultimers_benchmark/AF2_2mers"
 AF2_Nmers = "/home/elvio/Desktop/homomultimers_benchmark/AF2_3-4-5-6-7mers"
 # AF2_Nmers = None
 out_path = "/home/elvio/Desktop/homomultimers_benchmark/multimers_Nstate_2-3-4-5-6-7"
-use_names = True 
+use_names = False
 overwrite = True
 # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 auto_domain_detection = True
@@ -217,7 +217,8 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 from src.analyze_multivalency import  cluster_all_pairs
 results = cluster_all_pairs(
     mm_contacts = mm_output['pairwise_contact_matrices'],
-    mm_output   = mm_output)
+    mm_output   = mm_output,
+    contact_fraction_threshold = 0.5)
 
 
 

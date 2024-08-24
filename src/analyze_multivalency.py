@@ -375,7 +375,7 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
                     if shared_contacts >= contact_fraction_threshold * small_contacts:
                         # Merge the clusters
                         best_labels = [big_label if label == small_label else label for label in best_labels]
-                        logger.info(f"   Merging cluster {small_label} into {big_label} (shared contacts: {shared_contacts}/{small_contacts})")
+                        logger.info(f"   Merging cluster {small_label} into {big_label} (Contact Fraction: {shared_contacts}/{small_contacts} = {round(shared_contacts/small_contacts, ndigits = 3)})")
                         merged = True
                         break
                 
@@ -472,14 +472,20 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
         ax_pca.grid(True)
         ax_pca.set_aspect('equal', adjustable='box')
 
-        # Create legend
+        # Create legend and position it below the x-axis
         unique_labels = sorted(set(labels))
         legend_elements = [Patch(facecolor=convert_to_hex_colors([label])[0], label=f'{label}')
-                           for label in unique_labels] 
+                           for label in unique_labels]
+        # Calculate the aspect ratio of the PCA plot
+        aspect_ratio = ax_pca.get_data_ratio()
+        # Adjust the legend's vertical position based on the aspect ratio
+        legend_y_position = -0.12 * (1/aspect_ratio)
 
-        # Add legend to the plot
-        ax_pca.legend(handles=legend_elements, title="Clusters", loc='lower center', 
-                      bbox_to_anchor=(0.5, -0.3), ncol=len(unique_labels))
+        # Add legend to the plot, positioned below the x-axis in a horizontal layout
+        ax_pca.legend(handles=legend_elements, title="Contacts Cluster", loc='upper center', 
+                    bbox_to_anchor=(0.5, legend_y_position), ncol=len(unique_labels), frameon=False)
+        
+        plt.tight_layout(rect=[0, 0.1, 1, 1])  # Adjust layout to accommodate legend space
 
     # Contact Map Plots
     for cluster, ax in zip(range(n_clusters), axs[1:]):
@@ -541,7 +547,9 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
 
 
 def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
-                          silhouette_threshold=0.25, contact_similarity_threshold = 0.7,
+                          silhouette_threshold=0.25,
+                          contact_similarity_threshold = 0.7,
+                          contact_fraction_threshold = 0.5,
                           show_plot = True, save_plot = True, logger: Logger | None= None):
     """
     Clusters the models and visualizes the resulting clusters for a given protein pair.
@@ -560,6 +568,7 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
                                                                               max_clusters         = max_clusters,
                                                                               silhouette_threshold = silhouette_threshold,
                                                                               contact_similarity_threshold = contact_similarity_threshold,
+                                                                              contact_fraction_threshold = contact_fraction_threshold,
                                                                               logger               = logger)
     if labels is not None:
         return visualize_clusters(all_pair_matrices  = all_pair_matrices,
@@ -584,7 +593,9 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
 
 
 def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5,
-                      silhouette_threshold=0.25, contact_similarity_threshold = 0.7,
+                      silhouette_threshold=0.25,
+                      contact_similarity_threshold = 0.7,
+                      contact_fraction_threshold = 0.5,
                       show_plot = True, save_plot = True, log_level = 'info'):
     """
     Clusters and visualizes all protein pairs in the given dictionary.
@@ -612,6 +623,7 @@ def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5,
                                              # Parameter to optimize
                                              silhouette_threshold = silhouette_threshold,
                                              contact_similarity_threshold = contact_similarity_threshold,
+                                             contact_fraction_threshold = contact_fraction_threshold,
                                              show_plot = show_plot,
                                              save_plot = save_plot,
                                              logger    = logger)
