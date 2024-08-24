@@ -9,6 +9,9 @@ from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from matplotlib.patches import Patch
+from collections import Counter
+from sklearn.neighbors import NearestNeighbors
 
 from utils.logger_setup import configure_logger
 from utils.combinations import get_untested_2mer_pairs, get_tested_Nmer_pairs
@@ -51,14 +54,17 @@ This approach is able to:
     Identify different binding sites (if they exist) by separating models into different clusters.
 '''
 
-def preprocess_matrices(all_pair_matrices, pair):
+def preprocess_matrices(all_pair_matrices, pair, min_contacts = 3):
     '''
-    Removes models with no contacts in is_contact matrix.
+    Removes models with less than min_contacts in is_contact matrix.
     '''
     valid_models = {}
     for model, matrices in all_pair_matrices[pair].items():
-        if np.sum(matrices['is_contact']) > 0:  # Check if there are any contacts
+
+        # Check if there are at least these contacts
+        if np.sum(matrices['is_contact']) >= min_contacts:  
             valid_models[model] = matrices
+            
     return valid_models
 
 def create_feature_vector(matrices, types_of_matrices_to_use = ['is_contact', 'PAE', 'min_pLDDT', 'distance']):
@@ -71,8 +77,10 @@ def create_feature_vector(matrices, types_of_matrices_to_use = ['is_contact', 'P
     return np.array(features)
 
 def cluster_models(all_pair_matrices, pair, max_clusters=5,
+                   method = ["contact_similarity_matrix", "agglomerative_clustering", "contact_fraction_comparison"][2],
                    silhouette_threshold=0.25,
                    contact_similarity_threshold = 0.7,
+                   contact_fraction_threshold = 0.5,
                    logger: Logger | None = None):
     """
     Clusters models based on their feature vectors using Agglomerative Clustering.
@@ -99,7 +107,7 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
     
     if len(valid_models) == 0:
         logger.warn(f"   No valid models found for pair {pair}")
-        return None, None
+        return None, None, None, None
     
     logger.info("   Generating feature vectors...")
 
@@ -124,117 +132,271 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
     if reduced_features.ndim == 1:
         reduced_features = reduced_features.reshape(-1, 1)
 
-    best_silhouette = -1
-    best_n_clusters = 1
-    best_labels = np.zeros(len(valid_models))
+    logger.info(f'   Clustering method used: {method}')
 
-    
-    for n_clusters in range(2, max_clusters + 1):
-        try:
-            if len(reduced_features.shape) == 2 and reduced_features.shape[0] >= n_clusters:
-                # Perform clustering
-                clustering = AgglomerativeClustering(n_clusters=n_clusters)
-                labels = clustering.fit_predict(reduced_features)
-                
-                if len(set(labels)) > 1:  # Ensure at least two clusters are formed
-                    silhouette_avg = silhouette_score(reduced_features, labels)
-                    
-                    logger.info(f"   Agglomerative Clustering with {n_clusters} clusters: Silhouette Score = {silhouette_avg}")
-                    
-                    # Store best clustering based on Silhouette Score
-                    if silhouette_avg > best_silhouette:
-                        best_silhouette = silhouette_avg
-                        best_labels = labels
-                        best_n_clusters = n_clusters
-            else:
-                logger.info(f"   Agglomerative Clustering with {n_clusters} clusters: skipped due to insufficient data shape.")
-        except Exception as e:
-            logger.warn(f"   Agglomerative Clustering with {n_clusters} clusters caused an error: {str(e)}")
+    if method == "agglomerative_clustering":
 
-    # Compute the boolean contact matrices for each cluster to compare them
-    bool_contacts_matrices_per_cluster = []
-    for cluster in range(len(set(best_labels))):
-        cluster_models = [model for model, label in zip(valid_models_keys, best_labels) if label == cluster]
-        cluster_bool_contact_matrix = np.mean([all_pair_matrices[pair][model]['is_contact'] for model in cluster_models], axis=0) > 0
-        bool_contacts_matrices_per_cluster.append(cluster_bool_contact_matrix)
-
-    bool_matrices_stack = np.array([matrix.flatten() for matrix in bool_contacts_matrices_per_cluster])
-    active_positions_mask = np.any(bool_matrices_stack, axis=0)
-    filtered_bool_matrices = bool_matrices_stack[:, active_positions_mask]
-
-    # Compute similarity based on intersection-over-union (IoU) for each pair of clusters
-    num_clusters = len(filtered_bool_matrices)
-    similarity_matrix = np.zeros((num_clusters, num_clusters))
-    for i in range(num_clusters):
-        for j in range(i + 1, num_clusters):
-            intersection = np.sum(np.logical_and(filtered_bool_matrices[i], filtered_bool_matrices[j]))
-            union = np.sum(np.logical_or(filtered_bool_matrices[i], filtered_bool_matrices[j]))
-            similarity = intersection / union if union > 0 else 0
-            similarity_matrix[i, j] = similarity
-            similarity_matrix[j, i] = similarity
-
-    logger.info(f"   Contacts similarity matrix between best clusters:\n{similarity_matrix}")
-
-    too_similar = np.any(similarity_matrix > contact_similarity_threshold)
-
-    # If best silhouette score is below the threshold, consider it as a single cluster
-    if best_silhouette < silhouette_threshold:
-        logger.info(f"   Silhouette score {best_silhouette} is below the threshold {silhouette_threshold}. Considering as a single cluster.")
+        best_silhouette = -1
         best_n_clusters = 1
-        best_labels = [0] * len(valid_models)
-    
-    # If best silhouette score produce too similar contacts, consider it as a single cluster
-    elif too_similar:
-        logger.info(f"   There are contact clusters that are too similar (more than {contact_similarity_threshold * 100}% shared contacts)")
+        best_labels = np.zeros(len(valid_models))
 
-        # Create a dictionary to store which clusters should be merged
-        merge_groups = {}
+        for n_clusters in range(2, max_clusters + 1):
+            try:
+                if len(reduced_features.shape) == 2 and reduced_features.shape[0] >= n_clusters:
+                    # Perform clustering
+                    clustering = AgglomerativeClustering(n_clusters=n_clusters)
+                    labels = clustering.fit_predict(reduced_features)
+                    
+                    if len(set(labels)) > 1:  # Ensure at least two clusters are formed
+                        silhouette_avg = silhouette_score(reduced_features, labels)
+                        
+                        logger.info(f"   Agglomerative Clustering with {n_clusters} clusters: Silhouette Score = {silhouette_avg}")
+                        
+                        # Store best clustering based on Silhouette Score
+                        if silhouette_avg > best_silhouette:
+                            best_silhouette = silhouette_avg
+                            best_labels = labels
+                            best_n_clusters = n_clusters
+                else:
+                    logger.info(f"   Agglomerative Clustering with {n_clusters} clusters: skipped due to insufficient data shape.")
+            except Exception as e:
+                logger.warn(f"   Agglomerative Clustering with {n_clusters} clusters caused an error: {str(e)}")
+
+        # Compute the boolean contact matrices for each cluster to compare them
+        bool_contacts_matrices_per_cluster = []
+        for cluster in range(len(set(best_labels))):
+            cluster_models = [model for model, label in zip(valid_models_keys, best_labels) if label == cluster]
+            cluster_bool_contact_matrix = np.mean([all_pair_matrices[pair][model]['is_contact'] for model in cluster_models], axis=0) > 0
+            bool_contacts_matrices_per_cluster.append(cluster_bool_contact_matrix)
+
+        bool_matrices_stack = np.array([matrix.flatten() for matrix in bool_contacts_matrices_per_cluster])
+        active_positions_mask = np.any(bool_matrices_stack, axis=0)
+        filtered_bool_matrices = bool_matrices_stack[:, active_positions_mask]
+
+        # Compute similarity based on intersection-over-union (IoU) for each pair of clusters
+        num_clusters = len(filtered_bool_matrices)
+        similarity_matrix = np.zeros((num_clusters, num_clusters))
         for i in range(num_clusters):
             for j in range(i + 1, num_clusters):
-                if similarity_matrix[i, j] > contact_similarity_threshold:
-                    logger.info(f"   Merging clusters {i} and {j} due to similarity of {round(similarity_matrix[i, j]*100)}%")
-                    min_label = min(i, j)
-                    max_label = max(i, j)
-                    if min_label not in merge_groups:
-                        merge_groups[min_label] = set()
-                    merge_groups[min_label].add(max_label)
+                intersection = np.sum(np.logical_and(filtered_bool_matrices[i], filtered_bool_matrices[j]))
+                union = np.sum(np.logical_or(filtered_bool_matrices[i], filtered_bool_matrices[j]))
+                similarity = intersection / union if union > 0 else 0
+                similarity_matrix[i, j] = similarity
+                similarity_matrix[j, i] = similarity
 
-        # Create a mapping from old labels to new labels
-        label_mapping = {}
-        for i in range(num_clusters):
-            if i in merge_groups:
-                label_mapping[i] = i
-                for j in merge_groups[i]:
-                    label_mapping[j] = i
-            elif i not in label_mapping:
-                label_mapping[i] = i
+        logger.info(f"   Contacts similarity matrix between best clusters:\n{similarity_matrix}")
 
-        # Apply the mapping to get the final labels
-        final_labels = [label_mapping[label] for label in best_labels]
+        too_similar = np.any(similarity_matrix > contact_similarity_threshold)
+
+        # If best silhouette score is below the threshold, consider it as a single cluster
+        if best_silhouette < silhouette_threshold:
+            logger.info(f"   Silhouette score {best_silhouette} is below the threshold {silhouette_threshold}. Considering as a single cluster.")
+            best_n_clusters = 1
+            best_labels = [0] * len(valid_models)
+        
+        # If best silhouette score produce too similar contacts, consider it as a single cluster
+        elif too_similar:
+            logger.info(f"   There are contact clusters that are too similar (more than {contact_similarity_threshold * 100}% shared contacts)")
+
+            # Create a dictionary to store which clusters should be merged
+            merge_groups = {}
+            for i in range(num_clusters):
+                for j in range(i + 1, num_clusters):
+                    if similarity_matrix[i, j] > contact_similarity_threshold:
+                        logger.info(f"   Merging clusters {i} and {j} due to similarity of {round(similarity_matrix[i, j]*100)}%")
+                        min_label = min(i, j)
+                        max_label = max(i, j)
+                        if min_label not in merge_groups:
+                            merge_groups[min_label] = set()
+                        merge_groups[min_label].add(max_label)
+
+            # Create a mapping from old labels to new labels
+            label_mapping = {}
+            for i in range(num_clusters):
+                if i in merge_groups:
+                    label_mapping[i] = i
+                    for j in merge_groups[i]:
+                        label_mapping[j] = i
+                elif i not in label_mapping:
+                    label_mapping[i] = i
+
+            # Apply the mapping to get the final labels
+            final_labels = [label_mapping[label] for label in best_labels]
+            
+            # Reassign labels to be consecutive integers starting from 0
+            unique_labels = sorted(set(final_labels))
+            label_mapping = {old: new for new, old in enumerate(unique_labels)}
+            final_labels = [label_mapping[label] for label in final_labels]
+            
+            final_n_clusters = len(set(final_labels))
+
+            # Log the final number of clusters and their status
+            if final_n_clusters < best_n_clusters:
+                logger.info(f"   Reduced the number of clusters from {best_n_clusters} to {final_n_clusters} after merging similar clusters.")
+            else:
+                logger.info(f"   Number of clusters retained: {final_n_clusters}")
+
+            best_labels = final_labels
+            best_n_clusters = final_n_clusters
+            print(f"BEST LABELS: {best_labels}")
+        
+        # Consider the best_n_clusters as the number of contact cluster (valency)
+        else:
+            logger.info(f"   Silhouette score {best_silhouette} is above the threshold {silhouette_threshold}. Considering {best_n_clusters} cluster")
+        
+        logger.info(f"   Best number of clusters: {best_n_clusters}, Best Silhouette Score: {best_silhouette}")
+    
+    # Generates clusters that minimizes inter-clusters contact similarity by merging similar contacts matrices
+    elif method == "contact_similarity_matrix":
+        # Start by considering each valid model as a separate cluster
+        best_labels = list(range(len(valid_models)))
+        
+        while True:
+            # Compute the boolean contact matrices for each cluster
+            bool_contacts_matrices_per_cluster = []
+            for cluster in set(best_labels):
+                cluster_models = [model for model, label in zip(valid_models_keys, best_labels) if label == cluster]
+                cluster_bool_contact_matrix = np.mean([all_pair_matrices[pair][model]['is_contact'] for model in cluster_models], axis=0) > 0
+                bool_contacts_matrices_per_cluster.append(cluster_bool_contact_matrix)
+
+            bool_matrices_stack = np.array([matrix.flatten() for matrix in bool_contacts_matrices_per_cluster])
+            active_positions_mask = np.any(bool_matrices_stack, axis=0)
+            filtered_bool_matrices = bool_matrices_stack[:, active_positions_mask]
+
+            # Compute similarity matrix using IoU
+            num_clusters = len(filtered_bool_matrices)
+            similarity_matrix = np.zeros((num_clusters, num_clusters))
+            for i in range(num_clusters):
+                for j in range(i + 1, num_clusters):
+                    intersection = np.sum(np.logical_and(filtered_bool_matrices[i], filtered_bool_matrices[j]))
+                    union        = np.sum(np.logical_or(filtered_bool_matrices[i], filtered_bool_matrices[j]))
+                    similarity   = intersection / union if union > 0 else 0
+                    similarity_matrix[i, j] = similarity
+                    similarity_matrix[j, i] = similarity
+            
+            logger.debug(similarity_matrix)
+
+            # Find the highest similarity
+            max_similarity = np.max(similarity_matrix)
+            
+            # If the highest similarity is below the threshold, we're done
+            if max_similarity <= contact_similarity_threshold:
+                break
+            
+            # Find the clusters to merge
+            i, j = np.unravel_index(np.argmax(similarity_matrix), similarity_matrix.shape)
+            cluster1, cluster2 = sorted(set(best_labels))[i], sorted(set(best_labels))[j]
+            
+            # Merge the clusters
+            best_labels = [cluster1 if label == cluster2 else label for label in best_labels]
+            
+            logger.info(f"   Merging clusters {cluster2} into {cluster1} due to similarity of {round(max_similarity*100)}%")
+
+        # Parameter for the minimum relative size of clusters to keep
+        min_cluster_size_ratio = 1/5  # This can be made a parameter of the function
+        
+        # Count the size of each cluster
+        cluster_sizes = Counter(best_labels)
+        largest_cluster_size = max(cluster_sizes.values())
+        min_cluster_size = int(largest_cluster_size * min_cluster_size_ratio)
+        
+        # Identify small clusters
+        small_clusters = [cluster for cluster, size in cluster_sizes.items() if size < min_cluster_size]
+        
+        if small_clusters:
+            logger.info(f"   Found {len(small_clusters)} small clusters to potentially merge")
+            
+            # Separate small cluster points and large cluster points
+            small_cluster_mask = np.isin(best_labels, small_clusters)
+            small_cluster_points = reduced_features[small_cluster_mask]
+            large_cluster_points = reduced_features[~small_cluster_mask]
+            large_cluster_labels = np.array(best_labels)[~small_cluster_mask]
+            
+            # Find the nearest large cluster for each small cluster point
+            nearest_neighbors = NearestNeighbors(n_neighbors=1, metric='euclidean')
+            nearest_neighbors.fit(large_cluster_points)
+            distances, indices = nearest_neighbors.kneighbors(small_cluster_points)
+            
+            # Assign small cluster points to the nearest large cluster
+            new_labels_for_small_clusters = large_cluster_labels[indices.flatten()]
+            
+            # Update the best_labels
+            new_best_labels = np.array(best_labels)
+            new_best_labels[small_cluster_mask] = new_labels_for_small_clusters
+            best_labels = list(new_best_labels)
+            
+            # Log the merging process
+            for small_cluster in small_clusters:
+                merged_into = Counter(new_labels_for_small_clusters[np.array(best_labels)[small_cluster_mask] == small_cluster])
+                logger.info(f"   Small cluster {small_cluster} merged into: {dict(merged_into)}")
         
         # Reassign labels to be consecutive integers starting from 0
-        unique_labels = sorted(set(final_labels))
+        unique_labels = sorted(set(best_labels))
         label_mapping = {old: new for new, old in enumerate(unique_labels)}
-        final_labels = [label_mapping[label] for label in final_labels]
+        best_labels = [label_mapping[label] for label in best_labels]
         
-        final_n_clusters = len(set(final_labels))
+        best_n_clusters = len(set(best_labels))
+        logger.info(f"   Final number of clusters after merging small clusters: {best_n_clusters}")
+        logger.debug(f"   BEST LABELS: {best_labels}")
 
-        # Log the final number of clusters and their status
-        if final_n_clusters < best_n_clusters:
-            logger.info(f"   Reduced the number of clusters from {best_n_clusters} to {final_n_clusters} after merging similar clusters.")
-        else:
-            logger.info(f"   Number of clusters retained: {final_n_clusters}")
+        # No silhouette score for this method
+        best_silhouette = None
 
-        best_labels = final_labels
-        best_n_clusters = final_n_clusters
-        print(f"BEST LABELS: {best_labels}")
-    
-    # Consider the best_n_clusters as the number of contact cluster (valency)
-    else:
-        logger.info(f"   Silhouette score {best_silhouette} is above the threshold {silhouette_threshold}. Considering {best_n_clusters} cluster")
-    
-    logger.info(f"   Best number of clusters: {best_n_clusters}, Best Silhouette Score: {best_silhouette}")
-    
+    elif method == "contact_fraction_comparison":
+        # Start by considering each valid model as a separate cluster
+        best_labels = list(range(len(valid_models)))
+        
+        # Compute the boolean contact matrices for each model once
+        bool_contacts_matrices = [all_pair_matrices[pair][model]['is_contact'] > 0 for model in valid_models_keys]
+        
+        while True:
+            # Get unique labels and their counts
+            label_counts = Counter(best_labels)
+            
+            if len(label_counts) == 1:
+                break  # Only one cluster left, we're done
+            
+            # Sort clusters by size (number of models in the cluster)
+            sorted_clusters = sorted(label_counts.items(), key=lambda x: x[1])
+            
+            merged = False
+            for small_label, small_count in sorted_clusters[:-1]:  # Exclude the largest cluster
+                small_matrix = np.mean([bool_contacts_matrices[i] for i, label in enumerate(best_labels) if label == small_label], axis=0) > 0
+                small_contacts = np.sum(small_matrix)
+                
+                for big_label, big_count in reversed(sorted_clusters):
+                    if big_label == small_label:
+                        continue
+                    
+                    big_matrix = np.mean([bool_contacts_matrices[i] for i, label in enumerate(best_labels) if label == big_label], axis=0) > 0
+                    
+                    # Check if the required fraction of contacts from the smaller matrix is in the bigger matrix
+                    shared_contacts = np.sum(np.logical_and(small_matrix, big_matrix))
+                    if shared_contacts >= contact_fraction_threshold * small_contacts:
+                        # Merge the clusters
+                        best_labels = [big_label if label == small_label else label for label in best_labels]
+                        logger.info(f"   Merging cluster {small_label} into {big_label} (shared contacts: {shared_contacts}/{small_contacts})")
+                        merged = True
+                        break
+                
+                if merged:
+                    break
+            
+            if not merged:
+                break
+
+        # Reassign labels to be consecutive integers starting from 0
+        unique_labels = sorted(set(best_labels))
+        label_mapping = {old: new for new, old in enumerate(unique_labels)}
+        best_labels = [label_mapping[label] for label in best_labels]
+        
+        best_n_clusters = len(set(best_labels))
+        logger.info(f"   Final number of clusters after contact fraction comparison: {best_n_clusters}")
+        logger.debug(f"   BEST LABELS: {best_labels}")
+
+        # No silhouette score for this method
+        best_silhouette = None
+
     return list(valid_models.keys()), best_labels, reduced_features, explained_variance
 
 # Helper
@@ -301,13 +463,23 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
 
         # PCA Plot
         ax_pca = axs[0]
+        colors = convert_to_hex_colors(labels)
         ax_pca.scatter(reduced_features[:, 0] / 100, reduced_features[:, 1] / 100, 
-                    c=convert_to_hex_colors(labels), s=50, alpha=0.7)
+                    c=colors, s=50, alpha=0.7)
         ax_pca.set_title(f"PCA Plot for {pair}")
         ax_pca.set_xlabel(f"Principal Component 1 ({explained_variance[0]:.2f}% variance)")
         ax_pca.set_ylabel(f"Principal Component 2 ({explained_variance[1]:.2f}% variance)")
         ax_pca.grid(True)
         ax_pca.set_aspect('equal', adjustable='box')
+
+        # Create legend
+        unique_labels = sorted(set(labels))
+        legend_elements = [Patch(facecolor=convert_to_hex_colors([label])[0], label=f'{label}')
+                           for label in unique_labels] 
+
+        # Add legend to the plot
+        ax_pca.legend(handles=legend_elements, title="Clusters", loc='lower center', 
+                      bbox_to_anchor=(0.5, -0.3), ncol=len(unique_labels))
 
     # Contact Map Plots
     for cluster, ax in zip(range(n_clusters), axs[1:]):
@@ -402,6 +574,7 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
                                   logger             = logger)
     else:
         logger.error(f"   Clustering failed for pair {pair}")
+        logger.error( "   Interaction might be indirect...")
         return None
 
 # # Usage

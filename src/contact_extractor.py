@@ -605,15 +605,91 @@ def get_pair_matrices(mm_contacts, protein_pair):
         
         # Find indices of the proteins in the pair
         try:
+            # This will raise a value error
             idx_a = proteins.index(sorted_pair[0])
             idx_b = proteins.index(sorted_pair[1])
+
+            idx_a = ord(chain_a) - 65
+            idx_b = ord(chain_b) - 65
             
             # Check if the chains match the protein indices
-            if (chains == (chr(65 + idx_a), chr(65 + idx_b)) or 
-                chains == (chr(65 + idx_b), chr(65 + idx_a))):
+            # if (chains == (chr(65 + idx_a), chr(65 + idx_b)) or 
+            #     chains == (chr(65 + idx_b), chr(65 + idx_a))):
+
+            if (sorted_pair == (proteins[idx_a], proteins[idx_b]) or 
+                sorted_pair == (proteins[idx_b], proteins[idx_a])):
+
                 result[sorted_pair][key] = value
-        except ValueError:
-            # If one of the proteins is not in the key, skip this entry
+            
+            # For homooligomers
+            elif chain_a == chain_b == list(set(proteins))[0] and len(set(proteins)) == 1:
+
+                # print('')
+                # print(f"ValueError {sorted_pair}")
+                # print(f"ValueError {sorted_pair}")
+                # print(f"ValueError {sorted_pair}")
+                # print(f"ValueError {sorted_pair}")
+                # print(f"ValueError {sorted_pair}")
+                # print(f"ValueError {sorted_pair}")
+                # print(f"ValueError {sorted_pair}")
+                # print(f"ValueError {sorted_pair}")
+                # print(f"ValueError {sorted_pair}")
+                # print(f"ValueError {sorted_pair}")
+                # print(f'key: {key}')
+                # print(f'value: {value}')
+                # print(f'proteins: {proteins}')
+                # print(f'chains: {chains}')
+                # print(f'chain_a: {chain_a}')
+                # print(f'chain_b: {chain_b}')
+                # print(f'rank: {rank}')
+                # try:
+                #     print(f'idx_a: {idx_a}')
+                #     print(f'Test A: {(chr(65 + idx_a), chr(65 + idx_b))}')
+                # except:
+                #     print("idx_a computation gave an error")
+                # try:
+                #     print(f'idx_b: {idx_b}')
+                #     print(f'Test B: {(chr(65 + idx_b), chr(65 + idx_a))}')
+                # except:
+                #     print("idx_b computation gave an error")
+                # print('')
+
+                result[sorted_pair][key] = value
+
+        # If one of the proteins is not in the key, skip this entry
+        except ValueError as e:
+
+            # print('')
+            # print(f"ValueError {sorted_pair}")
+            # print(f"ValueError {sorted_pair}")
+            # print(f"ValueError {sorted_pair}")
+            # print(f"ValueError {sorted_pair}")
+            # print(f"ValueError {sorted_pair}")
+            # print(f"ValueError {sorted_pair}")
+            # print(f"ValueError {sorted_pair}")
+            # print(f"ValueError {sorted_pair}")
+            # print(f"ValueError {sorted_pair}")
+            # print(f"ValueError {sorted_pair}")
+            # print(f'key: {key}')
+            # print(f'value: {value}')
+            # print(f'proteins: {proteins}')
+            # print(f'chains: {chains}')
+            # print(f'chain_a: {chain_a}')
+            # print(f'chain_b: {chain_b}')
+            # print(f'rank: {rank}')
+            # try:
+            #     print(f'idx_a: {idx_a}')
+            #     print(f'Test A: {(chr(65 + idx_a), chr(65 + idx_b))}')
+            # except:
+            #     print("idx_a computation gave an error")
+            # try:
+            #     print(f'idx_b: {idx_b}')
+            #     print(f'Test B: {(chr(65 + idx_b), chr(65 + idx_a))}')
+            # except:
+            #     print("idx_b computation gave an error")
+            # print('')
+
+            
             continue
     
     return result
@@ -628,6 +704,7 @@ def get_pair_matrices(mm_contacts, protein_pair):
         
 
 def get_all_pair_matrices(mm_contacts):
+
     # Get all unique protein IDs
     all_proteins = set()
     for key in mm_contacts['matrices_2mers'].keys():

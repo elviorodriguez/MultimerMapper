@@ -11,7 +11,11 @@ from utils.logger_setup import configure_logger
 
 def read_classification_df(path: str = "cfg/interaction_classification.tsv"):
 
-    from multimer_mapper import mm_path
+    try:
+        from multimer_mapper import mm_path
+    except ImportError:
+        from __main__ import mm_path
+
 
     classification_df = pd.read_csv(mm_path + '/' + path, sep= "\t")
     return classification_df

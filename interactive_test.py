@@ -87,6 +87,21 @@ graph_resolution_preset = None
 
 ###############################################################################
 
+####################### Test 7 (multivalency homodimers) ######################
+
+fasta_file = "/home/elvio/Desktop/homomultimers_benchmark/proteins.fasta"
+AF2_2mers = "/home/elvio/Desktop/homomultimers_benchmark/AF2_2mers"
+AF2_Nmers = "/home/elvio/Desktop/homomultimers_benchmark/AF2_3-4-5-6-7mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/homomultimers_benchmark/multimers_Nstate_2-3-4-5-6-7"
+use_names = True 
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+auto_domain_detection = True
+graph_resolution_preset = None
+
+###############################################################################
+
 ###############################################################################
 ############################### MM main run ###################################
 ###############################################################################
@@ -111,7 +126,7 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     layout_algorithm = 'fr',    
     
     # You can remove specific interaction types from the graph
-    remove_interactions = ("Indirect",),
+    remove_interactions = ("Indirect", "No 2-mers Data"),
     
     # Answer y automatically
     automatic_true = True)
@@ -198,6 +213,34 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 ###############################################################################
 ################################## TESTS ######################################
 ###############################################################################
+
+from src.analyze_multivalency import  cluster_all_pairs
+results = cluster_all_pairs(
+    mm_contacts = mm_output['pairwise_contact_matrices'],
+    mm_output   = mm_output)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 combined_graph = mm_output['combined_graph']
 

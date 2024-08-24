@@ -248,8 +248,9 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
     list_of_untested_Nmers = list(list_of_untested_Nmers)
     
 
-    # Combine all suggested combinations
+    # Combine all suggested combinations and remove duplicates (if any)
     suggested_combinations: list[tuple[str]] = list_of_untested_2mers + list_of_homo_oligomeric_Nstates_plus_one + list_of_homo_oligomeric_Nstates_inconsistent + list_of_untested_Nmers
+    suggested_combinations: list[tuple[str]] = list(set(suggested_combinations))
     
     if out_path is not None:
 
