@@ -1114,6 +1114,7 @@ def igraph_to_plotly(
 
     # Create Scatter objects for edges, including self-loops
     edge_traces = []
+    annotations_trace = []
     for edge in graph.es:
         
         try:
@@ -1204,6 +1205,9 @@ def igraph_to_plotly(
                 hoverlabel = dict(font=dict(family='Courier New', size=hovertext_size)),
                 showlegend = False
             )
+            
+            # Add traces
+            edge_traces.append(edge_trace)
 
             # ------------- Add homooligomerization state data -----------------------
             
@@ -1214,6 +1218,21 @@ def igraph_to_plotly(
                 circle_center_x = np.mean(circle_x)
                 circle_center_y = np.mean(circle_y)
                 formatted_N_states = format_homooligomerization_states(edge["homooligomerization_states"], logger = logger)
+
+                text_annotation = go.layout.Annotation(
+                    x=circle_center_x,
+                    y=circle_center_y,
+                    text=formatted_N_states,
+                    showarrow=False,
+                    font=dict(
+                        size=12,
+                        color='black'
+                    ),
+                    align='center',
+                    bgcolor='white',  # Set the background color to white
+                    bordercolor='black',  # Set the border color to black
+                    borderwidth=1,  # Set the width of the border
+                )
 
                 # Add text in the center with homooligomerization state info
                 text_trace = go.Scatter(
@@ -1228,6 +1247,7 @@ def igraph_to_plotly(
 
                 # add text trace
                 edge_traces.append(text_trace)
+                annotations_trace.append(text_annotation)
 
         # ----------------- Draw a line for heteromeric edges ----------------------
         else:
@@ -1301,8 +1321,8 @@ def igraph_to_plotly(
                 text_position = (end_point + start_point) / 2
                 pass
         
-        # Add traces
-        edge_traces.append(edge_trace)
+            # Add traces
+            edge_traces.append(edge_trace)
     
     
     # ----------------------------------------------------------------------------------
@@ -1409,9 +1429,9 @@ def igraph_to_plotly(
         plot_bgcolor=plot_bgcolor
     )
     
-    
     # Create the Figure and add traces
     fig = go.Figure(data=[*edge_traces, node_trace], layout=layout)
+    fig.update_layout(annotations=annotations_trace)
     
     # ----------------------------------------------------------------------------------
     # ------------------------------- Legend Labels ------------------------------------

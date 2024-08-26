@@ -2,6 +2,8 @@
 
 import numpy as np
 import pandas as pd
+import igraph as ig
+import matplotlib.pyplot as plt
 import multimer_mapper as mm
 
 pd.set_option( 'display.max_columns' , None )
@@ -91,9 +93,9 @@ pd.set_option( 'display.max_columns' , None )
 
 fasta_file = "/home/elvio/Desktop/homomultimers_benchmark/proteins.fasta"
 AF2_2mers = "/home/elvio/Desktop/homomultimers_benchmark/AF2_2mers"
-AF2_Nmers = "/home/elvio/Desktop/homomultimers_benchmark/AF2_3-4-5-6-7mers"
+AF2_Nmers = "/home/elvio/Desktop/homomultimers_benchmark/AF2_3-4-5-6-7-8-9-10mers"
 # AF2_Nmers = None
-out_path = "/home/elvio/Desktop/homomultimers_benchmark/multimers_Nstate_2-3-4-5-6-7"
+out_path = "/home/elvio/Desktop/homomultimers_benchmark/multimers_Nstate_2to10mers"
 use_names = False
 overwrite = True
 # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
@@ -120,13 +122,16 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
                                        auto_domain_detection = auto_domain_detection,
                                        graph_resolution_preset = graph_resolution_preset)
 
+import multimer_mapper as mm
 # Generate interactive graph
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
     mm_output["combined_graph"], out_path = out_path,
     layout_algorithm = 'fr',    
     
     # You can remove specific interaction types from the graph
+    
     remove_interactions = ("Indirect", "No 2-mers Data"),
+    self_loop_size = 5,
     
     # Answer y automatically
     automatic_true = True)
@@ -197,18 +202,16 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 ################################## TESTS ######################################
 ###############################################################################
 
-from src.analyze_multivalency import  cluster_all_pairs
-results = cluster_all_pairs(
-    mm_contacts = mm_output['pairwise_contact_matrices'],
-    mm_output   = mm_output,
-    contact_fraction_threshold = 0.5)
+# # Contact Cluster graphing
+# from src.analyze_multivalency import  cluster_all_pairs
+# results = cluster_all_pairs(
+#     mm_contacts = mm_output['pairwise_contact_matrices'],
+#     mm_output   = mm_output,
+#     contact_fraction_threshold = 0.5)
 
+from src.fallback import analyze_fallback
 
-
-
-
-
-
+analyze_fallback(mm_output, logger = logger)
 
 
 

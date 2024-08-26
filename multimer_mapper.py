@@ -327,6 +327,9 @@ def parse_AF2_and_sequences(
 def interactive_igraph_to_plotly(combined_graph,
                                  out_path: str,
                                  log_level = log_level,
+                                 # Aspect of homooligomerization edges
+                                 self_loop_orientation = self_loop_orientation,
+                                 self_loop_size = self_loop_size,
                                  remove_interactions = remove_interactions_from_ppi_graph,
                                  layout_algorithm = ppi_graph_layout_algorithm,
                                  automatic_true = igraph_to_plotly_automatic_true):
