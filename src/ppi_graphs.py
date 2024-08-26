@@ -621,7 +621,7 @@ def generate_combined_graph(
     domains_df            = mm_output['domains_df']
     sliced_PAE_and_pLDDTs = mm_output['sliced_PAE_and_pLDDTs']
     pairwise_2mers_df_F3  = mm_output['pairwise_2mers_df_F3']
-    
+    symmetry_fallbacks    = mm_output['symmetry_fallbacks']
     
     # Prot IDs and prot names to add them to the graph as hovertext later on
     prot_IDs   = mm_output['prot_IDs']
@@ -865,6 +865,42 @@ def generate_combined_graph(
     graphC.es['dynamics'] = edges_dynamics
 
     # ----------------------------------------------------------------------------------------
+    # ---------------------------- Add symmetry fallbacks data -------------------------------
+    # ----------------------------------------------------------------------------------------
+    
+    # Create a df to track dynamic interactions
+    edges_fallback = []
+
+    # Analyze one edge of the combined graph at a time
+    for edge in graphC.es:
+
+        tuple_edge = tuple(sorted(edge['name']))
+
+        # For hetero interactions, add the following
+        if len(set(tuple_edge)) != 1:
+            e_fallback = {"fallback_detected" : "Not Homooligomer"}
+            edges_fallback.append(e_fallback)
+            continue
+        
+        # homooligomeric protein ID
+        prot_id = tuple_edge[0]
+        
+        # This is just if something happens
+        if prot_id not in symmetry_fallbacks.keys():
+            e_fallback = {"fallback_detected" : "Error"}
+            edges_fallback.append(e_fallback)
+            logger.error(f'For some reason, the homointeraction of {prot_id} is not in symmetry_fallbacks dict.')
+            logger.error(default_error_msgs[0])
+            logger.error(default_error_msgs[1])
+            continue
+
+        e_fallback = symmetry_fallbacks[prot_id]
+        edges_fallback.append(e_fallback)
+
+    # Add data to the graph
+    graphC.es['symmetry_fallback'] = edges_fallback
+
+    # ----------------------------------------------------------------------------------------
     # -------------------------- Add dict with the used cutoffs ------------------------------
     # ----------------------------------------------------------------------------------------
 
@@ -895,7 +931,7 @@ def generate_combined_graph(
 
 # Helper functions ------------------------------------------------------------
 
-def format_homooligomerization_states(homooligomerization_states, logger):
+def format_homooligomerization_states(homooligomerization_states, symmetry_fallback, logger):
 
     try:
         # For homooligomerization states that come from indirect interactions (or are conflictive)
@@ -912,7 +948,10 @@ def format_homooligomerization_states(homooligomerization_states, logger):
         logger.error(default_error_msgs[1])
 
     # Style definitions
-    def apply_style(N, style: int):
+    def apply_style(N, style: int, N_fallback: int | None = None):
+
+        if N_fallback is not None:
+            N = str(N) + "f" + str(N_fallback)
         
         # OK and positive homooligomerization style (BLACK)
         if style == 0:
@@ -930,15 +969,20 @@ def format_homooligomerization_states(homooligomerization_states, logger):
 
     for N, (is_ok, N_state) in enumerate(zip(homooligomerization_states["is_ok"], homooligomerization_states["N_states"]), start = 3):
         
+        N_fallback = None
+        if symmetry_fallback['fallback_detected']:
+            if symmetry_fallback['fallback_N'] == N:
+                N_fallback = symmetry_fallback['fallback_target']
+
         # If there is lacking predictions (error in the protocol)
         if N_state is None:
-            formatted_N_states += apply_style(N, 2) + '|'
+            formatted_N_states += apply_style(N, 2, N_fallback) + '|'
         # If the homooligomerization state is negative
         elif N_state is False:
-            formatted_N_states += apply_style(N, 1) + '|'
+            formatted_N_states += apply_style(N, 1, N_fallback) + '|'
         # If the homooligomerization state is positive
         elif N_state is True:
-            formatted_N_states += apply_style(N, 0) + '|'
+            formatted_N_states += apply_style(N, 0, N_fallback) + '|'
         else:
             logger.error('UNEXPECTED BEHAVIOR:')
             logger.error(f'   - Something is wrong with homooligomerization state! ("is_ok" value: {is_ok})')
@@ -1217,7 +1261,7 @@ def igraph_to_plotly(
                 # Calculate the center of the circle (this is to add text in the middle)
                 circle_center_x = np.mean(circle_x)
                 circle_center_y = np.mean(circle_y)
-                formatted_N_states = format_homooligomerization_states(edge["homooligomerization_states"], logger = logger)
+                formatted_N_states = format_homooligomerization_states(edge["homooligomerization_states"], symmetry_fallback = edge["symmetry_fallback"], logger = logger)
 
                 text_annotation = go.layout.Annotation(
                     x=circle_center_x,

@@ -23,6 +23,7 @@ try:
     from utils.combinations import suggest_combinations
     from src.contact_extractor import compute_pairwise_contacts, visualize_pair_matrices
     from src.analyze_multivalency import cluster_all_pairs, add_cluster_contribution_by_dataset
+    from src.fallback import analyze_fallback
 
     # These are for interactive usage
     from traj.pairwise_rmsd_trajectories import generate_pairwise_domain_trajectories, generate_pairwise_domain_trajectory_in_context
@@ -229,6 +230,24 @@ def parse_AF2_and_sequences(
         "unique_2mers_proteins": unique_2mers_proteins,
         "unique_Nmers_proteins": unique_Nmers_proteins
     }
+
+    # --------------------------------------------------------------------------
+    # ----------------------- Detect symmetry fallbacks ------------------------
+    # --------------------------------------------------------------------------
+
+    symmetry_fallbacks, symmetry_fallbacks_df = analyze_fallback(mm_output = multimer_mapper_output,
+                                                                 low_fraction            = fallback_low_fraction,
+                                                                 up_fraction             = fallback_up_fraction,
+                                                                 save_figs               = save_fallback_plots,
+                                                                 figsize                 = fallback_plot_figsize,
+                                                                 dpi                     = fallback_plot_dpi,
+                                                                 save_dataframes         = save_fallback_df,
+                                                                 display_fallback_ranges = display_fallback_ranges,
+                                                                 log_level               = log_level)
+    
+    # Add data to output
+    multimer_mapper_output['symmetry_fallbacks']    = symmetry_fallbacks
+    multimer_mapper_output['symmetry_fallbacks_df'] = symmetry_fallbacks_df
         
     # --------------------------------------------------------------------------
     # ------------------ Contacts detection and clustering ---------------------

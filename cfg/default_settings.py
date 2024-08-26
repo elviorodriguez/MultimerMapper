@@ -79,6 +79,18 @@ ipTM_cutoff_2mers = 0.240
 min_PAE_cutoff_Nmers = 8.99
 pDockQ_cutoff_Nmers = 0.022
 
+# ----------------------------------------------------------------------------
+# ---------------------- For Symmetry Fallback Analysis ----------------------
+# ----------------------------------------------------------------------------
+
+fallback_low_fraction: float        = 0.5
+fallback_up_fraction: float         = 0.5
+save_fallback_plots: bool           = True
+fallback_plot_figsize: tuple[int]   = (5,5)
+fallback_plot_dpi: int              = 200
+save_fallback_df: bool              = True
+display_fallback_ranges: bool       = True
+
 
 # ----------------------------------------------------------------------------
 # -------------------------- For RMSD calculations ---------------------------

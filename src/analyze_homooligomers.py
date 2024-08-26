@@ -119,6 +119,10 @@ def extract_chain_ids(row):
     return pd.Series([chain_ID1, chain_ID2])
 
 def add_chain_information_to_df(model_pairwise_df):
+
+    # Suppress the SettingWithCopyWarning (Crossing fingers for this to not brake the software in the future...)
+    pd.options.mode.chained_assignment = None
+
     # Apply the extract_chain_ids function to each row
     model_pairwise_df[['chain_ID1', 'chain_ID2']] = model_pairwise_df.apply(extract_chain_ids, axis=1)
     return model_pairwise_df

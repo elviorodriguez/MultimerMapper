@@ -128,18 +128,23 @@ def compute_fb_statistics(models_df, rank_filter=None):
 
 def plot_fb_statistics(stats_df, prot_ID = "", display_distribution = False,
                        figsize = (5, 5), dpi = 300, show_plot = False,
+                       display_fallback_ranges = True,
                        method = ['distance', 'projected_distance', 'fitted_radius'][1]):
     
     if method == 'distance':
         estimator    = 'mean_distance'
         measurements = 'distances'
         deviation    = 'std_distance'
+        low_fallback = 'lower_fallback_distance'
+        up_fallback  = 'upper_fallback_distance'
         title        = f'{prot_ID} estimated radius'
         ylabel       = 'Chain CM distance to model CM (Å)'
     elif method == 'projected_distance':
         estimator    = 'mean_projected_distance'
         measurements = 'projected_distances'
         deviation    = 'std_projected_distance'
+        low_fallback = 'lower_fallback_projected_distance'
+        up_fallback  = 'upper_fallback_projected_distance'
         title        = f'{prot_ID} estimated radius (projection)'
         ylabel       = 'Projected chain CM distance to model CM (Å)'
     elif method == 'fitted_radius':
@@ -152,18 +157,21 @@ def plot_fb_statistics(stats_df, prot_ID = "", display_distribution = False,
     # Plot Mean and Standard Deviation
     fig = plt.figure(figsize=figsize, dpi = dpi)
 
-    # Colors for the fallback ranges (a dim rainbow-like sequence)
-    colors = plt.cm.rainbow(np.linspace(0, 1, len(stats_df)))
-
     # Fill fallback ranges with transparent colors
-    for i in range(len(stats_df)):
-        N = stats_df.loc[i, 'N']
-        lower = stats_df.loc[i, 'lower_fallback']
-        upper = stats_df.loc[i, 'upper_fallback']
+    if display_fallback_ranges:
         
-        plt.fill_between([-4, 30], lower, upper,
-                         color=colors[i], alpha=0.2,
-                         edgecolor='none')  # Adjust alpha for transparency
+        # Colors for the fallback ranges (a dim rainbow-like sequence)
+        colors = plt.cm.rainbow(np.linspace(0, 1, len(stats_df)))
+
+
+        for i in range(len(stats_df)):
+            N = stats_df.loc[i, 'N']
+            lower = stats_df.loc[i, low_fallback]
+            upper = stats_df.loc[i, up_fallback]
+            
+            plt.fill_between([-4, 30], lower, upper,
+                            color=colors[i], alpha=0.2,
+                            edgecolor='none')  # Adjust alpha for transparency
 
     plt.plot(stats_df['N'], stats_df[estimator], 
              color='black', linestyle='-', alpha=0.5)
@@ -193,25 +201,54 @@ def plot_fb_statistics(stats_df, prot_ID = "", display_distribution = False,
     plt.xlim(stats_df['N'].min() - 0.5, stats_df['N'].max() + 0.5)
     plt.ylim(stats_df[estimator].min() - stats_df[deviation].max(),
                 stats_df[estimator].max() + stats_df[deviation].max())
+    # Set x-axis ticks to integers
+    plt.xticks(np.arange(stats_df['N'].min(), stats_df['N'].max() + 1, 1))
 
 
     if show_plot:
         plt.show()
 
+    plt.close()
+
     return fig
 
 
-def add_fallback_ranges(stats_df, low_fraction = 0.25, up_fraction = 0.75):
+def add_fallback_ranges(stats_df, low_fraction = 0.5, up_fraction = 0.5,
+                        method = ['distance', 'projected_distance'][0]):
+    
+    if method == 'distance':
+        estimator = 'mean_distance'
+        low_name  = 'lower_fallback_distance'
+        up_name   = 'upper_fallback_distance'
+        # measurements = 'distances'
+        # deviation    = 'std_distance'
+    elif method == 'projected_distance':
+        estimator = 'mean_projected_distance'
+        low_name  = 'lower_fallback_projected_distance'
+        up_name   = 'upper_fallback_projected_distance'
+        # measurements = 'projected_distances'
+        # deviation    = 'std_projected_distance'
+    elif method == 'fitted_radius':
+        estimator    = 'fitted_radius'
+        # measurements = 'projected_distances'
+        # deviation    = 'std_projected_distance'
+    else:
+        estimator    = 'mean_distance'
+        low_name  = 'lower_fallback_distance'
+        up_name   = 'upper_fallback_distance'
+        # measurements = 'distances'
+        # deviation    = 'std_distance'
+    
     # Initialize lists to store lower and upper boundaries
     lower_boundaries = []
     upper_boundaries = []
 
     for i in range(len(stats_df)):
-        mean_distance = stats_df.loc[i, 'mean_distance']
+        mean_distance = stats_df.loc[i, estimator]
         
         # Calculate lower boundary
         if i > 0:
-            prev_mean_distance = stats_df.loc[i - 1, 'mean_distance']
+            prev_mean_distance = stats_df.loc[i - 1, estimator]
             lower_diff = mean_distance - prev_mean_distance
             lower_boundary = mean_distance - low_fraction * lower_diff
             if lower_boundary < max(upper_boundaries):
@@ -221,7 +258,7 @@ def add_fallback_ranges(stats_df, low_fraction = 0.25, up_fraction = 0.75):
 
         # Calculate upper boundary
         if i < len(stats_df) - 1:
-            next_mean_distance = stats_df.loc[i + 1, 'mean_distance']
+            next_mean_distance = stats_df.loc[i + 1, estimator]
             upper_diff = next_mean_distance - mean_distance
             upper_boundary = mean_distance + up_fraction * upper_diff
             try:
@@ -238,12 +275,12 @@ def add_fallback_ranges(stats_df, low_fraction = 0.25, up_fraction = 0.75):
     upper_boundaries[-1] = 1000
 
     # Add the computed ranges to the DataFrame
-    stats_df['lower_fallback'] = lower_boundaries
-    stats_df['upper_fallback'] = upper_boundaries
+    stats_df[low_name] = lower_boundaries
+    stats_df[up_name] = upper_boundaries
 
     return stats_df
 
-def detect_fallback(stats_df, drop_threshold=0.2):
+def detect_fallback(stats_df, drop_threshold = 0.2):
     """
     Detect the point of fallback based on a significant drop in mean_distance.
     
@@ -261,9 +298,9 @@ def detect_fallback(stats_df, drop_threshold=0.2):
     return None
 
 
-def identify_fallback_target(stats_df, fallback_N, confidence_level=0.95):
+def identify_fallback_target(stats_df, fallback_N, logger, confidence_level=0.95, ):
     """
-    Identify which previous model the fallback corresponds to.
+    Identify which previous N-mer model the fallback corresponds to.
     
     :param stats_df: DataFrame containing the statistics
     :param fallback_N: The N value where fallback occurs
@@ -284,38 +321,47 @@ def identify_fallback_target(stats_df, fallback_N, confidence_level=0.95):
         
         mean = row[metric]
         std = row[std_column]
-        n = row['N']  # Using N as sample size, adjust if needed
+        n = len(row['distances'])  # Using N as sample size, adjust if needed
         ci = stats.t.interval(confidence_level, df=n-1, loc=mean, scale=std/np.sqrt(n))
         return ci
     
+    # Computes confidence interval for both metrics
     fallback_cis = {metric: calculate_ci(fallback_row, metric) for metric in metrics}
-    
-    best_match = None
-    smallest_diff = float('inf')
-    
-    for i in range(fallback_index):
-        row = stats_df.iloc[i]
-        matches = []
-        
-        for metric in metrics:
+
+    # Start with non-projected one and then with the projected
+    for metric in metrics:
+
+        # Iterate from fallback_N-1 to 2-mer to see if the CI covers the estimated radius
+        for i in reversed(range(fallback_index)):
+
+            row = stats_df.iloc[i]
+
             if fallback_cis[metric][0] <= row[metric] <= fallback_cis[metric][1]:
-                matches.append(True)
-            else:
-                matches.append(False)
+                logger.debug(f'   {round(fallback_cis[metric][0], 2)} < {round(row[metric], 2)} < {round(fallback_cis[metric][1], 2)}')
+                logger.debug(f'   Fallback model radius ({metric}) {int(confidence_level*100)}% confidence interval covers the radius of a smaller N-mer')
+                return row['N'], metric, f'{confidence_level*100}% Confidence Interval'
+
+    best_match = None
+    best_metric = None
+    smallest_diff = float('inf')
+
+    # Iterate from N=2 to fallback_N-1 to see if the CI covers the estimated radius
+    for i in range(fallback_index):
+
+        # If no exact match, track the closest in the non-projected distance
+        for met in metrics:
+            diff = abs(row[met] - fallback_row[met])
+            if diff < smallest_diff:
+                smallest_diff = diff
+                best_match = row['N']
+                best_metric = met
+
+    logger.debug(f'   Falling back N-mer detected by estimated radius ({best_metric}) proximity')
         
-        if any(matches):
-            return row['N']
-        
-        # If no exact match, track the closest
-        diff = min(abs(row[metric] - fallback_cis[metric][0]) for metric in metrics)
-        if diff < smallest_diff:
-            smallest_diff = diff
-            best_match = row['N']
-    
-    return best_match
+    return best_match, best_metric, 'Radius Proximity'
 
 
-def interpret_fallback(stats_df, drop_threshold=0.2, confidence_level=0.95):
+def interpret_fallback(stats_df, logger, drop_threshold=0.2, confidence_level=0.99):
     """
     Analyze fallback in the data.
     
@@ -329,28 +375,42 @@ def interpret_fallback(stats_df, drop_threshold=0.2, confidence_level=0.95):
     if fallback_N is None:
         return {"fallback_detected": False}
     
-    fallback_target = identify_fallback_target(stats_df, fallback_N, confidence_level)
+    fallback_target, metric, detection_method = identify_fallback_target(stats_df, fallback_N, logger = logger, confidence_level = confidence_level)
     
     return {
-        "fallback_detected": True,
-        "fallback_N": fallback_N,
-        "fallback_target": fallback_target
+        "fallback_detected" : True,
+        # N-mer at which the symmetry fallback happens
+        "fallback_N"        : fallback_N,
+        # N-mer to which the model falls back (most similar radius)
+        "fallback_target"   : fallback_target,
+        # Info about how it was detected
+        "fallback_metric"   : metric,
+        "fallback_method"   : detection_method
     }
 
-def analyze_fallback(mm_output, save_figs = True, figsize = (5, 5), dpi = 200, logger: Logger | None = None):
+def analyze_fallback(mm_output, low_fraction = 0.5, up_fraction = 0.5, 
+                     save_figs = True, figsize = (5, 5), dpi = 200,
+                     save_dataframes = True,
+                     display_fallback_ranges = True,
+                     log_level = "info",
+                     logger: Logger | None = None):
     
     if logger is None:
-        logger = configure_logger(mm_output['out_path'])(__name__)
+        logger = configure_logger(mm_output['out_path'], log_level = log_level)(__name__)
 
     logger.info("INITIALIZING: Analyze homooligomeric symmetry fallbacks...")
 
     # Unpack data
     prot_IDs_list = mm_output['prot_IDs']
 
-    if save_figs:
+    if save_figs or save_dataframes:
         # Create a directory for saving plots
         output_dir = os.path.join(mm_output['out_path'], 'fallback_analysis')
         os.makedirs(output_dir, exist_ok=True)
+    
+    # Empty variables to store results
+    output_stats_df = pd.DataFrame()
+    symmetry_fallbacks = {}
         
     # Query ID
     for prot_ID in prot_IDs_list:
@@ -363,34 +423,51 @@ def analyze_fallback(mm_output, save_figs = True, figsize = (5, 5), dpi = 200, l
 
         logger.info("")
         logger.info(f"Analyzing fallback on homooligomer: {prot_ID}")
-            
-        stats_df = compute_fb_statistics(homooligomeric_models_df, rank_filter = 1)
-        stats_df = add_fallback_ranges(stats_df)
-
-        # Analyze fallback
-        fallback_result = interpret_fallback(stats_df)
         
+        # Generate data with estimated radius and then compute some statistics
+        stats_df = compute_fb_statistics(homooligomeric_models_df, rank_filter = 1)
+        stats_df = add_fallback_ranges(stats_df, low_fraction = low_fraction, up_fraction = up_fraction, method = 'distance')
+        stats_df = add_fallback_ranges(stats_df, low_fraction = low_fraction, up_fraction = up_fraction, method = 'projected_distance')
+        stats_df['protein'] = prot_ID
+        output_stats_df = pd.concat([output_stats_df, stats_df], ignore_index=True)
+        
+        # Analyze fallback
+        fallback_result = interpret_fallback(stats_df, logger = logger)
+        
+        # Progress report
         if fallback_result["fallback_detected"]:
-            logger.info(f"   Fallback detected for {prot_ID}:")
+            logger.info(f"   Fallback detected for {prot_ID}")
             logger.info(f"   Fallback occurs at N = {fallback_result['fallback_N']}")
             logger.info(f"   Falls back to model with N = {fallback_result['fallback_target']}")
+            logger.info(f'   Match found using estimated radius {fallback_result["fallback_method"]} (method: {fallback_result["fallback_metric"]})')
             logger.info(f"   Users should examine the model with N = {fallback_result['fallback_N']}")
         else:
             logger.info(f"   No fallback detected for {prot_ID}")
 
-        fig = plot_fb_statistics(stats_df,
-                                    prot_ID,
-                                    display_distribution = False,
-                                    figsize = figsize,
-                                    dpi = dpi)
-        
-        if save_figs:
-            out_file = os.path.join(output_dir, f'{prot_ID}_fallback.png')
-            fig.savefig(out_file, dpi=dpi)
-            logger.info(f"   Plot saved to {out_file}")
+        # Plot the estimated radius using distance and projected distance
+        for method in ['distance', 'projected_distance']:
+            fig = plot_fb_statistics(stats_df, prot_ID, display_distribution = False, figsize = figsize,
+                                    dpi = dpi, display_fallback_ranges = display_fallback_ranges, method = method)
+            
+            if save_figs:
+                out_file = os.path.join(output_dir, f'{prot_ID}_{method}_fallback.png')
+                fig.savefig(out_file, dpi=dpi)
+                logger.info(f"   Plot saved in {output_dir}")
+
+        # Add results for protein homooligomer to output dict
+        symmetry_fallbacks[prot_ID] = fallback_result
+    
+    if save_dataframes:
+        output_csv = os.path.join(output_dir, 'fallback_analysis.tsv')
+        output_stats_df.to_csv(output_csv, index = False, sep = '\t')
+        logger.info("")
+        logger.info(f"   Radius statistics of all proteins have been saved to {output_csv}")
+
 
     logger.info("")
     logger.info(f"FINISHED: Analyze homooligomeric symmetry fallbacks")
+
+    return symmetry_fallbacks, output_stats_df
 
 
 

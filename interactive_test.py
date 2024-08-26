@@ -202,16 +202,12 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 ################################## TESTS ######################################
 ###############################################################################
 
-# # Contact Cluster graphing
-# from src.analyze_multivalency import  cluster_all_pairs
-# results = cluster_all_pairs(
-#     mm_contacts = mm_output['pairwise_contact_matrices'],
-#     mm_output   = mm_output,
-#     contact_fraction_threshold = 0.5)
-
-from src.fallback import analyze_fallback
-
-analyze_fallback(mm_output, logger = logger)
+# Contact Cluster graphing
+from src.analyze_multivalency import  cluster_all_pairs
+results = cluster_all_pairs(
+    mm_contacts = mm_output['pairwise_contact_matrices'],
+    mm_output   = mm_output,
+    contact_fraction_threshold = 0.5)
 
 
 
