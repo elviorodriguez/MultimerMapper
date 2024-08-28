@@ -886,12 +886,18 @@ def generate_combined_graph(
         prot_id = tuple_edge[0]
         
         # This is just if something happens
-        if prot_id not in symmetry_fallbacks.keys():
+        if prot_id not in symmetry_fallbacks.keys() and edge['dynamics'] != "Indirect":
             e_fallback = {"fallback_detected" : "Error"}
             edges_fallback.append(e_fallback)
             logger.error(f'For some reason, the homointeraction of {prot_id} is not in symmetry_fallbacks dict.')
             logger.error(default_error_msgs[0])
             logger.error(default_error_msgs[1])
+            continue
+        elif prot_id not in symmetry_fallbacks.keys() and edge['dynamics'] == "Indirect":
+            e_fallback = {"fallback_detected" : "Not apply: indirect interaction"}
+            edges_fallback.append(e_fallback)
+            logger.warn(f'Homointeraction of {prot_id} is not in symmetry_fallbacks dict as it is classified as Indirect.')
+            logger.warn('   Adding "fallback_detected" as "Not apply: indirect interaction"...')
             continue
 
         e_fallback = symmetry_fallbacks[prot_id]

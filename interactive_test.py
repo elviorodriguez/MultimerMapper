@@ -11,16 +11,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ################################# Test 1 ######################################
 
-fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
-AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
-AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/MM_interactive_test"
-use_names = True 
-overwrite = True
-auto_domain_detection = False
-graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# graph_resolution_preset = None
+# fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
+# AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
+# AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/MM_interactive_test"
+# use_names = True 
+# overwrite = True
+# auto_domain_detection = False
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# # graph_resolution_preset = None
 
 ##############################################################################
 
@@ -76,16 +76,16 @@ graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 
 ######################## Test 6 (multivalency detection) ######################
 
-# fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
-# AF2_2mers = "tests/multivalency_test/2-mers"
-# AF2_Nmers = "tests/multivalency_test/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/MM_multivalency_test"
-# use_names = True 
-# overwrite = True
-# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# auto_domain_detection = True
-# graph_resolution_preset = None
+fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
+AF2_2mers = "tests/multivalency_test/2-mers"
+AF2_Nmers = "tests/multivalency_test/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/MM_multivalency_test"
+use_names = True 
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+auto_domain_detection = True
+graph_resolution_preset = None
 
 ###############################################################################
 
@@ -122,15 +122,14 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
                                        auto_domain_detection = auto_domain_detection,
                                        graph_resolution_preset = graph_resolution_preset)
 
-import multimer_mapper as mm
 # Generate interactive graph
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
     mm_output["combined_graph"], out_path = out_path,
     layout_algorithm = 'fr',    
     
     # You can remove specific interaction types from the graph
-    
-    remove_interactions = ("Indirect", "No 2-mers Data"),
+    #"No 2-mers Data"
+    remove_interactions = ("Indirect", ),
     self_loop_size = 5,
     
     # Answer y automatically
