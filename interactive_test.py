@@ -11,16 +11,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ################################# Test 1 ######################################
 
-# fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
-# AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
-# AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/MM_interactive_test"
-# use_names = True 
-# overwrite = True
-# auto_domain_detection = False
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# # graph_resolution_preset = None
+fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
+AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
+AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/MM_interactive_test"
+use_names = True 
+overwrite = True
+auto_domain_detection = False
+graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# graph_resolution_preset = None
 
 ##############################################################################
 
@@ -91,16 +91,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ####################### Test 7 (multivalency homodimers) ######################
 
-fasta_file = "/home/elvio/Desktop/homomultimers_benchmark/proteins.fasta"
-AF2_2mers = "/home/elvio/Desktop/homomultimers_benchmark/AF2_2mers"
-AF2_Nmers = "/home/elvio/Desktop/homomultimers_benchmark/AF2_3-4-5-6-7-8-9-10mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/homomultimers_benchmark/multimers_Nstate_2to10mers"
-use_names = False
-overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-auto_domain_detection = True
-graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/homomultimers_benchmark/proteins.fasta"
+# AF2_2mers = "/home/elvio/Desktop/homomultimers_benchmark/AF2_2mers"
+# AF2_Nmers = "/home/elvio/Desktop/homomultimers_benchmark/AF2_3-4-5-6-7-8-9-10mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/homomultimers_benchmark/multimers_Nstate_2to10mers"
+# use_names = False
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 

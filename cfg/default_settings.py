@@ -207,8 +207,8 @@ multivalency_contact_similarity_threshold: float = 0.7
 max_contact_clusters: int = 5
 
 # For MCFT (Merging by Contact Fraction Threshold) - DEFAULT -----------------
- 
-contact_fraction_threshold: float = 0.5
+
+contact_fraction_threshold: float = 0.01
 
 # Save/display the contact clusters with PCA plots?
 display_contact_clusters = True

@@ -13,6 +13,10 @@ from devs.mm_getters import get_protein_homooligomeric_models
 from utils.logger_setup import configure_logger
 
 
+##################################################################################
+################################ Helper functions ################################
+##################################################################################
+
 def fit_circle(x, y):
     def calc_R(xc, yc):
         return np.sqrt((x-xc)**2 + (y-yc)**2)
@@ -30,7 +34,7 @@ def fit_circle(x, y):
     
     return xc, yc, R
 
-def compute_fb_statistics(models_df, rank_filter=None):
+def compute_fb_statistics(models_df, bool_contact_matrix, domains_df, rank_filter=None):
     # Initialize a list to store the results
     results = []
 
@@ -51,15 +55,29 @@ def compute_fb_statistics(models_df, rank_filter=None):
         else:
             model = pdb_model  # Already a model object
         
-        # Calculate the mean center of mass for all chains
-        all_chain_coords = [atom.coord for chain in model.get_chains() for atom in chain.get_atoms()]
+        # ---------- Use only atoms that are part of the involved homooligomerization domain --------------
+        # Get the indexes of True values (contacts) and convert it to set
+        row_contacts_res, col_contacts_res = np.where(bool_contact_matrix)
+        residues_involved_in_contacts = set(np.append(row_contacts_res +1, col_contacts_res +1))
+
+        # Get the domains involved in contacts
+        domains_res_involved_in_contacts = []
+        for i, dom in domains_df.iterrows():
+            for res in residues_involved_in_contacts:
+                if dom['Start'] <= res <= dom['End']:
+                    domains_res_involved_in_contacts += list(range(dom['Start'], dom['End'] + 1))
+                    break
+        # -------------------------------------------------------------------------------------------------
+
+        # Calculate the mean center of mass for all chains (only for atoms that are part of domains involved in contacts)
+        all_chain_coords = [atom.coord for chain in model.get_chains() for atom in chain.get_atoms() if atom.get_parent().id[1] in domains_res_involved_in_contacts]
         all_chain_coords = np.array(all_chain_coords)
         mean_center_of_mass = np.mean(all_chain_coords, axis=0)
         
-        # Calculate the mean center of mass for each chain
+        # Calculate the mean center of mass for each chain (only for atoms that are part of domains involved in contacts)
         chain_centers = {}
         for chain in model.get_chains():
-            chain_coords = [atom.coord for atom in chain.get_atoms()]
+            chain_coords = [atom.coord for atom in chain.get_atoms() if atom.get_parent().id[1] in domains_res_involved_in_contacts]
             chain_coords = np.array(chain_coords)
             chain_center = np.mean(chain_coords, axis=0)
             chain_centers[chain.id] = chain_center
@@ -388,10 +406,16 @@ def interpret_fallback(stats_df, logger, drop_threshold=0.2, confidence_level=0.
         "fallback_method"   : detection_method
     }
 
+##################################################################################
+################################ Working function ################################
+##################################################################################
+
+
 def analyze_fallback(mm_output, low_fraction = 0.5, up_fraction = 0.5, 
                      save_figs = True, figsize = (5, 5), dpi = 200,
                      save_dataframes = True,
                      display_fallback_ranges = True,
+                     low_prob_contacts_threshold = 0.1,
                      log_level = "info",
                      logger: Logger | None = None):
     
@@ -414,18 +438,29 @@ def analyze_fallback(mm_output, low_fraction = 0.5, up_fraction = 0.5,
         
     # Query ID
     for prot_ID in prot_IDs_list:
-            
-        homooligomeric_models_df = get_protein_homooligomeric_models(mm_output, prot_ID)
         
-        # Only work with Homo-N-mers > 2
+        # Creates a df with homooligomeric protein models columns are ['N', 'rank', 'pdb_model']
+        homooligomeric_models_df: pd.DataFrame = get_protein_homooligomeric_models(mm_output, prot_ID)
+        
+        # Only work with proteins that have Homo-N-mers predictions > 2
         if not max(homooligomeric_models_df['N']) > 2:
+            logger.info("")
+            logger.info(f"Homooligomeric protein {prot_ID} does not have N-mers with N > 2. Skipping...")
             continue
 
         logger.info("")
         logger.info(f"Analyzing fallback on homooligomer: {prot_ID}")
         
+        # Get homointeraction contacts and protein domains to isolate interacting domains
+        prot_contacts_clusters = mm_output['contacts_clusters'][(prot_ID, prot_ID)]
+        bool_contact_matrix = sum([ prot_contacts_clusters[c]['average_matrix'] > low_prob_contacts_threshold for c in prot_contacts_clusters ]) # Convert contact to bool matrix (ignore low prob contacts)
+        domains_df          = mm_output['domains_df'].query(f'Protein_ID == "{prot_ID}"')
+
         # Generate data with estimated radius and then compute some statistics
-        stats_df = compute_fb_statistics(homooligomeric_models_df, rank_filter = 1)
+        stats_df = compute_fb_statistics(homooligomeric_models_df, 
+                                         bool_contact_matrix = bool_contact_matrix,
+                                         domains_df = domains_df,
+                                         rank_filter = 1)
         stats_df = add_fallback_ranges(stats_df, low_fraction = low_fraction, up_fraction = up_fraction, method = 'distance')
         stats_df = add_fallback_ranges(stats_df, low_fraction = low_fraction, up_fraction = up_fraction, method = 'projected_distance')
         stats_df['protein'] = prot_ID

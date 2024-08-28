@@ -585,7 +585,7 @@ def generate_combined_graph(
         # Vertex colors
         vertex_color1='red', vertex_color2='green', vertex_color3='orange', vertex_color_both='gray',
         
-        logger = None):
+        log_level = 'info'):
     """
     Compares two graphs and create a new graph with colored edges and vertices based on their differences.
 
@@ -609,9 +609,9 @@ def generate_combined_graph(
     Returns:
     - Combined igraph.Graph object with colored edges and vertices.
     """
+
     # Configure logger
-    if logger is None:
-        configure_logger()(__name__)
+    logger = configure_logger(out_path = mm_output['out_path'], log_level = log_level)(__name__)
 
     # Unpack data
     graph1                = mm_output['graph_2mers']

@@ -85,7 +85,8 @@ def parse_AF2_and_sequences(
     # For multivalency detection (contact clustering)
     multivalency_silhouette_threshold         = multivalency_silhouette_threshold,
     multivalency_contact_similarity_threshold = multivalency_contact_similarity_threshold,
-    max_contact_clusters                      = max_contact_clusters,
+    max_contact_clusters                      = max_contact_clusters,    
+    contact_fraction_threshold                = contact_fraction_threshold,
 
     # For RMSD calculations
     domain_RMSD_plddt_cutoff = domain_RMSD_plddt_cutoff,
@@ -232,24 +233,6 @@ def parse_AF2_and_sequences(
     }
 
     # --------------------------------------------------------------------------
-    # ----------------------- Detect symmetry fallbacks ------------------------
-    # --------------------------------------------------------------------------
-
-    symmetry_fallbacks, symmetry_fallbacks_df = analyze_fallback(mm_output = multimer_mapper_output,
-                                                                 low_fraction            = fallback_low_fraction,
-                                                                 up_fraction             = fallback_up_fraction,
-                                                                 save_figs               = save_fallback_plots,
-                                                                 figsize                 = fallback_plot_figsize,
-                                                                 dpi                     = fallback_plot_dpi,
-                                                                 save_dataframes         = save_fallback_df,
-                                                                 display_fallback_ranges = display_fallback_ranges,
-                                                                 log_level               = log_level)
-    
-    # Add data to output
-    multimer_mapper_output['symmetry_fallbacks']    = symmetry_fallbacks
-    multimer_mapper_output['symmetry_fallbacks_df'] = symmetry_fallbacks_df
-        
-    # --------------------------------------------------------------------------
     # ------------------ Contacts detection and clustering ---------------------
     # --------------------------------------------------------------------------
         
@@ -277,6 +260,24 @@ def parse_AF2_and_sequences(
 
     # Add cluster contribution by 2/N-mers dataset
     add_cluster_contribution_by_dataset(multimer_mapper_output)
+
+    # --------------------------------------------------------------------------
+    # ----------------------- Detect symmetry fallbacks ------------------------
+    # --------------------------------------------------------------------------
+
+    symmetry_fallbacks, symmetry_fallbacks_df = analyze_fallback(mm_output = multimer_mapper_output,
+                                                                 low_fraction            = fallback_low_fraction,
+                                                                 up_fraction             = fallback_up_fraction,
+                                                                 save_figs               = save_fallback_plots,
+                                                                 figsize                 = fallback_plot_figsize,
+                                                                 dpi                     = fallback_plot_dpi,
+                                                                 save_dataframes         = save_fallback_df,
+                                                                 display_fallback_ranges = display_fallback_ranges,
+                                                                 log_level               = log_level)
+    
+    # Add data to output
+    multimer_mapper_output['symmetry_fallbacks']    = symmetry_fallbacks
+    multimer_mapper_output['symmetry_fallbacks_df'] = symmetry_fallbacks_df
 
     # --------------------------------------------------------------------------
     # ----------------------- 2D PPI graph generation --------------------------
@@ -325,10 +326,7 @@ def parse_AF2_and_sequences(
         trimming_RMSD_plddt_cutoff = trimming_RMSD_plddt_cutoff,
 
         # Style options (see cfg/default_settings module for their meaning)
-        vertex_color1=vertex_color1, vertex_color2=vertex_color2, vertex_color3=vertex_color3, vertex_color_both=vertex_color_both,
-        
-        # Is debug?
-        logger = logger)
+        vertex_color1=vertex_color1, vertex_color2=vertex_color2, vertex_color3=vertex_color3, vertex_color_both=vertex_color_both)
     
     # Debug
     logger.debug(f"Resulting combined graph:\n{combined_graph}")
