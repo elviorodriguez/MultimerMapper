@@ -76,12 +76,12 @@ pd.set_option( 'display.max_columns' , None )
 
 ######################## Test 6 (multivalency detection) ######################
 
-fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
-AF2_2mers = "tests/multivalency_test/2-mers"
-AF2_Nmers = "tests/multivalency_test/N-mers"
+fasta_file = "/home/elvio/Desktop/heteromultimers_benchmark/actin/proteins_mm.fasta"
+AF2_2mers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_2mers"
+AF2_Nmers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_Nmers"
 # AF2_Nmers = None
-out_path = "/home/elvio/Desktop/MM_multivalency_test"
-use_names = True 
+out_path = "/home/elvio/Desktop/heteromultimers_benchmark/actin/MM_out_Nmers"
+use_names = False
 overwrite = True
 # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 auto_domain_detection = True
@@ -130,7 +130,7 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     # You can remove specific interaction types from the graph
     #"No 2-mers Data"
     remove_interactions = ("Indirect", ),
-    self_loop_size = 5,
+    self_loop_size = 3,
     
     # Answer y automatically
     automatic_true = True)
@@ -139,6 +139,7 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
 suggested_combinations = mm.suggest_combinations(mm_output = mm_output, 
                                                  # To ommit saving, change to None
                                                  out_path = out_path)
+
 
 # Generate RMSF, pLDDT clusters & RMSD trajectories considering models as monomers
 mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
@@ -152,10 +153,11 @@ mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
 mm_output.keys()
 sorted_tuple_pair = ('RuvBL1', 'RuvBL2')
 mm_output['contacts_clusters'][sorted_tuple_pair].keys()
+mm_output['contacts_clusters'][sorted_tuple_pair][1]
+model_k = mm_output['contacts_clusters'][sorted_tuple_pair][1]['models'][0]
+model_k[0]
 
-
-mm_output["combined_graph"].es.attributes()
-mm_output["combined_graph"].es[0]['valency']['cluster_n']
+combined_graph = mm_output["combined_graph"]
 
 
 ###############################################################################
@@ -201,10 +203,58 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 ################################## TESTS ######################################
 ###############################################################################
 
+from src.ppi_graphs import generate_combined_graph
+
+graphC, dynamic_proteins = generate_combined_graph(mm_output)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+pairwise_Nmers_df_F3 = mm_output['pairwise_Nmers_df_F3']
+
+from src.contact_extractor import compute_pairwise_contacts, visualize_pair_matrices
+pairwise_Contacts = compute_pairwise_contacts(mm_output, out_path,
+                                              contact_PAE_cutoff= 9,
+                                              contact_pLDDT_cutoff=50,
+                                              contact_distance_cutoff = 8)
+
+visualize_pair_matrices(mm_output, max_models=1000)
+visualize_pair_matrices(mm_output, pair = ('7Q8S-P5', '7Q8S-P5'),  max_models=1000)
+
+mm_output["contacts_clusters"].keys()
+conflictive_pair = pairwise_Contacts[('7Q8S-P5', '7Q8S-P5')]
+models = list(pairwise_Contacts[('7Q8S-P5', '7Q8S-P5')].keys())
+any([m.any() for m in conflictive_pair[models[0]]['is_contact']])
+
+
+
+
+
 # Contact Cluster graphing
 from src.analyze_multivalency import  cluster_all_pairs
 results = cluster_all_pairs(
-    mm_contacts = mm_output['pairwise_contact_matrices'],
+    mm_contacts = pairwise_Contacts,
     mm_output   = mm_output,
     contact_fraction_threshold = 0.5)
 

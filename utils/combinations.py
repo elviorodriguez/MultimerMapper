@@ -10,7 +10,7 @@ from typing import Set, Tuple
 from copy import deepcopy
 from collections import Counter
 
-from utils.logger_setup import configure_logger
+from utils.logger_setup import configure_logger, default_error_msgs
 
 
 # -----------------------------------------------------------------------------
@@ -246,12 +246,28 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
                                                                    min_N = min_N, max_N = max_N,
                                                                    logger = logger)
     list_of_untested_Nmers = list(list_of_untested_Nmers)
-    
 
     # Combine all suggested combinations and remove duplicates (if any)
     suggested_combinations: list[tuple[str]] = list_of_untested_2mers + list_of_homo_oligomeric_Nstates_plus_one + list_of_homo_oligomeric_Nstates_inconsistent + list_of_untested_Nmers
     suggested_combinations: list[tuple[str]] = list(set(suggested_combinations))
-    
+
+    # Remove homooligomeric combinations that have reached a fallback
+    fall_back_edges = []
+    for e in combined_graph.es:
+        try:
+            if e['symmetry_fallback']['fallback_detected'] is True:
+                 fall_back_edges.append(tuple(sorted(set(e['name']))))
+        except KeyError:
+            logger.warn(f'   Edge {e["name"]} does not have symmetry fallback')
+            logger.warn(f'   This is an unexpected behavior...')
+            continue
+        except Exception as e:
+            logger.error(f'   Unknown exception occurred when searching for edge {e["name"]} symmetry fallback')
+            logger.error(default_error_msgs[0])
+            logger.error(default_error_msgs[1])
+            continue
+    suggested_combinations = [ comb for comb in suggested_combinations if tuple(sorted(set(comb))) not in fall_back_edges ]
+
     if out_path is not None:
 
         combination_suggestions_path = os.path.join(out_path, "combinations_suggestions")

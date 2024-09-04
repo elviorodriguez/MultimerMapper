@@ -412,10 +412,32 @@ def convert_to_hex_colors(list_of_int: list[int], color_map = 'tab10'):
     
     return list_of_colors
 
+def convert_model_to_hex_colors(model_keys, color_map = 'tab20'):
+
+    # Extract the first element of each tuple in model_keys
+    first_elements = [key[0] for key in model_keys]
+    
+    # Create a mapping from unique elements to numbers
+    unique_elements = sorted(set(first_elements))
+    element_to_number = {element: i for i, element in enumerate(unique_elements)}
+    
+    # Convert model_keys to numbers using the mapping
+    list_of_int = [element_to_number[key[0]] for key in model_keys]
+    
+    # Convert numbers to hex colors
+    cmap = plt.get_cmap(color_map).colors  # You can choose any colormap you prefer
+    n_colors = len(cmap)
+    list_of_colors = [mcolors.to_hex(cmap[number % n_colors]) for number in list_of_int]
+
+    # Create a mapping from unique elements to their corresponding colors
+    element_to_color = {element: mcolors.to_hex(cmap[i % n_colors]) for i, element in enumerate(unique_elements)}
+    
+    return list_of_colors, element_to_color
+
 
 def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
                        reduced_features = None, explained_variance = None,
-                       show_plot = True, save_plot = True,
+                       show_plot = False, save_plot = True, plot_by_model = True,
                        logger: Logger | None = None):
     """
     Visualizes the clusters by plotting the average contact matrices for each cluster, 
@@ -464,20 +486,30 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
         # PCA Plot
         ax_pca = axs[0]
         colors = convert_to_hex_colors(labels)
-        ax_pca.scatter(reduced_features[:, 0] / 100, reduced_features[:, 1] / 100, 
-                    c=colors, s=50, alpha=0.7)
+        x_coords = reduced_features[:, 0] / 100
+        y_coords = reduced_features[:, 1] / 100
+        ax_pca.scatter(x_coords, y_coords, c=colors, s=50, alpha=0.7)
         ax_pca.set_title(f"PCA Plot for {pair}")
         ax_pca.set_xlabel(f"Principal Component 1 ({explained_variance[0]:.2f}% variance)")
         ax_pca.set_ylabel(f"Principal Component 2 ({explained_variance[1]:.2f}% variance)")
         ax_pca.grid(True)
         ax_pca.set_aspect('equal', adjustable='box')
 
+        # # Add 2-mers contacts location in the PCA plot as a "2" above the PCA points
+        # dimers_indexes = [ i for i, model_ID in enumerate(model_keys) if len(model_ID[0]) == 2 ]
+        # dimers_x = reduced_features[dimers_indexes, 0] / 100
+        # dimers_y = reduced_features[dimers_indexes, 1] / 100
+        # for x, y in zip(dimers_x, dimers_y):
+        #     ax_pca.text(x, y, '2', fontsize=8, ha='center', va='center', color='black', weight='bold')
+
         # Create legend and position it below the x-axis
         unique_labels = sorted(set(labels))
         legend_elements = [Patch(facecolor=convert_to_hex_colors([label])[0], label=f'{label}')
                            for label in unique_labels]
+        
         # Calculate the aspect ratio of the PCA plot
         aspect_ratio = ax_pca.get_data_ratio()
+
         # Adjust the legend's vertical position based on the aspect ratio
         legend_y_position = -0.12 * (1/aspect_ratio)
 
@@ -535,12 +567,61 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
         plot_filename = f"{protein_a}__vs__{protein_b}-contact_clusters.png"
         plot_path = os.path.join(output_dir, plot_filename)
         plt.savefig(plot_path, dpi=600)
-        logger.info(f"   Plot saved to {plot_path}")
+        logger.info(f"   Clusters plot saved to {plot_path}")
 
     if show_plot:
         plt.show()
 
     plt.close()
+
+    ################################# Create plot using model IDs as colors #################################
+
+    if (reduced_features is not None or explained_variance is not None) and plot_by_model:
+
+        # Create a separate PCA plot colored by model_ID
+        fig, ax_pca = plt.subplots(figsize=(8, 8))
+
+        # Convert model_IDs to colors
+        colors, element_to_color = convert_model_to_hex_colors(model_keys)
+
+        # Extract x and y coordinates
+        x_coords = reduced_features[:, 0] / 100
+        y_coords = reduced_features[:, 1] / 100
+
+        # Scatter plot
+        ax_pca.scatter(x_coords, y_coords, c=colors, s=50, alpha=0.7)
+        ax_pca.set_title(f"PCA Plot for {pair}")
+        ax_pca.set_xlabel(f"Principal Component 1 ({explained_variance[0]:.2f}% variance)")
+        ax_pca.set_ylabel(f"Principal Component 2 ({explained_variance[1]:.2f}% variance)")
+        ax_pca.grid(True)
+        ax_pca.set_aspect('equal', adjustable='box')
+
+        # Create legend and position it to the right outside the plot
+        unique_model_ids = sorted(set([model[0] for model in model_keys]))
+        legend_elements = [Patch(facecolor=element_to_color[model_id], label=f'{model_id}') for model_id in unique_model_ids]
+
+        # Add legend to the plot, positioned to the right outside the plot
+        ax_pca.legend(handles=legend_elements, title="Model", loc='center left', bbox_to_anchor=(1, 0.5), frameon=False)
+
+        plt.tight_layout(rect=[0, 0, 0.85, 1])  # Adjust layout to accommodate legend space
+
+        # Save the plot to a file
+        if save_plot:
+            # Create a directory for saving plots
+            output_dir = os.path.join(mm_output['out_path'], 'contact_clusters')
+            os.makedirs(output_dir, exist_ok=True)
+
+            # Save the plot to a file
+            plot_filename = f"{protein_a}__vs__{protein_b}-contacts_by_model.png"
+            plot_path = os.path.join(output_dir, plot_filename)
+            plt.savefig(plot_path, dpi=600)
+            logger.info(f"   By model plot saved to {plot_path}")
+
+        # Show the plot
+        if show_plot:
+            plt.show()
+
+        plt.close()
     
     return cluster_dict
 
@@ -551,7 +632,7 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
                           silhouette_threshold          = 0.25,
                           contact_similarity_threshold  = 0.7,
                           contact_fraction_threshold    = 0.5,
-                          show_plot = True, save_plot = True, logger: Logger | None= None):
+                          show_plot = False, save_plot = True, logger: Logger | None= None):
     """
     Clusters the models and visualizes the resulting clusters for a given protein pair.
     
@@ -560,7 +641,8 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
     - pair (tuple): A tuple representing the protein pair to be clustered and visualized.
     
     Returns:
-    - None: Displays a plot of the clustered matrices.
+    - dict: A dictionary containing cluster information with cluster IDs as keys,
+            where each key contains the models and the average matrix for that cluster.
     """
     if logger is None:
         logger = configure_logger()(__name__)
@@ -599,7 +681,7 @@ def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5,
                       silhouette_threshold=0.25,
                       contact_similarity_threshold = 0.7,
                       contact_fraction_threshold = 0.5,
-                      show_plot = True, save_plot = True, log_level = 'info'):
+                      show_plot = False, save_plot = True, log_level = 'info'):
     """
     Clusters and visualizes all protein pairs in the given dictionary.
 

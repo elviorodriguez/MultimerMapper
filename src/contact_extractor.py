@@ -2,6 +2,7 @@
 from logging import Logger
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 from Bio import PDB
 from itertools import combinations_with_replacement
 
@@ -58,7 +59,7 @@ def compute_contacts_2mers(pdb_filename,
                            model_rank             : int,
                            protein_ID_a, protein_ID_b,
                            sliced_PAE_and_pLDDTs, filtered_pairwise_2mers_df,
-                           contact_distance = 8.0, PAE_cutoff = 3, pLDDT_cutoff = 70,
+                           contact_distance = 8.0, PAE_cutoff = 9, pLDDT_cutoff = 50,
                            logger: Logger | None = None):
     
     if logger is None:
@@ -152,7 +153,7 @@ def compute_contacts_2mers_batch(pdb_models_list             : list[PDB.Model.Mo
                                  # This dictionary is created on the fly in best_PAE_to_domains.py (contains best pLDDT models info)
                                  sliced_PAE_and_pLDDTs, filtered_pairwise_2mers_df,
                                  # Cutoff parameters
-                                 contact_distance = 8.0, PAE_cutoff = 8, pLDDT_cutoff = 60,
+                                 contact_distance = 8.0, PAE_cutoff = 9, pLDDT_cutoff = 50,
                                  logger: Logger | None = None):
     '''
     Wrapper for compute_contacts function, to allow computing contacts on many
@@ -236,8 +237,8 @@ def compute_contacts_2mers_batch(pdb_models_list             : list[PDB.Model.Mo
 def compute_contacts_from_pairwise_2mers_df(filtered_pairwise_2mers_df, pairwise_2mers_df,
                                             sliced_PAE_and_pLDDTs,
                                             contact_distance = 8.0,
-                                            contact_PAE_cutoff = 8,
-                                            contact_pLDDT_cutoff = 60,
+                                            contact_PAE_cutoff = 9,
+                                            contact_pLDDT_cutoff = 50,
                                             logger: Logger | None = None):
     '''
     Computes contacts between interacting pairs of proteins defined in
@@ -330,7 +331,7 @@ def compute_contacts_from_pairwise_2mers_df(filtered_pairwise_2mers_df, pairwise
 
 def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sliced_PAE_and_pLDDTs,
                            # Cutoff parameters
-                           contact_distance = 8.0, PAE_cutoff = 3, pLDDT_cutoff = 70,
+                           contact_distance = 8.0, PAE_cutoff = 9, pLDDT_cutoff = 50,
                            logger: Logger | None = None):
     '''
     
@@ -444,7 +445,7 @@ def compute_contacts_Nmers(pairwise_Nmers_df_row, filtered_pairwise_Nmers_df, sl
  
 def compute_contacts_from_pairwise_Nmers_df(pairwise_Nmers_df, filtered_pairwise_Nmers_df, sliced_PAE_and_pLDDTs,
                                             # Cutoffs
-                                            contact_distance_cutoff = 8.0, contact_PAE_cutoff = 3, contact_pLDDT_cutoff = 70,
+                                            contact_distance_cutoff = 8.0, contact_PAE_cutoff = 9, contact_pLDDT_cutoff = 50,
                                             logger: Logger | None = None):
     
     if logger is None:
@@ -528,7 +529,7 @@ def compute_contacts(mm_output: dict,
                      out_path: str,
                      contact_distance_cutoff = 8.0,
                      contact_PAE_cutoff = 9,
-                     contact_pLDDT_cutoff = 60,
+                     contact_pLDDT_cutoff = 50,
                      log_level: str = "info") -> dict:
     
     logger = configure_logger(out_path = out_path, log_level = log_level)(__name__)
@@ -741,11 +742,23 @@ def get_all_pair_matrices(mm_contacts):
     
     return result
 
+
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# -----------------------------------------------------------------------------
+# ----------------------------- Working function ------------------------------
+# -----------------------------------------------------------------------------
+
+
 def compute_pairwise_contacts(mm_output: dict,
                               out_path: str,
                               contact_distance_cutoff: float | int = 8.0,
                               contact_PAE_cutoff     : float | int = 9,
-                              contact_pLDDT_cutoff   : float | int = 60,
+                              contact_pLDDT_cutoff   : float | int = 50,
                               log_level: str = "info"):
 
     mm_contacts = compute_contacts(mm_output                = mm_output,
@@ -773,6 +786,10 @@ def compute_pairwise_contacts(mm_output: dict,
 #         print(f'   {key}')
 #     print()
 
+# -----------------------------------------------------------------------------
+# ---------------------------- Debugging function -----------------------------
+# -----------------------------------------------------------------------------
+
 # Debugging function
 def print_matrix_dimensions(all_pair_matrices):
     for pair in all_pair_matrices.keys():
@@ -794,10 +811,39 @@ def print_matrix_dimensions(all_pair_matrices):
 def visualize_pair_matrices(mm_output, pair=None, matrix_types=['is_contact', 'PAE', 'min_pLDDT', 'distance'], 
                             combine_models=False, max_models=5, aspect_ratio = 'equal'):
     
+    from matplotlib.colors import ListedColormap
+    import matplotlib.pyplot as plt
+    import numpy as np
+    
     # Unpack necessary data
     all_pair_matrices = mm_output['pairwise_contact_matrices']
     domains_df        = mm_output['domains_df']
     prot_lens = {prot: length for prot, length in zip(mm_output['prot_IDs'], mm_output['prot_lens'])}
+
+    # cmap depending on matrix type
+    matrix_cfg = {
+        'is_contact': {
+            "cmap": "viridis",
+            "vmin": 0,
+            "vmax": 1
+        },
+        'PAE': {
+            "cmap": "bwr",
+            "vmin": 0,
+            "vmax": 30
+        },
+        'min_pLDDT': {
+            "cmap": ListedColormap(['orange', 'yellow', 'cyan', 'blue']),
+            "bounds": [0, 50, 70, 90, 100],
+            "vmin": 0,
+            "vmax": 100
+        },
+        'distance': {
+            "cmap": "viridis",
+            "vmin": 0,
+            "vmax": 30  # Allow dynamic range based on data
+        }
+    }
     
     if pair is None:
         pairs = list(all_pair_matrices.keys())
@@ -830,10 +876,12 @@ def visualize_pair_matrices(mm_output, pair=None, matrix_types=['is_contact', 'P
                     combined_matrix += matrix
                 combined_matrix /= n_models
                 
-                vmin = 0 if matrix_type == 'is_contact' else None
-                vmax = 1 if matrix_type == 'is_contact' else None
+                config = matrix_cfg[matrix_type]
+                cmap = config["cmap"]
+                vmin = config["vmin"]
+                vmax = config["vmax"]
                 
-                im = axs[0, j].imshow(combined_matrix, aspect= aspect_ratio, vmin=vmin, vmax=vmax)
+                im = axs[0, j].imshow(combined_matrix, aspect=aspect_ratio, cmap=cmap, vmin=vmin, vmax=vmax)
                 axs[0, j].set_title(matrix_type)
                 axs[0, j].set_xlim([0, L_b])
                 axs[0, j].set_ylim([0, L_a])
@@ -863,10 +911,12 @@ def visualize_pair_matrices(mm_output, pair=None, matrix_types=['is_contact', 'P
                     if matrix.shape != (L_a, L_b):
                         matrix = matrix.T
                         
-                    vmin = 0 if matrix_type == 'is_contact' else None
-                    vmax = 1 if matrix_type == 'is_contact' else None
+                    config = matrix_cfg[matrix_type]
+                    cmap = config["cmap"]
+                    vmin = config["vmin"]
+                    vmax = config["vmax"]
                     
-                    im = axs[0, j].imshow(matrix, aspect = aspect_ratio , vmin=vmin, vmax=vmax)
+                    im = axs[0, j].imshow(matrix, aspect=aspect_ratio, cmap=cmap, vmin=vmin, vmax=vmax)
                     axs[0, j].set_title(matrix_type)
                     axs[0, j].set_xlim([0, L_b])
                     axs[0, j].set_ylim([0, L_a])
@@ -891,6 +941,7 @@ def visualize_pair_matrices(mm_output, pair=None, matrix_types=['is_contact', 'P
                     if user_input.lower() == 'q':
                         print("   OK! Jumping to next pair or exiting...")
                         break
+
 
 # # Extract matrices, separate it into pairs and verify correct dimensions
 # all_pair_matrices = get_all_pair_matrices(mm_contacts)

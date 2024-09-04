@@ -184,7 +184,7 @@ save_ref_structures = True
 
 contact_distance_cutoff: float | int = 8.0
 contact_PAE_cutoff     : float | int = 9
-contact_pLDDT_cutoff   : float | int = 60
+contact_pLDDT_cutoff   : float | int = 50
 
 # ----------------------------------------------------------------------------
 # -------------------------- For contact detection ---------------------------
@@ -208,10 +208,11 @@ max_contact_clusters: int = 5
 
 # For MCFT (Merging by Contact Fraction Threshold) - DEFAULT -----------------
 
-contact_fraction_threshold: float = 0.1
+# To optimize
+contact_fraction_threshold: float = 0.10
 
 # Save/display the contact clusters with PCA plots?
-display_contact_clusters = True
+display_contact_clusters = False
 save_contact_clusters    = True
 
 # ----------------------------------------------------------------------------

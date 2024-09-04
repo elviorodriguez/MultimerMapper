@@ -443,9 +443,34 @@ def analyze_fallback(mm_output, low_fraction = 0.5, up_fraction = 0.5,
         homooligomeric_models_df: pd.DataFrame = get_protein_homooligomeric_models(mm_output, prot_ID)
         
         # Only work with proteins that have Homo-N-mers predictions > 2
+        if len(homooligomeric_models_df['N']) == 0:
+            logger.info("")
+            logger.info(f"Protein {prot_ID} does not have homooligomeric models. Skipping...")
+            
+            # Add results for protein homooligomer to output dict
+            symmetry_fallbacks[prot_ID] ={"fallback_detected": False}
+
+            continue
+
         if not max(homooligomeric_models_df['N']) > 2:
             logger.info("")
-            logger.info(f"Homooligomeric protein {prot_ID} does not have N-mers with N > 2. Skipping...")
+            logger.info(f"Protein {prot_ID} does not have N-mers with N > 2. Skipping...")
+
+            # Add results for protein homooligomer to output dict
+            symmetry_fallbacks[prot_ID] = {"fallback_detected": False}
+            
+            continue
+        
+        if (prot_ID, prot_ID) not in mm_output['contacts_clusters'].keys():
+            
+            # Progress
+            logger.warn("")
+            logger.warn(f"Protein pair {(prot_ID, prot_ID)} not present in contact_clusters.")
+            logger.warn( "   It might be an indirect interaction. Skipping...")
+            
+            # Add results for protein homooligomer to output dict
+            symmetry_fallbacks[prot_ID] = {"fallback_detected": False}
+            
             continue
 
         logger.info("")
