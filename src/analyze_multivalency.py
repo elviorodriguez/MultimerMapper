@@ -478,12 +478,15 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
     domains_a = mm_output['domains_df'][mm_output['domains_df']['Protein_ID'] == protein_a]
     domains_b = mm_output['domains_df'][mm_output['domains_df']['Protein_ID'] == protein_b]
     
-    # Create a combined plot with the PCA on the left and contact maps on the right
+    
+    ############# Create a combined plot with the PCA on the left and contact maps on the right #############
+
+    # Initialize figure
     fig, axs = plt.subplots(1, n_clusters + 1, figsize=(5 * (n_clusters + 1), 5))
 
     if reduced_features is not None or explained_variance is not None:
 
-        # PCA Plot
+        # --------------------------------- PCA Plot ---------------------------------
         ax_pca = axs[0]
         colors = convert_to_hex_colors(labels)
         x_coords = reduced_features[:, 0] / 100
@@ -519,7 +522,7 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
         
         plt.tight_layout(rect=[0, 0.1, 1, 1])  # Adjust layout to accommodate legend space
 
-    # Contact Map Plots
+    # --------------------------------- Contact Map Plots ---------------------------------
     for cluster, ax in zip(range(n_clusters), axs[1:]):
         cluster_models = [model for model, label in zip(model_keys, labels) if label == cluster]
         avg_contact_matrix = np.mean([all_pair_matrices[pair][model]['is_contact'] for model in cluster_models], axis=0)
@@ -566,7 +569,7 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
         # Save the plot to a file
         plot_filename = f"{protein_a}__vs__{protein_b}-contact_clusters.png"
         plot_path = os.path.join(output_dir, plot_filename)
-        plt.savefig(plot_path, dpi=600)
+        plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         logger.info(f"   Clusters plot saved to {plot_path}")
 
     if show_plot:

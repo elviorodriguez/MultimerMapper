@@ -76,16 +76,31 @@ pd.set_option( 'display.max_columns' , None )
 
 ######################## Test 6 (multivalency detection) ######################
 
-fasta_file = "/home/elvio/Desktop/heteromultimers_benchmark/actin/proteins_mm.fasta"
-AF2_2mers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_2mers"
-AF2_Nmers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_Nmers"
+fasta_file = "/home/elvio/Desktop/heteromultimers_benchmark/proteins_mm.fasta"
+AF2_2mers = "/home/elvio/Desktop/heteromultimers_benchmark/AF2_2mers"
+AF2_Nmers = "/home/elvio/Desktop/heteromultimers_benchmark/AF2_Nmers"
 # AF2_Nmers = None
-out_path = "/home/elvio/Desktop/heteromultimers_benchmark/actin/MM_out_Nmers"
+out_path = "/home/elvio/Desktop/heteromultimers_benchmark/MM_out_Nmers"
 use_names = False
 overwrite = True
 # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 auto_domain_detection = True
 graph_resolution_preset = None
+
+###############################################################################
+
+################### Test 6' (multivalency detection actin) ####################
+
+# fasta_file = "/home/elvio/Desktop/heteromultimers_benchmark/actin/proteins_mm.fasta"
+# AF2_2mers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_2mers"
+# AF2_Nmers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_Nmers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/heteromultimers_benchmark/actin/MM_out_Nmers"
+# use_names = False
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
@@ -128,9 +143,9 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     layout_algorithm = 'fr',    
     
     # You can remove specific interaction types from the graph
-    #"No 2-mers Data"
-    remove_interactions = ("Indirect", ),
-    self_loop_size = 3,
+    # "No 2-mers Data"
+    remove_interactions = ("Indirect", "No 2-mers Data"),
+    self_loop_size = 4,
     
     # Answer y automatically
     automatic_true = True)
