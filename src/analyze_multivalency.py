@@ -12,6 +12,9 @@ from sklearn.decomposition import PCA
 from matplotlib.patches import Patch
 from collections import Counter
 from sklearn.neighbors import NearestNeighbors
+import plotly.graph_objects as go
+import numpy as np
+import io
 
 from utils.logger_setup import configure_logger
 from utils.combinations import get_untested_2mer_pairs, get_tested_Nmer_pairs
@@ -77,7 +80,9 @@ def create_feature_vector(matrices, types_of_matrices_to_use = ['is_contact', 'P
     return np.array(features)
 
 def cluster_models(all_pair_matrices, pair, max_clusters=5,
-                   method = ["contact_similarity_matrix", "agglomerative_clustering", "contact_fraction_comparison"][2],
+                   method = ["contact_similarity_matrix",
+                             "agglomerative_clustering",
+                             "contact_fraction_comparison"][2],
                    silhouette_threshold=0.25,
                    contact_similarity_threshold = 0.7,
                    contact_fraction_threshold = 0.5,
@@ -99,6 +104,9 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
     if logger is None:
         logger = configure_logger()(__name__)
 
+    # -------------------------------------------------------------------------------------------------
+    # -------------------------------- Contact Matrices Preprocessing ---------------------------------
+    # -------------------------------------------------------------------------------------------------
 
     logger.info("   Preprocessing inter-chain PAE, minimum-pLDDT, distogram and contacts...")
 
@@ -133,6 +141,10 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
         reduced_features = reduced_features.reshape(-1, 1)
 
     logger.info(f'   Clustering method used: {method}')
+
+    # -------------------------------------------------------------------------------------------------
+    # -------------------- Method: Agglomerative Clustering (NOT RECOMMENDED) -------------------------
+    # -------------------------------------------------------------------------------------------------
 
     if method == "agglomerative_clustering":
 
@@ -246,8 +258,13 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
         
         logger.info(f"   Best number of clusters: {best_n_clusters}, Best Silhouette Score: {best_silhouette}")
     
+    # -------------------------------------------------------------------------------------------------
+    # -------------------- Method: Merging by Contact Matrix Similarity (MCMS) ------------------------
+    # -------------------------------------------------------------------------------------------------
+
     # Generates clusters that minimizes inter-clusters contact similarity by merging similar contacts matrices
     elif method == "contact_similarity_matrix":
+
         # Start by considering each valid model as a separate cluster
         best_labels = list(range(len(valid_models)))
         
@@ -342,6 +359,10 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
         # No silhouette score for this method
         best_silhouette = None
 
+    # -------------------------------------------------------------------------------------------------
+    # -------------------- Method: Merging by Contact Fraction Threshold (MCFT) -----------------------
+    # -------------------------------------------------------------------------------------------------
+
     elif method == "contact_fraction_comparison":
         # Start by considering each valid model as a separate cluster
         best_labels = list(range(len(valid_models)))
@@ -399,6 +420,60 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
 
     return list(valid_models.keys()), best_labels, reduced_features, explained_variance
 
+
+def generate_cluster_dict(all_pair_matrices, pair, model_keys, labels, mm_output,
+                          logger: Logger | None = None):
+
+    if logger is None:
+        logger = configure_logger()(__name__)
+
+    if labels is None:
+        return
+    
+    cluster_dict = {}
+    n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+    if n_clusters == 0:
+        n_clusters = 1
+
+    logger.info(f"   Number of clusters: {n_clusters}")
+    if n_clusters > 1:
+        logger.info(f"   Contact distribution of the models represent a MULTIVALENT interaction with at least {n_clusters} modes")
+    else:
+        logger.info("   Contact distribution of the models represent a MONOVALENT interaction")
+
+    protein_a, protein_b = pair
+    ia, ib = mm_output['prot_IDs'].index(protein_a), mm_output['prot_IDs'].index(protein_b)
+    L_a, L_b = mm_output['prot_lens'][ia], mm_output['prot_lens'][ib]
+    domains_a = mm_output['domains_df'][mm_output['domains_df']['Protein_ID'] == protein_a]
+    domains_b = mm_output['domains_df'][mm_output['domains_df']['Protein_ID'] == protein_b]
+    
+    # --------------------------------- Contact Map Plots ---------------------------------
+    for cluster in range(n_clusters):
+        cluster_models = [model for model, label in zip(model_keys, labels) if label == cluster]
+        avg_contact_matrix = np.mean([all_pair_matrices[pair][model]['is_contact'] for model in cluster_models], axis=0)
+
+        # Determine the correct orientation based on matrix shape and protein lengths
+        if avg_contact_matrix.shape[0] == L_a and avg_contact_matrix.shape[1] == L_b:
+            x_label, y_label = protein_b, protein_a
+            x_domains, y_domains = domains_b, domains_a
+        elif avg_contact_matrix.shape[0] == L_b and avg_contact_matrix.shape[1] == L_a:
+            x_label, y_label = protein_a, protein_b
+            x_domains, y_domains = domains_a, domains_b
+        else:
+            raise ValueError("Matrix dimensions do not match protein lengths.")
+
+        cluster_dict[cluster] = {
+            'models'        : cluster_models,
+            'average_matrix': avg_contact_matrix,
+            'x_lab'         : x_label,
+            'y_lab'         : y_label,
+            'x_dom'         : x_domains,
+            'y_dom'         : y_domains
+        }
+
+    return cluster_dict
+
+
 # Helper
 def convert_to_hex_colors(list_of_int: list[int], color_map = 'tab10'):
     
@@ -435,16 +510,17 @@ def convert_model_to_hex_colors(model_keys, color_map = 'tab20'):
     return list_of_colors, element_to_color
 
 
-def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
-                       reduced_features = None, explained_variance = None,
-                       show_plot = False, save_plot = True, plot_by_model = True,
-                       logger: Logger | None = None):
+def visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
+                              reduced_features = None, explained_variance = None,
+                              show_plot = False, save_plot = True, plot_by_model = True,
+                              logger: Logger | None = None):
     """
     Visualizes the clusters by plotting the average contact matrices for each cluster, 
     including domain borders as dashed lines and arranging plots side by side.
 
     Parameters:
-    - all_pair_matrices (dict): Dictionary containing the pair matrices.
+    - contact_clusters (dict): Dictionary containing the cluster matrices with x and y
+                               labels.
     - pair (tuple): A tuple representing the protein pair being visualized.
     - model_keys (list): List of model keys corresponding to the clustered models.
     - labels (np.ndarray): An array of cluster labels for each model.
@@ -461,23 +537,9 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
     if labels is None:
         return
     
-    cluster_dict = {}
     n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
     if n_clusters == 0:
         n_clusters = 1
-
-    logger.info(f"   Number of clusters: {n_clusters}")
-    if n_clusters > 1:
-        logger.info(f"   Contact distribution of the models represent a MULTIVALENT interaction with at least {n_clusters} modes")
-    else:
-        logger.info( "   Contact distribution of the models represent a MONOVALENT interaction")
-
-    protein_a, protein_b = pair
-    ia, ib = mm_output['prot_IDs'].index(protein_a), mm_output['prot_IDs'].index(protein_b)
-    L_a, L_b = mm_output['prot_lens'][ia], mm_output['prot_lens'][ib]
-    domains_a = mm_output['domains_df'][mm_output['domains_df']['Protein_ID'] == protein_a]
-    domains_b = mm_output['domains_df'][mm_output['domains_df']['Protein_ID'] == protein_b]
-    
     
     ############# Create a combined plot with the PCA on the left and contact maps on the right #############
 
@@ -498,13 +560,6 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
         ax_pca.grid(True)
         ax_pca.set_aspect('equal', adjustable='box')
 
-        # # Add 2-mers contacts location in the PCA plot as a "2" above the PCA points
-        # dimers_indexes = [ i for i, model_ID in enumerate(model_keys) if len(model_ID[0]) == 2 ]
-        # dimers_x = reduced_features[dimers_indexes, 0] / 100
-        # dimers_y = reduced_features[dimers_indexes, 1] / 100
-        # for x, y in zip(dimers_x, dimers_y):
-        #     ax_pca.text(x, y, '2', fontsize=8, ha='center', va='center', color='black', weight='bold')
-
         # Create legend and position it below the x-axis
         unique_labels = sorted(set(labels))
         legend_elements = [Patch(facecolor=convert_to_hex_colors([label])[0], label=f'{label}')
@@ -524,27 +579,17 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
 
     # --------------------------------- Contact Map Plots ---------------------------------
     for cluster, ax in zip(range(n_clusters), axs[1:]):
-        cluster_models = [model for model, label in zip(model_keys, labels) if label == cluster]
-        avg_contact_matrix = np.mean([all_pair_matrices[pair][model]['is_contact'] for model in cluster_models], axis=0)
-
-        # Determine the correct orientation based on matrix shape and protein lengths
-        if avg_contact_matrix.shape[0] == L_a and avg_contact_matrix.shape[1] == L_b:
-            x_label, y_label = protein_b, protein_a
-            x_domains, y_domains = domains_b, domains_a
-        elif avg_contact_matrix.shape[0] == L_b and avg_contact_matrix.shape[1] == L_a:
-            x_label, y_label = protein_a, protein_b
-            x_domains, y_domains = domains_a, domains_b
-        else:
-            raise ValueError("Matrix dimensions do not match protein lengths.")
-
-        cluster_dict[cluster] = {
-            'models': cluster_models,
-            'average_matrix': avg_contact_matrix
-        }
+        cluster_models      = cluster_dict[cluster]['models']
+        avg_contact_matrix  = cluster_dict[cluster]['average_matrix']
+        x_label             = cluster_dict[cluster]['x_lab']
+        y_label             = cluster_dict[cluster]['y_lab']
+        x_domains           = cluster_dict[cluster]['x_dom']
+        y_domains           = cluster_dict[cluster]['y_dom']
         
-        im = ax.imshow(avg_contact_matrix, cmap='viridis', aspect='equal')
+        im = ax.imshow(avg_contact_matrix, cmap='viridis', aspect='equal', vmin = 0, vmax = 1)
         ax.set_title(f"Contacts cluster {cluster} (n={len(cluster_models)})")
-        plt.colorbar(im, ax=ax)
+        cbar = plt.colorbar(im, ax=ax)
+        cbar.set_label(f'Contact Frequency (max={round(avg_contact_matrix.max(), ndigits=2)})')
 
         # Add domain lines
         for _, row in y_domains.iterrows():
@@ -562,14 +607,18 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
     plt.tight_layout()
 
     if save_plot:
+
+        # Extract protein names/IDs
+        protein_a, protein_b = pair
+
         # Create a directory for saving plots
-        output_dir = os.path.join(mm_output['out_path'], 'contact_clusters')
+        output_dir = os.path.join(mm_output['out_path'], 'contact_clusters/static_plots')
         os.makedirs(output_dir, exist_ok=True)
 
         # Save the plot to a file
         plot_filename = f"{protein_a}__vs__{protein_b}-contact_clusters.png"
         plot_path = os.path.join(output_dir, plot_filename)
-        plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+        plt.savefig(plot_path, dpi=600, bbox_inches='tight')
         logger.info(f"   Clusters plot saved to {plot_path}")
 
     if show_plot:
@@ -594,8 +643,8 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
         # Scatter plot
         ax_pca.scatter(x_coords, y_coords, c=colors, s=50, alpha=0.7)
         ax_pca.set_title(f"PCA Plot for {pair}")
-        ax_pca.set_xlabel(f"Principal Component 1 ({explained_variance[0]:.2f}% variance)")
-        ax_pca.set_ylabel(f"Principal Component 2 ({explained_variance[1]:.2f}% variance)")
+        ax_pca.set_xlabel(f"PC1 ({explained_variance[0]:.2f}% variance)")
+        ax_pca.set_ylabel(f"PC2 ({explained_variance[1]:.2f}% variance)")
         ax_pca.grid(True)
         ax_pca.set_aspect('equal', adjustable='box')
 
@@ -611,13 +660,13 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
         # Save the plot to a file
         if save_plot:
             # Create a directory for saving plots
-            output_dir = os.path.join(mm_output['out_path'], 'contact_clusters')
+            output_dir = os.path.join(mm_output['out_path'], 'contact_clusters/static_plots')
             os.makedirs(output_dir, exist_ok=True)
 
             # Save the plot to a file
             plot_filename = f"{protein_a}__vs__{protein_b}-contacts_by_model.png"
             plot_path = os.path.join(output_dir, plot_filename)
-            plt.savefig(plot_path, dpi=600)
+            plt.savefig(plot_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
             logger.info(f"   By model plot saved to {plot_path}")
 
         # Show the plot
@@ -625,8 +674,209 @@ def visualize_clusters(all_pair_matrices, pair, model_keys, labels, mm_output,
             plt.show()
 
         plt.close()
+
+
+
+def create_interactive_plot(reduced_features, labels, model_keys, cluster_dict, pair, explained_variance):
+    plots = []
     
-    return cluster_dict
+    # PCA Plot
+    pca_fig = create_pca_plot(reduced_features, labels, model_keys, explained_variance)
+    plots.append(('PCA Plot', pca_fig))
+    
+    # Contact Maps
+    for i, (cluster, data) in enumerate(cluster_dict.items()):
+        contact_fig = create_contact_map(data['average_matrix'], pair, f'Cluster {i}')
+        plots.append((f'Contact Map - Cluster {i}', contact_fig))
+    
+    # Create unified HTML
+    return create_unified_html(plots, pair)
+
+def create_pca_plot(reduced_features, labels, model_keys, explained_variance):
+    x_coords = reduced_features[:, 0] / 100
+    y_coords = reduced_features[:, 1] / 100
+    
+    n_clusters = len(set(labels))
+    cluster_colors = [f'rgb{tuple(int(c * 255) for c in plt.cm.viridis(i / n_clusters)[:3])}' for i in range(n_clusters)]
+    
+    unique_models = sorted(set([model[0] for model in model_keys]))
+    model_colors = [f'rgb{tuple(int(c * 255) for c in plt.cm.tab20(i / len(unique_models))[:3])}' for i in range(len(unique_models))]
+    model_color_map = dict(zip(unique_models, model_colors))
+    
+    fig = go.Figure()
+    
+    for i in range(n_clusters):
+        cluster_points = [j for j, label in enumerate(labels) if label == i]
+        fig.add_trace(go.Scatter(
+            x=[x_coords[j] for j in cluster_points],
+            y=[y_coords[j] for j in cluster_points],
+            mode='markers',
+            marker=dict(color=cluster_colors[i], size=8),
+            text=[f"Cluster: {labels[j]}<br>Model: {model_keys[j][0]}<br>Chains: {model_keys[j][1]}<br>Rank: {model_keys[j][2]}" for j in cluster_points],
+            hoverinfo='text',
+            name=f'Cluster {i}',
+            visible=True,
+            showlegend=True
+        ))
+    
+    for model in unique_models:
+        model_points = [j for j, key in enumerate(model_keys) if key[0] == model]
+        fig.add_trace(go.Scatter(
+            x=[x_coords[j] for j in model_points],
+            y=[y_coords[j] for j in model_points],
+            mode='markers',
+            marker=dict(color=model_color_map[model], size=8),
+            text=[f"Cluster: {labels[j]}<br>Model: {model_keys[j][0]}<br>Chains: {model_keys[j][1]}<br>Rank: {model_keys[j][2]}" for j in model_points],
+            hoverinfo='text',
+            name=f'Model {model}',
+            visible=False,
+            showlegend=True
+        ))
+    
+    fig.update_layout(
+        title=dict(text="PCA Plot", x=0.5),
+        xaxis_title=f"PC1 ({explained_variance[0]:.2f}% variance)",
+        yaxis_title=f"PC2 ({explained_variance[1]:.2f}% variance)",
+        updatemenus=[dict(
+            type="buttons",
+            direction="right",
+            active=0,
+            x=0.57,
+            y=1.2,
+            buttons=list([
+                dict(label="Cluster Colors", method="update", args=[{"visible": [True]*n_clusters + [False]*len(unique_models)}]),
+                dict(label="Model Colors", method="update", args=[{"visible": [False]*n_clusters + [True]*len(unique_models)}]),
+            ]),
+        )],
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+        yaxis=dict(scaleanchor="x", scaleratio=1),
+        margin=dict(l=50, r=50, t=50, b=100),
+    )
+    
+    return fig
+
+def create_contact_map(avg_matrix, pair, title):
+    fig = go.Figure(data=go.Heatmap(
+        z=avg_matrix,
+        colorscale='Viridis',
+        zmin=0, zmax=1,
+        colorbar=dict(title     = f'Contact Frequency (max={round(avg_matrix.max(), ndigits=2)})',
+                      titleside = 'right')))
+    fig.update_layout(
+        title=dict(text=title, x=0.5),
+        xaxis_title=f"{pair[1]}",
+        yaxis_title=f"{pair[0]}",
+        yaxis=dict(scaleanchor="x", scaleratio=1),
+        margin=dict(l=50, r=50, t=50, b=50),
+        # Remove background
+        xaxis_showgrid=False,
+        yaxis_showgrid=False,
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
+    return fig
+
+def create_unified_html(plots, pair):
+    plot_divs = []
+    for title, fig in plots:
+        buffer = io.StringIO()
+        fig.write_html(buffer, include_plotlyjs='cdn', full_html=False, config={'responsive': True})
+        plot_divs.append(f'<div class="plot"><h2>{title}</h2>{buffer.getvalue()}</div>')
+    
+    plot_divs_str = '\n'.join(plot_divs)
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>PCA and Contact Maps</title>
+        <style>
+            body {{
+                margin: 0;
+                padding: 0;
+                font-family: Arial, sans-serif;
+            }}
+            .container {{
+                display: flex;
+                flex-wrap: nowrap;
+                justify-content: space-between;
+                align-items: stretch;
+                height: 100vh;
+                overflow-x: auto;
+            }}
+            .plot {{
+                flex: 1;
+                min-width: 300px;
+                max-width: 600px;
+                height: 100%;
+                padding: 10px;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+            }}
+            h1, h2 {{
+                text-align: center;
+                margin: 10px 0;
+            }}
+            .plot > div {{
+                flex-grow: 1;
+                width: 100%;
+            }}
+        </style>
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    </head>
+    <body>
+        <h1>PCA and Contact Maps for {pair[0]} vs {pair[1]}</h1>
+        <div class="container">
+            {plot_divs_str}
+        </div>
+        <script>
+            function resizePlots() {{
+                var plots = document.querySelectorAll('.plot > div');
+                plots.forEach(function(plot) {{
+                    Plotly.Plots.resize(plot);
+                }});
+            }}
+            window.addEventListener('resize', resizePlots);
+            document.addEventListener('DOMContentLoaded', function() {{
+                setTimeout(resizePlots, 100);
+            }});
+        </script>
+    </body>
+    </html>
+    """
+    
+    return html_content
+
+# Usage in your main function:
+def visualize_clusters_interactive(
+        cluster_dict, pair, model_keys, labels, mm_output,
+        reduced_features=None, explained_variance=None,
+        show_plot=False, save_plot=True,
+        logger: Logger | None = None):
+    
+
+    if save_plot:
+        # Create a directory for saving plots
+        output_dir = os.path.join(mm_output['out_path'], 'contact_clusters')
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Create the interactive plot
+        html_content = create_interactive_plot(reduced_features, labels, model_keys, cluster_dict, pair, explained_variance)
+        
+        # Save the HTML content to a file
+        unified_html_path = os.path.join(output_dir, f"{pair[0]}__vs__{pair[1]}-interactive_plot.html")
+        with open(unified_html_path, 'w') as f:
+            f.write(html_content)
+        
+        logger.info(f"   Interactive plot saved to {unified_html_path}")
+
+    if show_plot:
+        # You may want to implement a way to show the plot, perhaps by opening the HTML file in a web browser
+        pass
 
 
 
@@ -635,7 +885,8 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
                           silhouette_threshold          = 0.25,
                           contact_similarity_threshold  = 0.7,
                           contact_fraction_threshold    = 0.5,
-                          show_plot = False, save_plot = True, logger: Logger | None= None):
+                          show_plot = False, save_plot = True, 
+                          logger: Logger | None= None):
     """
     Clusters the models and visualizes the resulting clusters for a given protein pair.
     
@@ -650,6 +901,7 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
     if logger is None:
         logger = configure_logger()(__name__)
 
+    # Perform contact clustering
     model_keys, labels, reduced_features, explained_variance = cluster_models(all_pair_matrices, pair,
                                                                               method                       = contacts_clustering_method,
                                                                               max_clusters                 = max_clusters,
@@ -658,16 +910,34 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
                                                                               contact_fraction_threshold   = contact_fraction_threshold,
                                                                               logger               = logger)
     if labels is not None:
-        return visualize_clusters(all_pair_matrices  = all_pair_matrices,
-                                  pair               = pair,
-                                  model_keys         = model_keys,
-                                  labels             = labels,
-                                  mm_output          = mm_output,
-                                  reduced_features   = reduced_features,
-                                  explained_variance = explained_variance,
-                                  show_plot          = show_plot,
-                                  save_plot          = save_plot,
-                                  logger             = logger)
+
+        # Merge contact matrices by cluster to extract contact frequency (mean contact probability)
+        cluster_dict = generate_cluster_dict(all_pair_matrices,
+                                             pair, model_keys, labels, mm_output,
+                                             logger = logger)
+
+        # Generate interactive HTML plot
+        visualize_clusters_interactive(
+            cluster_dict       = cluster_dict,
+            pair               = pair,
+            model_keys         = model_keys,
+            labels             = labels,
+            mm_output          = mm_output,
+            reduced_features   = reduced_features,
+            explained_variance = explained_variance,
+            show_plot          = show_plot,
+            save_plot          = save_plot,
+            logger             = logger)
+        
+        # Save static png plots
+        visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
+                                  reduced_features = reduced_features, explained_variance = explained_variance,
+                                  show_plot = show_plot, save_plot = save_plot,
+                                  plot_by_model = True,
+                                  logger = logger)
+        
+        return cluster_dict
+    
     else:
         logger.error(f"   Clustering failed for pair {pair}")
         logger.error( "   Interaction might be indirect...")

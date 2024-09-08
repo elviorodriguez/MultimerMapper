@@ -145,7 +145,7 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     # You can remove specific interaction types from the graph
     # "No 2-mers Data"
     remove_interactions = ("Indirect", "No 2-mers Data"),
-    self_loop_size = 4,
+    self_loop_size = 2,
     
     # Answer y automatically
     automatic_true = True)
@@ -218,49 +218,20 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 ################################## TESTS ######################################
 ###############################################################################
 
-from src.ppi_graphs import generate_combined_graph
-
-graphC, dynamic_proteins = generate_combined_graph(mm_output)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-pairwise_Nmers_df_F3 = mm_output['pairwise_Nmers_df_F3']
-
 from src.contact_extractor import compute_pairwise_contacts, visualize_pair_matrices
-pairwise_Contacts = compute_pairwise_contacts(mm_output, out_path,
-                                              contact_PAE_cutoff= 9,
-                                              contact_pLDDT_cutoff=50,
-                                              contact_distance_cutoff = 8)
 
 visualize_pair_matrices(mm_output, max_models=1000)
-visualize_pair_matrices(mm_output, pair = ('7Q8S-P5', '7Q8S-P5'),  max_models=1000)
+visualize_pair_matrices(mm_output, pair = ('8RTH-P6', '7Q8S-P5'),  max_models=1000)
 
-mm_output["contacts_clusters"].keys()
-conflictive_pair = pairwise_Contacts[('7Q8S-P5', '7Q8S-P5')]
-models = list(pairwise_Contacts[('7Q8S-P5', '7Q8S-P5')].keys())
-any([m.any() for m in conflictive_pair[models[0]]['is_contact']])
+
+
+
+
+
+
+
+
+
 
 
 
@@ -268,18 +239,11 @@ any([m.any() for m in conflictive_pair[models[0]]['is_contact']])
 
 # Contact Cluster graphing
 from src.analyze_multivalency import  cluster_all_pairs
+pairwise_contacts = mm_output['pairwise_contact_matrices']
 results = cluster_all_pairs(
-    mm_contacts = pairwise_Contacts,
+    mm_contacts = pairwise_contacts,
     mm_output   = mm_output,
-    contact_fraction_threshold = 0.5)
-
-
-
-
-
-
-
-
+    contact_fraction_threshold = 0.1)
 
 
 
