@@ -1,6 +1,7 @@
 
 import os
 from logging import Logger
+from copy import deepcopy
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -57,6 +58,10 @@ This approach is able to:
     Identify different binding sites (if they exist) by separating models into different clusters.
 '''
 
+#########################################################################################
+################################# Helper functions ######################################
+#########################################################################################
+
 def preprocess_matrices(all_pair_matrices, pair, min_contacts = 3):
     '''
     Removes models with less than min_contacts in is_contact matrix.
@@ -78,6 +83,94 @@ def create_feature_vector(matrices, types_of_matrices_to_use = ['is_contact', 'P
     for matrix_type in types_of_matrices_to_use:
         features.extend(matrices[matrix_type].flatten())
     return np.array(features)
+
+
+def identify_clusters_for_refinement(all_pair_matrices, pair, model_keys, labels, max_freq_threshold, logger):
+    clusters_to_refine = []
+    for cluster in set(labels):
+        cluster_models = [model for model, label in zip(model_keys, labels) if label == cluster]
+        avg_contact_matrix = np.mean([all_pair_matrices[pair][model]['is_contact'] for model in cluster_models], axis=0)
+        max_freq = avg_contact_matrix.max()
+        
+        if max_freq < max_freq_threshold:
+            clusters_to_refine.append(cluster)
+            logger.info(f"   Cluster {cluster} identified for refinement (max contact frequency: {max_freq:.2f})")
+    
+    return clusters_to_refine
+
+
+def refine_clusters_m1(all_pair_matrices, pair, model_keys, labels, clusters_to_refine, contact_similarity_threshold, logger):
+    
+    refined_labels = deepcopy(labels)
+    
+    # Compute boolean contact matrices for all models
+    bool_contacts_matrices = [all_pair_matrices[pair][model]['is_contact'] > 0 for model in model_keys]
+    
+    for cluster in clusters_to_refine:
+        cluster_models = [i for i, label in enumerate(refined_labels) if label == cluster]
+        
+        # If there's only one model in the cluster, we can't refine it further
+        if len(cluster_models) <= 1:
+            continue
+        
+        # Start by considering each model in the cluster as a separate sub-cluster
+        sub_labels = list(range(len(cluster_models)))
+        
+        while True:
+            # Compute the boolean contact matrices for each sub-cluster
+            bool_contacts_matrices_per_subcluster = []
+            for sub_cluster in set(sub_labels):
+                sub_cluster_models = [model for model, label in zip(cluster_models, sub_labels) if label == sub_cluster]
+                sub_cluster_bool_contact_matrix = np.mean([bool_contacts_matrices[model] for model in sub_cluster_models], axis=0) > 0
+                bool_contacts_matrices_per_subcluster.append(sub_cluster_bool_contact_matrix)
+
+            # Compute similarity matrix using IoU
+            num_sub_clusters = len(bool_contacts_matrices_per_subcluster)
+            similarity_matrix = np.zeros((num_sub_clusters, num_sub_clusters))
+            for i in range(num_sub_clusters):
+                for j in range(i + 1, num_sub_clusters):
+                    intersection = np.sum(np.logical_and(bool_contacts_matrices_per_subcluster[i], bool_contacts_matrices_per_subcluster[j]))
+                    union = np.sum(np.logical_or(bool_contacts_matrices_per_subcluster[i], bool_contacts_matrices_per_subcluster[j]))
+                    similarity = intersection / union if union > 0 else 0
+                    similarity_matrix[i, j] = similarity
+                    similarity_matrix[j, i] = similarity
+            
+            # Find the highest similarity
+            max_similarity = np.max(similarity_matrix)
+            
+            # If the highest similarity is below the threshold, we're done refining this cluster
+            if max_similarity <= contact_similarity_threshold:
+                break
+            
+            # Find the sub-clusters to merge
+            i, j = np.unravel_index(np.argmax(similarity_matrix), similarity_matrix.shape)
+            sub_cluster1, sub_cluster2 = sorted(set(sub_labels))[i], sorted(set(sub_labels))[j]
+            
+            # Merge the sub-clusters
+            sub_labels = [sub_cluster1 if label == sub_cluster2 else label for label in sub_labels]
+            
+            logger.info(f"   Refining cluster {cluster}: Merging sub-clusters {sub_cluster2} into {sub_cluster1} due to similarity of {round(max_similarity*100)}%")
+
+        # Update the main labels with the refined sub-clusters
+        new_label = max(refined_labels) + 1
+        for sub_cluster in set(sub_labels):
+            sub_cluster_models = [model for model, label in zip(cluster_models, sub_labels) if label == sub_cluster]
+            for model in sub_cluster_models:
+                refined_labels[model] = new_label
+            new_label += 1
+
+    # Reassign labels to be consecutive integers starting from 0
+    unique_labels = sorted(set(refined_labels))
+    label_mapping = {old: new for new, old in enumerate(unique_labels)}
+    refined_labels = [label_mapping[label] for label in refined_labels]
+
+    return refined_labels
+
+
+###############################################################################################
+################################# Contact Clustering Function #################################
+###############################################################################################
+
 
 def cluster_models(all_pair_matrices, pair, max_clusters=5,
                    method = ["contact_similarity_matrix",
@@ -418,6 +511,38 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
         # No silhouette score for this method
         best_silhouette = None
 
+        # Conduct refinement? -----------------------------------------------------------------------
+        refine_clusters = True
+        if refine_clusters:
+
+            logger.info( "   Testing clusters for refinement...")
+
+            clusters_to_refine = identify_clusters_for_refinement(all_pair_matrices, 
+                                                                  pair,
+                                                                  model_keys = valid_models_keys,
+                                                                  labels = best_labels,
+                                                                  max_freq_threshold = 0.75,
+                                                                  logger = logger)
+            if len(clusters_to_refine) != 0:
+
+                logger.info(f'   Clusters {clusters_to_refine} need refinement...')
+                
+                refined_labels = refine_clusters_m1(all_pair_matrices             = all_pair_matrices,
+                                                    pair                          = pair,
+                                                    model_keys                    = valid_models_keys,
+                                                    labels                        = best_labels,
+                                                    clusters_to_refine            = clusters_to_refine,
+                                                    contact_similarity_threshold  = 0.5,
+                                                    logger = logger)
+                
+                best_labels = refined_labels
+                best_n_clusters = len(set(best_labels))
+                logger.info(f"   Final number of clusters after refinement: {best_n_clusters}")
+                logger.debug(f"   REFINED LABELS: {best_labels}")
+            
+            else:
+                logger.info( "   No cluster identified for refinement")
+
     return list(valid_models.keys()), best_labels, reduced_features, explained_variance
 
 
@@ -527,8 +652,7 @@ def visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
     - mm_output (dict): Dictionary containing protein length and domain information.
 
     Returns:
-    - dict: A dictionary containing cluster information with cluster IDs as keys,
-            where each key contains the models and the average matrix for that cluster.
+    - None
     """
 
     if logger is None:
@@ -676,21 +800,18 @@ def visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
         plt.close()
 
 
-
 def create_interactive_plot(reduced_features, labels, model_keys, cluster_dict, pair, explained_variance):
-    plots = []
-    
-    # PCA Plot
+    # Create PCA plot
     pca_fig = create_pca_plot(reduced_features, labels, model_keys, explained_variance)
-    plots.append(('PCA Plot', pca_fig))
     
-    # Contact Maps
-    for i, (cluster, data) in enumerate(cluster_dict.items()):
-        contact_fig = create_contact_map(data['average_matrix'], pair, f'Cluster {i}')
-        plots.append((f'Contact Map - Cluster {i}', contact_fig))
+    # Create contact maps for each cluster
+    contact_maps = {}
+    for cluster, data in cluster_dict.items():
+        contact_maps[cluster] = create_contact_map(data['average_matrix'], pair, f'Cluster {cluster}')
     
     # Create unified HTML
-    return create_unified_html(plots, pair)
+    return create_unified_html(pca_fig, contact_maps, pair)
+
 
 def create_pca_plot(reduced_features, labels, model_keys, explained_variance):
     x_coords = reduced_features[:, 0] / 100
@@ -769,7 +890,6 @@ def create_contact_map(avg_matrix, pair, title):
         yaxis_title=f"{pair[0]}",
         yaxis=dict(scaleanchor="x", scaleratio=1),
         margin=dict(l=50, r=50, t=50, b=50),
-        # Remove background
         xaxis_showgrid=False,
         yaxis_showgrid=False,
         plot_bgcolor='white',
@@ -777,14 +897,15 @@ def create_contact_map(avg_matrix, pair, title):
     )
     return fig
 
-def create_unified_html(plots, pair):
-    plot_divs = []
-    for title, fig in plots:
-        buffer = io.StringIO()
-        fig.write_html(buffer, include_plotlyjs='cdn', full_html=False, config={'responsive': True})
-        plot_divs.append(f'<div class="plot"><h2>{title}</h2>{buffer.getvalue()}</div>')
-    
-    plot_divs_str = '\n'.join(plot_divs)
+def create_unified_html(pca_fig, contact_maps, pair):
+    pca_plot = io.StringIO()
+    pca_fig.write_html(pca_plot, include_plotlyjs='cdn', full_html=False, config={'responsive': True})
+
+    contact_plots = {cluster: io.StringIO() for cluster in contact_maps}
+    for cluster, fig in contact_maps.items():
+        fig.write_html(contact_plots[cluster], include_plotlyjs='cdn', full_html=False, config={'responsive': True})
+
+    buttons = '\n'.join([f'<button onclick="showContactMap({cluster})">{cluster}</button>' for cluster in contact_maps])
 
     html_content = f"""
     <!DOCTYPE html>
@@ -792,57 +913,123 @@ def create_unified_html(plots, pair):
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>PCA and Contact Maps</title>
+        <title>PCA and Contact Maps for {pair[0]} vs {pair[1]}</title>
         <style>
             body {{
                 margin: 0;
                 padding: 0;
                 font-family: Arial, sans-serif;
-            }}
-            .container {{
-                display: flex;
-                flex-wrap: nowrap;
-                justify-content: space-between;
-                align-items: stretch;
-                height: 100vh;
-                overflow-x: auto;
-            }}
-            .plot {{
-                flex: 1;
-                min-width: 300px;
-                max-width: 600px;
-                height: 100%;
-                padding: 10px;
-                box-sizing: border-box;
                 display: flex;
                 flex-direction: column;
+                height: 100vh;
+                overflow: hidden;
             }}
-            h1, h2 {{
+            h1 {{
                 text-align: center;
                 margin: 10px 0;
             }}
-            .plot > div {{
-                flex-grow: 1;
+            .controls {{
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 10px;
+            }}
+            .label {{
+                margin-right: 10px;
+                font-size: 16px;
+            }}
+            .buttons {{
+                display: inline-block;
+            }}
+            .container {{
+                display: flex;
+                flex: 1;
+                overflow: hidden;
+            }}
+            .plot {{
+                flex: 1;
+                height: 100%;
+                padding: 10px;
+                box-sizing: border-box;
+                position: relative;
+            }}
+            #contactMaps > div {{
+                position: absolute;
+                top: 0;
+                left: 0;
                 width: 100%;
+                height: 100%;
+                opacity: 0;
+                transition: opacity 0.3s ease-in-out;
+                pointer-events: none;
+            }}
+            #contactMaps > div.active {{
+                opacity: 1;
+                pointer-events: auto;
+            }}
+            .buttons {{
+                text-align: center;
+                padding: 10px;
+            }}
+            button {{
+                margin: 0 5px;
             }}
         </style>
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     </head>
     <body>
         <h1>PCA and Contact Maps for {pair[0]} vs {pair[1]}</h1>
+        <div class="controls">
+            <span class="label">Select cluster to display its contact map: </span>
+            <div class="buttons">
+                {buttons}
+            </div>
+        </div>
         <div class="container">
-            {plot_divs_str}
+            <div id="pcaPlot" class="plot">
+                {pca_plot.getvalue()}
+            </div>
+            <div id="contactMaps" class="plot">
+                {''.join([f'<div id="contactMap{cluster}">{plot.getvalue()}</div>' for cluster, plot in contact_plots.items()])}
+            </div>
         </div>
         <script>
-            function resizePlots() {{
-                var plots = document.querySelectorAll('.plot > div');
-                plots.forEach(function(plot) {{
-                    Plotly.Plots.resize(plot);
+            function showContactMap(cluster) {{
+                const contactMaps = document.querySelectorAll('#contactMaps > div');
+                contactMaps.forEach(map => {{
+                    map.classList.remove('active');
                 }});
+                const selectedMap = document.getElementById(`contactMap${{cluster}}`);
+                selectedMap.classList.add('active');
+                Plotly.Plots.resize(selectedMap);
             }}
+
+            function resizePlots() {{
+                Plotly.Plots.resize(document.getElementById('pcaPlot'));
+                const visibleContactMap = document.querySelector('#contactMaps > div.active');
+                if (visibleContactMap) {{
+                    Plotly.Plots.resize(visibleContactMap);
+                }}
+            }}
+
+            // Function to trigger a fake resize event
+            function triggerFakeResize() {{
+                window.dispatchEvent(new Event('resize'));
+            }}
+
             window.addEventListener('resize', resizePlots);
             document.addEventListener('DOMContentLoaded', function() {{
-                setTimeout(resizePlots, 100);
+                showContactMap(0);  // Show the first contact map by default
+                setTimeout(resizePlots, 0);
+                triggerFakeResize();
+            }});
+
+            // Ensure plots are properly sized after they're fully loaded
+            window.addEventListener('load', function() {{
+                resizePlots();
+                // Trigger another resize after a short delay to account for any final rendering
+                setTimeout(resizePlots, 0);
+                triggerFakeResize();
             }});
         </script>
     </body>
