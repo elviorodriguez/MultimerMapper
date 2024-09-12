@@ -197,6 +197,25 @@ def generate_Nmers_graph(pairwise_Nmers_df_F3: pd.DataFrame,
 # Combined PPI graph ----------------------------------------------------------
 # -----------------------------------------------------------------------------
 
+# Function to check if any element in the tuple is in the check_list
+def check_proteins(proteins_in_model, valency_attribute, is_2mer = False):
+
+    proteins_in_model = tuple(sorted(proteins_in_model))
+
+    check_list = [tuple(sorted(model[0])) for model in valency_attribute['models']]
+
+    if is_2mer:
+        for model in check_list:
+            if proteins_in_model == model:
+                return True
+        return False
+    
+    for model in check_list:
+        if proteins_in_model == model:
+            return True
+    return False
+
+
 def add_edges_data(graph,
                    pairwise_2mers_df: pd.DataFrame,
                    pairwise_Nmers_df: pd.DataFrame,
@@ -290,9 +309,11 @@ def add_edges_data(graph,
             # Add the data when it is a match
             if df_pair == graph_pair:
                 
-                filtered_data = data.filter(["pTM", "ipTM", "min_PAE", "pDockQ",
-                                                "N_models", "proteins_in_model", "extra_Nmer_proteins"])
-                
+                filtered_data = data.filter(["pTM", "ipTM", "min_PAE", "pDockQ", "N_models", "proteins_in_model", "extra_Nmer_proteins"])
+
+                # Add checkmark to models that are part of the contact cluster
+                filtered_data['cluster'] = np.where(filtered_data['proteins_in_model'].apply(lambda x: check_proteins(x, edge["valency"])), '✔', 'x')
+
                 # If no info was added previously
                 if edge["N_mers_data"] is None:
                     edge["N_mers_data"] = filtered_data
@@ -306,10 +327,10 @@ def add_edges_data(graph,
     for edge in graph.es:
         if edge["N_mers_data"] is None:
             edge["N_mers_info"] = "No data"
-            edge["N_mers_data"] = pd.DataFrame(columns=["pTM", "ipTM", "min_PAE", "pDockQ", "N_models", "proteins_in_model", "extra_Nmer_proteins"])
+            edge["N_mers_data"] = pd.DataFrame(columns=["pTM", "ipTM", "min_PAE", "pDockQ", "N_models", "proteins_in_model", "extra_Nmer_proteins", "cluster"])
         else:
             # Convert data to a string
-            data_str = edge["N_mers_data"].filter(["pTM", "ipTM", "min_PAE", "pDockQ", "N_models", "proteins_in_model"]).to_string(index=False).replace('\n', '<br>')
+            data_str = edge["N_mers_data"].filter(["pTM", "ipTM", "min_PAE", "pDockQ", "N_models", "proteins_in_model", "cluster"]).to_string(index=False).replace('\n', '<br>')
             edge["N_mers_info"] = data_str
     
     
@@ -360,6 +381,12 @@ def add_edges_data(graph,
                 
                 # Extract interaction data
                 filtered_data = data.filter(["pTM", "ipTM", "min_PAE", "pDockQ", "N_models"])
+
+                # Add checkmark to models that are part of the contact cluster
+                if check_proteins(tuple(df_pair), edge["valency"], is_2mer = True):
+                    filtered_data['cluster'] = '✔'
+                else:
+                    filtered_data['cluster'] = 'x'
                 
                 # If no info was added previously
                 if edge["2_mers_data"] is None:

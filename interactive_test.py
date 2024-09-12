@@ -138,8 +138,10 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
                                        graph_resolution_preset = graph_resolution_preset)
 
 # Generate interactive graph
+import multimer_mapper as mm
+combined_graph, _ = mm.generate_combined_graph(mm_output)
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
-    mm_output["combined_graph"], out_path = out_path,
+    combined_graph, out_path = out_path,
     layout_algorithm = 'fr',    
     
     # You can remove specific interaction types from the graph
@@ -241,9 +243,11 @@ visualize_pair_matrices(mm_output, pair = ('8RTH-P6', '7Q8S-P5'),  max_models=10
 from src.analyze_multivalency import  cluster_all_pairs
 pairwise_contacts = mm_output['pairwise_contact_matrices']
 results = cluster_all_pairs(
-    mm_contacts = pairwise_contacts,
-    mm_output   = mm_output,
-    contact_fraction_threshold = 0.1)
+    mm_contacts                             = pairwise_contacts,
+    mm_output                               = mm_output,
+    contact_fraction_threshold              = 0.1,
+    refinement_contact_similarity_threshold = 0.5,
+    refinement_cf_threshold                 = 0.5)
 
 
 
@@ -277,7 +281,7 @@ combined_graph.edge_attributes()
 combined_graph.es['name']
 combined_graph.es['dynamics']
 combined_graph.es['homooligomerization_states']
-combined_graph.es['valency']                        # <---------------- dict
+combined_graph.es[4]['valency']['models']                        # <---------------- dict
 
 
 # To search ref pdb

@@ -99,8 +99,76 @@ def identify_clusters_for_refinement(all_pair_matrices, pair, model_keys, labels
     return clusters_to_refine
 
 
-def refine_clusters_m1(all_pair_matrices, pair, model_keys, labels, clusters_to_refine, contact_similarity_threshold, logger):
+# def refine_clusters_m1(all_pair_matrices, pair, model_keys, labels, clusters_to_refine, contact_similarity_threshold, logger):
     
+#     refined_labels = deepcopy(labels)
+    
+#     # Compute boolean contact matrices for all models
+#     bool_contacts_matrices = [all_pair_matrices[pair][model]['is_contact'] > 0 for model in model_keys]
+    
+#     for cluster in clusters_to_refine:
+#         cluster_models = [i for i, label in enumerate(refined_labels) if label == cluster]
+        
+#         # If there's only one model in the cluster, we can't refine it further
+#         if len(cluster_models) <= 1:
+#             continue
+        
+#         # Start by considering each model in the cluster as a separate sub-cluster
+#         sub_labels = list(range(len(cluster_models)))
+        
+#         while True:
+#             # Compute the boolean contact matrices for each sub-cluster
+#             bool_contacts_matrices_per_subcluster = []
+#             for sub_cluster in set(sub_labels):
+#                 sub_cluster_models = [model for model, label in zip(cluster_models, sub_labels) if label == sub_cluster]
+#                 sub_cluster_bool_contact_matrix = np.mean([bool_contacts_matrices[model] for model in sub_cluster_models], axis=0) > 0
+#                 bool_contacts_matrices_per_subcluster.append(sub_cluster_bool_contact_matrix)
+
+#             # Compute similarity matrix using IoU
+#             num_sub_clusters = len(bool_contacts_matrices_per_subcluster)
+#             similarity_matrix = np.zeros((num_sub_clusters, num_sub_clusters))
+#             for i in range(num_sub_clusters):
+#                 for j in range(i + 1, num_sub_clusters):
+#                     intersection = np.sum(np.logical_and(bool_contacts_matrices_per_subcluster[i], bool_contacts_matrices_per_subcluster[j]))
+#                     union = np.sum(np.logical_or(bool_contacts_matrices_per_subcluster[i], bool_contacts_matrices_per_subcluster[j]))
+#                     similarity = intersection / union if union > 0 else 0
+#                     similarity_matrix[i, j] = similarity
+#                     similarity_matrix[j, i] = similarity
+            
+#             # Find the highest similarity
+#             max_similarity = np.max(similarity_matrix)
+            
+#             # If the highest similarity is below the threshold, we're done refining this cluster
+#             if max_similarity <= contact_similarity_threshold:
+#                 break
+            
+#             # Find the sub-clusters to merge
+#             i, j = np.unravel_index(np.argmax(similarity_matrix), similarity_matrix.shape)
+#             sub_cluster1, sub_cluster2 = sorted(set(sub_labels))[i], sorted(set(sub_labels))[j]
+            
+#             # Merge the sub-clusters
+#             sub_labels = [sub_cluster1 if label == sub_cluster2 else label for label in sub_labels]
+            
+#             logger.info(f"   Refining cluster {cluster}: Merging sub-clusters {sub_cluster2} into {sub_cluster1} due to similarity of {round(max_similarity*100)}%")
+
+#         # Update the main labels with the refined sub-clusters
+#         new_label = max(refined_labels) + 1
+#         for sub_cluster in set(sub_labels):
+#             sub_cluster_models = [model for model, label in zip(cluster_models, sub_labels) if label == sub_cluster]
+#             for model in sub_cluster_models:
+#                 refined_labels[model] = new_label
+#             new_label += 1
+
+#     # Reassign labels to be consecutive integers starting from 0
+#     unique_labels = sorted(set(refined_labels))
+#     label_mapping = {old: new for new, old in enumerate(unique_labels)}
+#     refined_labels = [label_mapping[label] for label in refined_labels]
+
+#     return refined_labels
+
+
+
+def refine_clusters_two_step(all_pair_matrices, pair, model_keys, labels, clusters_to_refine, contact_similarity_threshold, refinement_cf_threshold, logger):
     refined_labels = deepcopy(labels)
     
     # Compute boolean contact matrices for all models
@@ -113,44 +181,12 @@ def refine_clusters_m1(all_pair_matrices, pair, model_keys, labels, clusters_to_
         if len(cluster_models) <= 1:
             continue
         
-        # Start by considering each model in the cluster as a separate sub-cluster
-        sub_labels = list(range(len(cluster_models)))
+        # Step 1: Merge by contact matrix similarity (current implementation)
+        sub_labels = refine_by_similarity(cluster_models, bool_contacts_matrices, contact_similarity_threshold, logger)
         
-        while True:
-            # Compute the boolean contact matrices for each sub-cluster
-            bool_contacts_matrices_per_subcluster = []
-            for sub_cluster in set(sub_labels):
-                sub_cluster_models = [model for model, label in zip(cluster_models, sub_labels) if label == sub_cluster]
-                sub_cluster_bool_contact_matrix = np.mean([bool_contacts_matrices[model] for model in sub_cluster_models], axis=0) > 0
-                bool_contacts_matrices_per_subcluster.append(sub_cluster_bool_contact_matrix)
-
-            # Compute similarity matrix using IoU
-            num_sub_clusters = len(bool_contacts_matrices_per_subcluster)
-            similarity_matrix = np.zeros((num_sub_clusters, num_sub_clusters))
-            for i in range(num_sub_clusters):
-                for j in range(i + 1, num_sub_clusters):
-                    intersection = np.sum(np.logical_and(bool_contacts_matrices_per_subcluster[i], bool_contacts_matrices_per_subcluster[j]))
-                    union = np.sum(np.logical_or(bool_contacts_matrices_per_subcluster[i], bool_contacts_matrices_per_subcluster[j]))
-                    similarity = intersection / union if union > 0 else 0
-                    similarity_matrix[i, j] = similarity
-                    similarity_matrix[j, i] = similarity
-            
-            # Find the highest similarity
-            max_similarity = np.max(similarity_matrix)
-            
-            # If the highest similarity is below the threshold, we're done refining this cluster
-            if max_similarity <= contact_similarity_threshold:
-                break
-            
-            # Find the sub-clusters to merge
-            i, j = np.unravel_index(np.argmax(similarity_matrix), similarity_matrix.shape)
-            sub_cluster1, sub_cluster2 = sorted(set(sub_labels))[i], sorted(set(sub_labels))[j]
-            
-            # Merge the sub-clusters
-            sub_labels = [sub_cluster1 if label == sub_cluster2 else label for label in sub_labels]
-            
-            logger.info(f"   Refining cluster {cluster}: Merging sub-clusters {sub_cluster2} into {sub_cluster1} due to similarity of {round(max_similarity*100)}%")
-
+        # Step 2: Apply MCFT to subclusters
+        sub_labels = refine_by_mcft(cluster_models, bool_contacts_matrices, sub_labels, refinement_cf_threshold, logger)
+        
         # Update the main labels with the refined sub-clusters
         new_label = max(refined_labels) + 1
         for sub_cluster in set(sub_labels):
@@ -166,6 +202,85 @@ def refine_clusters_m1(all_pair_matrices, pair, model_keys, labels, clusters_to_
 
     return refined_labels
 
+def refine_by_similarity(cluster_models, bool_contacts_matrices, contact_similarity_threshold, logger):
+    sub_labels = list(range(len(cluster_models)))
+    
+    while True:
+        bool_contacts_matrices_per_subcluster = compute_subcluster_matrices(cluster_models, sub_labels, bool_contacts_matrices)
+        similarity_matrix = compute_similarity_matrix(bool_contacts_matrices_per_subcluster)
+        
+        max_similarity = np.max(similarity_matrix)
+        
+        if max_similarity <= contact_similarity_threshold:
+            break
+        
+        i, j = np.unravel_index(np.argmax(similarity_matrix), similarity_matrix.shape)
+        sub_cluster1, sub_cluster2 = sorted(set(sub_labels))[i], sorted(set(sub_labels))[j]
+        
+        sub_labels = [sub_cluster1 if label == sub_cluster2 else label for label in sub_labels]
+        
+        logger.info(f"   Refining cluster: Merging sub-clusters {sub_cluster2} into {sub_cluster1} due to similarity of {round(max_similarity*100)}%")
+
+    return sub_labels
+
+def refine_by_mcft(cluster_models, bool_contacts_matrices, sub_labels, refinement_cf_threshold, logger):
+    # Find the subcluster with the most contacts (potential hybrid)
+    subcluster_sizes = Counter(sub_labels)
+    largest_subcluster = max(subcluster_sizes, key=subcluster_sizes.get)
+    
+    while True:
+        merged = False
+        subcluster_sizes = Counter(sub_labels)
+        sorted_subclusters = sorted(subcluster_sizes.items(), key=lambda x: x[1])
+        
+        for small_label, small_count in sorted_subclusters:
+            if small_label == largest_subcluster:
+                continue
+            
+            small_matrix = compute_subcluster_matrix(cluster_models, sub_labels, bool_contacts_matrices, small_label)
+            small_contacts = np.sum(small_matrix)
+            
+            for big_label, big_count in reversed(sorted_subclusters):
+                if big_label == small_label or big_label == largest_subcluster:
+                    continue
+                
+                big_matrix = compute_subcluster_matrix(cluster_models, sub_labels, bool_contacts_matrices, big_label)
+                
+                shared_contacts = np.sum(np.logical_and(small_matrix, big_matrix))
+                if shared_contacts >= refinement_cf_threshold * small_contacts:
+                    sub_labels = [big_label if label == small_label else label for label in sub_labels]
+                    logger.info(f"   Refining subcluster: Merging {small_label} into {big_label} (Contact Fraction: {shared_contacts}/{small_contacts} = {round(shared_contacts/small_contacts, ndigits=3)})")
+                    merged = True
+                    break
+            
+            if merged:
+                break
+        
+        if not merged:
+            break
+
+    return sub_labels
+
+def compute_subcluster_matrices(cluster_models, sub_labels, bool_contacts_matrices):
+    return [np.mean([bool_contacts_matrices[model] for model, label in zip(cluster_models, sub_labels) if label == sub_cluster], axis=0) > 0
+            for sub_cluster in set(sub_labels)]
+
+def compute_subcluster_matrix(cluster_models, sub_labels, bool_contacts_matrices, sub_cluster):
+    return np.mean([bool_contacts_matrices[model] for model, label in zip(cluster_models, sub_labels) if label == sub_cluster], axis=0) > 0
+
+def compute_similarity_matrix(bool_contacts_matrices_per_subcluster):
+    num_sub_clusters = len(bool_contacts_matrices_per_subcluster)
+    similarity_matrix = np.zeros((num_sub_clusters, num_sub_clusters))
+    for i in range(num_sub_clusters):
+        for j in range(i + 1, num_sub_clusters):
+            intersection = np.sum(np.logical_and(bool_contacts_matrices_per_subcluster[i], bool_contacts_matrices_per_subcluster[j]))
+            union = np.sum(np.logical_or(bool_contacts_matrices_per_subcluster[i], bool_contacts_matrices_per_subcluster[j]))
+            similarity = intersection / union if union > 0 else 0
+            similarity_matrix[i, j] = similarity
+            similarity_matrix[j, i] = similarity
+    return similarity_matrix
+
+
 
 ###############################################################################################
 ################################# Contact Clustering Function #################################
@@ -177,8 +292,10 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
                              "agglomerative_clustering",
                              "contact_fraction_comparison"][2],
                    silhouette_threshold=0.25,
-                   contact_similarity_threshold = 0.7,
-                   contact_fraction_threshold = 0.5,
+                   contact_similarity_threshold = 0.5,
+                   contact_fraction_threshold = 0.1,
+                   refinement_contact_similarity_threshold = 0.5,
+                   refinement_cf_threshold = 0.1,
                    logger: Logger | None = None):
     """
     Clusters models based on their feature vectors using Agglomerative Clustering.
@@ -514,34 +631,21 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
         # Conduct refinement? -----------------------------------------------------------------------
         refine_clusters = True
         if refine_clusters:
-
-            logger.info( "   Testing clusters for refinement...")
-
-            clusters_to_refine = identify_clusters_for_refinement(all_pair_matrices, 
-                                                                  pair,
-                                                                  model_keys = valid_models_keys,
-                                                                  labels = best_labels,
-                                                                  max_freq_threshold = 0.75,
-                                                                  logger = logger)
-            if len(clusters_to_refine) != 0:
-
+            logger.info("   Testing clusters for refinement...")
+            clusters_to_refine = identify_clusters_for_refinement(all_pair_matrices, pair, valid_models_keys, best_labels, max_freq_threshold=0.75, logger=logger)
+            
+            if clusters_to_refine:
                 logger.info(f'   Clusters {clusters_to_refine} need refinement...')
-                
-                refined_labels = refine_clusters_m1(all_pair_matrices             = all_pair_matrices,
-                                                    pair                          = pair,
-                                                    model_keys                    = valid_models_keys,
-                                                    labels                        = best_labels,
-                                                    clusters_to_refine            = clusters_to_refine,
-                                                    contact_similarity_threshold  = 0.5,
-                                                    logger = logger)
+                refined_labels = refine_clusters_two_step(all_pair_matrices, pair, valid_models_keys, best_labels, 
+                                                          clusters_to_refine, contact_similarity_threshold = refinement_contact_similarity_threshold, 
+                                                          refinement_cf_threshold = refinement_cf_threshold, logger = logger)
                 
                 best_labels = refined_labels
                 best_n_clusters = len(set(best_labels))
                 logger.info(f"   Final number of clusters after refinement: {best_n_clusters}")
                 logger.debug(f"   REFINED LABELS: {best_labels}")
-            
             else:
-                logger.info( "   No cluster identified for refinement")
+                logger.info("   No cluster identified for refinement")
 
     return list(valid_models.keys()), best_labels, reduced_features, explained_variance
 
@@ -800,23 +904,29 @@ def visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
         plt.close()
 
 
-def create_interactive_plot(reduced_features, labels, model_keys, cluster_dict, pair, explained_variance):
+def create_interactive_plot(reduced_features, labels, model_keys, cluster_dict, pair, explained_variance, all_pair_matrices):
     # Create PCA plot
-    pca_fig = create_pca_plot(reduced_features, labels, model_keys, explained_variance)
+    pca_fig = create_pca_plot(reduced_features, labels, model_keys, explained_variance, all_pair_matrices, pair)
     
     # Create contact maps for each cluster
     contact_maps = {}
     for cluster, data in cluster_dict.items():
-        contact_maps[cluster] = create_contact_map(data['average_matrix'], pair, f'Cluster {cluster}')
+        contact_maps[cluster] = create_contact_map(
+            data['average_matrix'],
+            pair,
+            f'Cluster {cluster}',
+            x_domains=data['x_dom'],  # Pass x domains
+            y_domains=data['y_dom']   # Pass y domains
+        )
     
     # Create unified HTML
     return create_unified_html(pca_fig, contact_maps, pair)
 
 
-def create_pca_plot(reduced_features, labels, model_keys, explained_variance):
+def create_pca_plot(reduced_features, labels, model_keys, explained_variance, all_pair_matrices, pair):
     x_coords = reduced_features[:, 0] / 100
     y_coords = reduced_features[:, 1] / 100
-    
+        
     n_clusters = len(set(labels))
     cluster_colors = [f'rgb{tuple(int(c * 255) for c in plt.cm.viridis(i / n_clusters)[:3])}' for i in range(n_clusters)]
     
@@ -833,7 +943,7 @@ def create_pca_plot(reduced_features, labels, model_keys, explained_variance):
             y=[y_coords[j] for j in cluster_points],
             mode='markers',
             marker=dict(color=cluster_colors[i], size=8),
-            text=[f"Cluster: {labels[j]}<br>Model: {model_keys[j][0]}<br>Chains: {model_keys[j][1]}<br>Rank: {model_keys[j][2]}" for j in cluster_points],
+            text=[f"Cluster: {labels[j]}<br>Model: {model_keys[j][0]}<br>Chains: {model_keys[j][1]}<br>Rank: {model_keys[j][2]}<br>Contacts Nº: {all_pair_matrices[pair][model_keys[j]]['is_contact'].sum()}" for j in cluster_points],
             hoverinfo='text',
             name=f'Cluster {i}',
             visible=True,
@@ -847,7 +957,7 @@ def create_pca_plot(reduced_features, labels, model_keys, explained_variance):
             y=[y_coords[j] for j in model_points],
             mode='markers',
             marker=dict(color=model_color_map[model], size=8),
-            text=[f"Cluster: {labels[j]}<br>Model: {model_keys[j][0]}<br>Chains: {model_keys[j][1]}<br>Rank: {model_keys[j][2]}" for j in model_points],
+            text=[f"Cluster: {labels[j]}<br>Model: {model_keys[j][0]}<br>Chains: {model_keys[j][1]}<br>Rank: {model_keys[j][2]}<br>Contacts Nº: {all_pair_matrices[pair][model_keys[j]]['is_contact'].sum()}" for j in model_points],
             hoverinfo='text',
             name=f'Model {model}',
             visible=False,
@@ -870,20 +980,44 @@ def create_pca_plot(reduced_features, labels, model_keys, explained_variance):
             ]),
         )],
         showlegend=True,
-        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+        legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5),
         yaxis=dict(scaleanchor="x", scaleratio=1),
         margin=dict(l=50, r=50, t=50, b=100),
     )
     
     return fig
 
-def create_contact_map(avg_matrix, pair, title):
+def create_contact_map(avg_matrix, pair, title, x_domains, y_domains):
+
     fig = go.Figure(data=go.Heatmap(
         z=avg_matrix,
         colorscale='Viridis',
         zmin=0, zmax=1,
         colorbar=dict(title     = f'Contact Frequency (max={round(avg_matrix.max(), ndigits=2)})',
                       titleside = 'right')))
+    
+    # Add domain separation lines (horizontal and vertical)
+    for _, row in y_domains.iterrows():
+        # Horizontal lines for the y-axis domains
+        fig.add_shape(type="line",
+                      x0=-0.5, x1=avg_matrix.shape[1]-0.5,  # Span the whole width of the matrix
+                      y0=row['Start'] - 1.5, y1=row['Start'] - 1.5,  # Domain start
+                      line=dict(color="red", width=1, dash="dash"))
+        fig.add_shape(type="line",
+                      x0=-0.5, x1=avg_matrix.shape[1]-0.5,
+                      y0=row['End'] - 0.5, y1=row['End'] - 0.5,  # Domain end
+                      line=dict(color="red", width=1, dash="dash"))
+    for _, row in x_domains.iterrows():
+        # Vertical lines for the x-axis domains
+        fig.add_shape(type="line",
+                      x0=row['Start'] - 1.5, x1=row['Start'] - 1.5,  # Domain start
+                      y0=-0.5, y1=avg_matrix.shape[0]-0.5,  # Span the whole height of the matrix
+                      line=dict(color="red", width=1, dash="dash"))
+        fig.add_shape(type="line",
+                      x0=row['End'] - 0.5, x1=row['End'] - 0.5,  # Domain end
+                      y0=-0.5, y1=avg_matrix.shape[0]-0.5,
+                      line=dict(color="red", width=1, dash="dash"))
+    
     fig.update_layout(
         title=dict(text=title, x=0.5),
         xaxis_title=f"{pair[1]}",
@@ -1040,7 +1174,7 @@ def create_unified_html(pca_fig, contact_maps, pair):
 
 # Usage in your main function:
 def visualize_clusters_interactive(
-        cluster_dict, pair, model_keys, labels, mm_output,
+        cluster_dict, pair, model_keys, labels, mm_output, all_pair_matrices,
         reduced_features=None, explained_variance=None,
         show_plot=False, save_plot=True,
         logger: Logger | None = None):
@@ -1052,7 +1186,7 @@ def visualize_clusters_interactive(
         os.makedirs(output_dir, exist_ok=True)
 
         # Create the interactive plot
-        html_content = create_interactive_plot(reduced_features, labels, model_keys, cluster_dict, pair, explained_variance)
+        html_content = create_interactive_plot(reduced_features, labels, model_keys, cluster_dict, pair, explained_variance, all_pair_matrices)
         
         # Save the HTML content to a file
         unified_html_path = os.path.join(output_dir, f"{pair[0]}__vs__{pair[1]}-interactive_plot.html")
@@ -1068,10 +1202,12 @@ def visualize_clusters_interactive(
 
 
 def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
-                          contacts_clustering_method    = "contact_fraction_comparison",
-                          silhouette_threshold          = 0.25,
-                          contact_similarity_threshold  = 0.7,
-                          contact_fraction_threshold    = 0.5,
+                          contacts_clustering_method                = "contact_fraction_comparison",
+                          silhouette_threshold                      = 0.25,
+                          contact_similarity_threshold              = 0.7,
+                          contact_fraction_threshold                = 0.1,
+                          refinement_contact_similarity_threshold   = 0.5,
+                          refinement_cf_threshold                   = 0.1,
                           show_plot = False, save_plot = True, 
                           logger: Logger | None= None):
     """
@@ -1089,13 +1225,17 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
         logger = configure_logger()(__name__)
 
     # Perform contact clustering
-    model_keys, labels, reduced_features, explained_variance = cluster_models(all_pair_matrices, pair,
-                                                                              method                       = contacts_clustering_method,
-                                                                              max_clusters                 = max_clusters,
-                                                                              silhouette_threshold         = silhouette_threshold,
-                                                                              contact_similarity_threshold = contact_similarity_threshold,
-                                                                              contact_fraction_threshold   = contact_fraction_threshold,
-                                                                              logger               = logger)
+    model_keys, labels, reduced_features, explained_variance = cluster_models(
+        all_pair_matrices, pair,
+        method                                  = contacts_clustering_method,
+        max_clusters                            = max_clusters,
+        silhouette_threshold                    = silhouette_threshold,
+        contact_similarity_threshold            = contact_similarity_threshold,
+        contact_fraction_threshold              = contact_fraction_threshold,
+        refinement_contact_similarity_threshold = refinement_contact_similarity_threshold,
+        refinement_cf_threshold                 = refinement_cf_threshold,
+        logger               = logger)
+    
     if labels is not None:
 
         # Merge contact matrices by cluster to extract contact frequency (mean contact probability)
@@ -1110,6 +1250,7 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
             model_keys         = model_keys,
             labels             = labels,
             mm_output          = mm_output,
+            all_pair_matrices  = all_pair_matrices,
             reduced_features   = reduced_features,
             explained_variance = explained_variance,
             show_plot          = show_plot,
@@ -1140,7 +1281,9 @@ def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5,
                       contacts_clustering_method = "contact_fraction_comparison",
                       silhouette_threshold=0.25,
                       contact_similarity_threshold = 0.7,
-                      contact_fraction_threshold = 0.5,
+                      contact_fraction_threshold = 0.1,
+                      refinement_contact_similarity_threshold = 0.5,
+                      refinement_cf_threshold = 0.1,
                       show_plot = False, save_plot = True, log_level = 'info'):
     """
     Clusters and visualizes all protein pairs in the given dictionary.
@@ -1170,6 +1313,8 @@ def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5,
                                              silhouette_threshold         = silhouette_threshold,
                                              contact_similarity_threshold = contact_similarity_threshold,
                                              contact_fraction_threshold   = contact_fraction_threshold,
+                                             refinement_contact_similarity_threshold = refinement_contact_similarity_threshold,
+                                             refinement_cf_threshold = refinement_cf_threshold,
                                              show_plot = show_plot,
                                              save_plot = save_plot,
                                              logger    = logger)

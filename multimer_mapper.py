@@ -87,6 +87,8 @@ def parse_AF2_and_sequences(
     multivalency_contact_similarity_threshold = multivalency_contact_similarity_threshold,
     max_contact_clusters                      = max_contact_clusters,    
     contact_fraction_threshold                = contact_fraction_threshold,
+    refinement_contact_similarity_threshold   = refinement_contact_similarity_threshold,
+    refinement_cf_threshold                   = refinement_cf_threshold,
 
     # For RMSD calculations
     domain_RMSD_plddt_cutoff = domain_RMSD_plddt_cutoff,
@@ -248,11 +250,13 @@ def parse_AF2_and_sequences(
     # Cluster contacts (extract valency) and add it to output
     contacts_clusters = cluster_all_pairs(pairwise_contact_matrices, 
                                           multimer_mapper_output,
-                                          contacts_clustering_method   = contacts_clustering_method,
-                                          max_clusters                 = max_contact_clusters,
-                                          silhouette_threshold         = multivalency_silhouette_threshold,
-                                          contact_similarity_threshold = multivalency_contact_similarity_threshold,
-                                          contact_fraction_threshold   = contact_fraction_threshold,
+                                          contacts_clustering_method                = contacts_clustering_method,
+                                          max_clusters                              = max_contact_clusters,
+                                          silhouette_threshold                      = multivalency_silhouette_threshold,
+                                          contact_similarity_threshold              = multivalency_contact_similarity_threshold,
+                                          contact_fraction_threshold                = contact_fraction_threshold,
+                                          refinement_contact_similarity_threshold   = refinement_contact_similarity_threshold,
+                                          refinement_cf_threshold                   = refinement_cf_threshold,
                                           show_plot = display_contact_clusters,
                                           save_plot = save_contact_clusters,
                                           log_level = log_level)    

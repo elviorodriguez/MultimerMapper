@@ -209,7 +209,9 @@ max_contact_clusters: int = 5
 # For MCFT (Merging by Contact Fraction Threshold) - DEFAULT -----------------
 
 # To optimize
-contact_fraction_threshold: float = 0.10
+contact_fraction_threshold: float               = 0.1
+refinement_contact_similarity_threshold: float  = 0.5
+refinement_cf_threshold: float                  = 0.5
 
 # Save/display the contact clusters with PCA plots?
 display_contact_clusters = False
