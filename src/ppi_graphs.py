@@ -215,6 +215,17 @@ def check_proteins(proteins_in_model, valency_attribute, is_2mer = False):
             return True
     return False
 
+# Function to count occurrences of the model in the valency
+def count_proteins(proteins_in_model, valency_attribute, is_2mer=False):
+    proteins_in_model = tuple(sorted(proteins_in_model))
+
+    check_list = [tuple(sorted(model[0])) for model in valency_attribute['models']]
+
+    if is_2mer:
+        return check_list.count(proteins_in_model)
+
+    return check_list.count(proteins_in_model)
+
 
 def add_edges_data(graph,
                    pairwise_2mers_df: pd.DataFrame,
@@ -312,8 +323,9 @@ def add_edges_data(graph,
                 filtered_data = data.filter(["pTM", "ipTM", "min_PAE", "pDockQ", "N_models", "proteins_in_model", "extra_Nmer_proteins"])
 
                 # Add checkmark to models that are part of the contact cluster
-                filtered_data['cluster'] = np.where(filtered_data['proteins_in_model'].apply(lambda x: check_proteins(x, edge["valency"])), '✔', 'x')
-
+                filtered_data['cluster'] = filtered_data['proteins_in_model'].apply(
+                    lambda x: '✔' * count_proteins(x, edge["valency"]) if count_proteins(x, edge["valency"]) > 0 else 'x'
+                )
                 # If no info was added previously
                 if edge["N_mers_data"] is None:
                     edge["N_mers_data"] = filtered_data
@@ -383,10 +395,8 @@ def add_edges_data(graph,
                 filtered_data = data.filter(["pTM", "ipTM", "min_PAE", "pDockQ", "N_models"])
 
                 # Add checkmark to models that are part of the contact cluster
-                if check_proteins(tuple(df_pair), edge["valency"], is_2mer = True):
-                    filtered_data['cluster'] = '✔'
-                else:
-                    filtered_data['cluster'] = 'x'
+                occurrences = count_proteins(tuple(df_pair), edge["valency"], is_2mer=True)
+                filtered_data['cluster'] = '✔' * occurrences if occurrences > 0 else 'x'
                 
                 # If no info was added previously
                 if edge["2_mers_data"] is None:
