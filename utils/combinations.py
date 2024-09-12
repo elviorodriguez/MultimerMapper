@@ -200,7 +200,41 @@ def get_tested_Nmer_pairs(mm_output):
     tested_Nmers_edges_tuples   = [tuple(sorted(tuple(row))) for i, row in tested_Nmers_edges_df.iterrows()]
 
     return tested_Nmers_edges_tuples
+
+
+def get_expanded_3mer_suggestions(combined_graph, pairwise_Nmers_df):
+
+    are_interactions: list[str] = ["Static", "Strong Positive", "Positive", "Weak Positive", "Weak Negative", "Negative", "Strong Negative", "No N-mers Data"]
+
+    # Get pairs that engage PPIs
+    ppi_pairs: list[igraph.Edge] = [e for e in combined_graph.es if e['dynamics'] in are_interactions]
+
+    # Discard homooligomeric edges
+    hetero_ppi_pairs: list[igraph.Edge] = [e for e in ppi_pairs if e.source != e.target]
+
+    # Discard multivalent edges
+    monovalent_pairs: list[tuple] = set([e['name'] for e in hetero_ppi_pairs])
+    for e in hetero_ppi_pairs:
+        if e['valency']['cluster_n'] > 0 and e['name'] in monovalent_pairs:
+            monovalent_pairs.discard(e['name'])
     
+    # Generate expanded hetero3mer combinations for remaining edges
+    expanded_3mer_suggestions: list[tuple] = []
+    for pair in monovalent_pairs:
+
+        # Generate both expanded 3mers
+        p2_q1: tuple = tuple(sorted((pair[0], pair[0], pair[1])))
+        p1_q2: tuple = tuple(sorted((pair[0], pair[1], pair[1])))
+
+        # Append data to suggestions
+        expanded_3mer_suggestions.append(p2_q1)
+        expanded_3mer_suggestions.append(p1_q2)
+
+    # Remove those that the user already computed
+    user_Nmer_combinations = get_user_Nmers_combinations(pairwise_Nmers_df)
+    expanded_3mer_suggestions = [ pair for pair in expanded_3mer_suggestions if pair not in user_Nmer_combinations ]
+    
+    return expanded_3mer_suggestions
 
 
 # -----------------------------------------------------------------------------
@@ -247,8 +281,11 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
                                                                    logger = logger)
     list_of_untested_Nmers = list(list_of_untested_Nmers)
 
+    # Get expanded 3mer combinations for monovalent edges (to increase multivalency detection sensitivity)
+    list_of_expanded_3mer_suggestions: list[tuple[str]] = list(get_expanded_3mer_suggestions(combined_graph, pairwise_Nmers_df))
+
     # Combine all suggested combinations and remove duplicates (if any)
-    suggested_combinations: list[tuple[str]] = list_of_untested_2mers + list_of_homo_oligomeric_Nstates_plus_one + list_of_homo_oligomeric_Nstates_inconsistent + list_of_untested_Nmers
+    suggested_combinations: list[tuple[str]] = list_of_untested_2mers + list_of_homo_oligomeric_Nstates_plus_one + list_of_homo_oligomeric_Nstates_inconsistent + list_of_untested_Nmers + list_of_expanded_3mer_suggestions
     suggested_combinations: list[tuple[str]] = list(set(suggested_combinations))
 
     # Remove homooligomeric combinations that have reached a fallback
@@ -268,6 +305,7 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
             continue
     suggested_combinations = [ comb for comb in suggested_combinations if tuple(sorted(set(comb))) not in fall_back_edges ]
 
+    # Save the suggestions
     if out_path is not None:
 
         combination_suggestions_path = os.path.join(out_path, "combinations_suggestions")
