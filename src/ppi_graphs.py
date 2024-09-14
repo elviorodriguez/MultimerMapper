@@ -1287,8 +1287,8 @@ def igraph_to_plotly(
                             width = int(edge_width * edge_weight),
                             dash  = edge_linetype),
                 hoverinfo  ="text",
-                text       = [edge_dynamics + f' {edge["name"]} - Contacts cluster  {edge["valency"]["cluster_n"]} (size = {len(edge["valency"]["models"])})' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
-                hovertext  = [edge_dynamics + f' {edge["name"]} - Contacts cluster  {edge["valency"]["cluster_n"]} (size = {len(edge["valency"]["models"])})' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
+                text       = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
+                hovertext  = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
                 hoverlabel = dict(font=dict(family='Courier New', size=hovertext_size)),
                 showlegend = False
             )
@@ -1395,8 +1395,8 @@ def igraph_to_plotly(
                             width = int(edge_width * edge_weight),
                             dash  = edge_linetype),
                 hoverinfo   = "text",  # Add hover text
-                text        = [edge_dynamics + f' {edge["name"]} - Contacts cluster  {edge["valency"]["cluster_n"]} (size = {len(edge["valency"]["models"])})' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
-                hovertext   = [edge_dynamics + f' {edge["name"]} - Contacts cluster  {edge["valency"]["cluster_n"]} (size = {len(edge["valency"]["models"])})' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
+                text        = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
+                hovertext   = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
                 hoverlabel  = dict(font=dict(family='Courier New', size=hovertext_size)),
                 showlegend  = False
             )
@@ -1527,7 +1527,14 @@ def igraph_to_plotly(
     # Extract the colors (col) and label text (meaning: mng) from the combined graph
     set_vertex_colors_meanings = set([(col, mng) for col, mng in zip(graph.vs["color"], graph.vs["meaning"])])
     
-        # Add labels for vertex dynamics
+    # Add labels for vertex dynamics
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode='markers',
+        marker=dict(symbol='circle', size=0, color="white"),
+        name="<b>Protein Dynamics:</b>",
+        showlegend=True
+        ))
     for col, mng in set_vertex_colors_meanings:
         fig.add_trace(go.Scatter(
             x=[None], y=[None],
@@ -1537,11 +1544,20 @@ def igraph_to_plotly(
             showlegend=True
             ))
         
-    
+    # Extract the meaning of the dynamics
     set_edges_meanings = set([mng for mng in  graph.es["dynamics"]])
+    custom_sorted_labels = classification_df['Classification'].tolist()
+    sorted_labels = sorted(set_edges_meanings, key=lambda x: custom_sorted_labels.index(x))
 
     # Add labels for edges dynamics
-    for mng in set_edges_meanings:
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode='markers',
+        marker=dict(symbol='circle', size=0, color="white"),
+        name="<br><b>PPI Dynamics:</b>",
+        showlegend=True
+        ))
+    for mng in sorted_labels:
         mng_color_hex  = classification_df.query(f'Classification == "{mng}"')["Color_hex"].iloc[0]
         mng_oscillates = classification_df.query(f'Classification == "{mng}"')["Edge_oscillates"].iloc[0]
         mng_linetype   = classification_df.query(f'Classification == "{mng}"')["Line_type"].iloc[0]

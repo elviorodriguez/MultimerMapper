@@ -139,9 +139,9 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
 
 # Generate interactive graph
 import multimer_mapper as mm
-combined_graph, _ = mm.generate_combined_graph(mm_output)
+# combined_graph, _ = mm.generate_combined_graph(mm_output)
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
-    combined_graph, out_path = out_path,
+    mm_output['combined_graph'], out_path = out_path,
     layout_algorithm = 'fr',    
     
     # You can remove specific interaction types from the graph
@@ -217,8 +217,64 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 
 
 ###############################################################################
+######################## TESTS: Multivalency hovertext ########################
+###############################################################################
+
+pair = ("1Y14-oP2", "1Y14-oQ2")
+pairwise_Nmers_df = mm_output['pairwise_Nmers_df']
+pairwise_2mers_df = mm_output['pairwise_2mers_df']
+pairwise_2mers_df_F3 = mm_output['pairwise_2mers_df_F3']
+
+# Apply a function to each row to check the condition
+filtered_df = pairwise_Nmers_df[
+    pairwise_Nmers_df['proteins_in_model'].apply(lambda x: tuple(sorted(set(x))) == pair)
+]
+
+# Apply a function to each row to check the condition
+filtered_2mers_df = pairwise_2mers_df[
+    pairwise_2mers_df['sorted_tuple_pair'].apply(lambda x: tuple(sorted(set(x))) == pair)
+]
+
+
+
+from src.analyze_multivalency import find_multivalency_states
+
+multivalency_states = find_multivalency_states(combined_graph, mm_output)
+
+
+
+
+
+
+
+
+
+###############################################################################
 ################################## TESTS ######################################
 ###############################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 from src.contact_extractor import compute_pairwise_contacts, visualize_pair_matrices
 

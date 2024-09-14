@@ -19,7 +19,8 @@ import io
 
 from utils.logger_setup import configure_logger
 from utils.combinations import get_untested_2mer_pairs, get_tested_Nmer_pairs
-
+from src.analyze_homooligomers import add_chain_information_to_df, does_all_have_at_least_one_interactor
+from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff
 
 ###############################################################################
 ############################### Clustering ####################################
@@ -1389,7 +1390,7 @@ def print_contact_clusters_number(mm_output):
         print(f'Pair {pair} interact through {clusters} modes')
 
 
-def get_multivalent_pairs(mm_output):
+def get_multivalent_pairs_dict(mm_output):
 
     multivalent_pairs: dict = {}
 
@@ -1405,6 +1406,59 @@ def get_multivalent_pairs(mm_output):
     
     return multivalent_pairs
 
+def get_multivalent_pairs_list(combined_graph, drop_homooligomers = False):
+
+    multivalent_pairs: list = []
+
+    for edge in combined_graph.es:
+
+        sorted_tuple_pair: tuple = tuple(sorted(edge['name']))
+        edge_valency: int        = edge['valency']['cluster_n']
+
+        if drop_homooligomers and len(set(edge['name'])) == 1:
+            continue
+
+        if edge_valency > 0 and sorted_tuple_pair not in multivalent_pairs:
+            multivalent_pairs.append(sorted_tuple_pair)
+    
+    return multivalent_pairs
+
+def get_expanded_Nmers_df_for_pair(pair, mm_output):
+
+    pairwise_Nmers_df = mm_output['pairwise_Nmers_df']
+
+    # Get the part of Nmers dataframe that are expanded Nmers for the pair
+    expanded_Nmers_df_for_pair = pairwise_Nmers_df[
+        pairwise_Nmers_df['proteins_in_model'].apply(lambda x: tuple(sorted(set(x))) == pair)
+    ]
+
+    return expanded_Nmers_df_for_pair
+
+def get_2mer_df_for_pair(pair, mm_output):
+
+    pairwise_2mers_df = mm_output['pairwise_2mers_df']
+
+    # Apply a function to each row to check the condition
+    filtered_2mers_df = pairwise_2mers_df[
+        pairwise_2mers_df['sorted_tuple_pair'].apply(lambda x: tuple(sorted(set(x))) == pair)
+    ]
+
+    return filtered_2mers_df
+
+def check_if_2mer_interact(pair, mm_output):
+
+    pairwise_2mers_df_F3 = mm_output['pairwise_2mers_df_F3']
+
+    for i, row in pairwise_2mers_df_F3.iterrows():
+
+        row_pair = tuple(sorted((row["protein1"], row["protein2"])))
+
+        if row_pair == pair:
+            return True
+    
+    return False
+
+
 
 
 
@@ -1413,12 +1467,72 @@ def get_multivalent_pairs(mm_output):
 # --------------------------------------------------------------------------
 
 
-def find_multivalency_breaks(mm_output):
+def find_multivalency_states(combined_graph, mm_output,
+                             min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
+                             pDockQ_cutoff_Nmers  = pDockQ_cutoff_Nmers,
+                             N_models_cutoff      = N_models_cutoff):
 
-    multivalent_pairs = get_multivalent_pairs(mm_output)
+    multivalent_pairs: list[tuple[str]] = get_multivalent_pairs_list(combined_graph, drop_homooligomers = True)
+
+    multivalency_states: dict = {pair: {} for pair in multivalent_pairs}
     
-    pass
+    for pair in multivalent_pairs:
 
-def add_multivalency_state(graph, mm_output):
+        # ------------------------------------------------------------------------------------
+        # --------------------------------- Analyze the 2mer ---------------------------------
+        # ------------------------------------------------------------------------------------
 
-    pass
+        does_2mer_interact: pd.DataFrame = check_if_2mer_interact(pair, mm_output)
+
+        multivalency_states[pair][pair] = does_2mer_interact
+
+        # ------------------------------------------------------------------------------------
+        # -------------------------------- Analyze the N-mers --------------------------------
+        # ------------------------------------------------------------------------------------
+
+        expanded_Nmers_for_pair_df: pd.DataFrame        = get_expanded_Nmers_df_for_pair(pair, mm_output)
+        expanded_Nmers_for_pair_models: set[tuple[str]] = set(expanded_Nmers_for_pair_df['proteins_in_model'])
+
+        # For each expanded Nmer
+        for model in list(expanded_Nmers_for_pair_models):
+            
+            # Separate only data for the current expanded heteromeric state and add chain info
+            model_pairwise_df: pd.DataFrame = expanded_Nmers_for_pair_df.query('proteins_in_model == @model')
+            add_chain_information_to_df(model_pairwise_df)
+            
+            # Make the verification
+            all_have_at_least_one_interactor: bool = does_all_have_at_least_one_interactor(
+                                                        model_pairwise_df,
+                                                        min_PAE_cutoff_Nmers,
+                                                        pDockQ_cutoff_Nmers,
+                                                        N_models_cutoff)
+            
+            # Add if it surpass cutoff to N_states
+            multivalency_states[pair][model] = all_have_at_least_one_interactor
+
+    return multivalency_states
+
+def add_multivalency_state(combined_graph, mm_output,
+                           min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
+                           pDockQ_cutoff_Nmers  = pDockQ_cutoff_Nmers,
+                           N_models_cutoff      = N_models_cutoff):
+    
+    # Compute multivalency states data
+    multivalency_states: dict = find_multivalency_states(combined_graph, mm_output,
+                            min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
+                            pDockQ_cutoff_Nmers  = pDockQ_cutoff_Nmers,
+                            N_models_cutoff      = N_models_cutoff)
+
+    # Initialize edge attribute
+    combined_graph.es["multivalency_states"] = None
+
+    for edge in combined_graph.es:
+
+        tuple_pair: tuple[str] = tuple(sorted(edge["name"]))
+
+        # Skip monovalent interactions
+        if tuple_pair not in multivalency_states.keys():
+            continue
+
+        edge["multivalency_states"] = multivalency_states[tuple_pair]
+
