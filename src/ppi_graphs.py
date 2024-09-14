@@ -1277,20 +1277,25 @@ def igraph_to_plotly(
                         color='black'
                     ),
                     align='center',
-                    bgcolor='white',  # Set the background color to white
-                    bordercolor='black',  # Set the border color to black
-                    borderwidth=1,  # Set the width of the border
+                    bgcolor='white',
+                    bordercolor='black',
+                    borderwidth=1,
+                    visible = True,
+                    clicktoshow = 'onoff'
                 )
 
-                # Add text in the center with homooligomerization state info
+                # Add a point to the place at which the annotation can appear and disappear
                 text_trace = go.Scatter(
                     x=[circle_center_x],
                     y=[circle_center_y],
-                    mode='text',
-                    text=[formatted_N_states],
-                    textposition="middle center",
+                    mode='markers',
+                    marker=dict(size  = 6,
+                                color = 'white',
+                                line = dict(color = 'black', width = 1),
+                                symbol = 'circle'),
                     hoverinfo='none',
-                    showlegend=False
+                    showlegend=False,
+                    name=f'{edge["name"]}',
                 )
 
                 # add text trace
@@ -1383,29 +1388,27 @@ def igraph_to_plotly(
                     bgcolor='white',
                     bordercolor='black',
                     borderwidth=1,
-
                     name=f'{edge["name"]}',
                     visible = True,
-                    clicktoshow = 'onout'
+                    clicktoshow = 'onoff'
                 )
 
-                # # Add text in the center with multivalency states info
-                # text_trace = go.Scatter(
-                #     x=[text_position[0]],
-                #     y=[text_position[1]],
-                #     mode='text',
-                #     text=[formatted_multivalency_states],
-                #     textposition="middle center",
-                #     hoverinfo='none',
-                #     showlegend=True,
-                #     name=f'{edge["name"]}',
-
-                #     fill = 20
-                #     fillcolor = 'white'
-                # )
+                # Add a point to the place at which the annotation can appear and disappear
+                text_trace = go.Scatter(
+                    x=[text_position[0]],
+                    y=[text_position[1]],
+                    mode='markers',
+                    marker=dict(size  = 6,
+                                color = 'white',
+                                line = dict(color = 'black', width = 1),
+                                symbol = 'circle'),
+                    hoverinfo='none',
+                    showlegend=False,
+                    name=f'{edge["name"]}',
+                )
 
                 # add text trace
-                # edge_traces.append(text_trace)
+                edge_traces.append(text_trace)
                 annotations_trace.append(text_annotation)
 
             # Add traces
