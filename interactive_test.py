@@ -139,9 +139,9 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
 
 # Generate interactive graph
 import multimer_mapper as mm
-# combined_graph, _ = mm.generate_combined_graph(mm_output)
+combined_graph, dynamic_proteins, homooligomerization_states, multivalency_states = mm.generate_combined_graph(mm_output)
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
-    mm_output['combined_graph'], out_path = out_path,
+    combined_graph, out_path = out_path,
     layout_algorithm = 'fr',    
     
     # You can remove specific interaction types from the graph
@@ -237,9 +237,12 @@ filtered_2mers_df = pairwise_2mers_df[
 
 
 
-from src.analyze_multivalency import find_multivalency_states
+from src.analyze_multivalency import find_multivalency_states, add_multivalency_state, inform_multivalency_states
 
 multivalency_states = find_multivalency_states(combined_graph, mm_output)
+inform_multivalency_states(multivalency_states, logger)
+
+
 
 
 

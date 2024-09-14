@@ -10,7 +10,7 @@ from copy import deepcopy
 from logging import Logger
 
 from utils.logger_setup import configure_logger, default_error_msgs
-from src.analyze_homooligomers import find_homooligomerization_breaks
+from src.analyze_homooligomers import add_homooligomerization_state
 from utils.oscillations import oscillate_line, oscillate_circle, generate_parabolic_points, generate_oscillating_parabolic_points
 from utils.combinations import find_untested_2mers, get_untested_2mer_pairs, get_tested_Nmer_pairs
 from src.interpret_dynamics import read_classification_df, classify_edge_dynamics, classification_df, get_edge_color_hex, get_edge_linetype, get_edge_weight, get_edge_oscillation
@@ -752,84 +752,6 @@ def generate_combined_graph(
     # ----------------------------------------------------------------------------------------
     # -------------- Add 2/N-mers data, homooligomeric states, RMSD, etc ---------------------
     # ----------------------------------------------------------------------------------------
-
-    # Helper function
-    def add_homooligomerization_state(graph,
-                                      pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
-                                      pairwise_Nmers_df = pairwise_Nmers_df,
-                                      logger = logger,
-                                      min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
-                                      pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
-                                      N_models_cutoff = N_models_cutoff):
-        
-        # Compute homooligomerization data
-        homooligomerization_states = find_homooligomerization_breaks(
-                                            pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
-                                            pairwise_Nmers_df = pairwise_Nmers_df,
-                                            logger = logger,
-                                            min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
-                                            pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
-                                            N_models_cutoff = N_models_cutoff)
-
-        # Initialize edge attribute
-        graph.es["homooligomerization_states"] = None
-
-        for edge in graph.es:
-            source_name = graph.vs[edge.source]["name"]
-            target_name = graph.vs[edge.target]["name"]
-
-            # If it is a homooligomer
-            if source_name == target_name:
-                
-                try:
-                    # Add its homooligomerization state data
-                    edge["homooligomerization_states"] = homooligomerization_states[source_name]
-
-                # The edge was added because it was not tested?
-                except KeyError:
-                    
-                    # Get dynamics in this case to verify if it is indirect
-                    e_dynamic = classify_edge_dynamics(tuple_edge = tuple(sorted(edge['name'])),
-                                                       true_edge = edge,
-                                                       
-                                                       # Cutoffs
-                                                       N_models_cutoff = N_models_cutoff,
-                                                       
-                                                       # Sorted tuple edges lists
-                                                       sorted_edges_2mers_graph  = edges_g1_sort, 
-                                                       sorted_edges_Nmers_graph  = edges_g2_sort,
-                                                       untested_edges_tuples     = untested_edges_tuples,
-                                                       tested_Nmers_edges_sorted = tested_Nmers_edges_sorted,
-                                                       
-                                                       classification_df = classification_df,
-                                                       logger = logger)
-                                    
-                    if e_dynamic == 'Indirect':
-                        logger.warning(f'Homooligomerization of indirect edge: ({source_name}, {target_name})')
-                        logger.warning( '   homooligomerization_states will be set as empty indicating that it comes from an indirect interaction...')
-                        # Add its homooligomerization state data
-                        edge["homooligomerization_states"] = {"is_ok": [], "N_states": [],
-                                                              "error"     : True,
-                                                              "error_type": "Indirect edge"}
-
-                    else:
-                        logger.error(f'KeyError appeared during homooligomerization state detection of {source_name}')
-                        logger.error( '   MultimerMapper will continue anyways...')
-                        logger.error( '   combined_graph will contain the key generated_from_key_error in "homooligomerization_states" attribute')
-                        logger.error(f'   You can check the edge {edge["name"]} for more info...')
-
-                        # Add its homooligomerization state data as error
-                        edge["homooligomerization_states"] = {"is_ok": [], "N_states": [],
-                                                              "error"     : True,
-                                                              "error_type": "KeyError on edge not classified as Indirect"}
-
-
-                except Exception as e:
-                    logger.error(f'An unexpected error appeared during homooligomerization state detection of {source_name}')
-                    logger.error(f'   Exception: {e}')
-                    logger.error( '   MultimerMapper will continue anyways...')
-                    logger.error( '   Results may be unreliable or it may crash later...')
-
     
     # Add vertices IDs, len, seq, PDB chain and domain RMSD
     add_vertices_IDs(graphC, prot_IDs, prot_names)
@@ -856,16 +778,20 @@ def generate_combined_graph(
                    min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
                    pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers)
 
-    add_homooligomerization_state(graphC,
-                                  pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
-                                  pairwise_Nmers_df = pairwise_Nmers_df,
-                                  logger = logger,
-                                  min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
-                                  pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
-                                  N_models_cutoff = N_models_cutoff)
+    homooligomerization_states = add_homooligomerization_state(
+        graph                     = graphC,
+        pairwise_2mers_df_F3      = pairwise_2mers_df_F3,
+        pairwise_Nmers_df         = pairwise_Nmers_df,
+        edges_g1_sort             = edges_g1_sort,
+        edges_g2_sort             = edges_g2_sort,
+        untested_edges_tuples     = untested_edges_tuples,
+        tested_Nmers_edges_sorted = tested_Nmers_edges_sorted,
+        logger                    = logger,
+        min_PAE_cutoff_Nmers      = min_PAE_cutoff_Nmers,
+        pDockQ_cutoff_Nmers       = pDockQ_cutoff_Nmers,
+        N_models_cutoff           = N_models_cutoff)
     
-    add_multivalency_state(graphC, mm_output)
-    
+    multivalency_states = add_multivalency_state(graphC, mm_output, logger)
 
     # ----------------------------------------------------------------------------------------
     # -------------------------- Add edges dynamic classifications ---------------------------
@@ -933,8 +859,8 @@ def generate_combined_graph(
         elif prot_id not in symmetry_fallbacks.keys() and edge['dynamics'] == "Indirect":
             e_fallback = {"fallback_detected" : "Not apply: indirect interaction"}
             edges_fallback.append(e_fallback)
-            logger.warn(f'Homointeraction of {prot_id} is not in symmetry_fallbacks dict as it is classified as Indirect.')
-            logger.warn('   Adding "fallback_detected" as "Not apply: indirect interaction"...')
+            logger.warning(f'Homointeraction of {prot_id} is not in symmetry_fallbacks dict as it is classified as Indirect.')
+            logger.warning('   Adding "fallback_detected" as "Not apply: indirect interaction"...')
             continue
 
         e_fallback = symmetry_fallbacks[prot_id]
@@ -959,7 +885,7 @@ def generate_combined_graph(
         domain_RMSD_plddt_cutoff = domain_RMSD_plddt_cutoff, trimming_RMSD_plddt_cutoff = trimming_RMSD_plddt_cutoff)
     
     
-    return graphC, dynamic_proteins
+    return graphC, dynamic_proteins, homooligomerization_states, multivalency_states
 
 
 # -----------------------------------------------------------------------------
@@ -1033,8 +959,43 @@ def format_homooligomerization_states(homooligomerization_states, symmetry_fallb
     
     return formatted_N_states.rstrip("|")
         
-def format_multivalency_states(multivalency_states, logger):
-    pass
+def format_multivalency_states(edge, logger = None):
+
+    # Unpack data
+    multivalency_states: dict = edge['multivalency_states']
+    pair: tuple[str] = tuple(sorted(edge['name']))
+    p_ID: str = pair[0]
+    q_ID: str = pair[1]
+    
+    # Initialize result variable and size tracker
+    formatted_multivalency_states: list = []
+    current_size: int = 0
+    
+    for model in sorted(multivalency_states.keys(), key=len):
+        # Count how many of each protein in the model
+        p_count = model.count(p_ID)
+        q_count = model.count(q_ID)
+        # Convert it to mPnQ notation
+        state = f'{p_count}P{q_count}Q'
+        
+        # Color based on interactor presence
+        if multivalency_states[model]:
+            state = f'<b style="color:black;">{state}</b>'
+        else:
+            state = f'<b style="color:red;">{state}</b>'
+        
+        # Determine separator based on size change
+        proteins_in_model_num: int = len(model)
+        if proteins_in_model_num > current_size:
+            if formatted_multivalency_states:
+                formatted_multivalency_states.append('<br>')
+            current_size = proteins_in_model_num
+        elif formatted_multivalency_states:
+            formatted_multivalency_states.append('|')
+        
+        formatted_multivalency_states.append(state)
+    
+    return ''.join(formatted_multivalency_states)
 
 
 # Generate a layout (using only static edges)
@@ -1406,8 +1367,47 @@ def igraph_to_plotly(
 
                 # Locate the text in the middle of both vertex
                 text_position = (end_point + start_point) / 2
-                pass
-        
+
+                formatted_multivalency_states = format_multivalency_states(edge)
+                
+                text_annotation = go.layout.Annotation(
+                    x=text_position[0],
+                    y=text_position[1],
+                    text      = formatted_multivalency_states,
+                    showarrow = False,
+                    font=dict(
+                        size=10,
+                        color='black'
+                    ),
+                    align='center',
+                    bgcolor='white',
+                    bordercolor='black',
+                    borderwidth=1,
+
+                    name=f'{edge["name"]}',
+                    visible = True,
+                    clicktoshow = 'onout'
+                )
+
+                # # Add text in the center with multivalency states info
+                # text_trace = go.Scatter(
+                #     x=[text_position[0]],
+                #     y=[text_position[1]],
+                #     mode='text',
+                #     text=[formatted_multivalency_states],
+                #     textposition="middle center",
+                #     hoverinfo='none',
+                #     showlegend=True,
+                #     name=f'{edge["name"]}',
+
+                #     fill = 20
+                #     fillcolor = 'white'
+                # )
+
+                # add text trace
+                # edge_traces.append(text_trace)
+                annotations_trace.append(text_annotation)
+
             # Add traces
             edge_traces.append(edge_trace)
     
@@ -1532,7 +1532,7 @@ def igraph_to_plotly(
         x=[None], y=[None],
         mode='markers',
         marker=dict(symbol='circle', size=0, color="white"),
-        name="<b>Protein Dynamics:</b>",
+        name="<br><b>Protein Dynamics:</b>",
         showlegend=True
         ))
     for col, mng in set_vertex_colors_meanings:

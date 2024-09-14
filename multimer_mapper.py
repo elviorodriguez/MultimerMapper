@@ -311,7 +311,7 @@ def parse_AF2_and_sequences(
     logger.debug(f"Resulting N-mers graph:\n{graph_Nmers}")
 
     # Combined PPI graph
-    combined_graph, dynamic_proteins = generate_combined_graph(
+    combined_graph, dynamic_proteins, homooligomerization_states, multivalency_states = generate_combined_graph(
         
         # Input
         mm_output = multimer_mapper_output,
@@ -338,8 +338,10 @@ def parse_AF2_and_sequences(
     # logger.debug(f"Dynamic interactions:\n{dynamic_interactions}")
 
     # Add combined graph output
-    multimer_mapper_output["combined_graph"]   = combined_graph
-    multimer_mapper_output["dynamic_proteins"] = dynamic_proteins
+    multimer_mapper_output["combined_graph"]             = combined_graph
+    multimer_mapper_output["dynamic_proteins"]           = dynamic_proteins
+    multimer_mapper_output["homooligomerization_states"] = homooligomerization_states
+    multimer_mapper_output["multivalency_states"]        = multivalency_states
 
 
     return multimer_mapper_output

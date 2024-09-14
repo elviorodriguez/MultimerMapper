@@ -2,6 +2,9 @@
 
 import pandas as pd
 
+from src.interpret_dynamics import classify_edge_dynamics, classification_df
+from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff
+
 # Get proteins that dimerize (mm_output["pairwise_2mers_df_F3"]):
 def get_proteins_that_homodimerize(pairwise_2mers_df_F3: pd.DataFrame):
     '''
@@ -258,4 +261,79 @@ def find_homooligomerization_breaks(pairwise_2mers_df_F3, pairwise_Nmers_df,
     return homooligomerization_states
             
             
-        
+def add_homooligomerization_state(graph, pairwise_2mers_df_F3, pairwise_Nmers_df, 
+                                  edges_g1_sort, edges_g2_sort, untested_edges_tuples, tested_Nmers_edges_sorted,
+                                  logger,
+                                  min_PAE_cutoff_Nmers  = min_PAE_cutoff_Nmers,
+                                  pDockQ_cutoff_Nmers   = pDockQ_cutoff_Nmers,
+                                  N_models_cutoff       = N_models_cutoff):
+
+    # Compute homooligomerization data
+    homooligomerization_states = find_homooligomerization_breaks(
+                                        pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
+                                        pairwise_Nmers_df = pairwise_Nmers_df,
+                                        logger = logger,
+                                        min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
+                                        pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
+                                        N_models_cutoff = N_models_cutoff)
+
+    # Initialize edge attribute
+    graph.es["homooligomerization_states"] = None
+
+    for edge in graph.es:
+        source_name = graph.vs[edge.source]["name"]
+        target_name = graph.vs[edge.target]["name"]
+
+        # If it is a homooligomer
+        if source_name == target_name:
+            
+            try:
+                # Add its homooligomerization state data
+                edge["homooligomerization_states"] = homooligomerization_states[source_name]
+
+            # The edge was added because it was not tested?
+            except KeyError:
+                
+                # Get dynamics in this case to verify if it is indirect
+                e_dynamic = classify_edge_dynamics(tuple_edge = tuple(sorted(edge['name'])),
+                                                    true_edge = edge,
+                                                    
+                                                    # Cutoffs
+                                                    N_models_cutoff = N_models_cutoff,
+                                                    
+                                                    # Sorted tuple edges lists
+                                                    sorted_edges_2mers_graph  = edges_g1_sort, 
+                                                    sorted_edges_Nmers_graph  = edges_g2_sort,
+                                                    untested_edges_tuples     = untested_edges_tuples,
+                                                    tested_Nmers_edges_sorted = tested_Nmers_edges_sorted,
+                                                    
+                                                    classification_df = classification_df,
+                                                    logger = logger)
+                                
+                if e_dynamic == 'Indirect':
+                    logger.warning(f'Homooligomerization of indirect edge: ({source_name}, {target_name})')
+                    logger.warning( '   homooligomerization_states will be set as empty indicating that it comes from an indirect interaction...')
+                    # Add its homooligomerization state data
+                    edge["homooligomerization_states"] = {"is_ok": [], "N_states": [],
+                                                            "error"     : True,
+                                                            "error_type": "Indirect edge"}
+
+                else:
+                    logger.error(f'KeyError appeared during homooligomerization state detection of {source_name}')
+                    logger.error( '   MultimerMapper will continue anyways...')
+                    logger.error( '   combined_graph will contain the key generated_from_key_error in "homooligomerization_states" attribute')
+                    logger.error(f'   You can check the edge {edge["name"]} for more info...')
+
+                    # Add its homooligomerization state data as error
+                    edge["homooligomerization_states"] = {"is_ok": [], "N_states": [],
+                                                            "error"     : True,
+                                                            "error_type": "KeyError on edge not classified as Indirect"}
+
+
+            except Exception as e:
+                logger.error(f'An unexpected error appeared during homooligomerization state detection of {source_name}')
+                logger.error(f'   Exception: {e}')
+                logger.error( '   MultimerMapper will continue anyways...')
+                logger.error( '   Results may be unreliable or it may crash later...')
+    
+    return homooligomerization_states

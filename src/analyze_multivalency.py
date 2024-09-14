@@ -1472,6 +1472,7 @@ def find_multivalency_states(combined_graph, mm_output,
                              pDockQ_cutoff_Nmers  = pDockQ_cutoff_Nmers,
                              N_models_cutoff      = N_models_cutoff):
 
+
     multivalent_pairs: list[tuple[str]] = get_multivalent_pairs_list(combined_graph, drop_homooligomers = True)
 
     multivalency_states: dict = {pair: {} for pair in multivalent_pairs}
@@ -1512,11 +1513,30 @@ def find_multivalency_states(combined_graph, mm_output,
 
     return multivalency_states
 
-def add_multivalency_state(combined_graph, mm_output,
+def inform_multivalency_states(multivalency_states, logger: Logger | None = None):
+
+    multivalent_pairs_number = len(multivalency_states.keys())
+
+    logger.info(f'   Detected multivalent pairs: {multivalent_pairs_number}')
+    
+    for pair in multivalency_states.keys():
+
+        logger.info(f'   Multivalent states for pair (P: {pair[0]}, Q: {pair[1]}):')
+
+        for model in sorted(multivalency_states[pair].keys(), key = len):
+            
+            p_count = model.count(pair[0])
+            q_count = model.count(pair[1])
+
+            logger.info(f'      - {p_count}P{q_count}Q: {multivalency_states[pair][model]}')
+
+def add_multivalency_state(combined_graph, mm_output, logger,
                            min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
                            pDockQ_cutoff_Nmers  = pDockQ_cutoff_Nmers,
                            N_models_cutoff      = N_models_cutoff):
     
+    logger.info(f'INITIALIZING: Multivalency states detection algorithm...')
+
     # Compute multivalency states data
     multivalency_states: dict = find_multivalency_states(combined_graph, mm_output,
                             min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
@@ -1535,4 +1555,14 @@ def add_multivalency_state(combined_graph, mm_output,
             continue
 
         edge["multivalency_states"] = multivalency_states[tuple_pair]
+
+    inform_multivalency_states(multivalency_states, logger)
+
+    logger.info(f'FINISHED: Multivalency states detection algorithm')
+
+    return multivalency_states
+
+
+
+
 
