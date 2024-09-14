@@ -1535,7 +1535,7 @@ def igraph_to_plotly(
         x=[None], y=[None],
         mode='markers',
         marker=dict(symbol='circle', size=0, color="white"),
-        name="<br><b>Protein Dynamics:</b>",
+        name="<b>Protein Dynamics:</b>",
         showlegend=True
         ))
     for col, mng in set_vertex_colors_meanings:
