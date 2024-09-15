@@ -522,7 +522,7 @@ def convert_manual_domains_df_to_clusters(sliced_PAE_and_pLDDTs: dict, manual_do
         
 
 # Working function
-def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: str,
+def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: str, log_level = 'info',
                    graph_resolution: float | int = 0.075, pae_power: float | int  = 1, pae_cutoff: float | int  = 5,
                    auto_domain_detection: bool = True, graph_resolution_preset: bool | None = None, save_preset: bool  = True,
                    save_png_file: bool  = True, show_image: bool  = False, show_structure: bool  = False, show_inline: bool  = False,
@@ -547,7 +547,7 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
     '''    
 
     if logger is None:
-        logger = configure_logger()(__name__)
+        logger = configure_logger(out_path = out_path, log_level = log_level)(__name__)
 
     # Progress
     logger.info("")
@@ -619,7 +619,7 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
                 logger.error(f'There is something wrong with the graph_resolution_preset: {graph_resolution_preset}')
                 logger.error(f'The following exception was encountered: {e}')
                 logger.error(f'"protein_ID" during exception: {protein_ID}')
-                logger.warn(f'Continuing with semi-automatic domain detection')
+                logger.warning(f'Continuing with semi-automatic domain detection')
                 graph_resolution_preset = None
         
         while not you_like:

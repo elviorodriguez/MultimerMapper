@@ -1,12 +1,21 @@
 
+import pandas as pd
+import numpy as np
+import igraph
+import plotly.graph_objects as go
+from plotly.offline import plot
+from Bio.PDB import Chain
+from Bio.SeqUtils import seq1
+
+from utils.pdb_utils import calculate_distance
+from src.detect_domains import plot_backbone
+
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 # -----------------------------------------------------------------------------
 # Functions to apply rotation and translations to cloud points and CMs --------
 # -----------------------------------------------------------------------------
 
-
-# Helper function
 def normalize_vector(v):
     """Normalize a vector."""
     return v / np.linalg.norm(v)
@@ -130,8 +139,6 @@ def translate_points(points, v_direction, distance, is_CM = False):
         # Translate one point at a time
         translated_points = [point + translation_vector for point in points]
     return translated_points
-
-
 
 def precess_points(points, angle, reference_point=None):
     """
@@ -618,7 +625,7 @@ def precess_until_minimal_distance2(points, self_contact_points_1, partner_conta
     # Compute the distance by precessing the points angle_steps at a time    
     for angle in range(angle_steps, 360, angle_steps):
         
-        # Presess the cloud of points
+        # Precess the cloud of points
         precessed_cloud = precess_points(points = self_contact_points_1,
                                          angle = angle,
                                          reference_point = reference_point)
@@ -779,7 +786,15 @@ def draw_ellipses(points, reference_point, subset_indices, ellipses_resolution =
 # # Draw ellipses
 # ellipses_x, ellipses_y, ellipses_z = draw_ellipses(points, reference_point, subset_indices, ellipses_resolution = 30, is_debug = False)
 
-# Creating the class Protein --------------------------------------------------
+###############################################################################
+###############################################################################
+###############################################################################
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ #
+
+###############################################################################
+################################ Class Protein ################################
+###############################################################################
 
 # Class name definition
 class Protein(object):
@@ -875,7 +890,12 @@ class Protein(object):
         Protein.protein_list_IDs.append(self.ID)
         Protein.protein_tag += 1
     
-    # Getters -----------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------- Getters --------------------------------------
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+
     def get_ID(self):                   return self.ID
     def get_seq(self):                  return self.seq
     def get_symbol(self):               return self.symbol
@@ -985,7 +1005,12 @@ class Protein(object):
     #         self.contacts_2mers_V_self_to_partner[matching_partner_index]
     #     return self.contacts_2mers_V_self_to_partner
     
-    # Setters -----------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------- Setters --------------------------------------
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+
     def set_ID(self, ID):               self.ID = ID
     def set_seq(self, seq):             self.seq = seq
     def set_symbol(self, symbol):       self.symbol = symbol
@@ -1016,15 +1041,15 @@ class Protein(object):
             # Reset the index for each group
             pair_contacts_2mers_df = pair_contacts_2mers_df.reset_index(drop=True)         
                         
-            print("   Analizing pair:", pair, end= "")
+            print("   Analyzing pair:", pair, end= "")
             
             if self.ID in pair:
                 print(f" - RESULT: Found partner for {self.ID}.")
-                print( "      - Analizing contacts information...")
+                print( "      - Analyzing contacts information...")
                 
                 # Get index of each protein for the pair
                 self_index_for_pair = pair.index(self.ID)                
-                partner_index_for_pair = pair.index(self.ID) ^ 1 # XOR operator to switch index from 0 to 1 and viceversa
+                partner_index_for_pair = pair.index(self.ID) ^ 1 # XOR operator to switch index from 0 to 1 and vice versa
                 partner_ID = pair[partner_index_for_pair]
                 
                 # Get the name of the protein
@@ -1036,7 +1061,7 @@ class Protein(object):
                      print( "      - Jumping to next pair...")
                      continue
                 
-                # Extract info from the contacs_df
+                # Extract info from the contacts_df
                 try: partner_protein = Protein.protein_list[Protein.protein_list_IDs.index(partner_ID)]
                 except: raise ValueError(f"The protein {pair[partner_index_for_pair]} is not added as Protein instance of class Protein.")
                 partners_IDs = partner_protein.get_ID()
@@ -1084,12 +1109,12 @@ class Protein(object):
     
     # def compute_shared_contacts(self):
     #     '''Finds contact residues that are shared with more than one partner
-    #     (Co-Ocuppancy).'''
+    #     (Co-Occupancy).'''
     #     raise AttributeError("Not implemented yet.")
         
     def get_network_shared_residues(self):
         '''Finds contact residues that are shared with more than one partner
-        (Co-Ocuppancy) and returns it as list of tuples (protein ID, res_name, xyz-position).
+        (Co-Occupancy) and returns it as list of tuples (protein ID, res_name, xyz-position).
         As second return, it gives the info as a dataframe.'''
         
         # Get all the proteins in the network
@@ -1103,7 +1128,7 @@ class Protein(object):
         # To keep track of already added contacts
         already_computed_pairs = []
                 
-        # Retrive contact pairs protein by protein
+        # Retrieve contact pairs protein by protein
         for protein in all_proteins:
             
             for P, partner in enumerate(protein.get_partners()):
@@ -1151,7 +1176,7 @@ class Protein(object):
             "protein_ID_1", "res_name_1", "xyz_1"
             "protein_ID_2", "res_name_2", "xyz_2"])
         
-        # Explore one residue at a time if it has multiple partners (co-ocuppancy)
+        # Explore one residue at a time if it has multiple partners (co-occupancy)
         for residue, residue_df in contact_pairs_df.groupby(['protein_ID_1', 'res_name_1'], group_keys=False):            
             # Reset the index for each group
             residue_df = residue_df.reset_index(drop=True)
@@ -1359,7 +1384,7 @@ class Protein(object):
         Vba_desired_length = vector_magnitude(Vba) + distance
         final_position_vector = find_vector_with_length(Vba, desired_length = Vba_desired_length)
         
-        # print(f"DEBUGGGGGGGGGGGGGG: DISTANCE BETWEEN partner surface CM and final position (must be {distance}):", calculate_distance(Vba, final_position_vector))
+        # print(f"DEBUG: DISTANCE BETWEEN partner surface CM and final position (must be {distance}):", calculate_distance(Vba, final_position_vector))
         
         # Current point position of the surface CM (relative to partner CM)
         self_CM_surf_i = self.get_contacts_2mers_self_res_CM(partner = part) - REFERENCE
@@ -1370,7 +1395,7 @@ class Protein(object):
         # Real distance displacement
         real_distance = calculate_distance(final_position_vector, self_CM_surf_i)
         
-        print(f"   - Translating {self.ID} {real_distance} anstrongms")
+        print(f"   - Translating {self.ID} {real_distance} angstroms")
         print(f"   - Direction: {Vdir}")
         
         # Translate the protein residues
@@ -1420,8 +1445,8 @@ class Protein(object):
         
         
     def precess(self, partner, bring_partners = False):
-        '''Precesses the protein arround the axis defined between the center of
-        masss of the contact residues of self and of partner. The precession is
+        '''Precesses the protein around the axis defined between the center of
+        mass of the contact residues of self and of partner. The precession is
         done until the distance between contact residues is minimized.'''
         
         print(f"Precessing {self.ID} with respect to {partner.get_ID()}...")
@@ -1664,7 +1689,7 @@ class Protein(object):
         nodes = graph.vs["name"]        
         
         # Progress
-        print("   - Translating proteins to new possitions.")
+        print("   - Translating proteins to new positions.")
                 
         # Translate protein to new positions
         for i, protein_ID in enumerate(nodes):
@@ -1763,7 +1788,7 @@ class Protein(object):
     # Plus operator between proteins    
     def __add__(self, other):
         '''
-        The summ of two or more proteins creates a network with those proteins
+        The sum of two or more proteins creates a network with those proteins
         inside it.
         '''
         # Use the method from Network
@@ -1773,7 +1798,7 @@ class Protein(object):
         '''
         Returns true if self has less partners that the other protein. Useful
         for sorting hubs (The protein' CM with the highest number of partners
-        can be set as the reference frame for ploting and network
+        can be set as the reference frame for plotting and network
         representations).
         '''
         
@@ -2015,7 +2040,7 @@ class Protein(object):
         Parameters:
             - specific_partners (list): partners to graph with the protein. If
                 None (default), protein will be plotted with all of its partners.
-            - custom_res_colors (list): list of colors to color each protin
+            - custom_res_colors (list): list of colors to color each protein
             - res_size (float): size of non-contact residue centroids.
             - res_opacity (float): opacity of non-contact residue centroids.
             - plddt_cutoff (float): show only residues with pLDDT that surpass plddt_cutoff (0 to 100).
@@ -2025,8 +2050,8 @@ class Protein(object):
                 proteins (in Å).
             - show_plot (bool): displays the plot as html in the browser.
             - save_html (str): path to output HTML file.
-            - showgrid (bool): show the backgroun grid?
-            - show_axis (bool): show the backgroud box with axis?
+            - showgrid (bool): show the background grid?
+            - show_axis (bool): show the background box with axis?
             - margin (dict): margin sizes.
             - legend_position (dict): protein names legend position.
         '''
@@ -2206,7 +2231,7 @@ class Protein(object):
         Parameters:
             - specific_partners (list): partners to graph with the protein. If
                 None (default), protein will be plotted with all of its partners.
-            - custom_res_colors (list): list of colors to color each protin
+            - custom_res_colors (list): list of colors to color each protein
             - res_size (float): size of non-contact residue centroids.
             - non_contact_res_opacity (float 0 to 1): opacity of non-contact residue centroids.
             - contact_res_opacity (float 0 to 1): 
@@ -2217,8 +2242,8 @@ class Protein(object):
                 proteins (in Å).
             - show_plot (bool): displays the plot as html in the browser.
             - save_html (str): path to output HTML file.
-            - showgrid (bool): show the backgroun grid?
-            - show_axis (bool): show the backgroud box with axis?
+            - showgrid (bool): show the background grid?
+            - show_axis (bool): show the background box with axis?
             - margin (dict): margin sizes.
             - legend_position (dict): protein names legend position.
             - shared_resid_line_color (str): color of the lines connecting residues in which
@@ -2236,7 +2261,7 @@ class Protein(object):
         print("")
         print(f"INITIALIZING: Plotting fully connected network for {self.ID}:")
         
-        # Set color pallete
+        # Set color palette
         if custom_res_colors != None: res_colors = custom_res_colors
         else: res_colors = Protein.default_color_palette
                         
@@ -2261,7 +2286,7 @@ class Protein(object):
         # Dataframe for plotting proteins as one trace
         proteins_df = pd.DataFrame(columns = [
             "protein",
-            "protein_num",      # To assign one color pallete to each protein
+            "protein_num",      # To assign one color palette to each protein
             "protein_ID",
             "res",              # 0 base res index
             "res_name",
@@ -2713,16 +2738,16 @@ class Protein_Nmers(Protein):
     def __init__(self, ID, seq, symbol = None, name = None, res_xyz = [],
                  res_names = [], CM = None):
         
-        #### Comming from 2mers dataset
+        #### Coming from 2mers dataset
         Protein.__init__(self, ID, seq, symbol = None, name = None, res_xyz = [],
                      res_names = [], CM = None, has_nmer = False)        
         
-        #### Comming from Nmers dataset (to explore potential dynamic contacts)
+        #### Coming from Nmers dataset (to explore potential dynamic contacts)
         self.contacts_Nmers_proteins = []     # List with lists of Proteins involved in each Nmer model
-        self.contacts_Nmers_self     = []     # List with lists of self residues contacts involved in each Nmer moder for each partner
-        self.contacts_Nmers_partners = []     # List with lists of partner residues contacts involved in each Nmer moder for each partner
+        self.contacts_Nmers_self     = []     # List with lists of self residues contacts involved in each Nmer model for each partner
+        self.contacts_Nmers_partners = []     # List with lists of partner residues contacts involved in each Nmer model for each partner
         self.Nmers_partners_min_PAEs = []
-        self.Nmers_partners_mean_PAEs= []     # Mean of the PAE matrix will contain info about dinamic contacts (if they increase => potential addition of contacts, and viceversa)
+        self.Nmers_partners_mean_PAEs= []     # Mean of the PAE matrix will contain info about dynamic contacts (if they increase => potential addition of contacts, and vice versa)
         self.Nmers_partners_N_models = []
     
     # Add a partner

@@ -181,7 +181,7 @@ def parse_AF2_and_sequences(
         save_png_file = save_PAE_png, show_image = display_PAE_domains,
         show_inline = display_PAE_domains_inline, show_structure = show_monomer_structures,
         save_html = save_domains_html, save_tsv = save_domains_tsv,
-        out_path = out_path, overwrite = True, logger = logger, manual_domains = manual_domains,
+        out_path = out_path, overwrite = True, log_level = log_level, manual_domains = manual_domains,
         show_PAE_along_backbone = show_PAE_along_backbone)
     
     # Progress

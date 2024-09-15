@@ -767,7 +767,7 @@ def generate_combined_graph(
 
 
     # Add valency
-    add_edges_valency(graphC, mm_output)
+    add_edges_valency(graphC, mm_output, logger = logger)
                 
     # Add data to the combined graph to allow hovertext display later
     add_edges_data(graphC, pairwise_2mers_df, pairwise_Nmers_df,
