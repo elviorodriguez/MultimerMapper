@@ -16,6 +16,7 @@ from utils.combinations import find_untested_2mers, get_untested_2mer_pairs, get
 from src.interpret_dynamics import read_classification_df, classify_edge_dynamics, classification_df, get_edge_color_hex, get_edge_linetype, get_edge_weight, get_edge_oscillation
 from src.coordinate_analyzer import add_domain_RMSD_against_reference
 from src.analyze_multivalency import add_multivalency_state
+from cfg.default_settings import vertex_color1, vertex_color2, vertex_color3, vertex_color_both
 
 # -----------------------------------------------------------------------------
 # PPI graph for 2-mers --------------------------------------------------------
@@ -620,7 +621,7 @@ def generate_combined_graph(
         domain_RMSD_plddt_cutoff = 60, trimming_RMSD_plddt_cutoff = 70,
 
         # Vertex colors
-        vertex_color1='red', vertex_color2='green', vertex_color3='orange', vertex_color_both='gray',
+        vertex_color1=vertex_color1, vertex_color2=vertex_color2, vertex_color3=vertex_color3, vertex_color_both=vertex_color_both,
         
         log_level = 'info'):
     """

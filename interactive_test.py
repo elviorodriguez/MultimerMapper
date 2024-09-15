@@ -138,10 +138,10 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
                                        graph_resolution_preset = graph_resolution_preset)
 
 # Generate interactive graph
-import multimer_mapper as mm
-combined_graph, dynamic_proteins, homooligomerization_states, multivalency_states = mm.generate_combined_graph(mm_output)
+# import multimer_mapper as mm
+# combined_graph, dynamic_proteins, homooligomerization_states, multivalency_states = mm.generate_combined_graph(mm_output)
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
-    combined_graph, out_path = out_path,
+    mm_output['combined_graph'], out_path = out_path,
     layout_algorithm = 'fr',    
     
     # You can remove specific interaction types from the graph
@@ -215,88 +215,9 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
                                                   P3_ID = "EPL1", P3_dom = 4,
                                                   sort_by= 'RMSD')
 
-
 ###############################################################################
-######################## TESTS: Multivalency hovertext ########################
+######################### TESTS: Contacts clustering ##########################
 ###############################################################################
-
-pair = ("1Y14-oP2", "1Y14-oQ2")
-pairwise_Nmers_df = mm_output['pairwise_Nmers_df']
-pairwise_2mers_df = mm_output['pairwise_2mers_df']
-pairwise_2mers_df_F3 = mm_output['pairwise_2mers_df_F3']
-
-# Apply a function to each row to check the condition
-filtered_df = pairwise_Nmers_df[
-    pairwise_Nmers_df['proteins_in_model'].apply(lambda x: tuple(sorted(set(x))) == pair)
-]
-
-# Apply a function to each row to check the condition
-filtered_2mers_df = pairwise_2mers_df[
-    pairwise_2mers_df['sorted_tuple_pair'].apply(lambda x: tuple(sorted(set(x))) == pair)
-]
-
-
-
-from src.analyze_multivalency import find_multivalency_states, add_multivalency_state, inform_multivalency_states
-
-multivalency_states = find_multivalency_states(combined_graph, mm_output)
-inform_multivalency_states(multivalency_states, logger)
-
-
-
-
-
-
-
-
-
-
-
-###############################################################################
-################################## TESTS ######################################
-###############################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-from src.contact_extractor import compute_pairwise_contacts, visualize_pair_matrices
-
-visualize_pair_matrices(mm_output, max_models=1000)
-visualize_pair_matrices(mm_output, pair = ('8RTH-P6', '7Q8S-P5'),  max_models=1000)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 # Contact Cluster graphing
 from src.analyze_multivalency import  cluster_all_pairs
@@ -309,11 +230,9 @@ results = cluster_all_pairs(
     refinement_cf_threshold                 = 0.5)
 
 
-
-
-
-
-
+###############################################################################
+################## TESTS: For residue-residue contacts graph ##################
+###############################################################################
 
 
 combined_graph = mm_output['combined_graph']
@@ -321,26 +240,23 @@ combined_graph = mm_output['combined_graph']
 for p, prot_ID in enumerate(combined_graph.vs['name']):
     print(combined_graph.vs[p]['name'] == prot_ID)
     
-
-
-
-# I have to add 'ref_PDB_model'
+# Vertices attributes
 ['name', 'color', 'meaning', 'IDs', 'domains_df', 'RMSD_df']
 combined_graph.vertex_attributes()
 combined_graph.vs['name']
 combined_graph.vs['IDs']
 combined_graph.vs['meaning']
-combined_graph.vs[0]['ref_PDB_chain']               # <---------------- PDB.Model.Model
+combined_graph.vs[0]['ref_PDB_chain']                           # <---------------- PDB.Model.Model
 
 
-# I have to add 'valency'
+# Edges attributes
 ['N_mers_data', 'N_mers_info', '2_mers_data', '2_mers_info',
  'homooligomerization_states', 'dynamics', 'name']
 combined_graph.edge_attributes()
 combined_graph.es['name']
 combined_graph.es['dynamics']
 combined_graph.es['homooligomerization_states']
-combined_graph.es[4]['valency']['models']                        # <---------------- dict
+combined_graph.es[4]['valency']['models']                       # <---------------- dict
 
 
 # To search ref pdb
@@ -351,9 +267,8 @@ mm_output['sliced_PAE_and_pLDDTs'][protein_ID]['PDB_xyz']
 
 
 ###############################################################################
-################### For residue-residue contacts graph ########################
-###############################################################################
 
+# Examples
 tuple_pair = tuple(sorted(['EAF6', 'EAF6']))
 tuple_pair = tuple(sorted(['EAF6', 'EPL1']))
 tuple_pair = tuple(sorted(['EAF6', 'PHD1']))
