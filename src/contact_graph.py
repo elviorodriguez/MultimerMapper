@@ -786,15 +786,15 @@ def draw_ellipses(points, reference_point, subset_indices, ellipses_resolution =
 # # Draw ellipses
 # ellipses_x, ellipses_y, ellipses_z = draw_ellipses(points, reference_point, subset_indices, ellipses_resolution = 30, is_debug = False)
 
-###############################################################################
-###############################################################################
-###############################################################################
+###############################################################################################################
+###############################################################################################################
+###############################################################################################################
 
-# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ #
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ #
 
-###############################################################################
-################################ Class Protein ################################
-###############################################################################
+###############################################################################################################
+################################################ Class Protein ################################################
+###############################################################################################################
 
 # Class name definition
 class Protein(object):
@@ -1194,7 +1194,12 @@ class Protein(object):
         return shared_residues, shared_residues_df
         
 
-    # Updaters ----------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+    # ------------------------------------- Updaters --------------------------------------
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+
     
     
     def update_CM(self):
@@ -1219,10 +1224,13 @@ class Protein(object):
         for P, partner in enumerate(self.get_partners()):
             self.contacts_2mers_self_res_CM[P] = center_of_mass([self.res_xyz[res] for res in list(set(self.contacts_2mers_self_res[P]))])
         
+        
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+    # ------------------ Rotation, translation and precession of Proteins -----------------
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
 
-    
-    # Rotation, translation and precession of Proteins ------------------------
-    
 
     def rotate(self, partner):
         '''Rotates a protein to align its surface vector to the CM of the
@@ -1748,8 +1756,13 @@ class Protein(object):
                     
             return partners_of_partners
         
-        
-    # Protein removal ---------------------------------------------------------
+    
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+    # --------------------------------- Protein removal -----------------------------------
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+
         
     def cleanup_interactions(self):
         """Remove interactions with other Protein objects."""
@@ -1782,8 +1795,12 @@ class Protein(object):
         del(self)
 
        
-    
-    # Operators ---------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+    # ------------------------------------- Operators -------------------------------------
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+
     
     # Plus operator between proteins    
     def __add__(self, other):
@@ -1810,7 +1827,11 @@ class Protein(object):
         return len(self.partners) < len(other_protein.get_partners())
     
     
-    # Plotting ----------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
+    # ------------------------------------ Plotting ---------------------------------------
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------
     
     def plot_alone(self, custom_colors = None, res_size = 5, CM_size = 10,
                    res_color = "tan", res_opacity = 0.6, CM_color = "red",
@@ -2724,55 +2745,15 @@ class Protein(object):
         return f"Protein ID: {self.ID} (tag = {self.protein_tag}) --------------------------------------------\n>{self.ID}\n{self.seq}\n   - Center of Mass (CM): {self.CM}\n   - Partners: {str([partner.get_ID() for partner in self.partners])}"
 
 
+###############################################################################################################
+###############################################################################################################
+###############################################################################################################
 
-################################################# EDIT LATER #################################################
-################################################# EDIT LATER #################################################
-################################################# EDIT LATER #################################################
-################################################# EDIT LATER #################################################
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ #
 
-class Protein_Nmers(Protein):
-    '''
-    Extended subclass of Protein to allow working with Nmers datasets.
-    '''
-    
-    def __init__(self, ID, seq, symbol = None, name = None, res_xyz = [],
-                 res_names = [], CM = None):
-        
-        #### Coming from 2mers dataset
-        Protein.__init__(self, ID, seq, symbol = None, name = None, res_xyz = [],
-                     res_names = [], CM = None, has_nmer = False)        
-        
-        #### Coming from Nmers dataset (to explore potential dynamic contacts)
-        self.contacts_Nmers_proteins = []     # List with lists of Proteins involved in each Nmer model
-        self.contacts_Nmers_self     = []     # List with lists of self residues contacts involved in each Nmer model for each partner
-        self.contacts_Nmers_partners = []     # List with lists of partner residues contacts involved in each Nmer model for each partner
-        self.Nmers_partners_min_PAEs = []
-        self.Nmers_partners_mean_PAEs= []     # Mean of the PAE matrix will contain info about dynamic contacts (if they increase => potential addition of contacts, and vice versa)
-        self.Nmers_partners_N_models = []
-    
-    # Add a partner
-    def add_partner(self, partner_protein,
-                    # 2mers information
-                    partner_ipTM, partner_min_PAE, partner_N_models,
-                    self_res_contacts, other_res_contacts,
-                    # Nmers information
-                    Nmers_partners_min_PAEs, Nmers_partners_N_models,
-                    contacts_Nmers_proteins,                            
-                    contacts_Nmers_self, contacts_Nmers_partners
-                    ):
-        '''
-        To use it, first generate all the instances of proteins and then 
-        '''
-        Protein.add_partner(self, partner_protein, partner_ipTM, partner_min_PAE, 
-                            partner_N_models, self_res_contacts, other_res_contacts)
-        
-        self.Nmers_partners_min_PAEs.append( )
-        self.Nmers_partners_mean_PAEs.append()
-        self.Nmers_partners_N_models.append( )
-        self.contacts_Nmers_proteins.append( )
-        self.contacts_Nmers_self.append(     )
-        self.contacts_Nmers_partners.append( )
-
+###############################################################################################################
+################################################ Class Network ################################################
+###############################################################################################################
 
 class Network(object):
     
