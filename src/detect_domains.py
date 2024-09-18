@@ -788,3 +788,24 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
         domains_df.to_csv(tsv_file_path, sep='\t', index=False)
         
     return domains_df
+
+
+
+# -----------------------------------------------------------------------------------------------------------------
+# ------------------------------------ Helper functions for other modules -----------------------------------------
+# -----------------------------------------------------------------------------------------------------------------
+
+def format_domains_df_as_no_loops_domain_clusters(domains_df, protein_ID = None):
+
+    no_loops_domain_clusters = []
+
+    to_search_df = domains_df
+
+    if protein_ID is not None:
+        to_search_df = to_search_df.query(f'Protein_ID == "{protein_ID}"')
+
+    for _, domain in to_search_df.iterrows():
+        no_loops_domain_clusters.extend([ int(domain['Domain']) for i in range(int(domain['Start']), int(domain['End']) + 1)])
+    
+    return tuple(no_loops_domain_clusters)
+        

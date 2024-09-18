@@ -256,14 +256,27 @@ combined_graph.edge_attributes()
 combined_graph.es['name']
 combined_graph.es['dynamics']
 combined_graph.es['homooligomerization_states']
-combined_graph.es[4]['valency']['models']                       # <---------------- dict
+combined_graph.es[2]['valency']['models']                       # <---------------- dict
 
 
-# To search ref pdb
-protein_ID = 'EAF6'
-mm_output['sliced_PAE_and_pLDDTs'][protein_ID].keys()
-mm_output['sliced_PAE_and_pLDDTs'][protein_ID]['PDB_xyz']
-mm_output['sliced_PAE_and_pLDDTs'][protein_ID]['PDB_xyz']
+
+# valency = combined_graph.es[2]['valency']
+# from src.contact_graph import add_contact_classification_matrix
+# add_contact_classification_matrix(combined_graph)
+# contact_classification_example = valency['contact_classification_matrix']
+# plt.imshow(contact_classification_example, cmap = 'tab10')
+
+
+
+from src.contact_graph import Protein, PPI, Network
+nw = Network(combined_graph, logger)
+nw.generate_layout()
+nw.generate_py3dmol_plot(save_path = "/home/elvio/Desktop/test.html")
+
+
+
+
+
 
 
 ###############################################################################

@@ -46,6 +46,59 @@ def calculate_distance(coord1, coord2):
     """
     return np.sqrt(np.sum((np.array(coord2) - np.array(coord1))**2))
 
+def rotate_points(points, reference_point, subset_indices, target_point):
+    # Extract subset of points
+    subset_points = np.array([points[i] for i in subset_indices])
+
+    # Calculate center of mass of the subset
+    subset_center_of_mass = np.mean(subset_points, axis=0)
+
+    # Calculate the vector from the reference point to the subset center of mass
+    vector_to_subset_com = subset_center_of_mass - reference_point
+
+    # Calculate the target vector
+    target_vector = target_point - reference_point
+
+    # Calculate the rotation axis using cross product
+    rotation_axis = np.cross(vector_to_subset_com, target_vector)
+    rotation_axis /= np.linalg.norm(rotation_axis)
+
+    # Calculate the angle of rotation
+    angle = np.arccos(np.dot(vector_to_subset_com, target_vector) /
+                    (np.linalg.norm(vector_to_subset_com) * np.linalg.norm(target_vector)))
+
+    # Perform rotation using Rodrigues' rotation formula
+    rotation_matrix = np.array([[np.cos(angle) + rotation_axis[0]**2 * (1 - np.cos(angle)),
+                                rotation_axis[0] * rotation_axis[1] * (1 - np.cos(angle)) - rotation_axis[2] * np.sin(angle),
+                                rotation_axis[0] * rotation_axis[2] * (1 - np.cos(angle)) + rotation_axis[1] * np.sin(angle)],
+                                [rotation_axis[1] * rotation_axis[0] * (1 - np.cos(angle)) + rotation_axis[2] * np.sin(angle),
+                                np.cos(angle) + rotation_axis[1]**2 * (1 - np.cos(angle)),
+                                rotation_axis[1] * rotation_axis[2] * (1 - np.cos(angle)) - rotation_axis[0] * np.sin(angle)],
+                                [rotation_axis[2] * rotation_axis[0] * (1 - np.cos(angle)) - rotation_axis[1] * np.sin(angle),
+                                rotation_axis[2] * rotation_axis[1] * (1 - np.cos(angle)) + rotation_axis[0] * np.sin(angle),
+                                np.cos(angle) + rotation_axis[2]**2 * (1 - np.cos(angle))]])
+
+    # Apply rotation to all points
+    rotated_points = np.dot(points - reference_point, rotation_matrix.T) + reference_point
+
+    return rotated_points, rotation_matrix, rotation_axis
+
+####################################################################################
+
+def center_of_mass(points):
+   
+    x_list = []
+    y_list = []
+    z_list = []
+    
+    for point in points:
+        
+        x_list.append(point[0])
+        y_list.append(point[1])
+        z_list.append(point[2])
+        
+    return np.array([np.mean(x_list), np.mean(y_list), np.mean(z_list)])
+
 
 # ----------- Helper classes for selecting chains and domains -----------------
 
