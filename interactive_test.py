@@ -11,16 +11,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ################################# Test 1 ######################################
 
-fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
-AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
-AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/MM_interactive_test"
-use_names = True 
-overwrite = True
-auto_domain_detection = False
-graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# graph_resolution_preset = None
+# fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
+# AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
+# AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/MM_interactive_test"
+# use_names = True 
+# overwrite = True
+# auto_domain_detection = False
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# # graph_resolution_preset = None
 
 ##############################################################################
 
@@ -30,11 +30,12 @@ graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 # AF2_2mers = "/home/elvio/Desktop/Assemblies/BDF2_HDAC3/2-mers"
 # AF2_Nmers = "/home/elvio/Desktop/Assemblies/BDF2_HDAC3/N-mers"
 # # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/MM_SIN3"
-# use_names = True 
+# out_path = "/home/elvio/Desktop/MM_BDF2_HDAC3"
+# use_names = True
 # overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/MM_SIN3/graph_resolution_preset.json"
-# # graph_resolution_preset = None
+# auto_domain_detection = False
+# # graph_resolution_preset = "/home/elvio/Desktop/MM_SIN3/graph_resolution_preset.json"
+# graph_resolution_preset = None
 
 # ################################# Test 3 ######################################
 
@@ -62,15 +63,16 @@ graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 
 # ################################ Test 5 (SIN3) ################################
 
-# fasta_file = "/home/elvio/Desktop/Assemblies/SIN3/SIN3_proteins.fasta"
-# AF2_2mers = "/home/elvio/Desktop/Assemblies/SIN3/2-mers"
-# AF2_Nmers = "/home/elvio/Desktop/Assemblies/SIN3/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/Assemblies/SIN3/MM_output"
-# use_names = True 
-# overwrite = True
-# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# graph_resolution_preset = None
+fasta_file = "/home/elvio/Desktop/Assemblies/SIN3/SIN3_proteins.fasta"
+AF2_2mers = "/home/elvio/Desktop/Assemblies/SIN3/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/Assemblies/SIN3/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/Assemblies/SIN3/MM_output"
+use_names = True 
+overwrite = True
+auto_domain_detection = False
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+graph_resolution_preset = None
 
 # ###############################################################################
 
@@ -152,11 +154,16 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     # Answer y automatically
     automatic_true = True)
 
+
+# Create 3D network and generate visualization
+nw = mm.Network(mm_output['combined_graph'], logger = logger)
+nw.generate_layout()
+nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph.html')
+
 # Get suggested combinations
 suggested_combinations = mm.suggest_combinations(mm_output = mm_output, 
                                                  # To ommit saving, change to None
                                                  out_path = out_path)
-
 
 # Generate RMSF, pLDDT clusters & RMSD trajectories considering models as monomers
 mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
@@ -265,17 +272,6 @@ combined_graph.es[2]['valency']['models']                       # <-------------
 # add_contact_classification_matrix(combined_graph)
 # contact_classification_example = valency['contact_classification_matrix']
 # plt.imshow(contact_classification_example, cmap = 'tab10')
-
-
-
-from src.contact_graph import Protein, PPI, Network
-nw = Network(combined_graph, logger)
-nw.generate_layout()
-nw.generate_py3dmol_plot(save_path = "/home/elvio/Desktop/test.html")
-
-
-
-
 
 
 

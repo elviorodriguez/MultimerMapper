@@ -24,6 +24,7 @@ try:
     from src.contact_extractor import compute_pairwise_contacts, visualize_pair_matrices
     from src.analyze_multivalency import cluster_all_pairs, add_cluster_contribution_by_dataset
     from src.fallback import analyze_fallback
+    from src.contact_graph import Network
 
     # These are for interactive usage
     from traj.pairwise_rmsd_trajectories import generate_pairwise_domain_trajectories, generate_pairwise_domain_trajectory_in_context
@@ -520,4 +521,30 @@ if __name__ == "__main__":
     
     # Progress
     logger = configure_logger(out_path = out_path, log_level = log_level)(__name__)
+    
+    # Create 3D network
+    nw = Network(mm_output['combined_graph'], logger = logger)
+
+    # Generate 3D network visualization
+    while True:
+
+        nw.generate_layout()
+        nw.generate_py3dmol_plot(save_path = out_path + '3D_graph.html', show_plot = True)
+
+        logger.info("Some 3D layout generation algorithms are stochastic:")
+        logger.info("   - Do you like the plot? (y/n): ")
+        user_input = input().strip().lower()
+
+        # if automatic_true:
+        #     logger.info("   - Automatic True: Enjoy your interactive 3D plot!")
+        #     break
+
+        if user_input == "y":
+            logger.info(f"   - User response: {user_input} -> Great! Enjoy your interactive 3D plot!")
+            break
+        elif user_input == "n":
+            logger.info(f"   - User response: {user_input} -> OK. Here we go again!")
+        else:
+            logger.info(f"   - Unknown response: {user_input} -> Generating a new layout...")
+    
     logger.info("MultimerMapper pipeline completed! Enjoy exploring your interactions!")

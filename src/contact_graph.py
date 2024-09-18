@@ -9,6 +9,7 @@ from copy import deepcopy
 import io
 import string
 from itertools import cycle
+import webbrowser
 
 from cfg.default_settings import PT_palette
 from utils.pdb_utils import center_of_mass, rotate_points
@@ -585,9 +586,10 @@ class Network(object):
         self.logger.info("FINISHED: 3D layout generation algorithm")
 
 
-    def generate_py3dmol_plot(self, save_path: str = '/tmp/protein_visualization.html',
+    def generate_py3dmol_plot(self, save_path: str = './3D_graph.html',
                               classification_colors = classification_colors,
-                              surface_residue_palette = default_color_palette):
+                              surface_residue_palette = default_color_palette,
+                              show_plot = True):
         
         self.logger.info("INITIALIZING: Generating py3Dmol visualization...")
         
@@ -690,6 +692,19 @@ class Network(object):
                     'opacity': 0.8
                 })
 
+        # Add N and C terminal labels, and protein IDs
+        for protein in self.proteins:
+            n_term = protein.get_res_CA_xyz([0])[0]
+            c_term = protein.get_res_CA_xyz([-1])[0]
+            cm = protein.get_CM()
+
+            view.addLabel('N', {'position': {'x': float(n_term[0]), 'y': float(n_term[1]), 'z': float(n_term[2])},
+                                'fontSize': 14, 'fontColor': 'black', 'backgroundOpacity': 0.0})
+            view.addLabel('C', {'position': {'x': float(c_term[0]), 'y': float(c_term[1]), 'z': float(c_term[2])},
+                                'fontSize': 14, 'fontColor': 'black', 'backgroundOpacity': 0.0})
+            view.addLabel(protein.get_ID(), {'position': {'x': float(cm[0]), 'y': float(cm[1]), 'z': float(cm[2]) + 5},
+                                            'fontSize': 18, 'color': 'black', 'backgroundOpacity': 0.6})
+            
         # Set camera and background
         view.zoomTo()
         view.setBackgroundColor('white')
@@ -701,6 +716,8 @@ class Network(object):
 
         self.logger.info("FINISHED: Generating py3Dmol visualization")
 
+        if show_plot:
+            webbrowser.open(f"{save_path}")
 
     # -------------------------------------------------------------------------------------
     # ------------------------------------- Operators -------------------------------------
