@@ -8,6 +8,7 @@ from Bio import PDB
 from copy import deepcopy
 import io
 import string
+from itertools import cycle
 
 from cfg.default_settings import PT_palette
 from utils.pdb_utils import center_of_mass, rotate_points
@@ -71,7 +72,7 @@ CLASSIFICATION_ENCODING = {
 
 # Define color scheme for different contact classifications
 classification_colors = {
-    1: PT_palette['black'],     # Static
+    1: PT_palette['gray'],     # Static
     2: PT_palette['green'],     # Positive
     3: PT_palette['red'],       # Negative
     4: PT_palette['orange'],    # No Nmers Data
@@ -150,17 +151,94 @@ def generate_unique_colors(n):
     return colors
 
 ###############################################################################################################
+######################################### Classes Residue and Surface #########################################
+###############################################################################################################
+
+class Residue:
+    def __init__(self, index, name, pLDDT):
+        self.index = index
+        self.name = name
+        self.pLDDT = pLDDT
+        self.interactions = {}  # Dict of {ppi_id: set(partner_protein_ids)}
+
+    def get_index(self):
+        return self.index
+    
+    def get_name(self):
+        return self.name
+
+    def get_plddt(self):
+        return self.pLDDT
+    
+    def get_interactions(self):
+        return self.interactions
+    
+    def add_interaction(self, partner_protein_id, ppi_id):
+        if ppi_id not in self.interactions:
+            self.interactions[ppi_id] = set()
+        self.interactions[ppi_id].add(partner_protein_id)
+
+    @property
+    def interaction_group(self):
+        if not self.interactions:
+            return "Non-interacting"
+        unique_proteins = set(protein_id for protein_ids in self.interactions.values() for protein_id in protein_ids)
+        if len(unique_proteins) > 1:
+            return "C"  # Multiple proteins
+        elif len(self.interactions) > 1:
+            return "B"  # Single protein, multiple modes
+        else:
+            return "A"  # Single protein, single mode
+
+    @property
+    def surface_id(self):
+        if self.interaction_group == "A":
+            return list(self.interactions.keys())[0]  # Return the PPI ID
+        return None  # For groups B and C, we don't assign a specific surface
+
+class Surface:
+    def __init__(self, protein_id):
+        self.protein_id = protein_id
+        self.residues = {}  # key: residue index, value: Residue object
+        self.surfaces = {}  # key: ppi_id, value: set of residue indices
+
+    def add_residue(self, index, name, pLDDT):
+        if index not in self.residues:
+            self.residues[index] = Residue(index, name, pLDDT)
+
+    def add_interaction(self, residue_index, partner_protein_id, ppi_id):
+        if residue_index in self.residues:
+            self.residues[residue_index].add_interaction(partner_protein_id, ppi_id)
+            if ppi_id not in self.surfaces:
+                self.surfaces[ppi_id] = set()
+            self.surfaces[ppi_id].add(residue_index)
+
+    def get_interacting_residues(self):
+        return {idx: res for idx, res in self.residues.items() if res.interactions}
+
+    def get_residues_by_group(self):
+        groups = {"A": [], "B": [], "C": []}
+        for residue in self.residues.values():
+            if residue.interaction_group in groups:
+                groups[residue.interaction_group].append(residue)
+        return groups
+
+    def get_surfaces(self):
+        return self.surfaces
+
+###############################################################################################################
 ################################################ Class Protein ################################################
 ###############################################################################################################
 
 class Protein(object):
 
-    def __init__(self, graph_vertex: igraph.Vertex, logger: Logger):
+    def __init__(self, graph_vertex: igraph.Vertex, unique_ID: int, logger: Logger):
 
         # Progress
         logger.info(f"   - Creating object of class Protein: {graph_vertex['name']}")
 
         # Attributes
+        self.unique_ID  : int               = unique_ID
         self.logger     : Logger            = logger
         self.vertex     : igraph.Vertex     = graph_vertex
         self.ID         : str               = graph_vertex['name']
@@ -175,15 +253,23 @@ class Protein(object):
 
         # Translate PDB to the origin
         self._translate_to_origin()
+
+        self.surface = Surface(self.ID)
+        for i, aa in enumerate(self.seq):
+            self.surface.add_residue(i, aa + str(i + 1), self.res_pLDDT[i])
     
+    def add_interaction(self, residue_index, partner_protein_id, ppi_id):
+        self.surface.add_interaction(residue_index, partner_protein_id, ppi_id)
+
     # -------------------------------------------------------------------------------------
     # -------------------------------------- Getters --------------------------------------
     # -------------------------------------------------------------------------------------
     
-    def get_ID(self):   return self.ID
-    def get_seq(self):  return self.seq
-    def get_name(self): return self.name
-    def get_CM(self):   return self.PDB_chain.center_of_mass()
+    def get_unique_ID(self) : return self.unique_ID
+    def get_ID(self)        : return self.ID
+    def get_seq(self)       : return self.seq
+    def get_name(self)      : return self.name
+    def get_CM(self)        : return self.PDB_chain.center_of_mass()
     
     def get_res_pLDDT(self, res_list = None) -> list[float]:
         '''Returns per residue pLDDT values as a list. If a res_list of residue
@@ -381,13 +467,23 @@ class PPI(object):
         self.contacts_res_2             : list[int]     = contact_indices[1].tolist()                       # Prot 2 contact residues indexes
         self.contact_freq               : list[float]   = self.freq_matrix[contact_indices].tolist()        # Residue-Residue contact frequency
         self.contacts_classification    : list[int]     = self.class_matrix[contact_indices].tolist()       # Residue-Residue contact classification (encoded)
+
+        for res1, res2 in zip(self.contacts_res_1, self.contacts_res_2):
+            self.protein_1.add_interaction(res1, self.protein_2.get_ID(), self.get_tuple_pair())
+            self.protein_2.add_interaction(res2, self.protein_1.get_ID(), self.get_tuple_pair())
     
     # -------------------------------------------------------------------------------------
     # -------------------------------------- Getters --------------------------------------
     # -------------------------------------------------------------------------------------
 
+    def get_edge(self):
+        return self.edge
+
     def get_tuple_pair(self):
         return tuple(sorted(self.edge['name']))
+    
+    def get_cluster_n(self):
+        return self.cluster_n
     
     def get_protein_1(self) -> Protein:
         return self.protein_1
@@ -425,10 +521,10 @@ class Network(object):
 
         self.logger         : Logger            = logger
         self.combined_graph : igraph.Graph      = combined_graph
-        self.proteins       : list[Protein]     = [Protein(vertex, logger)          for vertex  in combined_graph.vs]
-        self.proteins_IDs   : list[str]         = [vertex['name']                   for vertex  in combined_graph.vs]
-        self.ppis           : list[PPI]         = [PPI(self.proteins, edge, logger) for edge    in combined_graph.es if (edge['dynamics'] not in remove_interaction) and ((edge['valency']['average_matrix'] > 0).sum() > 0)]
-        self.ppis_dynamics  : list[PPI]         = [edge['dynamics']                 for edge    in combined_graph.es]
+        self.proteins       : list[Protein]     = [Protein(vertex, unique_ID, logger)   for unique_ID, vertex   in enumerate(combined_graph.vs)]
+        self.proteins_IDs   : list[str]         = [vertex['name']                       for vertex              in combined_graph.vs]
+        self.ppis           : list[PPI]         = [PPI(self.proteins, edge, logger)     for edge                in combined_graph.es if (edge['dynamics'] not in remove_interaction) and ((edge['valency']['average_matrix'] > 0).sum() > 0)]
+        self.ppis_dynamics  : list[PPI]         = [edge['dynamics']                     for edge                in combined_graph.es]
 
         # Assign unique and incremental chain IDs to each PDB.Chain.Chain object of each protein
         for p, prot in enumerate(self.proteins):
@@ -439,10 +535,28 @@ class Network(object):
     # -------------------------------------- Getters --------------------------------------
     # -------------------------------------------------------------------------------------
     
-    def get_proteins(self):
+    def get_proteins(self) -> list[Protein]:
         '''Returns the list of proteins'''
-
         return self.proteins
+    
+    def get_proteins_IDs(self) -> list[str]:
+        '''Returns the list of proteins IDs of the network'''
+        return self.proteins_IDs
+    
+    def get_ppis(self) -> list[PPI]:
+        '''Returns the list of ppis of the network'''
+        return self.ppis
+
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------- Adders ---------------------------------------
+    # -------------------------------------------------------------------------------------
+
+    def add_new_protein(self):
+        raise NotImplementedError("Method not implemented yet...")
+
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------- Plotting -------------------------------------
+    # -------------------------------------------------------------------------------------
 
     def generate_layout(self,
                         algorithm      = ["drl", "fr", "kk", "circle", "grid", "random"][0],
@@ -472,7 +586,13 @@ class Network(object):
 
 
     def generate_py3dmol_plot(self, save_path: str = '/tmp/protein_visualization.html',
-                              classification_colors = classification_colors):
+                              classification_colors = classification_colors,
+                              surface_residue_palette = default_color_palette):
+        
+        self.logger.info("INITIALIZING: Generating py3Dmol visualization...")
+        
+        protein_colors = cycle(surface_residue_palette.values())
+        protein_color_map = {protein.get_unique_ID(): next(protein_colors) for protein in self.proteins}
 
         # Create a view object
         view = py3Dmol.view(width='100%', height='100%')
@@ -481,22 +601,71 @@ class Network(object):
         max_domain_value = max(max(protein.domains) for protein in self.proteins)
         domain_colors = generate_unique_colors(max_domain_value + 1)  # Unique color for each domain
 
+        self.logger.info('   Adding protein backbones and contact centroids...')
+
         # Add each protein to the viewer
         for idx, protein in enumerate(self.proteins):
+
+            self.logger.info(f'      - Adding {protein.get_ID()} backbone')
+
             pdb_string = protein.convert_chain_to_pdb_in_memory()
             pdb_string_content = pdb_string.getvalue()
             view.addModel(pdb_string_content, 'pdb')
 
             # Color the backbone based on domain information
             for i, domain in enumerate(protein.domains):
+                
                 # Color each domain segment of the protein
                 view.setStyle(
                     {'chain': protein.chain_ID, 'resi': [i + 1]},
                     {'cartoon': {'color': domain_colors[domain]}}
                 )
 
+            self.logger.info(f'      - Adding {protein.get_ID()} surface centroids')
+
+            # Color each surface differently based on the contact classification
+            base_color = protein_color_map[protein.get_unique_ID()]
+            residue_groups = protein.surface.get_residues_by_group()
+
+            surface_colors = {}
+            for i, surface_id in enumerate(protein.surface.get_surfaces().keys()):
+                surface_colors[surface_id] = base_color[7 + i % (len(base_color) - 7)]
+            
+            for group, residues in residue_groups.items():
+                if group == "A":
+                    for residue in residues:
+                        color = surface_colors[residue.surface_id]
+                elif group == "B":
+                    color = "gray"
+                else:  # group C
+                    color = "black"
+                
+                for residue in residues:
+                    centroid = protein.get_res_centroids_xyz([residue.index])[0]
+                    CA = protein.get_res_CA_xyz(res_list=[residue.get_index()])[0]
+
+                    # Add the residue centroid as a Sphere
+                    view.addSphere({
+                        'center': {'x': float(centroid[0]), 'y': float(centroid[1]), 'z': float(centroid[2])},
+                        'radius': 1.0,
+                        'color': color
+                    })
+
+                    # Add a line connecting the sphere to the backbone
+                    view.addCylinder({
+                        'start': {'x': float(centroid[0]), 'y': float(centroid[1]), 'z': float(centroid[2])},
+                        'end': {'x': float(CA[0]), 'y': float(CA[1]), 'z': float(CA[2])},
+                        'radius': 0.1,
+                        'color': color
+                    })
+
+        self.logger.info('   Adding contact lines...')
+
         # Add contact residues and contact lines dynamically
         for ppi in self.ppis:
+
+            self.logger.info(f'      - Adding PPI {ppi.get_tuple_pair()} cluster {ppi.get_cluster_n()} contacts...')
+
             protein_1 = ppi.get_protein_1()
             protein_2 = ppi.get_protein_2()
 
@@ -505,22 +674,6 @@ class Network(object):
             contact_residues_2 = ppi.get_contacts_res_2()
             centroids_1 = protein_1.get_res_centroids_xyz(contact_residues_1)
             centroids_2 = protein_2.get_res_centroids_xyz(contact_residues_2)
-
-            # Render contact residues as spheres for protein 1
-            for i, centroid in enumerate(centroids_1):
-                view.addSphere({
-                    'center': {'x': float(centroid[0]), 'y': float(centroid[1]), 'z': float(centroid[2])},
-                    'radius': 1.0,
-                    'color': 'red'  # Color for contact residues (can be dynamic)
-                })
-
-            # Render contact residues as spheres for protein 2
-            for i, centroid in enumerate(centroids_2):
-                view.addSphere({
-                    'center': {'x': float(centroid[0]), 'y': float(centroid[1]), 'z': float(centroid[2])},
-                    'radius': 1.0,
-                    'color': 'blue'  # Color for contact residues (can be dynamic)
-                })
 
             # Render contact cylinders between protein 1 and 2
             for i, (centroid_1, centroid_2) in enumerate(zip(centroids_1, centroids_2)):
@@ -542,8 +695,11 @@ class Network(object):
         view.setBackgroundColor('white')
 
         # Save the visualization as an HTML file
+        self.logger.info( "   Saving HTML file...")
         view.write_html(save_path)
-        self.logger.info(f"Visualization saved to {save_path}")
+        self.logger.info(f"   Visualization saved to {save_path}")
+
+        self.logger.info("FINISHED: Generating py3Dmol visualization")
 
 
     # -------------------------------------------------------------------------------------
