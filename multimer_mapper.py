@@ -24,7 +24,7 @@ try:
     from src.contact_extractor import compute_pairwise_contacts, visualize_pair_matrices
     from src.analyze_multivalency import cluster_all_pairs, add_cluster_contribution_by_dataset
     from src.fallback import analyze_fallback
-    from src.contact_graph import Network
+    from src.contact_graph import Residue, Surface, Protein, PPI, Network
 
     # These are for interactive usage
     from traj.pairwise_rmsd_trajectories import generate_pairwise_domain_trajectories, generate_pairwise_domain_trajectory_in_context

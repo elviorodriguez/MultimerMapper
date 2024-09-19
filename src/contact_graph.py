@@ -73,7 +73,7 @@ CLASSIFICATION_ENCODING = {
 
 # Define color scheme for different contact classifications
 classification_colors = {
-    1: PT_palette['gray'],     # Static
+    1: PT_palette['gray'],      # Static
     2: PT_palette['green'],     # Positive
     3: PT_palette['red'],       # Negative
     4: PT_palette['orange'],    # No Nmers Data
@@ -135,21 +135,127 @@ def clean_chain(original_chain):
     return new_model['A']
 
 
-# # Function to generate unique colors for domains
-# import colorsys
-# def generate_unique_colors(n):
-#     HSV_tuples = [(x * 1.0 / n, 0.5, 0.5) for x in range(n)]
-#     return [f'#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}' for r, g, b in map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)]
+def generate_unique_colors(n, palette):
 
-# Function to generate unique colors for domains
-import colorcet as cc
-
-def generate_unique_colors(n):
-    # Use a ColorBrewer palette from the colorcet library
-    palette = cc.b_glasbey_bw_minc_20_minl_30
-    # Ensure we have enough colors by repeating the palette if necessary
-    colors = [palette[i % len(palette)] for i in range(n)]
+    if not isinstance(palette, cycle):
+        palette = cycle(palette)
+    
+    # Use cycle to repeat the palette if needed and select 'n' colors
+    colors = [next(cycle(palette)) for _ in range(n)]
+    
     return colors
+
+from scipy.spatial.distance import pdist, squareform
+
+def get_protein_radius(protein):
+    """Calculate the radius of the protein's bounding sphere."""
+    cm = protein.get_CM()
+    residue_positions = protein.get_res_CA_xyz()
+    distances = np.linalg.norm(residue_positions - cm, axis=1)
+    return np.max(distances) + 10  # Add 10 Angstroms as buffer
+
+def initialize_positions(proteins, ppis):
+    """Initialize protein positions based on their interactions."""
+    n = len(proteins)
+    positions = np.random.rand(n, 3) * 1000  # Random initial positions
+    radii = np.array([get_protein_radius(protein) for protein in proteins])
+    
+    # Adjust positions based on interactions
+    for ppi in ppis:
+        p1 = proteins.index(ppi.get_protein_1())
+        p2 = proteins.index(ppi.get_protein_2())
+        
+        # Move interacting proteins closer, but not too close
+        direction = positions[p2] - positions[p1]
+        distance = np.linalg.norm(direction)
+        min_distance = radii[p1] + radii[p2]
+        if distance < min_distance:
+            midpoint = (positions[p1] + positions[p2]) / 2
+            positions[p1] = midpoint - direction / distance * radii[p1]
+            positions[p2] = midpoint + direction / distance * radii[p2]
+    
+    return positions, radii
+
+def compute_forces(positions, radii, proteins, ppis):
+    """Compute forces between proteins based on their interactions and surfaces."""
+    n = len(proteins)
+    forces = np.zeros((n, 3))
+    
+    # Repulsive force between all proteins
+    distances = squareform(pdist(positions))
+    for i in range(n):
+        for j in range(i+1, n):
+            if distances[i,j] > 0:
+                min_distance = radii[i] + radii[j]
+                if distances[i,j] < min_distance:
+                    force = 1000 * (min_distance - distances[i,j]) / min_distance
+                    direction = (positions[i] - positions[j]) / distances[i,j]
+                    forces[i] += force * direction
+                    forces[j] -= force * direction
+    
+    # Attractive force between interacting proteins
+    for ppi in ppis:
+        p1 = proteins.index(ppi.get_protein_1())
+        p2 = proteins.index(ppi.get_protein_2())
+        
+        # Compute centroids of interaction surfaces
+        surface1 = np.mean(ppi.get_protein_1().get_res_centroids_xyz(ppi.get_contacts_res_1()), axis=0)
+        surface2 = np.mean(ppi.get_protein_2().get_res_centroids_xyz(ppi.get_contacts_res_2()), axis=0)
+        
+        # Attractive force based on distance between interaction surfaces
+        distance = distances[p1, p2]
+        min_distance = radii[p1] + radii[p2]
+        if distance > min_distance:
+            force = 0.1 * (distance - min_distance)
+            direction = (positions[p2] - positions[p1]) / distance
+            forces[p1] += force * direction
+            forces[p2] -= force * direction
+    
+    return forces
+
+def apply_layout(proteins, ppis, network, iterations=200):
+    """Apply force-directed layout algorithm."""
+    positions, radii = initialize_positions(proteins, ppis)
+    network.logger.info(f'   - Nº of iterations to perform: {iterations}')
+    
+    for i in range(iterations):
+        if i % 10 == 0:
+            network.logger.info(f'   - Iteration {i}...')
+            for prot in proteins:
+                prot.rotate2all(network.get_ppis())
+        
+        forces = compute_forces(positions, radii, proteins, ppis)
+        
+        # Dampen the forces over time
+        damping_factor = 1 - (i / iterations)
+        positions += forces * 0.1 * damping_factor  # Adjust step size as needed
+        
+        # Ensure proteins don't drift too far apart
+        center = np.mean(positions, axis=0)
+        for j, pos in enumerate(positions):
+            direction = pos - center
+            distance = np.linalg.norm(direction)
+            max_distance = 1000  # Adjust as needed
+            if distance > max_distance:
+                positions[j] = center + direction / distance * max_distance
+    
+    return positions
+
+def optimize_layout(network):
+    """Optimize the layout of proteins in the network."""
+    proteins = network.get_proteins()
+    ppis = network.get_ppis()
+    
+    # Apply force-directed layout
+    optimized_positions = apply_layout(proteins, ppis, network)
+    
+    # Update protein positions
+    for i, protein in enumerate(proteins):
+        protein.translate(optimized_positions[i] - protein.get_CM())
+    
+    # Final rotation of proteins to face their interaction partners
+    for protein in proteins:
+        protein.rotate2all(ppis)
 
 ###############################################################################################################
 ######################################### Classes Residue and Surface #########################################
@@ -560,29 +666,36 @@ class Network(object):
     # -------------------------------------------------------------------------------------
 
     def generate_layout(self,
-                        algorithm      = ["drl", "fr", "kk", "circle", "grid", "random"][0],
-                        scaling_factor = [200  , 100 , 100 , 100     , 120   , 100     ][0]):
+                        algorithm      = ["optimized", "drl", "fr", "kk", "circle", "grid", "random"][0],
+                        scaling_factor = [None       , 300  , 200 , 100 , 100     , 120   , 100     ][0]):
 
-        self.logger.info(f"INITIALIZING: 3D layout generation algorithm using {algorithm} method and a scaling factor of {scaling_factor}...")
+        self.logger.info(f"INITIALIZING: 3D layout generation using {algorithm} method...")
+            
+        if algorithm == "optimized":
+            optimize_layout(self)
 
-        # Ensure proteins are at the origin
-        for prot in self.proteins:
-            self.logger.info(f"   - Translating {prot.get_ID()} to the origin first...")
-            prot._translate_to_origin()
+        else:
 
-        # Generate 3D coordinates for plot
-        layt = [list(np.array(coord) * scaling_factor) for coord in list(self.combined_graph.layout(algorithm, dim=3))]
+            self.logger.info(f"   - Scaling factor: {scaling_factor}...")
 
-        # Translate the proteins to new positions
-        for p, prot in enumerate(self.proteins):
-            self.logger.info(f"   - Translating {prot.get_ID()} to new layout positions...")
-            prot.translate(layt[p])
+            # Ensure proteins are at the origin
+            for prot in self.proteins:
+                self.logger.info(f"   - Translating {prot.get_ID()} to the origin first...")
+                prot._translate_to_origin()
 
-        # Rotate the proteins to best orient their surfaces 
-        for prot in self.proteins:
-            self.logger.info(f"   - Rotating {prot.get_ID()} with respect to their partners CMs...")
-            prot.rotate2all(self.ppis)
-        
+            # Generate 3D coordinates for plot
+            layt = [list(np.array(coord) * scaling_factor) for coord in list(self.combined_graph.layout(algorithm, dim=3))]
+
+            # Translate the proteins to new positions
+            for p, prot in enumerate(self.proteins):
+                self.logger.info(f"   - Translating {prot.get_ID()} to new layout positions...")
+                prot.translate(layt[p])
+
+            # Rotate the proteins to best orient their surfaces 
+            for prot in self.proteins:
+                self.logger.info(f"   - Rotating {prot.get_ID()} with respect to their partners CMs...")
+                prot.rotate2all(self.ppis)
+            
         self.logger.info("FINISHED: 3D layout generation algorithm")
 
 
@@ -591,25 +704,34 @@ class Network(object):
                               surface_residue_palette = default_color_palette,
                               show_plot = True):
         
+        # Progress
         self.logger.info("INITIALIZING: Generating py3Dmol visualization...")
         
+        # Set a different color palette for each protein
         protein_colors = cycle(surface_residue_palette.values())
         protein_color_map = {protein.get_unique_ID(): next(protein_colors) for protein in self.proteins}
 
         # Create a view object
         view = py3Dmol.view(width='100%', height='100%')
 
-        # Get the maximum domain value across all proteins to generate enough unique colors
-        max_domain_value = max(max(protein.domains) for protein in self.proteins)
-        domain_colors = generate_unique_colors(max_domain_value + 1)  # Unique color for each domain
-
+        # Progress
         self.logger.info('   Adding protein backbones and contact centroids...')
 
         # Add each protein to the viewer
         for idx, protein in enumerate(self.proteins):
 
+            # Get palette for the protein
+            base_color = protein_color_map[protein.get_unique_ID()]
+            residue_groups = protein.surface.get_residues_by_group()
+
+            # Get the maximum domain value across all proteins to generate enough unique colors
+            max_domain_value = max(protein.domains)
+            domain_colors = generate_unique_colors(n = max_domain_value + 1, palette = base_color)
+
+            # Progress
             self.logger.info(f'      - Adding {protein.get_ID()} backbone')
 
+            # Add the protein PDB.Chain.Chain properly formatted to the view
             pdb_string = protein.convert_chain_to_pdb_in_memory()
             pdb_string_content = pdb_string.getvalue()
             view.addModel(pdb_string_content, 'pdb')
@@ -617,18 +739,16 @@ class Network(object):
             # Color the backbone based on domain information
             for i, domain in enumerate(protein.domains):
                 
-                # Color each domain segment of the protein
+                # Color each residue backbone of the protein  based on domain information
                 view.setStyle(
                     {'chain': protein.chain_ID, 'resi': [i + 1]},
                     {'cartoon': {'color': domain_colors[domain]}}
                 )
 
+            # Progress
             self.logger.info(f'      - Adding {protein.get_ID()} surface centroids')
 
-            # Color each surface differently based on the contact classification
-            base_color = protein_color_map[protein.get_unique_ID()]
-            residue_groups = protein.surface.get_residues_by_group()
-
+            # Add contact residue centroids for different Surface object in the protein
             surface_colors = {}
             for i, surface_id in enumerate(protein.surface.get_surfaces().keys()):
                 surface_colors[surface_id] = base_color[7 + i % (len(base_color) - 7)]
@@ -682,14 +802,14 @@ class Network(object):
                 contact_classification = ppi.contacts_classification[i]
                 contact_freq = ppi.contact_freq[i]
                 cylinder_color = classification_colors.get(contact_classification, 'gray')
-                cylinder_radius = 0.1 + 0.4 * contact_freq  # Scale radius based on frequency (0 to 1)
+                cylinder_radius = (0.1 + 0.4 * contact_freq) * 0.5 # Scale radius based on frequency (0 to 1)
 
                 view.addCylinder({
                     'start': {'x': float(centroid_1[0]), 'y': float(centroid_1[1]), 'z': float(centroid_1[2])},
                     'end': {'x': float(centroid_2[0]), 'y': float(centroid_2[1]), 'z': float(centroid_2[2])},
                     'radius': cylinder_radius,
                     'color': cylinder_color,
-                    'opacity': 0.8
+                    'opacity': 0.9
                 })
 
         # Add N and C terminal labels, and protein IDs

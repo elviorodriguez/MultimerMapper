@@ -802,6 +802,16 @@ def print_matrix_dimensions(all_pair_matrices):
             print(f'   - distance shape  : {d["distance"].shape}')
             print(f'   - is_contact shape: {d["is_contact"].shape}')
 
+def log_matrix_dimensions(all_pair_matrices, logger):
+    for pair in all_pair_matrices.keys():
+        logger.error('')
+        logger.error(f'----------------- Pair: {pair} -----------------')
+        for k, d in all_pair_matrices[pair].items():        
+            logger.error(f'Model {k}')
+            logger.error(f'   - PAE shape       : {d["PAE"].shape}')
+            logger.error(f'   - min_pLDDT shape : {d["min_pLDDT"].shape}')
+            logger.error(f'   - distance shape  : {d["distance"].shape}')
+            logger.error(f'   - is_contact shape: {d["is_contact"].shape}')
 
 # # Usage
 # all_pair_matrices = get_all_pair_matrices(mm_contacts)

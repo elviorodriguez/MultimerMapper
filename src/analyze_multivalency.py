@@ -1243,27 +1243,53 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
         cluster_dict = generate_cluster_dict(all_pair_matrices,
                                              pair, model_keys, labels, mm_output,
                                              logger = logger)
-
-        # Generate interactive HTML plot
-        visualize_clusters_interactive(
-            cluster_dict       = cluster_dict,
-            pair               = pair,
-            model_keys         = model_keys,
-            labels             = labels,
-            mm_output          = mm_output,
-            all_pair_matrices  = all_pair_matrices,
-            reduced_features   = reduced_features,
-            explained_variance = explained_variance,
-            show_plot          = show_plot,
-            save_plot          = save_plot,
-            logger             = logger)
         
-        # Save static png plots
-        visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
-                                  reduced_features = reduced_features, explained_variance = explained_variance,
-                                  show_plot = show_plot, save_plot = save_plot,
-                                  plot_by_model = True,
-                                  logger = logger)
+        try:
+            # Generate interactive HTML plot
+            visualize_clusters_interactive(
+                cluster_dict       = cluster_dict,
+                pair               = pair,
+                model_keys         = model_keys,
+                labels             = labels,
+                mm_output          = mm_output,
+                all_pair_matrices  = all_pair_matrices,
+                reduced_features   = reduced_features,
+                explained_variance = explained_variance,
+                show_plot          = show_plot,
+                save_plot          = save_plot,
+                logger             = logger)
+            
+            # Save static png plots
+            visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
+                                      reduced_features = reduced_features, explained_variance = explained_variance,
+                                      show_plot = show_plot, save_plot = save_plot,
+                                      plot_by_model = True,
+                                      logger = logger)
+        except IndexError:
+            from src.contact_extractor import log_matrix_dimensions
+            logger.error(f'Index error occurred inside cluster_and_visualize during cluster visualization of {pair}')
+            logger.error(f'   - cluster_dict: {cluster_dict}')
+            logger.error(f'   - pair: {pair}')
+            logger.error(f'   - model_keys: {model_keys}')
+            logger.error(f'   - labels: {labels}')
+            logger.error(f'   - mm_output.keys(): {mm_output.keys()}')
+            # log_matrix_dimensions(all_pair_matrices, logger)
+            logger.error(f'   - reduced_features.ndim: {reduced_features.ndim}')
+            np.save(mm_output['out_path'] + '/reduced_features.npy', reduced_features)
+            logger.error(f'   - explained_variance: {explained_variance}')
+        except Exception as e:
+            from src.contact_extractor import log_matrix_dimensions
+            logger.error(f'An unknown exception occurred inside cluster_and_visualize during cluster visualization of {pair}')
+            logger.error(f'   - Exception: {e}')
+            logger.error(f'   - cluster_dict: {cluster_dict}')
+            logger.error(f'   - pair: {pair}')
+            logger.error(f'   - model_keys: {model_keys}')
+            logger.error(f'   - labels: {labels}')
+            logger.error(f'   - mm_output.keys(): {mm_output.keys()}')
+            # log_matrix_dimensions(all_pair_matrices, logger)
+            logger.error(f'   - reduced_features.ndim: {reduced_features.ndim}')
+            np.save(mm_output['out_path'] + '/reduced_features.npy', reduced_features)
+            logger.error(f'   - explained_variance: {explained_variance}')
         
         return cluster_dict
     

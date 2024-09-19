@@ -71,8 +71,8 @@ out_path = "/home/elvio/Desktop/Assemblies/SIN3/MM_output"
 use_names = True 
 overwrite = True
 auto_domain_detection = False
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-graph_resolution_preset = None
+graph_resolution_preset = "/home/elvio/Desktop/Assemblies/SIN3/MM_output/domains/graph_resolution_preset.json"
+# graph_resolution_preset = None
 
 # ###############################################################################
 
@@ -149,16 +149,22 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     # You can remove specific interaction types from the graph
     # "No 2-mers Data"
     remove_interactions = ("Indirect", "No 2-mers Data"),
-    self_loop_size = 2,
+    self_loop_size = 4,
     
     # Answer y automatically
     automatic_true = True)
 
 
 # Create 3D network and generate visualization
+import multimer_mapper as mm
 nw = mm.Network(mm_output['combined_graph'], logger = logger)
+
+from src.contact_graph import Network
+nw = Network(mm_output['combined_graph'], logger = logger)
+
 nw.generate_layout()
 nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph.html')
+
 
 # Get suggested combinations
 suggested_combinations = mm.suggest_combinations(mm_output = mm_output, 
