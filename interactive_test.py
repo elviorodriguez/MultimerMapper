@@ -63,16 +63,16 @@ pd.set_option( 'display.max_columns' , None )
 
 # ################################ Test 5 (SIN3) ################################
 
-fasta_file = "/home/elvio/Desktop/Assemblies/SIN3/SIN3_proteins.fasta"
-AF2_2mers = "/home/elvio/Desktop/Assemblies/SIN3/2-mers"
-AF2_Nmers = "/home/elvio/Desktop/Assemblies/SIN3/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/Assemblies/SIN3/MM_output"
-use_names = True 
-overwrite = True
-auto_domain_detection = False
-graph_resolution_preset = "/home/elvio/Desktop/Assemblies/SIN3/MM_output/domains/graph_resolution_preset.json"
-# graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/Assemblies/SIN3/SIN3_proteins.fasta"
+# AF2_2mers = "/home/elvio/Desktop/Assemblies/SIN3/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/Assemblies/SIN3/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/Assemblies/SIN3/MM_output"
+# use_names = True 
+# overwrite = True
+# auto_domain_detection = False
+# graph_resolution_preset = "/home/elvio/Desktop/Assemblies/SIN3/MM_output/domains/graph_resolution_preset.json"
+# # graph_resolution_preset = None
 
 # ###############################################################################
 
@@ -93,16 +93,16 @@ graph_resolution_preset = "/home/elvio/Desktop/Assemblies/SIN3/MM_output/domains
 
 ################### Test 6' (multivalency detection actin) ####################
 
-# fasta_file = "/home/elvio/Desktop/heteromultimers_benchmark/actin/proteins_mm.fasta"
-# AF2_2mers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_2mers"
-# AF2_Nmers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_Nmers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/heteromultimers_benchmark/actin/MM_out_Nmers"
-# use_names = False
-# overwrite = True
-# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# auto_domain_detection = True
-# graph_resolution_preset = None
+fasta_file = "/home/elvio/Desktop/heteromultimers_benchmark/actin/proteins_mm.fasta"
+AF2_2mers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_2mers"
+AF2_Nmers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_Nmers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/heteromultimers_benchmark/actin/MM_out_Nmers"
+use_names = False
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+auto_domain_detection = True
+graph_resolution_preset = None
 
 ###############################################################################
 

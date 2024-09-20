@@ -63,6 +63,8 @@ manual_domains: str | None = None
 # If True, saves the detected domains table (<out_path>/domains dir)
 save_domains_tsv: bool = True
 
+# Define a common color list for the discrete integer values in clusters
+DOMAIN_COLORS = ['red', 'green', 'blue', 'purple', 'yellow', 'orange', 'brown', 'pink', 'cyan', 'lime', 'gray', 'olive']
 
 # ----------------------------------------------------------------------------
 # --------------------------- For PPI detection ------------------------------

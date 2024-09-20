@@ -18,6 +18,8 @@ from IPython.display import display
 from copy import deepcopy
 
 from utils.logger_setup import configure_logger
+from cfg.default_settings import DOMAIN_COLORS
+
 
 # -----------------------------------------------------------------------------
 # Split proteins into domain using pae_to_domains.py --------------------------
@@ -108,13 +110,10 @@ def reformat_clusters(domain_clusters: list):
 
 
 def plot_domains(protein_ID, matrix_data, positions, colors, custom_title=None, 
-                 out_folder='domains', save_plot=True, show_plot=True):
+                 out_folder='domains', save_plot=True, show_plot=True, DOMAIN_COLORS = DOMAIN_COLORS):
 
     # Define a diverging colormap for the matrix
     matrix_cmap = 'coolwarm'
-
-    # Define a common color list for the discrete integer values in clusters
-    DOMAIN_COLORS = ['red', 'green', 'blue', 'purple', 'yellow', 'orange', 'brown', 'pink', 'cyan', 'lime', 'gray', 'olive']
 
     # Create a figure and axis
     fig, ax = plt.subplots(figsize=(8, 8))

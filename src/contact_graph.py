@@ -12,7 +12,7 @@ from itertools import cycle
 import webbrowser
 from scipy.spatial.distance import pdist, squareform
 
-from cfg.default_settings import PT_palette
+from cfg.default_settings import PT_palette, DOMAIN_COLORS
 from utils.pdb_utils import center_of_mass, rotate_points
 from src.detect_domains import format_domains_df_as_no_loops_domain_clusters
 
@@ -692,7 +692,13 @@ class Network(object):
                         scaling_factor = [None       , 300  , 200 , 100 , 100     , 120   , 100     ][0]):
 
         self.logger.info(f"INITIALIZING: 3D layout generation using {algorithm} method...")
-            
+        
+        # When there are less than 3 proteins, use "drl" algorithm
+        if len(self.proteins) < 3:
+            self.logger.warning('   - Less than 3 proteins in the network. Using drl method...')
+            algorithm = "drl"
+            scaling_factor = 250
+
         if algorithm == "optimized":
             optimize_layout(self)
 
@@ -730,8 +736,10 @@ class Network(object):
         self.logger.info("INITIALIZING: Generating py3Dmol visualization...")
         
         # Set a different color palette for each protein
-        protein_colors = cycle(surface_residue_palette.values())
-        protein_color_map = {protein.get_unique_ID(): next(protein_colors) for protein in self.proteins}
+        # protein_colors = cycle(surface_residue_palette.values())
+        # protein_colors = cycle([DOMAIN_COLORS, DOMAIN_COLORS])
+        # protein_color_map = {protein.get_unique_ID(): next(protein_colors) for protein in self.proteins}
+        protein_color_map = {protein.get_unique_ID(): DOMAIN_COLORS for protein in self.proteins}
 
         # Create a view object
         view = py3Dmol.view(width='100%', height='100%')
@@ -748,7 +756,7 @@ class Network(object):
 
             # Get the maximum domain value across all proteins to generate enough unique colors
             max_domain_value = max(protein.domains)
-            domain_colors = generate_unique_colors(n = max_domain_value + 1, palette = base_color)
+            domain_colors = generate_unique_colors(n = max_domain_value + 1, palette = DOMAIN_COLORS)
 
             # Progress
             self.logger.info(f'      - Adding {protein.get_ID()} backbone')
@@ -773,7 +781,7 @@ class Network(object):
             # Add contact residue centroids for different Surface object in the protein
             surface_colors = {}
             for i, surface_id in enumerate(protein.surface.get_surfaces().keys()):
-                surface_colors[surface_id] = base_color[7 + i % (len(base_color) - 7)]
+                surface_colors[surface_id] = base_color[i % (len(base_color))]
             
             for group, residues in residue_groups.items():
                 if group == "A":
