@@ -12,7 +12,7 @@ from itertools import cycle
 import webbrowser
 from scipy.spatial.distance import pdist, squareform
 
-from cfg.default_settings import PT_palette, DOMAIN_COLORS
+from cfg.default_settings import PT_palette, DOMAIN_COLORS_RRC, SURFACE_COLORS_RRC
 from utils.pdb_utils import center_of_mass, rotate_points
 from src.detect_domains import format_domains_df_as_no_loops_domain_clusters
 
@@ -72,8 +72,8 @@ CLASSIFICATION_ENCODING = {
     5: 'No 2mers Data'
 }
 
-# Define color scheme for different contact classifications
-classification_colors = {
+# Define color scheme for different residue-residue contact classifications
+rrc_classification_colors = {
     1: PT_palette['gray'],      # Static
     2: PT_palette['green'],     # Positive
     3: PT_palette['red'],       # Negative
@@ -81,7 +81,7 @@ classification_colors = {
     5: PT_palette['yellow']     # No 2mers Data
 }
 
-# Color palette for network representation
+# Color palette for network representation (not implemented)
 default_color_palette = {
     "Red":            ["#ffebee", "#ffcdd2", "#ef9a9a", "#e57373", "#ef5350", "#f44336", "#e53935", "#d32f2f", "#c62828", "#ff8a80", "#ff5252", "#d50000", "#f44336", "#ff1744", "#b71c1c"],
     "Green":          ["#e8f5e9", "#c8e6c9", "#a5d6a7", "#81c784", "#66bb6a", "#4caf50", "#43a047", "#388e3c", "#2e7d32", "#b9f6ca", "#69f0ae", "#00e676", "#4caf50", "#00c853", "#1b5e20"],
@@ -280,31 +280,68 @@ def optimize_layout(network):
 ###############################################################################################################
 
 class Residue:
+    """
+    Represents a residue in a protein, along with its interactions and structural properties.
+
+    Attributes:
+        index (int): The index of the residue.
+        name (str): The name of the residue.
+        pLDDT (float): The predicted LDDT (Local Distance Difference Test) score of the residue.
+        interactions (dict): Dictionary of interactions where the key is a tuple (ppi_id, cluster_n),
+                             and the value is a set of partner protein IDs.
+    """
     def __init__(self, index, name, pLDDT):
+        """
+        Initializes a Residue object.
+
+        Parameters:
+            index (int): Residue index.
+            name (str): Residue name.
+            pLDDT (float): Predicted LDDT score of the residue.
+        """
         self.index = index
         self.name = name
         self.pLDDT = pLDDT
         self.interactions = {}  # Dict of {ppi_id: set(partner_protein_ids)}
 
     def get_index(self):
+        """Returns the index of the residue."""
         return self.index
     
     def get_name(self):
+        """Returns the name of the residue."""
         return self.name
 
     def get_plddt(self):
+        """Returns the predicted LDDT score of the residue."""
         return self.pLDDT
     
     def get_interactions(self):
+        """Returns the dictionary of interactions for this residue."""
         return self.interactions
     
-    def add_interaction(self, partner_protein_id, ppi_id):
-        if ppi_id not in self.interactions:
-            self.interactions[ppi_id] = set()
-        self.interactions[ppi_id].add(partner_protein_id)
+    @property
+    def surface_id(self):
+        """
+        Returns the surface identifier for the residue if it's part of interaction group A (not co-occupied by different PPIs).
+        
+        Returns:
+            tuple: (ppi_id, cluster_n) for group A residues, None otherwise.
+        """
+        if self.interaction_group == "A":
+            # Assuming self.interactions stores tuples of (partner_protein_id, ppi_id, cluster_n)
+            return list(self.interactions.keys())[0]  # Return (ppi_id, cluster_n)
+        return None  # For groups B and C, we don't assign a specific surface
 
     @property
     def interaction_group(self):
+        """
+        Determines the interaction group for the residue based on its interactions.
+
+        Returns:
+            str: "A" for single protein/single mode, "B" for single protein/multiple modes, 
+                 "C" for multiple proteins, and "Non-interacting" if no interactions exist.
+        """
         if not self.interactions:
             return "Non-interacting"
         unique_proteins = set(protein_id for protein_ids in self.interactions.values() for protein_id in protein_ids)
@@ -314,38 +351,93 @@ class Residue:
             return "B"  # Single protein, multiple modes
         else:
             return "A"  # Single protein, single mode
+    
+    def add_interaction(self, partner_protein_id, ppi_id, cluster_n):
+        """
+        Adds an interaction between the residue and a partner protein.
 
-    @property
-    def surface_id(self):
-        if self.interaction_group == "A":
-            return list(self.interactions.keys())[0]  # Return the PPI ID
-        return None  # For groups B and C, we don't assign a specific surface
+        Parameters:
+            partner_protein_id (str): The ID of the partner protein.
+            ppi_id (str): The ID of the protein-protein interaction (PPI).
+            cluster_n (int): The cluster number of the interaction.
+        """
+        key = (ppi_id, cluster_n)
+        if key not in self.interactions:
+            self.interactions[key] = set()
+        self.interactions[key].add(partner_protein_id)
+
 
 ###############################################################################################################
 ################################################ Class Surface ################################################
 ###############################################################################################################
 
 class Surface:
+    """
+    Represents the surface of a protein, including its residues and interactions.
+
+    Attributes:
+        protein_id (str): The ID of the protein.
+        residues (dict): A dictionary where the key is the residue index and the value is a Residue object.
+        surfaces (dict): A dictionary where the key is a tuple (ppi_id, cluster_n) and 
+                         the value is a set of residue indices.
+    """
     def __init__(self, protein_id):
+        """
+        Initializes a Surface object.
+
+        Parameters:
+            protein_id (str): The ID of the protein.
+        """
         self.protein_id = protein_id
         self.residues = {}  # key: residue index, value: Residue object
         self.surfaces = {}  # key: ppi_id, value: set of residue indices
 
     def add_residue(self, index, name, pLDDT):
+        """
+        Adds a residue to the surface.
+
+        Parameters:
+            index (int): The index of the residue.
+            name (str): The name of the residue.
+            pLDDT (float): The predicted LDDT score of the residue.
+        """
         if index not in self.residues:
             self.residues[index] = Residue(index, name, pLDDT)
 
-    def add_interaction(self, residue_index, partner_protein_id, ppi_id):
+    def add_interaction(self, residue_index, partner_protein_id, ppi_id, cluster_n):
+        """
+        Adds an interaction between a residue and a partner protein.
+
+        Parameters:
+            residue_index (int): The index of the residue.
+            partner_protein_id (str): The ID of the partner protein.
+            ppi_id (str): The ID of the protein-protein interaction (PPI).
+            cluster_n (int): The cluster number of the interaction.
+        """
         if residue_index in self.residues:
-            self.residues[residue_index].add_interaction(partner_protein_id, ppi_id)
-            if ppi_id not in self.surfaces:
-                self.surfaces[ppi_id] = set()
-            self.surfaces[ppi_id].add(residue_index)
+            self.residues[residue_index].add_interaction(partner_protein_id, ppi_id, cluster_n)
+            key = (ppi_id, cluster_n)
+            if key not in self.surfaces:
+                self.surfaces[key] = set()
+            self.surfaces[key].add(residue_index)
 
     def get_interacting_residues(self):
+        """
+        Returns all residues involved in interactions.
+
+        Returns:
+            dict: A dictionary where the key is the residue index and the value is the Residue object 
+                  (for residues with interactions only).
+        """
         return {idx: res for idx, res in self.residues.items() if res.interactions}
 
     def get_residues_by_group(self):
+        """
+        Returns residues grouped by interaction type (A, B, C).
+
+        Returns:
+            dict: A dictionary with keys "A", "B", "C", where each value is a list of Residue objects.
+        """
         groups = {"A": [], "B": [], "C": []}
         for residue in self.residues.values():
             if residue.interaction_group in groups:
@@ -353,6 +445,13 @@ class Surface:
         return groups
 
     def get_surfaces(self):
+        """
+        Returns all surfaces (interactions) on the protein.
+
+        Returns:
+            dict: A dictionary where the key is a tuple (ppi_id, cluster_n) and 
+                  the value is a set of residue indices involved in the interaction.
+        """
         return self.surfaces
 
 ###############################################################################################################
@@ -360,8 +459,34 @@ class Surface:
 ###############################################################################################################
 
 class Protein(object):
+    """
+    Represents a protein and its structural and interaction properties.
+
+    Attributes:
+        unique_ID (int): Unique identifier for the protein.
+        logger (Logger): Logger object to log operations.
+        vertex (igraph.Vertex): Graph vertex representing the protein.
+        ID (str): Protein ID.
+        name (str): Protein name.
+        PDB_chain (PDB.Chain.Chain): Chain object from the PDB structure.
+        seq (str): Protein sequence.
+        res_names (list[str]): List of residue names.
+        res_pLDDT (list[float]): List of pLDDT scores for each residue.
+        domains (tuple[int]): Domains of the protein.
+        RMSD_df (pd.DataFrame): RMSD values for the protein.
+        chain_ID (str): ID of the protein chain.
+        surface (Surface): Surface object representing the protein's surface interactions.
+    """
 
     def __init__(self, graph_vertex: igraph.Vertex, unique_ID: int, logger: Logger):
+        """
+        Initializes a Protein object.
+
+        Parameters:
+            graph_vertex (igraph.Vertex): Vertex representing the protein in the combined_graph.
+            unique_ID (int): Unique identifier for the protein.
+            logger (Logger): Logger object for logging.
+        """
 
         # Progress
         logger.info(f"   - Creating object of class Protein: {graph_vertex['name']}")
@@ -387,28 +512,72 @@ class Protein(object):
         for i, aa in enumerate(self.seq):
             self.surface.add_residue(i, aa + str(i + 1), self.res_pLDDT[i])
     
-    def add_interaction(self, residue_index, partner_protein_id, ppi_id):
-        self.surface.add_interaction(residue_index, partner_protein_id, ppi_id)
+    # -------------------------------------------------------------------------------------
+    # -------------------------------------- Adders ---------------------------------------
+    # -------------------------------------------------------------------------------------
+
+    def add_interaction(self, residue_index, partner_protein_id, ppi_id, cluster_n):
+        """
+        Adds an interaction between a residue of the protein and a partner protein.
+
+        Parameters:
+            residue_index (int): The index of the residue involved in the interaction.
+            partner_protein_id (str): The ID of the partner protein.
+            ppi_id (str): The PPI identifier.
+            cluster_n (int): Cluster number of the interaction.
+        """
+        self.surface.add_interaction(residue_index, partner_protein_id, ppi_id, cluster_n)
 
     # -------------------------------------------------------------------------------------
     # -------------------------------------- Getters --------------------------------------
     # -------------------------------------------------------------------------------------
     
-    def get_unique_ID(self) : return self.unique_ID
-    def get_ID(self)        : return self.ID
-    def get_seq(self)       : return self.seq
-    def get_name(self)      : return self.name
-    def get_CM(self)        : return self.PDB_chain.center_of_mass()
+    def get_unique_ID(self):
+        """Returns the unique ID of the protein."""
+        return self.unique_ID
+    
+    def get_ID(self):
+        """Returns the ID of the protein."""
+        return self.ID
+    
+    def get_seq(self):
+        """Returns the sequence of the protein."""
+        return self.seq
+    
+    def get_name(self):
+        """Returns the name of the protein."""
+        return self.name
+    
+    def get_CM(self):
+        """Returns the center of mass of the protein chain."""
+        return self.PDB_chain.center_of_mass()
     
     def get_res_pLDDT(self, res_list = None) -> list[float]:
-        '''Returns per residue pLDDT values as a list. If a res_list of residue
-        indexes (zero index based) is passed, you will get only these pLDDT values.'''
+        """
+        Returns the pLDDT values for residues.
+
+        Parameters:
+            res_list (list, optional): List of residue indices (zero-indexed). 
+                                       If provided, returns the pLDDT values for these residues only.
+
+        Returns:
+            list[float]: List of pLDDT values.
+        """
         if res_list is not None: 
             return[self.res_pLDDT[res] for res in res_list]
         return self.res_pLDDT
     
     def get_res_centroids_xyz(self, res_list = None) -> list[np.array]:
-        '''Pass a list of residue indexes as list (zero index based) to get their centroid coordinates.'''
+        """
+        Returns the centroid coordinates for residues.
+
+        Parameters:
+            res_list (list, optional): List of residue indices (zero-indexed). 
+                                       If provided, returns centroid coordinates for these residues only.
+
+        Returns:
+            list[np.array]: List of centroid coordinates for residues.
+        """
 
         # Compute residue centroids
         res_xyz: list[np.array] = [ res.center_of_mass() for res  in self.PDB_chain.get_residues() ]
@@ -421,7 +590,16 @@ class Protein(object):
         return res_xyz
     
     def get_res_CA_xyz(self, res_list = None) -> list[np.array]:
-        '''Pass a list of residue indexes as list (zero index based) to get their CA coordinates.'''
+        """
+        Returns the CA atom coordinates for residues.
+
+        Parameters:
+            res_list (list, optional): List of residue indices (zero-indexed). 
+                                       If provided, returns CA coordinates for these residues only.
+
+        Returns:
+            list[np.array]: List of CA coordinates for residues.
+        """
 
         # Compute residue centroids
         CA_xyz: list[np.array] = [ np.array(atom.coord) for atom in self.PDB_chain.get_atoms() if atom.get_name() == "CA" ]
@@ -434,7 +612,16 @@ class Protein(object):
         return CA_xyz
     
     def get_res_names(self, res_list = None):
-        '''Pass a list of residue indexes as list (zero index based) to get their residues names.'''
+        """
+        Returns the names of residues.
+
+        Parameters:
+            res_list (list, optional): List of residue indices (zero-indexed). 
+                                       If provided, returns names for these residues only.
+
+        Returns:
+            list[str]: List of residue names.
+        """
         if res_list is not None:
             return[self.res_names[res] for res in res_list]
         return self.res_names
@@ -444,6 +631,7 @@ class Protein(object):
     # -------------------------------------------------------------------------------------
 
     def _translate_to_origin(self) -> None:
+        """Translates the protein PDB_chain to the reference frame origin (0, 0, 0)."""
 
         # Translate the protein PDB_chain to the origin (0,0,0)
         CM: np.array = self.PDB_chain.center_of_mass()
@@ -452,12 +640,25 @@ class Protein(object):
 
 
     def translate(self, translation_vector: np.array) -> None:
+        """
+        Translates the protein PDB_chain by the given translation vector.
+
+        Parameters:
+            translation_vector (np.array): Translation vector to apply.
+        """
 
         # Translate the protein PDB_chain in the direction of the translation_vector
         for atom in self.PDB_chain.get_atoms():
             atom.transform(np.identity(3), np.array(translation_vector))
     
     def rotate(self, reference_point, rotation_matrix) -> None:
+        """
+        Rotates the protein's atoms around a reference point using a rotation matrix.
+
+        Parameters:
+            reference_point (np.array): The reference point for the rotation.
+            rotation_matrix (np.array): Rotation matrix to apply.
+        """
 
         # Apply rotation to all atoms of PDB chain
         PDB_atoms = [atom.get_coord() for atom in self.PDB_chain.get_atoms()]
@@ -469,6 +670,12 @@ class Protein(object):
 
 
     def rotate2all(self, network_ppis: list):
+        """
+        Rotates the protein to align with the center of mass of its interaction partners.
+
+        Parameters:
+            network_ppis (list): List of PPIs involving the protein.
+        """
 
         # Get protein surface residues and partners CMs
         subset_indices = []
@@ -528,13 +735,10 @@ class Protein(object):
 
     def convert_chain_to_pdb_in_memory(self) -> io.StringIO:
         """
-        Saves a PDB.Chain.Chain object to an in-memory PDB file.
-
-        Parameters:
-        - chain: PDB.Chain.Chain object that you want to save
+        Saves the PDB.Chain.Chain object to an in-memory PDB file.
 
         Returns:
-        - A StringIO object containing the PDB data
+            io.StringIO: StringIO object containing the PDB data.
         """
 
         # Create an in-memory file
@@ -555,6 +759,12 @@ class Protein(object):
         return pdb_mem_file
     
     def change_PDB_chain_id(self, new_chain_ID) -> None:
+        """
+        Changes the ID of the PDB chain.
+
+        Parameters:
+            new_chain_ID (str): The new chain ID.
+        """
 
         self.PDB_chain.id = new_chain_ID
         self.chain_ID = new_chain_ID
@@ -565,6 +775,7 @@ class Protein(object):
     # -------------------------------------------------------------------------------------
 
     def __str__(self):
+        """Returns a string representation of the protein."""
         return f"Protein ID: {self.ID} --------------------------------------------\n   - Name: {self.name}\n   - Sequence: {self.seq}"
 
 
@@ -573,8 +784,36 @@ class Protein(object):
 ###############################################################################################################
 
 class PPI(object):
+    """
+    Represents a Protein-Protein Interaction (PPI) between two proteins.
+
+    Attributes:
+        edge (igraph.Edge): The edge object representing the interaction in a graph.
+        prot_ID_1 (str): ID of the first protein in the interaction.
+        prot_ID_2 (str): ID of the second protein in the interaction.
+        protein_1 (Protein): First protein object.
+        protein_2 (Protein): Second protein object.
+        cluster_n (int): Cluster number for the interaction.
+        models (list[tuple]): List of interaction models.
+        x_lab (str): X-axis label for interaction data.
+        y_lab (str): Y-axis label for interaction data.
+        freq_matrix (np.array): Frequency matrix of residue-residue contacts.
+        class_matrix (np.array): Classification matrix for residue-residue contacts.
+        contacts_res_1 (list[int]): Contact residues from the first protein.
+        contacts_res_2 (list[int]): Contact residues from the second protein.
+        contact_freq (list[float]): Frequency of contacts between residues.
+        contacts_classification (list[int]): Classification of contacts between residues.
+    """
 
     def __init__(self, proteins: list[Protein], graph_edge: igraph.Edge, logger: Logger) -> None:
+        """
+        Initializes a PPI object.
+
+        Parameters:
+            proteins (list[Protein]): List of Protein objects.
+            graph_edge (igraph.Edge): Edge representing the interaction.
+            logger (Logger): Logger object for logging.
+        """
 
         logger.info(f'   - Creating object of class PPI: {graph_edge["name"]}')
         
@@ -597,43 +836,57 @@ class PPI(object):
         self.contact_freq               : list[float]   = self.freq_matrix[contact_indices].tolist()        # Residue-Residue contact frequency
         self.contacts_classification    : list[int]     = self.class_matrix[contact_indices].tolist()       # Residue-Residue contact classification (encoded)
 
-        for res1, res2 in zip(self.contacts_res_1, self.contacts_res_2):
-            self.protein_1.add_interaction(res1, self.protein_2.get_ID(), self.get_tuple_pair())
-            self.protein_2.add_interaction(res2, self.protein_1.get_ID(), self.get_tuple_pair())
-    
+        self.add_interactions()
+
     # -------------------------------------------------------------------------------------
     # -------------------------------------- Getters --------------------------------------
     # -------------------------------------------------------------------------------------
 
     def get_edge(self):
+        """Returns the edge object representing the interaction."""
         return self.edge
 
     def get_tuple_pair(self):
+        """Returns a tuple of the protein IDs involved in the interaction."""
         return tuple(sorted(self.edge['name']))
     
     def get_cluster_n(self):
+        """Returns the cluster number of the interaction."""
         return self.cluster_n
     
     def get_protein_1(self) -> Protein:
+        """Returns the first Protein object involved in the interaction."""
         return self.protein_1
     
     def get_protein_2(self) -> Protein:
+        """Returns the second Protein object involved in the interaction."""
         return self.protein_2
     
     def get_prot_ID_1(self) -> str:
+        """Returns the ID of the first Protein object involved in the interaction."""
         return self.prot_ID_1
     
     def get_prot_ID_2(self) -> str:
+        """Returns the ID of the second Protein object involved in the interaction."""
         return self.prot_ID_2
     
     def get_contacts_res_1(self) -> list[int]:
+        """Returns the list of contact residues from the first protein involved in the interaction."""
         return self.contacts_res_1
 
     def get_contacts_res_2(self) -> list[int]:
+        """Returns the list of contact residues from the second protein involved in the interaction."""
         return self.contacts_res_2
 
     def is_homooligomeric(self):
+        """Checks if the interaction is a from a homooligomer (interaction between the same protein)."""
         return len(set(self.get_tuple_pair())) == 1
+    
+    def add_interactions(self):
+        """Adds interactions between the contact residues of the two proteins."""
+        for res1, res2 in zip(self.contacts_res_1, self.contacts_res_2):
+            self.protein_1.add_interaction(res1, self.protein_2.get_ID(), self.get_tuple_pair(), self.get_cluster_n())
+            self.protein_2.add_interaction(res2, self.protein_1.get_ID(), self.get_tuple_pair(), self.get_cluster_n())
 
     
 ###############################################################################################################
@@ -641,8 +894,27 @@ class PPI(object):
 ###############################################################################################################
 
 class Network(object):
+    """
+    Represents a network of proteins and their interactions (PPIs) using a graph structure.
+
+    Attributes:
+        logger (Logger): Logger object to log operations.
+        combined_graph (igraph.Graph): Graph representing the combined protein-protein interactions.
+        proteins (list[Protein]): List of Protein objects in the network.
+        proteins_IDs (list[str]): List of protein IDs in the network.
+        ppis (list[PPI]): List of Protein-Protein Interactions (PPIs) in the network.
+        ppis_dynamics (list[str]): List of dynamics types for the PPIs in the network.
+    """
     
     def __init__(self, combined_graph: igraph.Graph, logger: Logger, remove_interaction = ("Indirect",)):
+        """
+        Initializes a Network object.
+
+        Parameters:
+            combined_graph (igraph.Graph): Graph representing the combined protein-protein interactions.
+            logger (Logger): Logger object for logging.
+            remove_interaction (tuple): Interaction types to be removed from the network (default: ("Indirect",)).
+        """
 
         logger.info("Creating object of class Network...")
 
@@ -665,15 +937,30 @@ class Network(object):
     # -------------------------------------------------------------------------------------
     
     def get_proteins(self) -> list[Protein]:
-        '''Returns the list of proteins'''
+        """
+        Returns the list of proteins in the network.
+
+        Returns:
+            list[Protein]: List of Protein objects.
+        """
         return self.proteins
     
     def get_proteins_IDs(self) -> list[str]:
-        '''Returns the list of proteins IDs of the network'''
+        """
+        Returns the list of protein IDs in the network.
+
+        Returns:
+            list[str]: List of protein IDs.
+        """
         return self.proteins_IDs
     
     def get_ppis(self) -> list[PPI]:
-        '''Returns the list of ppis of the network'''
+        """
+        Returns the list of Protein-Protein Interactions (PPIs) in the network.
+
+        Returns:
+            list[PPI]: List of PPI objects.
+        """
         return self.ppis
 
     # -------------------------------------------------------------------------------------
@@ -681,6 +968,9 @@ class Network(object):
     # -------------------------------------------------------------------------------------
 
     def add_new_protein(self):
+        """
+        Adds a new protein to the network (currently not implemented).
+        """
         raise NotImplementedError("Method not implemented yet...")
 
     # -------------------------------------------------------------------------------------
@@ -690,6 +980,13 @@ class Network(object):
     def generate_layout(self,
                         algorithm      = ["optimized", "drl", "fr", "kk", "circle", "grid", "random"][0],
                         scaling_factor = [None       , 300  , 200 , 100 , 100     , 120   , 100     ][0]):
+        """
+        Generates a 3D layout for the network using different algorithms.
+
+        Parameters:
+            algorithm (str): Layout algorithm to use. Default is "optimized" (recommended).
+            scaling_factor (int): Scaling factor for the layout (default is 300).
+        """
 
         self.logger.info(f"INITIALIZING: 3D layout generation using {algorithm} method...")
         
@@ -728,9 +1025,18 @@ class Network(object):
 
 
     def generate_py3dmol_plot(self, save_path: str = './3D_graph.html',
-                              classification_colors = classification_colors,
+                              classification_colors = rrc_classification_colors,
                               surface_residue_palette = default_color_palette,
                               show_plot = True):
+        """
+        Generates a 3D molecular visualization of the network using py3Dmol.
+
+        Parameters:
+            save_path (str): Path to save the HTML visualization file (default: './3D_graph.html').
+            classification_colors (dict): Mapping of contact classification categories to colors.
+            surface_residue_palette (dict): Color palette for surface residues.
+            show_plot (bool): Whether to automatically display the plot (default: True).
+        """
         
         # Progress
         self.logger.info("INITIALIZING: Generating py3Dmol visualization...")
@@ -739,13 +1045,22 @@ class Network(object):
         # protein_colors = cycle(surface_residue_palette.values())
         # protein_colors = cycle([DOMAIN_COLORS, DOMAIN_COLORS])
         # protein_color_map = {protein.get_unique_ID(): next(protein_colors) for protein in self.proteins}
-        protein_color_map = {protein.get_unique_ID(): DOMAIN_COLORS for protein in self.proteins}
+        protein_color_map = {protein.get_unique_ID(): DOMAIN_COLORS_RRC for protein in self.proteins}
 
         # Create a view object
         view = py3Dmol.view(width='100%', height='100%')
 
         # Progress
         self.logger.info('   Adding protein backbones and contact centroids...')
+
+        # Create a global dictionary to map PPI IDs to colors
+        ppi_colors = {}
+        color_index = 0
+        for ppi in self.ppis:
+            ppi_id = (ppi.get_tuple_pair(), ppi.get_cluster_n())  # Include cluster number in the key
+            if ppi_id not in ppi_colors:
+                ppi_colors[ppi_id] = SURFACE_COLORS_RRC[color_index % len(SURFACE_COLORS_RRC)]
+                color_index += 1
 
         # Add each protein to the viewer
         for idx, protein in enumerate(self.proteins):
@@ -756,7 +1071,7 @@ class Network(object):
 
             # Get the maximum domain value across all proteins to generate enough unique colors
             max_domain_value = max(protein.domains)
-            domain_colors = generate_unique_colors(n = max_domain_value + 1, palette = DOMAIN_COLORS)
+            domain_colors = generate_unique_colors(n = max_domain_value + 1, palette = DOMAIN_COLORS_RRC)
 
             # Progress
             self.logger.info(f'      - Adding {protein.get_ID()} backbone')
@@ -779,37 +1094,40 @@ class Network(object):
             self.logger.info(f'      - Adding {protein.get_ID()} surface centroids')
 
             # Add contact residue centroids for different Surface object in the protein
-            surface_colors = {}
-            for i, surface_id in enumerate(protein.surface.get_surfaces().keys()):
-                surface_colors[surface_id] = base_color[i % (len(base_color))]
-            
-            for group, residues in residue_groups.items():
-                if group == "A":
-                    for residue in residues:
-                        color = surface_colors[residue.surface_id]
-                elif group == "B":
-                    color = "gray"
-                else:  # group C
-                    color = "black"
+            for protein in self.proteins:
+                residue_groups = protein.surface.get_residues_by_group()
                 
-                for residue in residues:
-                    centroid = protein.get_res_centroids_xyz([residue.index])[0]
-                    CA = protein.get_res_CA_xyz(res_list=[residue.get_index()])[0]
+                for group, residues in residue_groups.items():
+                    for residue in residues:
+                        if group == "A":
+                            # Extract the tuple pair and cluster number from the surface_id
+                            tuple_pair, cluster_n = residue.surface_id
+                            # Use the color assigned to this PPI
+                            color = ppi_colors[(tuple_pair, cluster_n)]
+                        elif group == "B":
+                            color = "gray"
+                        elif group == "C":
+                            color = "black"
+                        else:  # Non-interacting
+                            continue
 
-                    # Add the residue centroid as a Sphere
-                    view.addSphere({
-                        'center': {'x': float(centroid[0]), 'y': float(centroid[1]), 'z': float(centroid[2])},
-                        'radius': 1.0,
-                        'color': color
-                    })
+                        centroid = protein.get_res_centroids_xyz([residue.index])[0]
+                        CA = protein.get_res_CA_xyz(res_list=[residue.get_index()])[0]
 
-                    # Add a line connecting the sphere to the backbone
-                    view.addCylinder({
-                        'start': {'x': float(centroid[0]), 'y': float(centroid[1]), 'z': float(centroid[2])},
-                        'end': {'x': float(CA[0]), 'y': float(CA[1]), 'z': float(CA[2])},
-                        'radius': 0.1,
-                        'color': color
-                    })
+                        # Add the residue centroid as a Sphere
+                        view.addSphere({
+                            'center': {'x': float(centroid[0]), 'y': float(centroid[1]), 'z': float(centroid[2])},
+                            'radius': 1.0,
+                            'color': color
+                        })
+
+                        # Add a line connecting the sphere to the backbone
+                        view.addCylinder({
+                            'start': {'x': float(centroid[0]), 'y': float(centroid[1]), 'z': float(centroid[2])},
+                            'end': {'x': float(CA[0]), 'y': float(CA[1]), 'z': float(CA[2])},
+                            'radius': 0.1,
+                            'color': color
+                        })
 
         self.logger.info('   Adding contact lines...')
 

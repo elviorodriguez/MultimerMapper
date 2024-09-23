@@ -1395,6 +1395,9 @@ def igraph_to_plotly(
                 )
 
                 # Add a point to the place at which the annotation can appear and disappear
+                p=sorted(edge["name"])[0]
+                q=sorted(edge["name"])[1]
+                hover_text = f'P: {p}\nQ: {q}'
                 text_trace = go.Scatter(
                     x=[text_position[0]],
                     y=[text_position[1]],
@@ -1403,7 +1406,8 @@ def igraph_to_plotly(
                                 color = 'white',
                                 line = dict(color = 'black', width = 1),
                                 symbol = 'circle'),
-                    hoverinfo='none',
+                    hoverinfo='text',
+                    text=hover_text,
                     showlegend=False,
                     name=f'{edge["name"]}',
                 )

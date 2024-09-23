@@ -220,6 +220,42 @@ display_contact_clusters = False
 save_contact_clusters    = True
 
 # ----------------------------------------------------------------------------
+# ------------- For Residue-Residue Contact (RRC) visualizations -------------
+# ----------------------------------------------------------------------------
+
+# Darker colors for domains
+DOMAIN_COLORS_RRC = [
+    '#8B0000',  # Dark Red
+    '#006400',  # Dark Green
+    '#00008B',  # Dark Blue
+    '#4B0082',  # Indigo
+    '#8B4513',  # Saddle Brown
+    '#2F4F4F',  # Dark Slate Gray
+    '#800080',  # Purple
+    '#3C1414',  # Dark Sienna
+    '#1C1C1C',  # Very Dark Gray
+    '#004D40',  # Dark Teal
+    '#3E2723',  # Dark Brown
+    '#1A237E',  # Dark Navy
+]
+
+# Lighter colors for surfaces
+SURFACE_COLORS_RRC = [
+    '#FF6347',  # Tomato
+    '#98FB98',  # Pale Green
+    '#87CEFA',  # Light Sky Blue
+    '#DDA0DD',  # Plum
+    '#F0E68C',  # Khaki
+    '#FFA07A',  # Light Salmon
+    '#F4A460',  # Sandy Brown
+    '#FFB6C1',  # Light Pink
+    '#E0FFFF',  # Light Cyan
+    '#7FFFD4',  # Aquamarine
+    '#D3D3D3',  # Light Gray
+    '#FAFAD2',  # Light Goldenrod Yellow
+]
+
+# ----------------------------------------------------------------------------
 #------------------------ To modify default settings -------------------------
 # ----------------------------------------------------------------------------
 

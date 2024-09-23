@@ -154,15 +154,9 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     # Answer y automatically
     automatic_true = True)
 
-
-# del(nw)
 # Create 3D network and generate visualization
 import multimer_mapper as mm
 nw = mm.Network(mm_output['combined_graph'], logger = logger)
-
-from src.contact_graph import Network
-nw = Network(mm_output['combined_graph'], logger = logger)
-
 nw.generate_layout()
 nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph.html')
 
@@ -281,6 +275,8 @@ combined_graph.es[2]['valency']['models']                       # <-------------
 # plt.imshow(contact_classification_example, cmap = 'tab10')
 
 
+# from src.contact_graph import Network
+# nw = Network(mm_output['combined_graph'], logger = logger)
 
 ###############################################################################
 
