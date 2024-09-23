@@ -424,6 +424,35 @@ def interactive_igraph_to_plotly(combined_graph,
             else:
                 logger.info("   Invalid input. Please enter 'y' or 'n'.")
 
+def interactive_igraph_to_py3dmol(combined_graph, logger, automatic_true = False):
+
+    # Create 3D network
+    nw = Network(combined_graph, logger = logger)
+
+    # Generate 3D network visualization
+    while True:
+
+        nw.generate_layout()
+        nw.generate_py3dmol_plot(save_path = out_path + '3D_graph.html', show_plot = True)
+
+        logger.info("Some 3D layout generation algorithms are stochastic:")
+        logger.info("   - Do you like the plot? (y/n): ")
+        user_input = input().strip().lower()
+
+        if automatic_true:
+            logger.info("   - Automatic True: Enjoy your interactive 3D plot!")
+            break
+
+        if user_input == "y":
+            logger.info(f"   - User response: {user_input} -> Great! Enjoy your interactive 3D plot!")
+            break
+        elif user_input == "n":
+            logger.info(f"   - User response: {user_input} -> OK. Here we go again!")
+        else:
+            logger.info(f"   - Unknown response: {user_input} -> Generating a new layout...")
+
+    return nw
+
 
 ###############################################################################
 # --------------------------------------------------------------------------- #
@@ -445,23 +474,23 @@ if __name__ == "__main__":
     parser.add_argument('fasta_file', type = str,
         help='Path to the input FASTA file')
     
-    parser.add_argument('AF2_2mers', type = str,
-        help='Path to the directory containing AF2 2mers PDB files')
+    parser.add_argument('--AF_2mers', type = str, default= None,
+        help='Path to the directory containing AF 2mers predictions')
     
-    parser.add_argument('--AF2_Nmers', type = str, default = None,
-        help='Path to the directory containing AF2 Nmers PDB files')
+    parser.add_argument('--AF_Nmers', type = str, default = None,
+        help='Path to the directory containing AF Nmers predictions')
     
     parser.add_argument('--N_value', type = int, default = 4,
-        help='Current value of N (Only 2-mers => N=2 | 2+3-mers => N=3 | 2+3+4-mers => N=4 | ...). This is to suggest combinations.')
+        help='Current N value (Only 2-mers => N=2 | 2+3-mers => N=3 | 2+3+4-mers => N=4 | ...). This is to suggest combinations.')
     
-    parser.add_argument('--out_path', type = str, default = None,
+    parser.add_argument('--out_path', type = str, default = "mm_output",
         help='Output directory to store results')
     
     parser.add_argument('--manual_domains', type = str, default = None,
         help='Path to tsv file with manually defined domains (look at tests/EAF6_EPL1_PHD1/manual_domains.tsv for an example)')
     
-    parser.add_argument('--use_names', action='store_true',
-        help='Use protein names instead of IDs')
+    parser.add_argument('--use_IDs', action='store_false',
+        help='Use protein IDs instead of names')
     
     parser.add_argument('--overwrite', action='store_true',
         help='If exists, overwrites the existent folder')
@@ -477,29 +506,55 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Depackage arguments
-    use_names       = args.use_names
+    use_names       = not args.use_IDs
     fasta_file      = args.fasta_file
-    AF2_2mers       = args.AF2_2mers
-    AF2_Nmers       = args.AF2_Nmers
+    AF_2mers        = args.AF_2mers
+    AF_Nmers        = args.AF_Nmers
     out_path        = args.out_path
     overwrite       = args.overwrite
     manual_domains  = args.manual_domains
     N_value         = args.N_value
+
+    # Verbosity level
     if args.reduce_verbosity:
         log_level = 'warn'
     else:
         log_level = 'info'
     
+    # Initialize __main__ level logger
+    logger = configure_logger(out_path = out_path, log_level = log_level)(__name__)
+    
+    # --------------------------------------------------------------------------
+    # ------------------------- 2-mers initialization --------------------------
+    # --------------------------------------------------------------------------
+    
+    if AF_2mers is None and AF_Nmers is None:
+
+        from utils.combinations import initialize_multimer_mapper
+
+        # Progress
+        logger.info("No AF predictions passed: Initializing MultimerMapper 2-mers combinations suggestions...")
+
+        # Generate suggestions
+        suggestions = initialize_multimer_mapper(fasta_file, out_path, use_names, logger)
+
+        # End MultimerMapper
+        logger.info(f"FINISHED: 2-mers combinations suggestions can be found in {out_path}/combinations_suggestions")
+        logger.info( "   1) Compute them using AF and store them on a single directory (uncompressed)")
+        logger.info( "   2) Run MultimerMapper using --AF_2mers flag using this directory path as value")
+        logger.info( "The result will be consider the first iteration (N=2). You must compute higher combinations to catch dynamic information.")
+        sys.exit()
+
     # --------------------------------------------------------------------------
     # --------------------------- Pipeline execution ---------------------------
     # --------------------------------------------------------------------------
 
     # Run the main MultimerMapper pipeline
-    mm_output = parse_AF2_and_sequences(fasta_file, AF2_2mers, AF2_Nmers, out_path,
-                                                     manual_domains = manual_domains,
-                                                     use_names = use_names,
-                                                     overwrite = overwrite,
-                                                     log_level = log_level)
+    mm_output = parse_AF2_and_sequences(fasta_file, AF_2mers, AF_Nmers, out_path,
+                                        manual_domains = manual_domains,
+                                        use_names = use_names,
+                                        overwrite = overwrite,
+                                        log_level = log_level)
 
     # Generate interactive 2D PPI graph
     combined_graph_interactive = interactive_igraph_to_plotly(mm_output["combined_graph"],
@@ -519,32 +574,8 @@ if __name__ == "__main__":
                                      log_level = log_level,
                                      max_N = N_value + 1)
     
-    # Progress
-    logger = configure_logger(out_path = out_path, log_level = log_level)(__name__)
-    
     # Create 3D network
-    nw = Network(mm_output['combined_graph'], logger = logger)
-
-    # Generate 3D network visualization
-    while True:
-
-        nw.generate_layout()
-        nw.generate_py3dmol_plot(save_path = out_path + '3D_graph.html', show_plot = True)
-
-        logger.info("Some 3D layout generation algorithms are stochastic:")
-        logger.info("   - Do you like the plot? (y/n): ")
-        user_input = input().strip().lower()
-
-        # if automatic_true:
-        #     logger.info("   - Automatic True: Enjoy your interactive 3D plot!")
-        #     break
-
-        if user_input == "y":
-            logger.info(f"   - User response: {user_input} -> Great! Enjoy your interactive 3D plot!")
-            break
-        elif user_input == "n":
-            logger.info(f"   - User response: {user_input} -> OK. Here we go again!")
-        else:
-            logger.info(f"   - Unknown response: {user_input} -> Generating a new layout...")
+    nw = interactive_igraph_to_py3dmol(mm_output['combined_graph'], logger = logger)
     
+    # Progress
     logger.info("MultimerMapper pipeline completed! Enjoy exploring your interactions!")

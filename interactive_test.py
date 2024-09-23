@@ -155,6 +155,7 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     automatic_true = True)
 
 
+# del(nw)
 # Create 3D network and generate visualization
 import multimer_mapper as mm
 nw = mm.Network(mm_output['combined_graph'], logger = logger)

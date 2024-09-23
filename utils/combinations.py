@@ -241,6 +241,59 @@ def get_expanded_3mer_suggestions(combined_graph, pairwise_Nmers_df):
 # ------------------- To generate files with suggestions ----------------------
 # -----------------------------------------------------------------------------
 
+# When no 2-mers and no N-mers are passed
+def initialize_multimer_mapper(fasta_file, out_path, use_names, logger):
+
+    from src.input_check import seq_input_from_fasta
+    
+    # Parse FASTA file
+    prot_IDs, prot_names, prot_seqs, prot_lens, prot_N = seq_input_from_fasta(fasta_file_path = fasta_file,
+                                                                              use_names = use_names,
+                                                                              logger = logger)
+    
+    # Generate 2mers combinations
+    suggested_combinations = find_all_possible_2mers_combinations(prot_IDs = prot_IDs)
+
+    # Save the suggestions
+    if out_path is not None:
+
+        combination_suggestions_path = os.path.join(out_path, "combinations_suggestions")
+        os.makedirs(combination_suggestions_path, exist_ok = True)
+
+        fasta_names_save_path       = os.path.join(combination_suggestions_path, "combinations_suggestions_names.fasta")
+        fasta_IDs_save_path         = os.path.join(combination_suggestions_path, "combinations_suggestions_IDs.fasta")
+        TSV_names_list_save_path    = os.path.join(combination_suggestions_path, "sug_names_list.txt")
+        TSV_IDs_list_save_path      = os.path.join(combination_suggestions_path, "sug_IDs_list.txt")
+        csv_save_path               = os.path.join(combination_suggestions_path, "combinations_suggestions.csv")
+
+        suggest_combinations_names          = [ [prot_names[prot_IDs.index(p)] for p in comb] for comb in suggested_combinations ]
+        suggest_combinations_seqs           = [ [prot_seqs[prot_IDs.index(p)] for p in comb] for comb in suggested_combinations ]
+        suggest_combinations_fasta_names    = [ '__vs__'.join(comb) for comb in suggest_combinations_names ]
+        suggest_combinations_fasta_IDs      = [ '__vs__'.join(comb) for comb in suggested_combinations ]
+        suggest_combinations_fasta_seqs     = [ ':'.join(comb) for comb in suggest_combinations_seqs ]
+        suggest_combinations_txt_names      = [ '\t'.join(comb) for comb in suggest_combinations_names ]
+        suggest_combinations_txt_IDs        = [ '\t'.join(comb) for comb in suggested_combinations ]
+
+        with open(fasta_names_save_path, 'w') as fasta_names, open(fasta_IDs_save_path, 'w') as fasta_IDs:
+            for names, IDs, seqs in zip(suggest_combinations_fasta_names, suggest_combinations_fasta_IDs, suggest_combinations_fasta_seqs):
+                fasta_names.write(f'>{names}\n')
+                fasta_names.write(f'{seqs}\n')
+                fasta_IDs.write(f'>{IDs}\n')
+                fasta_IDs.write(f'{seqs}\n')
+        
+        with open(TSV_names_list_save_path, 'w') as tsv_names, open(TSV_IDs_list_save_path, 'w') as tsv_IDs:
+            for names, IDs in zip(suggest_combinations_txt_names, suggest_combinations_txt_IDs):
+                tsv_names.write(f'#{names}\n')
+                tsv_names.write(f'{IDs}\n')
+                tsv_IDs.write(f'#{IDs}\n')
+                tsv_IDs.write(f'{names}\n')
+
+        with open(csv_save_path, 'w') as csv_file:
+            csv_file.write(str(suggested_combinations))
+
+    return suggested_combinations
+    
+# When at least 2-mers or N-mers where passed
 def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, max_N: int = 4, log_level: str = "info"):
 
     logger = configure_logger(out_path = mm_output['out_path'], log_level = log_level)(__name__)
