@@ -52,7 +52,7 @@ def generate_json_subunits(sliced_PAE_and_pLDDTs, combination):
     json_dict = {}
     
     # Define all possible letters/numbers/symbols for chain IDs that can be used
-    chain_letters = (ascii_uppercase + digits + '!#$%&()+,-.;=@[]^_{}~`')
+    chain_letters = (ascii_uppercase + "αβγδεζηθικλμνξοπρστυφχψω" + digits + '!#$%&()+,-.;=@[]^_{}~`')
     # Tested: $!#,
     
     # Counter to select the chain letter
