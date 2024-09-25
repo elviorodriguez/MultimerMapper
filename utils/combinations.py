@@ -263,9 +263,9 @@ By focusing on the multivalent pairs and ensuring that the suggested combination
 the potentially useful stoichiometric space while avoiding combinations where the symmetry is broken. However, in contrast to what happened with
 homooligomeric interaction suggestions, given that the actin case was producing not broken symmetries in models of high N-mer combination values
 (3P2Q, in particular, where P is actin and Q is cofilin), we do not added the orange label marks of unexplored stoichiometries as in homooligomers.
-So, users must be aware that this situation can occur.
+So, users must be aware that this situation can occur. For cases that this situation does not happens and convergence is reachable, the highest
+N-mer of the combinations might represent the true stoichiometry.
 '''
-
 
 def generate_multivalent_combinations(graph, max_stoichiometry):
     """
@@ -462,7 +462,7 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
     list_of_expanded_3mer_suggestions: list[tuple[str]] = list(get_expanded_3mer_suggestions(combined_graph, pairwise_Nmers_df))
 
     # Get suggestions for multivalent pairs
-    list_of_multivalent_suggestions: list[tuple[str]] = generate_multivalent_combinations(combined_graph, max_stoichiometry=16)
+    list_of_multivalent_suggestions: list[tuple[str]] = generate_multivalent_combinations(combined_graph, max_stoichiometry=14)
 
     # Combine all suggested combinations and remove duplicates (if any)
     suggested_combinations: list[tuple[str]] = list_of_untested_2mers + list_of_homo_oligomeric_Nstates_plus_one + list_of_homo_oligomeric_Nstates_inconsistent + list_of_untested_Nmers + list_of_expanded_3mer_suggestions + list_of_multivalent_suggestions

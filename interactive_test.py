@@ -63,16 +63,16 @@ pd.set_option( 'display.max_columns' , None )
 
 # ################################ Test 5 (SIN3) ################################
 
-# fasta_file = "/home/elvio/Desktop/Assemblies/SIN3/SIN3_proteins.fasta"
-# AF2_2mers = "/home/elvio/Desktop/Assemblies/SIN3/2-mers"
-# AF2_Nmers = "/home/elvio/Desktop/Assemblies/SIN3/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/Assemblies/SIN3/MM_output"
-# use_names = True 
-# overwrite = True
-# auto_domain_detection = False
-# graph_resolution_preset = "/home/elvio/Desktop/Assemblies/SIN3/MM_output/domains/graph_resolution_preset.json"
-# # graph_resolution_preset = None
+fasta_file = "/home/elvio/Desktop/Assemblies/SIN3/SIN3_proteins.fasta"
+AF2_2mers = "/home/elvio/Desktop/Assemblies/SIN3/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/Assemblies/SIN3/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/Assemblies/SIN3/MM_output"
+use_names = True 
+overwrite = True
+auto_domain_detection = False
+# graph_resolution_preset = "/home/elvio/Desktop/Assemblies/SIN3/graph_resolution_preset.json"
+graph_resolution_preset = None
 
 # ###############################################################################
 
@@ -93,16 +93,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ################### Test 6' (multivalency detection actin) ####################
 
-fasta_file = "/home/elvio/Desktop/heteromultimers_benchmark/actin/proteins_mm.fasta"
-AF2_2mers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_2mers"
-AF2_Nmers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_Nmers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/heteromultimers_benchmark/actin/MM_out_Nmers"
-use_names = False
-overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-auto_domain_detection = True
-graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/heteromultimers_benchmark/actin/proteins_mm.fasta"
+# AF2_2mers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_2mers"
+# AF2_Nmers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_Nmers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/heteromultimers_benchmark/actin/MM_out_Nmers"
+# use_names = False
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
@@ -228,15 +228,17 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
 ###############################################################################
 
 # Contact Cluster graphing
-from src.analyze_multivalency import  cluster_all_pairs
+from src.analyze_multivalency import cluster_all_pairs
 pairwise_contacts = mm_output['pairwise_contact_matrices']
 results = cluster_all_pairs(
     mm_contacts                             = pairwise_contacts,
     mm_output                               = mm_output,
+    contacts_clustering_method              = "mc_threshold",
     contact_fraction_threshold              = 0.1,
+    mc_threshold                            = 10.0,
+    use_median                              = True,
     refinement_contact_similarity_threshold = 0.5,
     refinement_cf_threshold                 = 0.5)
-
 
 ###############################################################################
 ################## TESTS: For residue-residue contacts graph ##################

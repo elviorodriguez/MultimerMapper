@@ -88,6 +88,8 @@ def parse_AF2_and_sequences(
     multivalency_contact_similarity_threshold = multivalency_contact_similarity_threshold,
     max_contact_clusters                      = max_contact_clusters,    
     contact_fraction_threshold                = contact_fraction_threshold,
+    mc_threshold                              = mc_threshold,
+    use_median                                = use_median,
     refinement_contact_similarity_threshold   = refinement_contact_similarity_threshold,
     refinement_cf_threshold                   = refinement_cf_threshold,
 
@@ -256,6 +258,8 @@ def parse_AF2_and_sequences(
                                           silhouette_threshold                      = multivalency_silhouette_threshold,
                                           contact_similarity_threshold              = multivalency_contact_similarity_threshold,
                                           contact_fraction_threshold                = contact_fraction_threshold,
+                                          mc_threshold                              = mc_threshold,
+                                          use_median                                = use_median,
                                           refinement_contact_similarity_threshold   = refinement_contact_similarity_threshold,
                                           refinement_cf_threshold                   = refinement_cf_threshold,
                                           show_plot = display_contact_clusters,

@@ -192,10 +192,14 @@ contact_pLDDT_cutoff   : float | int = 50
 # -------------------------- For contact detection ---------------------------
 # ----------------------------------------------------------------------------
 
+# Contact Clustering Matrix Method -------------------------------------------
 # default is "contact_fraction_comparison" (MCFT), the rest are experimental
 contacts_clustering_method = ["contact_similarity_matrix",
-                              "agglomerative_clustering",
-                              "contact_fraction_comparison"][2]
+                             "agglomerative_clustering",
+                             "contact_fraction_comparison",
+                             "mc_threshold"][3]
+mc_threshold = 10
+use_median = True
 
 # For Agglomerative Hierarchical Clustering + Silhouette (experimental) ------
 # Silhouette threshold to surpass in order to consider multivalent interaction

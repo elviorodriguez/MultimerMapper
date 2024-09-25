@@ -282,6 +282,46 @@ def compute_similarity_matrix(bool_contacts_matrices_per_subcluster):
     return similarity_matrix
 
 
+# ----------------------------- For Mean/Median Closeness Method -----------------------------
+
+from scipy.spatial.distance import cdist
+
+def calculate_mean_closeness(matrix1, matrix2, use_median = True):
+    """
+    Calculate the Mean/Median Closeness (MC) between two boolean contact matrices.
+    
+    Parameters:
+    - matrix1, matrix2: Boolean numpy arrays representing contact matrices
+    - use_median: If True, will use median instead of mean
+    
+    Returns:
+    - mean_closeness: Float representing the Mean Closeness
+    """
+    # Get coordinates of contacts in each matrix
+    contacts1 = np.array(np.where(matrix1)).T
+    contacts2 = np.array(np.where(matrix2)).T
+    
+    if len(contacts1) == 0 or len(contacts2) == 0:
+        return np.inf  # Return infinity if either matrix has no contacts
+    
+    # Ensure contacts1 is the smaller matrix
+    if len(contacts1) > len(contacts2):
+        contacts1, contacts2 = contacts2, contacts1
+    
+    # Calculate Manhattan distances between all pairs of contacts
+    distances = cdist(contacts1, contacts2, metric='cityblock')
+    
+    # Find the minimum distance for each contact in the smaller matrix
+    min_distances = np.min(distances, axis=1)
+    
+    # Calculate the mean/median of these minimum distances
+    if use_median:
+        mean_closeness = np.median(min_distances)
+    else:
+        mean_closeness = np.mean(min_distances)
+    
+    return mean_closeness
+
 
 ###############################################################################################
 ################################# Contact Clustering Function #################################
@@ -291,25 +331,38 @@ def compute_similarity_matrix(bool_contacts_matrices_per_subcluster):
 def cluster_models(all_pair_matrices, pair, max_clusters=5,
                    method = ["contact_similarity_matrix",
                              "agglomerative_clustering",
-                             "contact_fraction_comparison"][2],
+                             "contact_fraction_comparison",
+                             "mc_threshold"][3],
                    silhouette_threshold=0.25,
                    contact_similarity_threshold = 0.5,
                    contact_fraction_threshold = 0.1,
+                   mc_threshold = 2.0,
+                   use_median = True,
                    refinement_contact_similarity_threshold = 0.5,
                    refinement_cf_threshold = 0.1,
                    logger: Logger | None = None):
     """
-    Clusters models based on their feature vectors using Agglomerative Clustering.
+    Clusters models based on their feature vectors using various methods.
     
     Parameters:
     - all_pair_matrices (dict): Dictionary containing the pair matrices.
     - pair (tuple): A tuple representing the protein pair to be clustered.
     - max_clusters (int, optional): The maximum number of clusters to evaluate. Default is 5.
-    - silhouette_threshold (float, optional): The threshold for the Silhouette Score below which the data is considered a single cluster. Default is 0.2.
+    - method (str): The clustering method to use. Options are "contact_similarity_matrix",
+                    "agglomerative_clustering", "contact_fraction_comparison", and "mc_threshold".
+    - silhouette_threshold (float, optional): The threshold for the Silhouette Score below which the data is considered a single cluster. Default is 0.25.
+    - contact_similarity_threshold (float): Threshold for contact similarity.
+    - contact_fraction_threshold (float): Threshold for contact fraction.
+    - mc_threshold (float): Threshold for mean/median closeness.
+    - refinement_contact_similarity_threshold (float): Threshold for contact similarity during refinement.
+    - refinement_cf_threshold (float): Threshold for contact fraction during refinement.
+    - logger (Logger, optional): Logger object for logging messages.
     
     Returns:
     - list: A list of model keys corresponding to the clustered models.
     - np.ndarray: An array of cluster labels for each model.
+    - np.ndarray: Reduced feature vectors.
+    - np.ndarray: Explained variance of PCA components.
     """
     
     if logger is None:
@@ -624,6 +677,91 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
         
         best_n_clusters = len(set(best_labels))
         logger.info(f"   Final number of clusters after contact fraction comparison: {best_n_clusters}")
+        logger.debug(f"   BEST LABELS: {best_labels}")
+
+        # No silhouette score for this method
+        best_silhouette = None
+
+        # Conduct refinement? -----------------------------------------------------------------------
+        refine_clusters = True
+        if refine_clusters:
+            logger.info("   Testing clusters for refinement...")
+            clusters_to_refine = identify_clusters_for_refinement(all_pair_matrices, pair, valid_models_keys, best_labels, max_freq_threshold=0.75, logger=logger)
+            
+            if clusters_to_refine:
+                logger.info(f'   Clusters {clusters_to_refine} need refinement...')
+                refined_labels = refine_clusters_two_step(all_pair_matrices, pair, valid_models_keys, best_labels, 
+                                                          clusters_to_refine, contact_similarity_threshold = refinement_contact_similarity_threshold, 
+                                                          refinement_cf_threshold = refinement_cf_threshold, logger = logger)
+                
+                best_labels = refined_labels
+                best_n_clusters = len(set(best_labels))
+                logger.info(f"   Final number of clusters after refinement: {best_n_clusters}")
+                logger.debug(f"   REFINED LABELS: {best_labels}")
+            else:
+                logger.info("   No cluster identified for refinement")
+
+    # -------------------------------------------------------------------------------------------------
+    # -------------------- Method: Merging by Mean Closeness Threshold (MMCT) -------------------------
+    # -------------------------------------------------------------------------------------------------
+
+    elif method == "mc_threshold":
+        
+        # For progress
+        if use_median:
+            MC_metric = "Median"
+        else:
+            MC_metric = "Mean"
+
+        # Start by considering each valid model as a separate cluster
+        best_labels = list(range(len(valid_models)))
+        
+        # Compute the boolean contact matrices for each model once
+        bool_contacts_matrices = [all_pair_matrices[pair][model]['is_contact'] > 0 for model in valid_models_keys]
+        
+        while True:
+            # Get unique labels and their counts
+            label_counts = Counter(best_labels)
+            
+            if len(label_counts) == 1:
+                break  # Only one cluster left, we're done
+            
+            # Sort clusters by size (number of contacts in the cluster)
+            sorted_clusters = sorted(label_counts.items(), key=lambda x: np.sum(np.mean([bool_contacts_matrices[i] for i, label in enumerate(best_labels) if label == x[0]], axis=0) > 0))
+            
+            merged = False
+            for small_label, _ in sorted_clusters[:-1]:  # Exclude the largest cluster
+                small_matrix = np.mean([bool_contacts_matrices[i] for i, label in enumerate(best_labels) if label == small_label], axis=0) > 0
+                
+                for big_label, _ in reversed(sorted_clusters):
+                    if big_label == small_label:
+                        continue
+                    
+                    big_matrix = np.mean([bool_contacts_matrices[i] for i, label in enumerate(best_labels) if label == big_label], axis=0) > 0
+                    
+                    # Calculate Mean Closeness
+                    mc = calculate_mean_closeness(small_matrix, big_matrix, use_median = use_median)
+                    
+                    if mc <= mc_threshold:
+                        # Merge the clusters
+                        best_labels = [big_label if label == small_label else label for label in best_labels]
+                        logger.info(f"   Merging cluster {small_label} into {big_label} ({MC_metric} Closeness: {mc:.2f})")
+                        merged = True
+                        break
+                
+                if merged:
+                    break
+            
+            if not merged:
+                break
+
+        # Reassign labels to be consecutive integers starting from 0
+        unique_labels = sorted(set(best_labels))
+        label_mapping = {old: new for new, old in enumerate(unique_labels)}
+        best_labels = [label_mapping[label] for label in best_labels]
+        
+        best_n_clusters = len(set(best_labels))
+        logger.info(f"   Final number of clusters after {MC_metric} Closeness Threshold Comparisons: {best_n_clusters}")
         logger.debug(f"   BEST LABELS: {best_labels}")
 
         # No silhouette score for this method
@@ -1207,6 +1345,8 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
                           silhouette_threshold                      = 0.25,
                           contact_similarity_threshold              = 0.7,
                           contact_fraction_threshold                = 0.1,
+                          mc_threshold                              = 2.0,
+                          use_median                                = True,
                           refinement_contact_similarity_threshold   = 0.5,
                           refinement_cf_threshold                   = 0.1,
                           show_plot = False, save_plot = True, 
@@ -1233,6 +1373,8 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
         silhouette_threshold                    = silhouette_threshold,
         contact_similarity_threshold            = contact_similarity_threshold,
         contact_fraction_threshold              = contact_fraction_threshold,
+        mc_threshold                            = mc_threshold,
+        use_median                              = use_median,
         refinement_contact_similarity_threshold = refinement_contact_similarity_threshold,
         refinement_cf_threshold                 = refinement_cf_threshold,
         logger               = logger)
@@ -1306,11 +1448,13 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
 
 def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5,
                       contacts_clustering_method = "contact_fraction_comparison",
-                      silhouette_threshold=0.25,
-                      contact_similarity_threshold = 0.7,
-                      contact_fraction_threshold = 0.1,
-                      refinement_contact_similarity_threshold = 0.5,
-                      refinement_cf_threshold = 0.1,
+                      silhouette_threshold                      = 0.25,
+                      contact_similarity_threshold              = 0.7,
+                      contact_fraction_threshold                = 0.1,
+                      mc_threshold                              = 2.0,
+                      use_median                                = True,
+                      refinement_contact_similarity_threshold   = 0.5,
+                      refinement_cf_threshold                   = 0.1,
                       show_plot = False, save_plot = True, log_level = 'info'):
     """
     Clusters and visualizes all protein pairs in the given dictionary.
@@ -1340,6 +1484,8 @@ def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5,
                                              silhouette_threshold         = silhouette_threshold,
                                              contact_similarity_threshold = contact_similarity_threshold,
                                              contact_fraction_threshold   = contact_fraction_threshold,
+                                             mc_threshold                 = mc_threshold,
+                                             use_median                   = use_median,
                                              refinement_contact_similarity_threshold = refinement_contact_similarity_threshold,
                                              refinement_cf_threshold = refinement_cf_threshold,
                                              show_plot = show_plot,
