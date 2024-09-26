@@ -151,6 +151,16 @@ def generate_unique_colors(n, palette):
     
     return colors
 
+def get_centroid(protein, residue_index, centroid_cache):
+    if (protein.get_ID(), residue_index) not in centroid_cache:
+        centroid_cache[(protein.get_ID(), residue_index)] = protein.get_res_centroids_xyz([residue_index])[0]
+    return centroid_cache[(protein.get_ID(), residue_index)]
+
+def get_ca(protein, residue_index, ca_cache):
+    if (protein.get_ID(), residue_index) not in ca_cache:
+        ca_cache[(protein.get_ID(), residue_index)] = protein.get_res_CA_xyz(res_list=[residue_index])[0]
+    return ca_cache[(protein.get_ID(), residue_index)]
+
 
 ###############################################################################################################
 ################################### Helper functions for optimized layout #####################################
@@ -163,108 +173,150 @@ def get_protein_radius(protein):
     distances = np.linalg.norm(residue_positions - cm, axis=1)
     return np.max(distances) + 5  # Add 5 Angstroms as buffer
 
-def initialize_positions(proteins, ppis):
-    """Initialize protein positions based on their interactions."""
+
+def safe_normalize(v):
+    norm = np.linalg.norm(v)
+    if norm == 0:
+        return np.zeros_like(v)
+    return v / norm
+
+def get_connected_components(proteins, ppis, logger):
+    adj_list = {p.get_ID(): set() for p in proteins}
+    for ppi in ppis:
+        p1, p2 = ppi.get_tuple_pair()
+        adj_list[p1].add(p2)
+        adj_list[p2].add(p1)
+    
+    visited = set()
+    components = []
+    for protein in proteins:
+        if protein.get_ID() not in visited:
+            component = set()
+            stack = [protein.get_ID()]
+            while stack:
+                node = stack.pop()
+                if node not in visited:
+                    visited.add(node)
+                    component.add(node)
+                    stack.extend(adj_list[node] - visited)
+            components.append(component)
+    
+    logger.info(f"Found {len(components)} connected components")
+    return components
+
+def initialize_positions(proteins, ppis, components):
     n = len(proteins)
-    positions = np.random.rand(n, 3) * 1000  # Random initial positions
+    positions = np.random.rand(n, 3) * 1000
     radii = np.array([get_protein_radius(protein) for protein in proteins])
     
-    # Adjust positions based on interactions
+    for component in components:
+        component_indices = [proteins.index(p) for p in proteins if p.get_ID() in component]
+        component_center = np.mean(positions[component_indices], axis=0)
+        for idx in component_indices:
+            positions[idx] = component_center + np.random.rand(3) * 100
+    
     for ppi in ppis:
         p1 = proteins.index(ppi.get_protein_1())
         p2 = proteins.index(ppi.get_protein_2())
         
-        # Move interacting proteins closer, but not too close
         direction = positions[p2] - positions[p1]
         distance = np.linalg.norm(direction)
-        min_distance = radii[p1] + radii[p2]
-        if distance < min_distance:
-            midpoint = (positions[p1] + positions[p2]) / 2
-            positions[p1] = midpoint - direction / distance * radii[p1]
-            positions[p2] = midpoint + direction / distance * radii[p2]
+        if distance > 0:
+            min_distance = radii[p1] + radii[p2]
+            if distance < min_distance:
+                midpoint = (positions[p1] + positions[p2]) / 2
+                positions[p1] = midpoint - safe_normalize(direction) * radii[p1]
+                positions[p2] = midpoint + safe_normalize(direction) * radii[p2]
     
     return positions, radii
 
-def compute_forces(positions, radii, proteins, ppis):
-    """Compute forces between proteins based on their interactions and surfaces."""
+def compute_forces(positions, radii, proteins, ppis, components):
     n = len(proteins)
     forces = np.zeros((n, 3))
     
-    # Repulsive force between all proteins
     distances = squareform(pdist(positions))
-    for i in range(n):
-        for j in range(i+1, n):
-            if distances[i,j] > 0:
-                min_distance = radii[i] + radii[j]
-                if distances[i,j] < min_distance:
-                    force = 1000 * (min_distance - distances[i,j]) / min_distance
-                    direction = (positions[i] - positions[j]) / distances[i,j]
-                    forces[i] += force * direction
-                    forces[j] -= force * direction
+    for component in components:
+        component_indices = [proteins.index(p) for p in proteins if p.get_ID() in component]
+        for i in component_indices:
+            for j in component_indices[component_indices.index(i)+1:]:
+                if distances[i,j] > 0:
+                    min_distance = radii[i] + radii[j]
+                    if distances[i,j] < min_distance:
+                        force = 1000 * (min_distance - distances[i,j]) / min_distance
+                        direction = safe_normalize(positions[i] - positions[j])
+                        forces[i] += force * direction
+                        forces[j] -= force * direction
     
-    # Attractive force between interacting proteins
     for ppi in ppis:
         p1 = proteins.index(ppi.get_protein_1())
         p2 = proteins.index(ppi.get_protein_2())
         
-        # Compute centroids of interaction surfaces
-        surface1 = np.mean(ppi.get_protein_1().get_res_centroids_xyz(ppi.get_contacts_res_1()), axis=0)
-        surface2 = np.mean(ppi.get_protein_2().get_res_centroids_xyz(ppi.get_contacts_res_2()), axis=0)
-        
-        # Attractive force based on distance between interaction surfaces
         distance = distances[p1, p2]
-        min_distance = radii[p1] + radii[p2]
-        if distance > min_distance:
-            force = 0.1 * (distance - min_distance)
-            direction = (positions[p2] - positions[p1]) / distance
-            forces[p1] += force * direction
-            forces[p2] -= force * direction
+        if distance > 0:
+            min_distance = radii[p1] + radii[p2]
+            if distance > min_distance:
+                force = 0.1 * (distance - min_distance)
+                direction = safe_normalize(positions[p2] - positions[p1])
+                forces[p1] += force * direction
+                forces[p2] -= force * direction
+    
+    for component in components:
+        component_indices = [proteins.index(p) for p in proteins if p.get_ID() in component]
+        component_center = np.mean(positions[component_indices], axis=0)
+        for idx in component_indices:
+            direction = component_center - positions[idx]
+            distance = np.linalg.norm(direction)
+            if distance > 0:
+                force = 0.01 * distance
+                forces[idx] += force * safe_normalize(direction)
     
     return forces
 
-def apply_layout(proteins, ppis, network, iterations=200):
-    """Apply force-directed layout algorithm."""
-    positions, radii = initialize_positions(proteins, ppis)
+def apply_layout(proteins, ppis, network, iterations=200, logger = None):
+    components = get_connected_components(proteins, ppis, logger)
+    positions, radii = initialize_positions(proteins, ppis, components)
     network.logger.info(f'   - Nº of iterations to perform: {iterations}')
+    network.logger.info(f'   - Number of connected components: {len(components)}')
     
     for i in range(iterations):
         if i % 10 == 0:
             network.logger.info(f'   - Iteration {i}...')
-            for prot in proteins:
-                prot.rotate2all(network.get_ppis())
         
-        forces = compute_forces(positions, radii, proteins, ppis)
+        forces = compute_forces(positions, radii, proteins, ppis, components)
         
-        # Dampen the forces over time
         damping_factor = 1 - (i / iterations)
-        positions += forces * 0.1 * damping_factor  # Adjust step size as needed
+        positions += forces * 0.1 * damping_factor
         
-        # Ensure proteins don't drift too far apart
-        center = np.mean(positions, axis=0)
-        for j, pos in enumerate(positions):
-            direction = pos - center
-            distance = np.linalg.norm(direction)
-            max_distance = 1000  # Adjust as needed
-            if distance > max_distance:
-                positions[j] = center + direction / distance * max_distance
+        for component in components:
+            component_indices = [proteins.index(p) for p in proteins if p.get_ID() in component]
+            component_center = np.mean(positions[component_indices], axis=0)
+            for idx in component_indices:
+                direction = positions[idx] - component_center
+                distance = np.linalg.norm(direction)
+                max_distance = 500
+                if distance > max_distance:
+                    positions[idx] = component_center + safe_normalize(direction) * max_distance
     
     return positions
 
 def optimize_layout(network):
-    """Optimize the layout of proteins in the network."""
     proteins = network.get_proteins()
     ppis = network.get_ppis()
     
-    # Apply force-directed layout
-    optimized_positions = apply_layout(proteins, ppis, network)
+    optimized_positions = apply_layout(proteins, ppis, network, logger = network.logger)
     
-    # Update protein positions
     for i, protein in enumerate(proteins):
         protein.translate(optimized_positions[i] - protein.get_CM())
     
-    # Final rotation of proteins to face their interaction partners
     for protein in proteins:
-        protein.rotate2all(ppis)
+        try:
+            protein.rotate2all(ppis)
+        except Exception as e:
+            network.logger.error(f"Error rotating protein {protein.get_ID()}: {str(e)}")
+
+    
+
+
 
 
 # ----------------------------------------------------------------------------------------------------------- #
@@ -626,6 +678,9 @@ class Protein(object):
             return[self.res_names[res] for res in res_list]
         return self.res_names
     
+    def get_surface(self):
+        return self.surface
+    
     # -------------------------------------------------------------------------------------
     # --------------------------------------- Movers --------------------------------------
     # -------------------------------------------------------------------------------------
@@ -669,64 +724,48 @@ class Protein(object):
             atom.set_coord(rotated_PDB_atoms[A])
 
 
+    # Update the Protein class method
     def rotate2all(self, network_ppis: list):
-        """
-        Rotates the protein to align with the center of mass of its interaction partners.
-
-        Parameters:
-            network_ppis (list): List of PPIs involving the protein.
-        """
-
-        # Get protein surface residues and partners CMs
         subset_indices = []
-        partners_CMs   = []
-        for P, ppi in enumerate(network_ppis):
-
-            # Verify in the PPI involves the protein and is not an homooligomeric PPI
+        partners_CMs = []
+        
+        for ppi in network_ppis:
             if self.get_ID() not in ppi.get_tuple_pair() or ppi.is_homooligomeric():
                 continue
             
-            # Get the correct protein partner and contact residues indexes
             if self.get_ID() == ppi.get_prot_ID_1():
-                surf_idxs   : list[int] = ppi.get_contacts_res_1()
-                partner     : Protein   = ppi.get_protein_2()
+                surf_idxs = ppi.get_contacts_res_1()
+                partner = ppi.get_protein_2()
             elif self.get_ID() == ppi.get_prot_ID_2():
-                surf_idxs   : list[int] = ppi.get_contacts_res_2()
-                partner     : Protein   = ppi.get_protein_1()
+                surf_idxs = ppi.get_contacts_res_2()
+                partner = ppi.get_protein_1()
             else:
-                raise ValueError(f'FATAL ERROR: PPI {ppi.get_tuple_pair()} does not contain the expected protein ID {self.get_ID()}...')
+                self.logger.error(f'FATAL ERROR: PPI {ppi.get_tuple_pair()} does not contain the expected protein ID {self.get_ID()}...')
+                continue
 
-            partners_CMs.append(partner.get_CM())
+            partner_CM = partner.get_CM()
+            if not np.isnan(partner_CM).any() and not np.isinf(partner_CM).any():
+                partners_CMs.append(partner_CM)
 
-            for residue_index in surf_idxs:
-                if residue_index not in subset_indices:
-                    subset_indices.append(residue_index)
-
-        if not partners_CMs:
-            self.logger.error(f"   - No valid partner centroids found for protein: {self.get_ID()}")
-            self.logger.error(f"      - partners_CMs: {partners_CMs}")
-            return  # Early return if no valid partners are found
+            subset_indices.extend(surf_idxs)
         
-        # Compute partners' centroid
-        if len(partners_CMs) == 1:
-            partners_centroid = partners_CMs[0]
-        else:
-            partners_centroid = center_of_mass(partners_CMs)
-
-        # Ensure the partners centroid is valid (not zero or NaN)
-        if np.isnan(partners_centroid).any() or np.isinf(partners_centroid).any():
-            self.logger.error(f"   - Invalid partners' centroid (NaN/Inf) for protein: {self.get_ID()}")
-            self.logger.error(f"      - partners_CMs: {partners_CMs}")
+        if not partners_CMs:
+            self.logger.warning(f"No valid partner centroids found for protein: {self.get_ID()}")
             return
         
-        # Get rotation matrix
-        _, rotation_matrix, _ =\
-            rotate_points(points            = self.get_res_centroids_xyz(),
-                          reference_point   = self.get_CM(),
-                          subset_indices    = subset_indices,
-                          target_point      = partners_centroid)
+        partners_centroid = np.mean(partners_CMs, axis=0)
         
-        # Apply rotation to the PDB
+        if np.isnan(partners_centroid).any() or np.isinf(partners_centroid).any():
+            self.logger.error(f"Invalid partners' centroid for protein: {self.get_ID()}")
+            return
+        
+        _, rotation_matrix, _ = rotate_points(
+            points=self.get_res_centroids_xyz(),
+            reference_point=self.get_CM(),
+            subset_indices=list(set(subset_indices)),
+            target_point=partners_centroid
+        )
+        
         self.rotate(self.get_CM(), rotation_matrix)
 
     # -------------------------------------------------------------------------------------
@@ -1041,10 +1080,7 @@ class Network(object):
         # Progress
         self.logger.info("INITIALIZING: Generating py3Dmol visualization...")
         
-        # Set a different color palette for each protein
-        # protein_colors = cycle(surface_residue_palette.values())
-        # protein_colors = cycle([DOMAIN_COLORS, DOMAIN_COLORS])
-        # protein_color_map = {protein.get_unique_ID(): next(protein_colors) for protein in self.proteins}
+        # Set a different color palette for each protein domain
         protein_color_map = {protein.get_unique_ID(): DOMAIN_COLORS_RRC for protein in self.proteins}
 
         # Create a view object
@@ -1061,6 +1097,8 @@ class Network(object):
             if ppi_id not in ppi_colors:
                 ppi_colors[ppi_id] = SURFACE_COLORS_RRC[color_index % len(SURFACE_COLORS_RRC)]
                 color_index += 1
+
+        ########################### Protein Backbones ###########################
 
         # Add each protein to the viewer
         for idx, protein in enumerate(self.proteins):
@@ -1090,44 +1128,61 @@ class Network(object):
                     {'cartoon': {'color': domain_colors[domain]}}
                 )
 
+        ########################### Surface Residues ###########################
+
+        # Memoization for centroids and CA positions
+        centroid_cache = {}
+        ca_cache = {}
+
+        # Set to keep track of added residues
+        added_residues = set()
+
+        # Add contact residue centroids for different Surface object in the protein
+        for protein in self.proteins:
+
             # Progress
             self.logger.info(f'      - Adding {protein.get_ID()} surface centroids')
 
-            # Add contact residue centroids for different Surface object in the protein
-            for protein in self.proteins:
-                residue_groups = protein.surface.get_residues_by_group()
-                
-                for group, residues in residue_groups.items():
-                    for residue in residues:
-                        if group == "A":
-                            # Extract the tuple pair and cluster number from the surface_id
-                            tuple_pair, cluster_n = residue.surface_id
-                            # Use the color assigned to this PPI
-                            color = ppi_colors[(tuple_pair, cluster_n)]
-                        elif group == "B":
-                            color = "gray"
-                        elif group == "C":
-                            color = "black"
-                        else:  # Non-interacting
-                            continue
+            # Extract protein surface residues, classified by group (A, B or C)
+            residue_groups = protein.surface.get_residues_by_group()
+            
+            for group, residues in residue_groups.items():
+                for residue in residues:
+                    if residue.index in added_residues:
+                        continue
 
-                        centroid = protein.get_res_centroids_xyz([residue.index])[0]
-                        CA = protein.get_res_CA_xyz(res_list=[residue.get_index()])[0]
+                    if group == "A":
+                        tuple_pair, cluster_n = residue.surface_id
+                        color = ppi_colors[(tuple_pair, cluster_n)]
+                    elif group == "B":
+                        color = "gray"
+                    elif group == "C":
+                        color = "black"
+                    else:  # Non-interacting
+                        continue
+                    
+                    # Get centroid CM and CA CM using dynamic programming
+                    centroid = get_centroid(protein, residue.index, centroid_cache)
+                    CA = get_ca(protein, residue.get_index(), ca_cache)
 
-                        # Add the residue centroid as a Sphere
-                        view.addSphere({
-                            'center': {'x': float(centroid[0]), 'y': float(centroid[1]), 'z': float(centroid[2])},
-                            'radius': 1.0,
-                            'color': color
-                        })
+                    # Add the residue centroid as a Sphere
+                    view.addSphere({
+                        'center': {'x': float(centroid[0]), 'y': float(centroid[1]), 'z': float(centroid[2])},
+                        'radius': 1.0,
+                        'color': color
+                    })
 
-                        # Add a line connecting the sphere to the backbone
-                        view.addCylinder({
-                            'start': {'x': float(centroid[0]), 'y': float(centroid[1]), 'z': float(centroid[2])},
-                            'end': {'x': float(CA[0]), 'y': float(CA[1]), 'z': float(CA[2])},
-                            'radius': 0.1,
-                            'color': color
-                        })
+                    # Add a line connecting the sphere to the backbone CA atom
+                    view.addCylinder({
+                        'start': {'x': float(centroid[0]), 'y': float(centroid[1]), 'z': float(centroid[2])},
+                        'end': {'x': float(CA[0]), 'y': float(CA[1]), 'z': float(CA[2])},
+                        'radius': 0.1,
+                        'color': color
+                    })
+
+                    added_residues.add(residue.index)
+
+        ############################ Contact Lines ############################
 
         self.logger.info('   Adding contact lines...')
 
@@ -1159,6 +1214,8 @@ class Network(object):
                     'color': cylinder_color,
                     'opacity': 0.9
                 })
+        
+        ############################# Some Labels #############################
 
         # Add N and C terminal labels, and protein IDs
         for protein in self.proteins:

@@ -63,16 +63,16 @@ pd.set_option( 'display.max_columns' , None )
 
 # ################################ Test 5 (SIN3) ################################
 
-fasta_file = "/home/elvio/Desktop/Assemblies/SIN3/SIN3_proteins.fasta"
-AF2_2mers = "/home/elvio/Desktop/Assemblies/SIN3/2-mers"
-AF2_Nmers = "/home/elvio/Desktop/Assemblies/SIN3/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/Assemblies/SIN3/MM_output"
-use_names = True 
-overwrite = True
-auto_domain_detection = False
-# graph_resolution_preset = "/home/elvio/Desktop/Assemblies/SIN3/graph_resolution_preset.json"
-graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/Assemblies/SIN3/SIN3_proteins.fasta"
+# AF2_2mers = "/home/elvio/Desktop/Assemblies/SIN3/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/Assemblies/SIN3/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/Assemblies/SIN3/MM_output"
+# use_names = True 
+# overwrite = True
+# auto_domain_detection = False
+# # graph_resolution_preset = "/home/elvio/Desktop/Assemblies/SIN3/graph_resolution_preset.json"
+# graph_resolution_preset = None
 
 # ###############################################################################
 
@@ -93,16 +93,16 @@ graph_resolution_preset = None
 
 ################### Test 6' (multivalency detection actin) ####################
 
-# fasta_file = "/home/elvio/Desktop/heteromultimers_benchmark/actin/proteins_mm.fasta"
-# AF2_2mers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_2mers"
-# AF2_Nmers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_Nmers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/heteromultimers_benchmark/actin/MM_out_Nmers"
-# use_names = False
-# overwrite = True
-# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# auto_domain_detection = True
-# graph_resolution_preset = None
+fasta_file = "/home/elvio/Desktop/heteromultimers_benchmark/actin/proteins_mm.fasta"
+AF2_2mers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_2mers"
+AF2_Nmers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_Nmers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/heteromultimers_benchmark/actin/MM_out_Nmers"
+use_names = False
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+auto_domain_detection = True
+graph_resolution_preset = None
 
 ###############################################################################
 
@@ -157,6 +157,12 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
 # Create 3D network and generate visualization
 import multimer_mapper as mm
 nw = mm.Network(mm_output['combined_graph'], logger = logger)
+nw.generate_layout()
+nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph.html')
+
+
+from src.contact_graph import Network
+nw = Network(mm_output['combined_graph'], logger = logger)
 nw.generate_layout()
 nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph.html')
 
@@ -223,6 +229,30 @@ mm.generate_pairwise_domain_trajectory_in_context(mm_pairwise_domain_traj,
                                                   P3_ID = "EPL1", P3_dom = 4,
                                                   sort_by= 'RMSD')
 
+
+###############################################################################
+############################### For developers ################################
+###############################################################################
+
+
+# Access protein contact surface 
+for prot in nw.get_proteins():
+    # surf = prot.get_surface()
+    surf = prot.surface
+    
+    # Residues involved in interactions
+    print(surf.get_interacting_residues())
+    
+    # Each distinct surface
+    print(surf.get_surfaces())
+    
+    # Residues clasified by group ( A: not shared,
+    #                               B: Co-occupied by differt contact clusters with the same protein)
+    #                               C: Co-occupied by differt proteins)
+    print(surf.get_residues_by_group())
+
+
+
 ###############################################################################
 ######################### TESTS: Contacts clustering ##########################
 ###############################################################################
@@ -277,8 +307,10 @@ combined_graph.es[2]['valency']['models']                       # <-------------
 # plt.imshow(contact_classification_example, cmap = 'tab10')
 
 
-# from src.contact_graph import Network
-# nw = Network(mm_output['combined_graph'], logger = logger)
+from src.contact_graph import Network
+nw = Network(mm_output['combined_graph'], logger = logger)
+nw.generate_layout()
+nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph.html')
 
 ###############################################################################
 
