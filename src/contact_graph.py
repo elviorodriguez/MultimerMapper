@@ -209,44 +209,48 @@ def initialize_positions(proteins, ppis, components):
     positions = np.random.rand(n, 3) * 1000
     radii = np.array([get_protein_radius(protein) for protein in proteins])
     
-    for component in components:
+    # Assign initial positions for each component
+    for i, component in enumerate(components):
         component_indices = [proteins.index(p) for p in proteins if p.get_ID() in component]
-        component_center = np.mean(positions[component_indices], axis=0)
+        component_center = np.array([1000 * np.cos(2 * np.pi * i / len(components)),
+                                     1000 * np.sin(2 * np.pi * i / len(components)),
+                                     0])  # Distribute components in a circle
         for idx in component_indices:
             positions[idx] = component_center + np.random.rand(3) * 100
     
-    for ppi in ppis:
-        p1 = proteins.index(ppi.get_protein_1())
-        p2 = proteins.index(ppi.get_protein_2())
-        
-        direction = positions[p2] - positions[p1]
-        distance = np.linalg.norm(direction)
-        if distance > 0:
-            min_distance = radii[p1] + radii[p2]
-            if distance < min_distance:
-                midpoint = (positions[p1] + positions[p2]) / 2
-                positions[p1] = midpoint - safe_normalize(direction) * radii[p1]
-                positions[p2] = midpoint + safe_normalize(direction) * radii[p2]
+    # Adjust positions to avoid initial overlaps
+    for _ in range(100):  # Perform 100 iterations of adjustment
+        distances = squareform(pdist(positions))
+        for i in range(n):
+            for j in range(i+1, n):
+                min_distance = radii[i] + radii[j]
+                if distances[i,j] < min_distance:
+                    direction = positions[j] - positions[i]
+                    move = (min_distance - distances[i,j]) * 0.5
+                    positions[i] -= direction / distances[i,j] * move
+                    positions[j] += direction / distances[i,j] * move
     
     return positions, radii
+
 
 def compute_forces(positions, radii, proteins, ppis, components):
     n = len(proteins)
     forces = np.zeros((n, 3))
     
     distances = squareform(pdist(positions))
-    for component in components:
-        component_indices = [proteins.index(p) for p in proteins if p.get_ID() in component]
-        for i in component_indices:
-            for j in component_indices[component_indices.index(i)+1:]:
-                if distances[i,j] > 0:
-                    min_distance = radii[i] + radii[j]
-                    if distances[i,j] < min_distance:
-                        force = 1000 * (min_distance - distances[i,j]) / min_distance
-                        direction = safe_normalize(positions[i] - positions[j])
-                        forces[i] += force * direction
-                        forces[j] -= force * direction
     
+    # Repulsive forces between all proteins
+    for i in range(n):
+        for j in range(i+1, n):
+            if distances[i,j] > 0:
+                min_distance = radii[i] + radii[j]
+                if distances[i,j] < min_distance:
+                    force = 1000 * (min_distance - distances[i,j]) / min_distance
+                    direction = safe_normalize(positions[i] - positions[j])
+                    forces[i] += force * direction
+                    forces[j] -= force * direction
+    
+    # Attractive forces for proteins connected by PPIs
     for ppi in ppis:
         p1 = proteins.index(ppi.get_protein_1())
         p2 = proteins.index(ppi.get_protein_2())
@@ -260,6 +264,7 @@ def compute_forces(positions, radii, proteins, ppis, components):
                 forces[p1] += force * direction
                 forces[p2] -= force * direction
     
+    # Cohesive forces within components
     for component in components:
         component_indices = [proteins.index(p) for p in proteins if p.get_ID() in component]
         component_center = np.mean(positions[component_indices], axis=0)
@@ -287,15 +292,16 @@ def apply_layout(proteins, ppis, network, iterations=200, logger = None):
         damping_factor = 1 - (i / iterations)
         positions += forces * 0.1 * damping_factor
         
+        # Ensure components don't drift too far apart
         for component in components:
             component_indices = [proteins.index(p) for p in proteins if p.get_ID() in component]
             component_center = np.mean(positions[component_indices], axis=0)
-            for idx in component_indices:
-                direction = positions[idx] - component_center
-                distance = np.linalg.norm(direction)
-                max_distance = 500
-                if distance > max_distance:
-                    positions[idx] = component_center + safe_normalize(direction) * max_distance
+            global_center = np.mean(positions, axis=0)
+            max_distance = 1000  # Maximum distance from global center
+            if np.linalg.norm(component_center - global_center) > max_distance:
+                direction = safe_normalize(component_center - global_center)
+                for idx in component_indices:
+                    positions[idx] = global_center + direction * max_distance + (positions[idx] - component_center)
     
     return positions
 
@@ -1086,8 +1092,6 @@ class Network(object):
         # Create a view object
         view = py3Dmol.view(width='100%', height='100%')
 
-        # Progress
-        self.logger.info('   Adding protein backbones and contact centroids...')
 
         # Create a global dictionary to map PPI IDs to colors
         ppi_colors = {}
@@ -1099,6 +1103,9 @@ class Network(object):
                 color_index += 1
 
         ########################### Protein Backbones ###########################
+
+        # Progress
+        self.logger.info('   Adding protein backbones...')
 
         # Add each protein to the viewer
         for idx, protein in enumerate(self.proteins):
@@ -1130,15 +1137,18 @@ class Network(object):
 
         ########################### Surface Residues ###########################
 
-        # Memoization for centroids and CA positions
-        centroid_cache = {}
-        ca_cache = {}
-
-        # Set to keep track of added residues
-        added_residues = set()
+        # Progress
+        self.logger.info('   Adding protein surface residue centroids...')
 
         # Add contact residue centroids for different Surface object in the protein
         for protein in self.proteins:
+
+            # Memoization for centroids and CA positions
+            centroid_cache = {}
+            ca_cache = {}
+
+            # Set to keep track of added residues
+            added_residues = set()
 
             # Progress
             self.logger.info(f'      - Adding {protein.get_ID()} surface centroids')
