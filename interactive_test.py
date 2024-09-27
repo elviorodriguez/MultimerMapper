@@ -160,13 +160,6 @@ nw = mm.Network(mm_output['combined_graph'], logger = logger)
 nw.generate_layout()
 nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph.html')
 
-
-from src.contact_graph import Network
-nw = Network(mm_output['combined_graph'], logger = logger)
-nw.generate_layout()
-nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph.html')
-
-
 # Get suggested combinations
 suggested_combinations = mm.suggest_combinations(mm_output = mm_output, 
                                                  # To ommit saving, change to None
@@ -175,6 +168,32 @@ suggested_combinations = mm.suggest_combinations(mm_output = mm_output,
 # Generate RMSF, pLDDT clusters & RMSD trajectories considering models as monomers
 mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
     mm_output = mm_output, out_path = out_path)
+
+
+########################## Greedy stoichiometries #############################
+
+# Generate greedy stoichiometries
+stoichiometries = nw.generate_stoichiometries_greedy(num_stoichiometries = 100,
+                                                     max_units = 6,
+                                                     max_iterations = 1000,
+                                                     convergent_iterations = 5)
+
+from src.contact_graph import Network
+nw = Network(mm_output['combined_graph'], logger = logger)
+nw.generate_layout()
+nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph.html')
+stoichiometries = nw.generate_stoichiometries_greedy(num_stoichiometries=100, max_units=6, max_iterations=1000)
+
+# for ppi in stoichiometries[0].ppis:
+#     print(ppi.get_tuple_pair(), ppi.get_cluster_n())
+
+# Print the top 5 stoichiometries
+for i, stoichiometry in enumerate(stoichiometries[:5], 1):
+    print(f"Stoichiometry {i}:")
+    print(f"  Protein counts: {stoichiometry.protein_counts}")
+    print(f"  Score: {stoichiometry.score:.2f}")
+    print()
+
 
 
 ###############################################################################
@@ -293,13 +312,15 @@ combined_graph.vs[0]['ref_PDB_chain']                           # <-------------
 ['N_mers_data', 'N_mers_info', '2_mers_data', '2_mers_info',
  'homooligomerization_states', 'dynamics', 'name']
 combined_graph.edge_attributes()
-combined_graph.es['name']
+combined_graph.es[2]['name']
 combined_graph.es['dynamics']
 combined_graph.es['homooligomerization_states']
-combined_graph.es[2]['valency']['models']                       # <---------------- dict
+combined_graph.es[60]['valency']['models']                       # <---------------- dict
+combined_graph.es['multivalency_states']
 
 
-
+combined_graph.es[60]['name']
+combined_graph.es[60]['homooligomerization_states']
 # valency = combined_graph.es[2]['valency']
 # from src.contact_graph import add_contact_classification_matrix
 # add_contact_classification_matrix(combined_graph)
@@ -342,6 +363,23 @@ from src.analyze_multivalency import print_contact_clusters_number
 print_contact_clusters_number(mm_output)
 
 mm_output['contacts_clusters'][tuple_pair][0]
+
+
+###############################################################################
+################### TESTS: To find the best stoichiometries ###################
+###############################################################################
+
+
+# ######### Full stoichiometries ###################
+
+# stoichiometries = nw.generate_stoichiometries(max_units=6)
+
+# # Print the top 5 stoichiometries
+# for i, stoichiometry in enumerate(stoichiometries[:5], 1):
+#     print(f"Stoichiometry {i}:")
+#     print(f"  Protein counts: {stoichiometry.protein_counts}")
+#     print(f"  Score: {stoichiometry.score:.2f}")
+#     print()
 
     
     
