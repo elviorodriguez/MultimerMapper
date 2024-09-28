@@ -171,6 +171,20 @@ mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
 
 ########################## Greedy stoichiometries #############################
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Generate greedy stoichiometries
 stoichiometries = nw.generate_stoichiometries_greedy(num_stoichiometries = 100,
                                                      max_units = 6,
@@ -179,21 +193,29 @@ stoichiometries = nw.generate_stoichiometries_greedy(num_stoichiometries = 100,
 
 
 # import multimer_mapper as mm
-# from src.contact_graph import Network
+# from src.contact_graph import Network, generate_stoichiometries
 # nw = Network(mm_output['combined_graph'], logger = logger)
 # nw.generate_layout()
 # nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph.html')
 # nw.generate_plotly_3d_plot(save_path = out_path + '/network_3d_plot.html', show_plot=True)
 # stoichiometries = nw.generate_stoichiometries_greedy(num_stoichiometries=100, max_units=6, max_iterations=1000)
+# stoichiometries = generate_stoichiometries(nw, num_stoichiometries=100, max_iterations=1000)
 
 # for ppi in stoichiometries[0].ppis:
 #     print(ppi.get_tuple_pair(), ppi.get_cluster_n())
 
+import multimer_mapper as mm
+from src.contact_graph import Network, generate_stoichiometries, analyze_stoichiometries
+network = Network(mm_output['combined_graph'], logger = logger)
+stoichiometries = generate_stoichiometries(network)
+analyzed_stoich = analyze_stoichiometries(stoichiometries)
+
 # Print the top 5 stoichiometries
-for i, stoichiometry in enumerate(stoichiometries[:5], 1):
+for i, (stoich, count) in enumerate(analyzed_stoich[:5], 1):
     print(f"Stoichiometry {i}:")
-    print(f"  Protein counts: {stoichiometry.protein_counts}")
-    print(f"  Score: {stoichiometry.score:.2f}")
+    print(f"  Protein counts: {dict(stoich)}")
+    print(f"  Frequency: {count}")
+    print(f"  Score: {next(s for s in stoichiometries if dict(stoich) == s.protein_counts).score:.2f}")
     print()
 
 

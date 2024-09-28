@@ -885,6 +885,17 @@ def generate_combined_graph(
         # For RMSD calculations
         domain_RMSD_plddt_cutoff = domain_RMSD_plddt_cutoff, trimming_RMSD_plddt_cutoff = trimming_RMSD_plddt_cutoff)
     
+    # ----------------------------------------------------------------------------------------
+    # ---------------------- Remove indirect interaction to avoid issues ---------------------
+    # ----------------------------------------------------------------------------------------
+
+    # Remove indirect edges?
+    remove_indirect_edges = True
+    if remove_indirect_edges:
+        # Remove edges with "Indirect" dynamics
+        indirect_edges = [e.index for e in graphC.es if e['dynamics'] == "Indirect"]
+        graphC.delete_edges(indirect_edges)
+    
     
     return graphC, dynamic_proteins, homooligomerization_states, multivalency_states
 

@@ -5,7 +5,7 @@ import igraph
 import py3Dmol
 import itertools
 import random
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from collections import Counter
 from logging import Logger
 from Bio import PDB
@@ -1116,20 +1116,24 @@ class PPI(object):
 ############################################# Class Stoichiometry #############################################
 ###############################################################################################################
 
-class Stoichiometry:
 
-    def __init__(self, network, protein_counts: Dict[str, int]):
+
+class Stoichiometry:
+    def __init__(self, network, protein_counts: Dict[str, int], parent=None):
         self.network = network
         self.protein_counts = protein_counts
-        self.proteins: List[Protein] = self._create_proteins()
-        self.ppis: List[PPI] = self._create_ppis()
+        self.proteins = self._create_proteins()
+        self.ppis = self._create_ppis()
         self.score = self._calculate_score()
+        self.parent = parent
+        self.child = None
+        self.is_convergent = False
 
     def _create_proteins(self) -> List[Protein]:
         proteins = []
         for protein_id, count in self.protein_counts.items():
             original_protein = next(p for p in self.network.get_proteins() if p.get_ID() == protein_id)
-            proteins.extend([Protein(original_protein.vertex, len(proteins) + i, original_protein.logger, verbose = False) for i in range(count)])
+            proteins.extend([Protein(original_protein.vertex, len(proteins) + i, original_protein.logger, verbose=False) for i in range(count)])
         return proteins
 
     def _create_ppis(self) -> List[PPI]:
@@ -1139,9 +1143,9 @@ class Stoichiometry:
             for p1 in [p for p in self.proteins if p.get_ID() == prot1_id]:
                 for p2 in [p for p in self.proteins if p.get_ID() == prot2_id]:
                     if p1 != p2:
-                        ppis.append(PPI([p1, p2], ppi.get_edge(), ppi.logger, verbose = False))
+                        ppis.append(PPI([p1, p2], ppi.get_edge(), ppi.logger, verbose=False))
         return ppis
-
+    
     def _calculate_score(self) -> float:
         score = 0
         
@@ -1186,12 +1190,13 @@ class Stoichiometry:
         total_residues = sum(len(p.get_seq()) for p in self.proteins)
         score -= 0.1 * (co_occupied_residues / total_residues) if total_residues > 0 else 0
         
-        # 7) Fully connected check is done in the Network class
+        # 7) Fully connected check
+        if not self.is_fully_connected():
+            score -= 0.5
         
         return max(min(score, 1), -1)  # Ensure score is between -1 and 1
 
     def is_fully_connected(self) -> bool:
-        # Check if all proteins are connected in the stoichiometry
         visited = set()
         stack = [self.proteins[0]]
         while stack:
@@ -1204,7 +1209,82 @@ class Stoichiometry:
                     elif ppi.get_protein_2() == protein:
                         stack.append(ppi.get_protein_1())
         return len(visited) == len(self.proteins)
-    
+
+    def generate_child(self) -> Optional['Stoichiometry']:
+        if self.is_convergent:
+            return None
+
+        new_protein_counts = self.protein_counts.copy()
+        
+        # Select a random protein from the current Stoichiometry
+        random_protein = random.choice(self.proteins)
+        protein_id = random_protein.get_ID()
+        
+        # Select a random PPI from the combined graph for the selected protein
+        available_ppis = [ppi for ppi in self.network.get_ppis() if protein_id in ppi.get_tuple_pair()]
+        if not available_ppis:
+            self.is_convergent = True
+            return None
+        
+        random_ppi = random.choice(available_ppis)
+        partner_id = random_ppi.get_prot_ID_1() if random_ppi.get_prot_ID_1() != protein_id else random_ppi.get_prot_ID_2()
+        
+        # Determine if we should connect to an existing protein or create a new one
+        should_create_new = self._should_create_new_protein(random_ppi, partner_id)
+        
+        if should_create_new:
+            new_protein_counts[partner_id] = new_protein_counts.get(partner_id, 0) + 1
+        else:
+            # Connect to an existing protein, no change in protein_counts
+            pass
+        
+        # Check for conflicting configurations and potentially remove PPIs
+        self._handle_conflicting_configurations(new_protein_counts, random_ppi)
+        
+        # Create a new Stoichiometry object
+        child = Stoichiometry(self.network, new_protein_counts, parent=self)
+        self.child = child
+        
+        return child
+
+    def _should_create_new_protein(self, ppi: PPI, partner_id: str) -> bool:
+        edge = ppi.get_edge()
+        
+        # If the partner is not present, always create a new one
+        if partner_id not in self.protein_counts or self.protein_counts[partner_id] == 0:
+            return True
+        
+        # Check for homooligomeric interactions
+        if ppi.is_homooligomeric():
+            return True
+        
+        # Check for multivalent interactions
+        if edge['valency']['cluster_n'] > 0:
+            return np.random.random() < 0.5  # 50% chance to create a new protein for multivalent interactions
+        
+        # By default, prefer connecting to existing proteins
+        return np.random.random() < 0.1  # 10% chance to create a new protein in other cases
+
+    def _handle_conflicting_configurations(self, new_protein_counts: Dict[str, int], ppi: PPI):
+        edge = ppi.get_edge()
+        
+        # Check for negative dynamics
+        if "Negative" in edge['dynamics']:
+            removal_probability = np.mean(list(edge['N_mers_data']['N_models'])) / 5
+            if np.random.random() < removal_probability:
+                # Remove the PPI (don't add it to the new configuration)
+                return
+        
+        # Check for conflicts with N_mers data
+        for _, row in edge['N_mers_data'].iterrows():
+            proteins_in_model = set(row['proteins_in_model'])
+            if proteins_in_model.issubset(new_protein_counts.keys()):
+                if row['N_models'] < self.network.combined_graph['cutoffs_dict']['N_models_cutoff']:
+                    removal_probability = 1 - (row['N_models'] / self.network.combined_graph['cutoffs_dict']['N_models_cutoff'])
+                    if np.random.random() < removal_probability:
+                        # Remove the PPI (don't add it to the new configuration)
+                        return
+
     def __eq__(self, other):
         if not isinstance(other, Stoichiometry):
             return NotImplemented
@@ -1213,7 +1293,58 @@ class Stoichiometry:
     def __hash__(self):
         return hash(tuple(sorted(self.protein_counts.items())))
 
+def generate_stoichiometries(network, num_iterations: int = 50):
+
+    # Progress
+    network.logger.info( 'INITIALIZING: Stoichiometric Space Exploration Algorithm...')
+    network.logger.info(f'   Nº of iterations per starting point: {num_iterations}')
+
+    stoichiometries = []
     
+    # Start from each protein in the network
+    for point, start_protein in enumerate(network.get_proteins()):
+
+        # Progress
+        network.logger.info(f'   Starting point ({point + 1}/{len(network.get_proteins())}): {start_protein.get_ID()}')
+
+        initial_counts = {start_protein.get_ID(): 1}
+        root = Stoichiometry(network, initial_counts)
+        
+        current = root
+        path = [current]
+        
+        for i in range(num_iterations):
+
+            # Progress
+            if i % 10 == 0:
+                network.logger.info(f'      - Iteration: {i} | Nº of Stoichiometries in path: {len(path)}...')
+
+            child = current.generate_child()
+            if child is None:
+                break
+            path.append(child)
+            current = child
+        
+        stoichiometries.extend(path)
+    
+    network.logger.info('FINISHED: Stoichiometric Space Exploration Algorithm')
+    
+    return stoichiometries
+
+def analyze_stoichiometries(stoichiometries: List[Stoichiometry]):
+    # Count occurrences of each unique stoichiometry
+    stoich_counts = {}
+    for s in stoichiometries:
+        key = tuple(sorted(s.protein_counts.items()))
+        stoich_counts[key] = stoich_counts.get(key, 0) + 1
+    
+    # Sort by frequency and score
+    sorted_stoich = sorted(stoich_counts.items(), key=lambda x: (-x[1], -dict(x[0]).get('score', 0)))
+    
+    return sorted_stoich
+
+
+
 ###############################################################################################################
 ################################################ Class Network ################################################
 ###############################################################################################################
