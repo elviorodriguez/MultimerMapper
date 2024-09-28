@@ -16,6 +16,7 @@ from sklearn.neighbors import NearestNeighbors
 import plotly.graph_objects as go
 import numpy as np
 import io
+from scipy.spatial.distance import cdist
 
 from utils.logger_setup import configure_logger
 from utils.combinations import get_untested_2mer_pairs, get_tested_Nmer_pairs
@@ -98,76 +99,6 @@ def identify_clusters_for_refinement(all_pair_matrices, pair, model_keys, labels
             logger.info(f"   Cluster {cluster} identified for refinement (max contact frequency: {max_freq:.2f})")
     
     return clusters_to_refine
-
-
-# def refine_clusters_m1(all_pair_matrices, pair, model_keys, labels, clusters_to_refine, contact_similarity_threshold, logger):
-    
-#     refined_labels = deepcopy(labels)
-    
-#     # Compute boolean contact matrices for all models
-#     bool_contacts_matrices = [all_pair_matrices[pair][model]['is_contact'] > 0 for model in model_keys]
-    
-#     for cluster in clusters_to_refine:
-#         cluster_models = [i for i, label in enumerate(refined_labels) if label == cluster]
-        
-#         # If there's only one model in the cluster, we can't refine it further
-#         if len(cluster_models) <= 1:
-#             continue
-        
-#         # Start by considering each model in the cluster as a separate sub-cluster
-#         sub_labels = list(range(len(cluster_models)))
-        
-#         while True:
-#             # Compute the boolean contact matrices for each sub-cluster
-#             bool_contacts_matrices_per_subcluster = []
-#             for sub_cluster in set(sub_labels):
-#                 sub_cluster_models = [model for model, label in zip(cluster_models, sub_labels) if label == sub_cluster]
-#                 sub_cluster_bool_contact_matrix = np.mean([bool_contacts_matrices[model] for model in sub_cluster_models], axis=0) > 0
-#                 bool_contacts_matrices_per_subcluster.append(sub_cluster_bool_contact_matrix)
-
-#             # Compute similarity matrix using IoU
-#             num_sub_clusters = len(bool_contacts_matrices_per_subcluster)
-#             similarity_matrix = np.zeros((num_sub_clusters, num_sub_clusters))
-#             for i in range(num_sub_clusters):
-#                 for j in range(i + 1, num_sub_clusters):
-#                     intersection = np.sum(np.logical_and(bool_contacts_matrices_per_subcluster[i], bool_contacts_matrices_per_subcluster[j]))
-#                     union = np.sum(np.logical_or(bool_contacts_matrices_per_subcluster[i], bool_contacts_matrices_per_subcluster[j]))
-#                     similarity = intersection / union if union > 0 else 0
-#                     similarity_matrix[i, j] = similarity
-#                     similarity_matrix[j, i] = similarity
-            
-#             # Find the highest similarity
-#             max_similarity = np.max(similarity_matrix)
-            
-#             # If the highest similarity is below the threshold, we're done refining this cluster
-#             if max_similarity <= contact_similarity_threshold:
-#                 break
-            
-#             # Find the sub-clusters to merge
-#             i, j = np.unravel_index(np.argmax(similarity_matrix), similarity_matrix.shape)
-#             sub_cluster1, sub_cluster2 = sorted(set(sub_labels))[i], sorted(set(sub_labels))[j]
-            
-#             # Merge the sub-clusters
-#             sub_labels = [sub_cluster1 if label == sub_cluster2 else label for label in sub_labels]
-            
-#             logger.info(f"   Refining cluster {cluster}: Merging sub-clusters {sub_cluster2} into {sub_cluster1} due to similarity of {round(max_similarity*100)}%")
-
-#         # Update the main labels with the refined sub-clusters
-#         new_label = max(refined_labels) + 1
-#         for sub_cluster in set(sub_labels):
-#             sub_cluster_models = [model for model, label in zip(cluster_models, sub_labels) if label == sub_cluster]
-#             for model in sub_cluster_models:
-#                 refined_labels[model] = new_label
-#             new_label += 1
-
-#     # Reassign labels to be consecutive integers starting from 0
-#     unique_labels = sorted(set(refined_labels))
-#     label_mapping = {old: new for new, old in enumerate(unique_labels)}
-#     refined_labels = [label_mapping[label] for label in refined_labels]
-
-#     return refined_labels
-
-
 
 def refine_clusters_two_step(all_pair_matrices, pair, model_keys, labels, clusters_to_refine, contact_similarity_threshold, refinement_cf_threshold, logger):
     refined_labels = deepcopy(labels)
@@ -284,8 +215,6 @@ def compute_similarity_matrix(bool_contacts_matrices_per_subcluster):
 
 # ----------------------------- For Mean/Median Closeness Method -----------------------------
 
-from scipy.spatial.distance import cdist
-
 def calculate_mean_closeness(matrix1, matrix2, use_median = True):
     """
     Calculate the Mean/Median Closeness (MC) between two boolean contact matrices.
@@ -321,6 +250,60 @@ def calculate_mean_closeness(matrix1, matrix2, use_median = True):
         mean_closeness = np.mean(min_distances)
     
     return mean_closeness
+
+
+# ---------------------------- For outliers detection and removal -----------------------------
+
+def identify_outliers(labels, min_cluster_size=10):
+    """
+    Identifies outlier clusters based on the following criteria:
+    - The cluster is a unit cluster (only one component)
+    - There is at least one other cluster with at least 'min_cluster_size' components
+
+    Parameters:
+    - labels: List of cluster labels
+    - min_cluster_size: Minimum size for a cluster to be considered "large"
+
+    Returns:
+    - List of outlier cluster labels
+    """
+    label_counts = Counter(labels)
+    large_clusters = [label for label, count in label_counts.items() if count >= min_cluster_size]
+    
+    # Only consider removing outliers if there's at least one large cluster
+    if large_clusters:
+        outliers = [label for label, count in label_counts.items() if count == 1]
+        return outliers
+    else:
+        return []
+
+def remove_outliers(valid_models_keys, labels, outliers):
+    """
+    Removes outlier models from the dataset.
+
+    Parameters:
+    - valid_models_keys: List of model keys
+    - labels: List of cluster labels
+    - outliers: List of outlier cluster labels to remove
+
+    Returns:
+    - updated_valid_models_keys: List of model keys with outliers removed
+    - updated_labels: List of cluster labels with outliers removed
+    """
+    updated_valid_models_keys = []
+    updated_labels = []
+    
+    for model_key, label in zip(valid_models_keys, labels):
+        if label not in outliers:
+            updated_valid_models_keys.append(model_key)
+            updated_labels.append(label)
+    
+    # Reassign labels to be consecutive integers starting from 0
+    unique_labels = sorted(set(updated_labels))
+    label_mapping = {old: new for new, old in enumerate(unique_labels)}
+    updated_labels = [label_mapping[label] for label in updated_labels]
+    
+    return updated_valid_models_keys, updated_labels
 
 
 ###############################################################################################
@@ -745,7 +728,7 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
                     if mc <= mc_threshold:
                         # Merge the clusters
                         best_labels = [big_label if label == small_label else label for label in best_labels]
-                        logger.info(f"   Merging cluster {small_label} into {big_label} ({MC_metric} Closeness: {mc:.2f})")
+                        logger.info(f"      - Merging cluster {small_label} into {big_label} ({MC_metric} Closeness: {mc:.2f})")
                         merged = True
                         break
                 
@@ -761,7 +744,7 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
         best_labels = [label_mapping[label] for label in best_labels]
         
         best_n_clusters = len(set(best_labels))
-        logger.info(f"   Final number of clusters after {MC_metric} Closeness Threshold Comparisons: {best_n_clusters}")
+        logger.info(f"      - Final number of clusters after {MC_metric} Closeness Threshold Comparisons: {best_n_clusters}")
         logger.debug(f"   BEST LABELS: {best_labels}")
 
         # No silhouette score for this method
@@ -774,17 +757,38 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
             clusters_to_refine = identify_clusters_for_refinement(all_pair_matrices, pair, valid_models_keys, best_labels, max_freq_threshold=0.75, logger=logger)
             
             if clusters_to_refine:
-                logger.info(f'   Clusters {clusters_to_refine} need refinement...')
+                logger.info(f'      - Clusters {clusters_to_refine} need refinement...')
                 refined_labels = refine_clusters_two_step(all_pair_matrices, pair, valid_models_keys, best_labels, 
                                                           clusters_to_refine, contact_similarity_threshold = refinement_contact_similarity_threshold, 
                                                           refinement_cf_threshold = refinement_cf_threshold, logger = logger)
                 
                 best_labels = refined_labels
                 best_n_clusters = len(set(best_labels))
-                logger.info(f"   Final number of clusters after refinement: {best_n_clusters}")
-                logger.debug(f"   REFINED LABELS: {best_labels}")
+                logger.info(f"      - Final number of clusters after refinement: {best_n_clusters}")
+                logger.debug(f"      - REFINED LABELS: {best_labels}")
             else:
-                logger.info("   No cluster identified for refinement")
+                logger.info("      - No cluster identified for refinement")
+        
+        # Remove outliers? --------------------------------------------------------------------------
+        rem_outliers_flag = True
+        if rem_outliers_flag:
+            logger.info("   Identifying outlier clusters...")
+
+            outliers_to_remove = identify_outliers(best_labels, min_cluster_size=10)
+
+            if outliers_to_remove:
+                logger.info(f'      - Cluster/s {outliers_to_remove} is/are outlier/s. It/They will be removed...')
+                
+                valid_models_keys, best_labels = remove_outliers(valid_models_keys, best_labels, outliers_to_remove)
+                
+                best_n_clusters = len(set(best_labels))
+                logger.info(f"      - Final number of clusters after outliers removal: {best_n_clusters}")
+                logger.debug(f"      - NO OUTLIERS LABELS: {best_labels}")
+            else:
+                logger.info("   No outliers detected")
+
+        # Update reduced_features to match the new valid_models_keys
+        reduced_features = reduced_features[[valid_models_keys.index(key) for key in valid_models_keys]]
 
     return list(valid_models.keys()), best_labels, reduced_features, explained_variance
 

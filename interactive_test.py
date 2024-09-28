@@ -71,8 +71,8 @@ out_path = "/home/elvio/Desktop/Assemblies/SIN3/MM_output"
 use_names = True 
 overwrite = True
 auto_domain_detection = False
-# graph_resolution_preset = "/home/elvio/Desktop/Assemblies/SIN3/graph_resolution_preset.json"
-graph_resolution_preset = None
+graph_resolution_preset = "/home/elvio/Desktop/Assemblies/SIN3/graph_resolution_preset.json"
+# graph_resolution_preset = None
 
 # ###############################################################################
 
@@ -157,8 +157,8 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
 # Create 3D network, generate a layout and create py3Dmol/Plotly visualizations
 nw = mm.Network(mm_output['combined_graph'], logger = logger)
 nw.generate_layout()
-nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph.html')
-nw.generate_plotly_3d_plot(save_path = out_path + '/network_3d_plot.html', show_plot=True)
+nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph_py3Dmol.html', show_plot=True)
+nw.generate_plotly_3d_plot(save_path = out_path + '/3D_graph_plotly.html', show_plot=True)
 
 # Get suggested combinations
 suggested_combinations = mm.suggest_combinations(mm_output = mm_output, 

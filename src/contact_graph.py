@@ -1945,10 +1945,11 @@ class Network(object):
         ))
 
         # Add ID labels over the CM
+        CM_offset = 20
         fig.add_trace(go.Scatter3d(
             x=[cm[0] for cm in CM_list_xyz],
             y=[cm[1] for cm in CM_list_xyz],
-            z=[cm[2] + 5 for cm in CM_list_xyz],  # Offset in z-axis
+            z=[cm[2] + CM_offset for cm in CM_list_xyz],  # Offset in z-axis
             mode='text',
             text=CM_list_text,
             name = "Protein IDs",
