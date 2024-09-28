@@ -63,16 +63,16 @@ pd.set_option( 'display.max_columns' , None )
 
 # ################################ Test 5 (SIN3) ################################
 
-# fasta_file = "/home/elvio/Desktop/Assemblies/SIN3/SIN3_proteins.fasta"
-# AF2_2mers = "/home/elvio/Desktop/Assemblies/SIN3/2-mers"
-# AF2_Nmers = "/home/elvio/Desktop/Assemblies/SIN3/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/Assemblies/SIN3/MM_output"
-# use_names = True 
-# overwrite = True
-# auto_domain_detection = False
-# # graph_resolution_preset = "/home/elvio/Desktop/Assemblies/SIN3/graph_resolution_preset.json"
-# graph_resolution_preset = None
+fasta_file = "/home/elvio/Desktop/Assemblies/SIN3/SIN3_proteins.fasta"
+AF2_2mers = "/home/elvio/Desktop/Assemblies/SIN3/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/Assemblies/SIN3/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/Assemblies/SIN3/MM_output"
+use_names = True 
+overwrite = True
+auto_domain_detection = False
+# graph_resolution_preset = "/home/elvio/Desktop/Assemblies/SIN3/graph_resolution_preset.json"
+graph_resolution_preset = None
 
 # ###############################################################################
 
@@ -93,16 +93,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ################### Test 6' (multivalency detection actin) ####################
 
-fasta_file = "/home/elvio/Desktop/heteromultimers_benchmark/actin/proteins_mm.fasta"
-AF2_2mers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_2mers"
-AF2_Nmers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_Nmers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/heteromultimers_benchmark/actin/MM_out_Nmers"
-use_names = False
-overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-auto_domain_detection = True
-graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/heteromultimers_benchmark/actin/proteins_mm.fasta"
+# AF2_2mers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_2mers"
+# AF2_Nmers = "/home/elvio/Desktop/heteromultimers_benchmark/actin/AF2_Nmers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/heteromultimers_benchmark/actin/MM_out_Nmers"
+# use_names = False
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
@@ -154,11 +154,11 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     # Answer y automatically
     automatic_true = True)
 
-# Create 3D network and generate visualization
-import multimer_mapper as mm
+# Create 3D network, generate a layout and create py3Dmol/Plotly visualizations
 nw = mm.Network(mm_output['combined_graph'], logger = logger)
 nw.generate_layout()
 nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph.html')
+nw.generate_plotly_3d_plot(save_path = out_path + '/network_3d_plot.html', show_plot=True)
 
 # Get suggested combinations
 suggested_combinations = mm.suggest_combinations(mm_output = mm_output, 
@@ -169,7 +169,6 @@ suggested_combinations = mm.suggest_combinations(mm_output = mm_output,
 mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
     mm_output = mm_output, out_path = out_path)
 
-
 ########################## Greedy stoichiometries #############################
 
 # Generate greedy stoichiometries
@@ -178,11 +177,14 @@ stoichiometries = nw.generate_stoichiometries_greedy(num_stoichiometries = 100,
                                                      max_iterations = 1000,
                                                      convergent_iterations = 5)
 
-from src.contact_graph import Network
-nw = Network(mm_output['combined_graph'], logger = logger)
-nw.generate_layout()
-nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph.html')
-stoichiometries = nw.generate_stoichiometries_greedy(num_stoichiometries=100, max_units=6, max_iterations=1000)
+
+# import multimer_mapper as mm
+# from src.contact_graph import Network
+# nw = Network(mm_output['combined_graph'], logger = logger)
+# nw.generate_layout()
+# nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph.html')
+# nw.generate_plotly_3d_plot(save_path = out_path + '/network_3d_plot.html', show_plot=True)
+# stoichiometries = nw.generate_stoichiometries_greedy(num_stoichiometries=100, max_units=6, max_iterations=1000)
 
 # for ppi in stoichiometries[0].ppis:
 #     print(ppi.get_tuple_pair(), ppi.get_cluster_n())

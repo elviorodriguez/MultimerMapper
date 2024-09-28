@@ -15,6 +15,9 @@ import string
 from itertools import cycle
 import webbrowser
 from scipy.spatial.distance import pdist, squareform
+import plotly.graph_objects as go
+from plotly.offline import plot
+from collections import defaultdict
 
 from cfg.default_settings import PT_palette, DOMAIN_COLORS_RRC, SURFACE_COLORS_RRC
 from utils.pdb_utils import center_of_mass, rotate_points
@@ -172,14 +175,30 @@ def get_ca(protein, residue_index, ca_cache):
 ###############################################################################################################
 
 def get_protein_radius(protein):
-    """Calculate the radius of the protein's bounding sphere."""
+    """
+    Calculate the radius of the protein's bounding sphere.
+    
+    Args:
+        protein: A protein object with get_CM() and get_res_CA_xyz() methods.
+    
+    Returns:
+        float: The radius of the protein's bounding sphere plus a 5 Angstrom buffer.
+    """
     cm = protein.get_CM()
     residue_positions = protein.get_res_CA_xyz()
     distances = np.linalg.norm(residue_positions - cm, axis=1)
     return np.max(distances) + 5  # Add 5 Angstroms as buffer
 
-
 def safe_normalize(v):
+    """
+    Safely normalize a vector, returning a zero vector if the norm is zero.
+    
+    Args:
+        v (np.array): The vector to normalize.
+    
+    Returns:
+        np.array: The normalized vector, or a zero vector if the input has zero norm.
+    """
     norm = np.linalg.norm(v)
     if norm == 0:
         return np.zeros_like(v)
@@ -210,21 +229,43 @@ def get_connected_components(proteins, ppis, logger):
     return components
 
 def initialize_positions(proteins, ppis, components):
+    """
+    Initialize the positions of proteins for the layout algorithm.
+    
+    Args:
+        proteins (list): List of protein objects.
+        ppis (list): List of protein-protein interactions.
+        components (list): List of connected components in the network.
+    
+    Returns:
+        tuple: A tuple containing:
+            - np.array: Initial positions of proteins.
+            - np.array: Radii of proteins.
+    """
     n = len(proteins)
     positions = np.random.rand(n, 3) * 1000
     radii = np.array([get_protein_radius(protein) for protein in proteins])
     
-    # Assign initial positions for each component
-    for i, component in enumerate(components):
-        component_indices = [proteins.index(p) for p in proteins if p.get_ID() in component]
-        component_center = np.array([1000 * np.cos(2 * np.pi * i / len(components)),
-                                     1000 * np.sin(2 * np.pi * i / len(components)),
-                                     0])  # Distribute components in a circle
-        for idx in component_indices:
-            positions[idx] = component_center + np.random.rand(3) * 100
+    if len(components) == 1:
+        # For a single component, use a 3D grid layout
+        grid_size = int(np.ceil(n**(1/3)))
+        for i, protein in enumerate(proteins):
+            x = (i % grid_size) * 200
+            y = ((i // grid_size) % grid_size) * 200
+            z = (i // (grid_size**2)) * 200
+            positions[i] = [x, y, z]
+    else:
+        # Use the existing component-based initialization
+        for i, component in enumerate(components):
+            component_indices = [proteins.index(p) for p in proteins if p.get_ID() in component]
+            component_center = np.array([1000 * np.cos(2 * np.pi * i / len(components)),
+                                         1000 * np.sin(2 * np.pi * i / len(components)),
+                                         0])
+            for idx in component_indices:
+                positions[idx] = component_center + np.random.rand(3) * 100
     
     # Adjust positions to avoid initial overlaps
-    for _ in range(100):  # Perform 100 iterations of adjustment
+    for _ in range(100):
         distances = squareform(pdist(positions))
         for i in range(n):
             for j in range(i+1, n):
@@ -232,13 +273,26 @@ def initialize_positions(proteins, ppis, components):
                 if distances[i,j] < min_distance:
                     direction = positions[j] - positions[i]
                     move = (min_distance - distances[i,j]) * 0.5
-                    positions[i] -= direction / distances[i,j] * move
-                    positions[j] += direction / distances[i,j] * move
+                    positions[i] -= safe_normalize(direction) * move
+                    positions[j] += safe_normalize(direction) * move
     
     return positions, radii
 
 
 def compute_forces(positions, radii, proteins, ppis, components):
+    """
+    Compute forces acting on proteins based on their positions and interactions.
+    
+    Args:
+        positions (np.array): Current positions of proteins.
+        radii (np.array): Radii of proteins.
+        proteins (list): List of protein objects.
+        ppis (list): List of protein-protein interactions.
+        components (list): List of connected components in the network.
+    
+    Returns:
+        np.array: Forces acting on each protein.
+    """
     n = len(proteins)
     forces = np.zeros((n, 3))
     
@@ -264,7 +318,7 @@ def compute_forces(positions, radii, proteins, ppis, components):
         if distance > 0:
             min_distance = radii[p1] + radii[p2]
             if distance > min_distance:
-                force = 0.1 * (distance - min_distance)
+                force = 0.2 * (distance - min_distance)
                 direction = safe_normalize(positions[p2] - positions[p1])
                 forces[p1] += force * direction
                 forces[p2] -= force * direction
@@ -280,41 +334,158 @@ def compute_forces(positions, radii, proteins, ppis, components):
                 force = 0.01 * distance
                 forces[idx] += force * safe_normalize(direction)
     
+     # Improved force to separate PPI lines and avoid protein backbones
+    for i, ppi1 in enumerate(ppis):
+        p1_1 = proteins.index(ppi1.get_protein_1())
+        p1_2 = proteins.index(ppi1.get_protein_2())
+        line1 = positions[p1_2] - positions[p1_1]
+        line1_dir = safe_normalize(line1)
+        
+        for j, ppi2 in enumerate(ppis[i+1:], start=i+1):
+            p2_1 = proteins.index(ppi2.get_protein_1())
+            p2_2 = proteins.index(ppi2.get_protein_2())
+            line2 = positions[p2_2] - positions[p2_1]
+            line2_dir = safe_normalize(line2)
+            
+            # Calculate the closest distance between the two lines
+            v1 = line1
+            v2 = line2
+            w0 = positions[p1_1] - positions[p2_1]
+            
+            a = np.dot(v1, v1)
+            b = np.dot(v1, v2)
+            c = np.dot(v2, v2)
+            d = np.dot(v1, w0)
+            e = np.dot(v2, w0)
+            
+            denominator = a*c - b*b
+            if abs(denominator) > 1e-6:  # Avoid division by zero
+                sc = (b*e - c*d) / denominator
+                tc = (a*e - b*d) / denominator
+            else:
+                sc = tc = 0
+            
+            sc = np.clip(sc, 0, 1)
+            tc = np.clip(tc, 0, 1)
+            
+            closest_p1 = positions[p1_1] + sc * v1
+            closest_p2 = positions[p2_1] + tc * v2
+            
+            separation = closest_p2 - closest_p1
+            distance = np.linalg.norm(separation)
+            
+            min_separation = radii[p1_1] + radii[p1_2] + radii[p2_1] + radii[p2_2]
+            if distance < min_separation:
+                force = 20 * (min_separation - distance)  # Increased force strength
+                direction = safe_normalize(separation)
+                
+                # Apply forces to the proteins
+                forces[p1_1] -= force * direction * (1 - sc)
+                forces[p1_2] -= force * direction * sc
+                forces[p2_1] += force * direction * (1 - tc)
+                forces[p2_2] += force * direction * tc
+                
+                # Additional force to separate lines at origin
+                origin_separation = positions[p2_1] - positions[p1_1]
+                origin_distance = np.linalg.norm(origin_separation)
+                if origin_distance < min_separation:
+                    origin_force = 10 * (min_separation - origin_distance)
+                    origin_direction = safe_normalize(origin_separation)
+                    forces[p1_1] -= origin_force * origin_direction
+                    forces[p2_1] += origin_force * origin_direction
+        
+        # Force to prevent lines from passing through protein backbones
+        for k, protein in enumerate(proteins):
+            if k != p1_1 and k != p1_2:
+                protein_radius = radii[k]
+                protein_to_line = np.cross(line1, positions[k] - positions[p1_1])
+                distance_to_line = np.linalg.norm(protein_to_line) / np.linalg.norm(line1)
+                
+                if distance_to_line < protein_radius + 15:  # Add some buffer
+                    force = 15 * (protein_radius + 5 - distance_to_line)
+                    direction = safe_normalize(np.cross(line1_dir, protein_to_line))
+                    forces[p1_1] += force * direction
+                    forces[p1_2] += force * direction
+                    forces[k] -= force * direction
+    
     return forces
 
-def apply_layout(proteins, ppis, network, iterations=200, logger = None):
+def apply_layout(proteins, ppis, network, iterations=10000, logger=None):
+    """
+    Apply the layout algorithm to position proteins in 3D space.
+    
+    Args:
+        proteins (list): List of protein objects.
+        ppis (list): List of protein-protein interactions.
+        network: Network object containing logger and other network information.
+        iterations (int): Number of iterations for the layout algorithm.
+        logger: Logger object for output messages.
+    
+    Returns:
+        np.array: Optimized positions of proteins.
+    """
     components = get_connected_components(proteins, ppis, logger)
     positions, radii = initialize_positions(proteins, ppis, components)
     network.logger.info(f'   - Nº of iterations to perform: {iterations}')
     network.logger.info(f'   - Number of connected components: {len(components)}')
     
     for i in range(iterations):
-        if i % 10 == 0:
+        if i % 1000 == 0:
             network.logger.info(f'   - Iteration {i}...')
         
         forces = compute_forces(positions, radii, proteins, ppis, components)
         
-        damping_factor = 1 - (i / iterations)
-        positions += forces * 0.1 * damping_factor
+        # Use an adaptive damping factor with slower decay
+        damping_factor = 1 - (i / iterations)**0.5
+        positions += forces * 0.05 * damping_factor  # Reduced step size for finer control
         
         # Ensure components don't drift too far apart
-        for component in components:
-            component_indices = [proteins.index(p) for p in proteins if p.get_ID() in component]
-            component_center = np.mean(positions[component_indices], axis=0)
-            global_center = np.mean(positions, axis=0)
-            max_distance = 1000  # Maximum distance from global center
-            if np.linalg.norm(component_center - global_center) > max_distance:
-                direction = safe_normalize(component_center - global_center)
-                for idx in component_indices:
-                    positions[idx] = global_center + direction * max_distance + (positions[idx] - component_center)
+        if len(components) > 1:
+            for component in components:
+                component_indices = [proteins.index(p) for p in proteins if p.get_ID() in component]
+                component_center = np.mean(positions[component_indices], axis=0)
+                global_center = np.mean(positions, axis=0)
+                max_distance = 1000  # Maximum distance from global center
+                if np.linalg.norm(component_center - global_center) > max_distance:
+                    direction = safe_normalize(component_center - global_center)
+                    for idx in component_indices:
+                        positions[idx] = global_center + direction * max_distance + (positions[idx] - component_center)
+    
+    # Final adjustment to bring interacting proteins closer together
+    buffer_distance = 20  # Angstroms
+    network.logger.info(f'   - Performing final adjustment...')
+    
+    # Create a dictionary of interacting protein pairs
+    interacting_pairs = set()
+    for ppi in ppis:
+        p1 = proteins.index(ppi.get_protein_1())
+        p2 = proteins.index(ppi.get_protein_2())
+        interacting_pairs.add((min(p1, p2), max(p1, p2)))
+    
+    for _ in range(100):  # Perform 100 iterations of final adjustment
+        distances = squareform(pdist(positions))
+        for i, j in interacting_pairs:
+            current_distance = distances[i,j]
+            min_distance = radii[i] + radii[j] + buffer_distance
+            if current_distance > min_distance:
+                direction = safe_normalize(positions[j] - positions[i])
+                move = (current_distance - min_distance) * 0.1  # Move 10% of the excess distance
+                positions[i] += direction * move * 0.5
+                positions[j] -= direction * move * 0.5
     
     return positions
 
 def optimize_layout(network):
+    """
+    Optimize the layout of proteins in the network.
+    
+    Args:
+        network: Network object containing proteins, PPIs, and logger.
+    """
     proteins = network.get_proteins()
     ppis = network.get_ppis()
     
-    optimized_positions = apply_layout(proteins, ppis, network, logger = network.logger)
+    optimized_positions = apply_layout(proteins, ppis, network, logger=network.logger)
     
     for i, protein in enumerate(proteins):
         protein.translate(optimized_positions[i] - protein.get_CM())
@@ -323,12 +494,7 @@ def optimize_layout(network):
         try:
             protein.rotate2all(ppis)
         except Exception as e:
-            network.logger.error(f"Error rotating protein {protein.get_ID()}: {str(e)}")
-
-    
-
-
-
+            network.logger.error(f"Error rotating protein {protein.get_ID()}: {str(e)}")  
 
 # ----------------------------------------------------------------------------------------------------------- #
 ###############################################################################################################
@@ -1346,7 +1512,8 @@ class Network(object):
 
     def generate_py3dmol_plot(self, save_path: str = './3D_graph.html',
                               classification_colors = rrc_classification_colors,
-                              surface_residue_palette = default_color_palette,
+                              domain_colors         = DOMAIN_COLORS_RRC,
+                              res_centroid_colors   = SURFACE_COLORS_RRC,
                               show_plot = True):
         """
         Generates a 3D molecular visualization of the network using py3Dmol.
@@ -1360,13 +1527,9 @@ class Network(object):
         
         # Progress
         self.logger.info("INITIALIZING: Generating py3Dmol visualization...")
-        
-        # Set a different color palette for each protein domain
-        protein_color_map = {protein.get_unique_ID(): DOMAIN_COLORS_RRC for protein in self.proteins}
 
         # Create a view object
         view = py3Dmol.view(width='100%', height='100%')
-
 
         # Create a global dictionary to map PPI IDs to colors
         ppi_colors = {}
@@ -1374,7 +1537,7 @@ class Network(object):
         for ppi in self.ppis:
             ppi_id = (ppi.get_tuple_pair(), ppi.get_cluster_n())  # Include cluster number in the key
             if ppi_id not in ppi_colors:
-                ppi_colors[ppi_id] = SURFACE_COLORS_RRC[color_index % len(SURFACE_COLORS_RRC)]
+                ppi_colors[ppi_id] = res_centroid_colors[color_index % len(res_centroid_colors)]
                 color_index += 1
 
         ########################### Protein Backbones ###########################
@@ -1382,16 +1545,17 @@ class Network(object):
         # Progress
         self.logger.info('   Adding protein backbones...')
 
-        # Add each protein to the viewer
-        for idx, protein in enumerate(self.proteins):
+        # Get the maximum number of domains of all proteins
+        max_domain_value = max([max(prot.domains) for prot in self.proteins])
+
+        # Add each protein backbone to the viewer
+        for protein in self.proteins:
 
             # Get palette for the protein
-            base_color = protein_color_map[protein.get_unique_ID()]
             residue_groups = protein.surface.get_residues_by_group()
 
             # Get the maximum domain value across all proteins to generate enough unique colors
-            max_domain_value = max(protein.domains)
-            domain_colors = generate_unique_colors(n = max_domain_value + 1, palette = DOMAIN_COLORS_RRC)
+            domain_colors = generate_unique_colors(n = max_domain_value + 1, palette = domain_colors)
 
             # Progress
             self.logger.info(f'      - Adding {protein.get_ID()} backbone')
@@ -1433,7 +1597,7 @@ class Network(object):
             
             for group, residues in residue_groups.items():
                 for residue in residues:
-                    if residue.index in added_residues:
+                    if residue.index in added_residues: # Skip already added
                         continue
 
                     if group == "A":
@@ -1490,7 +1654,7 @@ class Network(object):
                 contact_classification = ppi.contacts_classification[i]
                 contact_freq = ppi.contact_freq[i]
                 cylinder_color = classification_colors.get(contact_classification, 'gray')
-                cylinder_radius = (0.1 + 0.4 * contact_freq) * 0.5 # Scale radius based on frequency (0 to 1)
+                cylinder_radius = (0.3 * contact_freq) * 0.5 # Scale radius based on frequency (0 to 1)
 
                 view.addCylinder({
                     'start': {'x': float(centroid_1[0]), 'y': float(centroid_1[1]), 'z': float(centroid_1[2])},
@@ -1528,6 +1692,304 @@ class Network(object):
 
         if show_plot:
             webbrowser.open(f"{save_path}")
+
+
+    def generate_plotly_3d_plot(self, save_path: str = './3D_graph.html',
+                                classification_colors: Dict = rrc_classification_colors,
+                                domain_colors: Dict         = {i: v[-5] for i,v in enumerate(default_color_palette.values())},
+                                res_centroid_colors: Dict   = {i: v[-1] for i,v in enumerate(default_color_palette.values())},
+                                show_plot: bool = True):
+        """
+        Generates a 3D molecular visualization of the network using Plotly.
+
+        Parameters:
+            save_path (str): Path to save the HTML visualization file (default: './3D_graph.html').
+            classification_colors (dict): Mapping of contact classification categories to colors.
+            domain_colors (dict): Mapping of domain numbers to colors.
+            res_centroid_colors (dict): Mapping of residue types to colors for centroids.
+            show_plot (bool): Whether to automatically display the plot (default: True).
+        """
+        
+        # Progress
+        self.logger.info("INITIALIZING: Generating Plotly 3D visualization...")
+
+        # Create a figure object
+        fig = go.Figure()
+
+        # Create a global dictionary to map PPI IDs to colors
+        ppi_colors = {}
+        color_index = 0
+        for ppi in self.ppis:
+            ppi_id = (ppi.get_tuple_pair(), ppi.get_cluster_n())  # Include cluster number in the key
+            if ppi_id not in ppi_colors:
+                ppi_colors[ppi_id] = res_centroid_colors[color_index % len(res_centroid_colors)]
+                color_index += 1
+
+        ########################### Protein Backbones ###########################
+
+        # Progress
+        self.logger.info('   Adding protein backbones...')
+
+        pLDDT_colors = ['#e13939', '#f18438', '#f1e66b', '#00b1b0', '#001a9c']
+
+        plddt_traces = []
+        domain_traces = []
+
+        for protein in self.proteins:
+            backbone_CAs = protein.get_res_CA_xyz()
+            plddt_values = protein.get_res_pLDDT()
+            resid_values = protein.get_res_names()
+
+            plddt_trace = go.Scatter3d(
+                x=[xyz[0] for xyz in backbone_CAs],
+                y=[xyz[1] for xyz in backbone_CAs],
+                z=[xyz[2] for xyz in backbone_CAs],
+                mode='lines',
+                line=dict(
+                    color=plddt_values,
+                    colorscale=pLDDT_colors,
+                    width=5,
+                ),
+                name=f"{protein.get_ID()} (pLDDT)",
+                showlegend=False,
+                hoverinfo='text',
+                hovertext=resid_values
+            )
+            plddt_traces.append(plddt_trace)
+
+            domain_trace = go.Scatter3d(
+                x=[xyz[0] for xyz in backbone_CAs],
+                y=[xyz[1] for xyz in backbone_CAs],
+                z=[xyz[2] for xyz in backbone_CAs],
+                mode='lines',
+                line=dict(
+                    color=[domain_colors.get(domain, 'gray') for domain in protein.domains],
+                    width=5
+                ),
+                name=f"{protein.get_ID()} (Domains)",
+                showlegend=False,
+                hoverinfo='text',
+                hovertext=resid_values
+            )
+            domain_traces.append(domain_trace)
+
+        # Add grouped traces
+        fig.add_trace(go.Scatter3d(x=[None], y=[None], z=[None], name="pLDDT Backbones", visible='legendonly'))
+        for trace in plddt_traces:
+            fig.add_trace(trace)
+
+        fig.add_trace(go.Scatter3d(x=[None], y=[None], z=[None], name="Domain Backbones", visible='legendonly'))
+        for trace in domain_traces:
+            fig.add_trace(trace)
+
+        # Update trace grouping
+        for i in range(len(plddt_traces) + 1):
+            fig.data[i].legendgroup = "pLDDT"
+            fig.data[i].visible = 'legendonly'
+
+        for i in range(len(plddt_traces) + 1, len(plddt_traces) + len(domain_traces) + 2):
+            fig.data[i].legendgroup = "Domains"
+            fig.data[i].visible = 'legendonly'
+
+        ############################ Contact Lines ############################
+
+        # Progress
+        self.logger.info('   Adding contact lines...')
+
+        # Dictionary to group by classification
+        classified_traces = defaultdict(lambda: {'x': [], 'y': [], 'z': [], 'hovertext': [], 'freqs': []})
+
+        def generate_intermediate_points(p1, p2, num_points=20):
+            """
+            Generates num_points equidistant points between p1 and p2 (excluding p1 and p2).
+            """
+            return [p1 + (p2 - p1) * t for t in np.linspace(0, 1, num_points + 2)][1:-1]
+
+        for ppi in self.ppis:
+            self.logger.info(f'      - Adding PPI {ppi.get_tuple_pair()} cluster {ppi.get_cluster_n()} contacts...')
+
+            protein_1 = ppi.get_protein_1()
+            protein_2 = ppi.get_protein_2()
+
+            contact_residues_1 = ppi.get_contacts_res_1()
+            contact_residues_2 = ppi.get_contacts_res_2()
+
+            for i, (res1_index, res2_index) in enumerate(zip(contact_residues_1, contact_residues_2)):
+                centroid_1 = np.array(protein_1.get_res_centroids_xyz([res1_index])[0])
+                centroid_2 = np.array(protein_2.get_res_centroids_xyz([res2_index])[0])
+
+                contact_classification = ppi.contacts_classification[i]
+                contact_freq = ppi.contact_freq[i]
+                color = classification_colors.get(contact_classification, 'gray')
+
+                # Generate 5 equidistant intermediate points between centroid_1 and centroid_2
+                x_intermediates = generate_intermediate_points(centroid_1[0], centroid_2[0])
+                y_intermediates = generate_intermediate_points(centroid_1[1], centroid_2[1])
+                z_intermediates = generate_intermediate_points(centroid_1[2], centroid_2[2])
+
+                # Grouping coordinates and hovertext by classification, including intermediates
+                classified_traces[contact_classification]['x'].extend([centroid_1[0]] + x_intermediates + [centroid_2[0], None])
+                classified_traces[contact_classification]['y'].extend([centroid_1[1]] + y_intermediates + [centroid_2[1], None])
+                classified_traces[contact_classification]['z'].extend([centroid_1[2]] + z_intermediates + [centroid_2[2], None])
+                
+                # Replicate hovertext for each segment, including intermediates
+                hovertext = f"{protein_1.get_ID()}-{protein_1.get_res_names([res1_index])[0]} / " \
+                            f"{protein_2.get_ID()}-{protein_2.get_res_names([res2_index])[0]}"
+                classified_traces[contact_classification]['hovertext'].extend([hovertext] * (len(x_intermediates) + 2))
+                classified_traces[contact_classification]['hovertext'].append(None)  # To handle the 'None' in coordinates
+                
+                classified_traces[contact_classification]['freqs'].append(contact_freq)
+
+        # Create a single trace per classification
+        for classification, data in classified_traces.items():
+            fig.add_trace(go.Scatter3d(
+                x=data['x'],
+                y=data['y'],
+                z=data['z'],
+                mode='lines',
+                line=dict(
+                    color=classification_colors.get(classification, 'gray'),
+                    width=2,  # Fixed width
+                ),
+                opacity=0.5,
+                name=f"{CLASSIFICATION_ENCODING[classification]} Contacts",
+                showlegend=True,
+                hoverinfo='text',
+                hovertext=data['hovertext']
+            ))
+
+        ################### Surface residues connected to the CM ###################
+        
+        # Progress
+        self.logger.info('   Adding protein surface residue centroids and lines...')
+
+        shared_residue_color = 'black'
+
+        x, y, z     = [], [], []
+        colors      = []
+        hover_texts = []
+
+        # Pack the data
+        for protein in self.proteins:
+            cm = protein.get_CM()
+            surface_residues = protein.surface.get_interacting_residues()
+
+            for index, residue in surface_residues.items():
+                centroid = protein.get_res_centroids_xyz([index])[0]
+                
+                x.extend([centroid[0], cm[0], None])
+                y.extend([centroid[1], cm[1], None])
+                z.extend([centroid[2], cm[2], None])
+                
+                if len(residue.interactions) > 1:  # Shared residue
+                    color = shared_residue_color
+                elif residue.interactions:
+                    ppi_id, cluster_n = next(iter(residue.interactions.keys()))
+                    color = ppi_colors.get((ppi_id, cluster_n), 'gray')
+                else:
+                    color = 'gray'
+                colors.extend([color, color, color])
+                
+                hover_text = f"{protein.get_ID()}-{residue.get_name()}"
+                hover_texts.extend([hover_text, hover_text, hover_text])
+
+        # Add lines
+        fig.add_trace(go.Scatter3d(
+            x=x, y=y, z=z,
+            mode='lines+markers',
+            line=dict(color=colors, width=5),
+            marker=dict(size=5,
+                        color=colors,
+                        opacity=0.5
+                ),
+            opacity=0.5,
+            hoverinfo='text',
+            hovertext=hover_texts,
+            name=f"Surfaces",
+            showlegend=True
+        ))       
+
+        ############################# Some Labels #############################
+
+        nc_term_list_xyz  = []
+        nc_term_list_text = []
+        CM_list_xyz       = []
+        CM_list_text      = []
+
+        # Compute N and C terminal labels, and protein IDs
+        for protein in self.proteins:
+            # Add N-ter
+            nc_term_list_xyz.append(protein.get_res_CA_xyz([0])[0])
+            nc_term_list_text.append('N')
+
+            # Add C-ter
+            nc_term_list_xyz.append(protein.get_res_CA_xyz([len(protein.get_seq())-1])[0])
+            nc_term_list_text.append('C')
+
+            # Add CM
+            CM_list_xyz.append(protein.get_CM())
+            CM_list_text.append(protein.get_ID())
+
+        # Add N/C-terminals
+        fig.add_trace(go.Scatter3d(
+            x=[nc_term[0] for nc_term in nc_term_list_xyz],
+            y=[nc_term[1] for nc_term in nc_term_list_xyz],
+            z=[nc_term[2] for nc_term in nc_term_list_xyz],
+            mode='text',
+            text=nc_term_list_text,
+            textposition='top center',
+            name = "N/C-terminal",
+            textfont=dict(size=14, color='black'),
+            showlegend=True,
+            visible='legendonly'
+        ))
+
+        # Add ID labels over the CM
+        fig.add_trace(go.Scatter3d(
+            x=[cm[0] for cm in CM_list_xyz],
+            y=[cm[1] for cm in CM_list_xyz],
+            z=[cm[2] + 5 for cm in CM_list_xyz],  # Offset in z-axis
+            mode='text',
+            text=CM_list_text,
+            name = "Protein IDs",
+            textposition='top center',
+            textfont=dict(size=18, color='black'),
+            showlegend=True
+        ))
+
+        # Set camera and background
+        fig.update_layout(
+            scene=dict(
+                xaxis=dict(showbackground=False, showgrid=False, zeroline=False, visible=False),
+                yaxis=dict(showbackground=False, showgrid=False, zeroline=False, visible=False),
+                zaxis=dict(showbackground=False, showgrid=False, zeroline=False, visible=False),
+                aspectmode="data",
+                # Allow free rotation along all axis
+                dragmode="orbit",
+                camera=dict(
+                    eye=dict(x=1.2, y=1.2, z=0.6)
+                )
+            ),
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.01
+            ),
+            margin=dict(r=0, l=0, b=0, t=0),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
+        )
+
+        # Save the visualization as an HTML file
+        self.logger.info("   Saving HTML file...")
+        fig.write_html(save_path)
+        self.logger.info(f"   Visualization saved to {save_path}")
+
+        self.logger.info("FINISHED: Generating Plotly 3D visualization")
+
+        if show_plot:
+            plot(fig)
 
     # -------------------------------------------------------------------------------------
     # ------------------------------------- Operators -------------------------------------

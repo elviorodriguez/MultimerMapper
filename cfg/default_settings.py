@@ -243,6 +243,27 @@ DOMAIN_COLORS_RRC = [
     '#1A237E',  # Dark Navy
 ]
 
+# # Lighter colors for domains
+# DOMAIN_COLORS_RRC = [
+# "#d50000",
+# "#00e676",
+# "#2979ff",
+# "#ffea00",
+# "#c6ff00",
+# "#ff9100",
+# "#d500f9",
+# "#00b0ff",
+# "#1de9b6",
+# "#76ff03",
+# "#ffc400",
+# "#ff3d00",
+# "#f50057",
+# "#651fff",
+# "#00e5ff",
+# "#3d5afe",
+# ]
+
+
 # Lighter colors for surfaces
 SURFACE_COLORS_RRC = [
     '#FF6347',  # Tomato

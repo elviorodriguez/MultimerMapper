@@ -437,7 +437,8 @@ def interactive_igraph_to_py3dmol(combined_graph, logger, automatic_true = False
     while True:
 
         nw.generate_layout()
-        nw.generate_py3dmol_plot(save_path = out_path + '3D_graph.html', show_plot = True)
+        nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph_py3Dmol.html', show_plot = True)
+        nw.generate_plotly_3d_plot(save_path = out_path + '/3D_graph_Plotly.html', show_plot = True)
 
         logger.info("Some 3D layout generation algorithms are stochastic:")
         logger.info("   - Do you like the plot? (y/n): ")
