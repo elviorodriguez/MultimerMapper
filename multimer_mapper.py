@@ -25,6 +25,7 @@ try:
     from src.analyze_multivalency import cluster_all_pairs, add_cluster_contribution_by_dataset
     from src.fallback import analyze_fallback
     from src.contact_graph import Residue, Surface, Protein, PPI, Network
+    from src.stoichiometries import stoichiometric_space_exploration_pipeline
 
     # These are for interactive usage
     from traj.pairwise_rmsd_trajectories import generate_pairwise_domain_trajectories, generate_pairwise_domain_trajectory_in_context
@@ -582,5 +583,8 @@ if __name__ == "__main__":
     # Create 3D network
     nw = interactive_igraph_to_py3dmol(mm_output['combined_graph'], logger = logger)
     
+    # Explore the stoichiometric space of the complex
+    stoichiometric_space_exploration_pipeline(mm_output, log_level = log_level, open_plots = True)
+
     # Progress
     logger.info("MultimerMapper pipeline completed! Enjoy exploring your interactions!")

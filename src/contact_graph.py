@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import igraph
 import py3Dmol
-import itertools
-import random
+# import itertools
+# import random
 from typing import Dict, List, Tuple, Optional
 from collections import Counter
 from logging import Logger
@@ -20,9 +20,10 @@ from plotly.offline import plot
 from collections import defaultdict
 
 from cfg.default_settings import PT_palette, DOMAIN_COLORS_RRC, SURFACE_COLORS_RRC
-from utils.pdb_utils import center_of_mass, rotate_points
+from utils.pdb_utils import rotate_points
 from src.detect_domains import format_domains_df_as_no_loops_domain_clusters
-from utils.progress_bar import print_progress_bar
+# from utils.pdb_utils import center_of_mass
+# from utils.progress_bar import print_progress_bar
 
 ##############################################################################################################
 ########################################### Contact classification ###########################################
@@ -1112,236 +1113,234 @@ class PPI(object):
         return self.contacts_classification
 
 
-###############################################################################################################
-############################################# Class Stoichiometry #############################################
-###############################################################################################################
+# ###############################################################################################################
+# ############################################# Class Stoichiometry #############################################
+# ###############################################################################################################
 
+# class Stoichiometry:
+#     def __init__(self, network, protein_counts: Dict[str, int], parent=None):
+#         self.network = network
+#         self.protein_counts = protein_counts
+#         self.proteins = self._create_proteins()
+#         self.ppis = self._create_ppis()
+#         self.score = self._calculate_score()
+#         self.parent = parent
+#         self.child = None
+#         self.is_convergent = False
 
+#     def _create_proteins(self) -> List[Protein]:
+#         proteins = []
+#         for protein_id, count in self.protein_counts.items():
+#             original_protein = next(p for p in self.network.get_proteins() if p.get_ID() == protein_id)
+#             proteins.extend([Protein(original_protein.vertex, len(proteins) + i, original_protein.logger, verbose=False) for i in range(count)])
+#         return proteins
 
-class Stoichiometry:
-    def __init__(self, network, protein_counts: Dict[str, int], parent=None):
-        self.network = network
-        self.protein_counts = protein_counts
-        self.proteins = self._create_proteins()
-        self.ppis = self._create_ppis()
-        self.score = self._calculate_score()
-        self.parent = parent
-        self.child = None
-        self.is_convergent = False
-
-    def _create_proteins(self) -> List[Protein]:
-        proteins = []
-        for protein_id, count in self.protein_counts.items():
-            original_protein = next(p for p in self.network.get_proteins() if p.get_ID() == protein_id)
-            proteins.extend([Protein(original_protein.vertex, len(proteins) + i, original_protein.logger, verbose=False) for i in range(count)])
-        return proteins
-
-    def _create_ppis(self) -> List[PPI]:
-        ppis = []
-        for ppi in self.network.get_ppis():
-            prot1_id, prot2_id = ppi.get_tuple_pair()
-            for p1 in [p for p in self.proteins if p.get_ID() == prot1_id]:
-                for p2 in [p for p in self.proteins if p.get_ID() == prot2_id]:
-                    if p1 != p2:
-                        ppis.append(PPI([p1, p2], ppi.get_edge(), ppi.logger, verbose=False))
-        return ppis
+#     def _create_ppis(self) -> List[PPI]:
+#         ppis = []
+#         for ppi in self.network.get_ppis():
+#             prot1_id, prot2_id = ppi.get_tuple_pair()
+#             for p1 in [p for p in self.proteins if p.get_ID() == prot1_id]:
+#                 for p2 in [p for p in self.proteins if p.get_ID() == prot2_id]:
+#                     if p1 != p2:
+#                         ppis.append(PPI([p1, p2], ppi.get_edge(), ppi.logger, verbose=False))
+#         return ppis
     
-    def _calculate_score(self) -> float:
-        score = 0
+#     def _calculate_score(self) -> float:
+#         score = 0
         
-        # 1) Homooligomer convergence
-        for ppi in self.ppis:
-            if ppi.is_homooligomeric():
-                convergent_state = ppi.get_edge()['homooligomerization_states']['N_states'][-1]
-                if convergent_state:
-                    protein_id = ppi.get_prot_ID_1()
-                    if self.protein_counts[protein_id] % convergent_state == 0:
-                        score += 0.1
+#         # 1) Homooligomer convergence
+#         for ppi in self.ppis:
+#             if ppi.is_homooligomeric():
+#                 convergent_state = ppi.get_edge()['homooligomerization_states']['N_states'][-1]
+#                 if convergent_state:
+#                     protein_id = ppi.get_prot_ID_1()
+#                     if self.protein_counts[protein_id] % convergent_state == 0:
+#                         score += 0.1
         
-        # 2) Multivalent pair convergence
-        multivalent_pairs = self.network.get_multivalent_pairs()
-        for pair in multivalent_pairs:
-            if pair[0] in self.protein_counts and pair[1] in self.protein_counts:
-                convergent_state = self.network.get_multivalent_convergent_state(pair)
-                if convergent_state:
-                    current_state = (self.protein_counts[pair[0]], self.protein_counts[pair[1]])
-                    if current_state == convergent_state or (current_state[0] % convergent_state[0] == 0 and current_state[1] % convergent_state[1] == 0):
-                        score += 0.1
+#         # 2) Multivalent pair convergence
+#         multivalent_pairs = self.network.get_multivalent_pairs()
+#         for pair in multivalent_pairs:
+#             if pair[0] in self.protein_counts and pair[1] in self.protein_counts:
+#                 convergent_state = self.network.get_multivalent_convergent_state(pair)
+#                 if convergent_state:
+#                     current_state = (self.protein_counts[pair[0]], self.protein_counts[pair[1]])
+#                     if current_state == convergent_state or (current_state[0] % convergent_state[0] == 0 and current_state[1] % convergent_state[1] == 0):
+#                         score += 0.1
         
-        # 3-5) Contact classifications
-        static_contacts = 0
-        neg_dynamic_contacts = 0
-        pos_dynamic_contacts = 0
-        total_contacts = 0
+#         # 3-5) Contact classifications
+#         static_contacts = 0
+#         neg_dynamic_contacts = 0
+#         pos_dynamic_contacts = 0
+#         total_contacts = 0
         
-        for ppi in self.ppis:
-            classifications = ppi.get_contacts_classification()
-            total_contacts += len(classifications)
-            static_contacts += classifications.count(1)
-            neg_dynamic_contacts += classifications.count(3)
-            pos_dynamic_contacts += classifications.count(2)
+#         for ppi in self.ppis:
+#             classifications = ppi.get_contacts_classification()
+#             total_contacts += len(classifications)
+#             static_contacts += classifications.count(1)
+#             neg_dynamic_contacts += classifications.count(3)
+#             pos_dynamic_contacts += classifications.count(2)
         
-        score += 0.2 * (static_contacts / total_contacts) if total_contacts > 0 else 0
-        score -= 0.1 * (neg_dynamic_contacts / total_contacts) if total_contacts > 0 else 0
-        score += 0.1 * (pos_dynamic_contacts / total_contacts) if total_contacts > 0 else 0
+#         score += 0.2 * (static_contacts / total_contacts) if total_contacts > 0 else 0
+#         score -= 0.1 * (neg_dynamic_contacts / total_contacts) if total_contacts > 0 else 0
+#         score += 0.1 * (pos_dynamic_contacts / total_contacts) if total_contacts > 0 else 0
         
-        # 6) Co-occupied residues
-        co_occupied_residues = sum(len(p.get_surface().get_residues_by_group()['B']) + len(p.get_surface().get_residues_by_group()['C']) for p in self.proteins)
-        total_residues = sum(len(p.get_seq()) for p in self.proteins)
-        score -= 0.1 * (co_occupied_residues / total_residues) if total_residues > 0 else 0
+#         # 6) Co-occupied residues
+#         co_occupied_residues = sum(len(p.get_surface().get_residues_by_group()['B']) + len(p.get_surface().get_residues_by_group()['C']) for p in self.proteins)
+#         total_residues = sum(len(p.get_seq()) for p in self.proteins)
+#         score -= 0.1 * (co_occupied_residues / total_residues) if total_residues > 0 else 0
         
-        # 7) Fully connected check
-        if not self.is_fully_connected():
-            score -= 0.5
+#         # 7) Fully connected check
+#         if not self.is_fully_connected():
+#             score -= 0.5
         
-        return max(min(score, 1), -1)  # Ensure score is between -1 and 1
+#         return max(min(score, 1), -1)  # Ensure score is between -1 and 1
 
-    def is_fully_connected(self) -> bool:
-        visited = set()
-        stack = [self.proteins[0]]
-        while stack:
-            protein = stack.pop()
-            if protein not in visited:
-                visited.add(protein)
-                for ppi in self.ppis:
-                    if ppi.get_protein_1() == protein:
-                        stack.append(ppi.get_protein_2())
-                    elif ppi.get_protein_2() == protein:
-                        stack.append(ppi.get_protein_1())
-        return len(visited) == len(self.proteins)
+#     def is_fully_connected(self) -> bool:
+#         visited = set()
+#         stack = [self.proteins[0]]
+#         while stack:
+#             protein = stack.pop()
+#             if protein not in visited:
+#                 visited.add(protein)
+#                 for ppi in self.ppis:
+#                     if ppi.get_protein_1() == protein:
+#                         stack.append(ppi.get_protein_2())
+#                     elif ppi.get_protein_2() == protein:
+#                         stack.append(ppi.get_protein_1())
+#         return len(visited) == len(self.proteins)
 
-    def generate_child(self) -> Optional['Stoichiometry']:
-        if self.is_convergent:
-            return None
+#     def generate_child(self) -> Optional['Stoichiometry']:
+#         if self.is_convergent:
+#             return None
 
-        new_protein_counts = self.protein_counts.copy()
+#         new_protein_counts = self.protein_counts.copy()
         
-        # Select a random protein from the current Stoichiometry
-        random_protein = random.choice(self.proteins)
-        protein_id = random_protein.get_ID()
+#         # Select a random protein from the current Stoichiometry
+#         random_protein = random.choice(self.proteins)
+#         protein_id = random_protein.get_ID()
         
-        # Select a random PPI from the combined graph for the selected protein
-        available_ppis = [ppi for ppi in self.network.get_ppis() if protein_id in ppi.get_tuple_pair()]
-        if not available_ppis:
-            self.is_convergent = True
-            return None
+#         # Select a random PPI from the combined graph for the selected protein
+#         available_ppis = [ppi for ppi in self.network.get_ppis() if protein_id in ppi.get_tuple_pair()]
+#         if not available_ppis:
+#             self.is_convergent = True
+#             return None
         
-        random_ppi = random.choice(available_ppis)
-        partner_id = random_ppi.get_prot_ID_1() if random_ppi.get_prot_ID_1() != protein_id else random_ppi.get_prot_ID_2()
+#         random_ppi = random.choice(available_ppis)
+#         partner_id = random_ppi.get_prot_ID_1() if random_ppi.get_prot_ID_1() != protein_id else random_ppi.get_prot_ID_2()
         
-        # Determine if we should connect to an existing protein or create a new one
-        should_create_new = self._should_create_new_protein(random_ppi, partner_id)
+#         # Determine if we should connect to an existing protein or create a new one
+#         should_create_new = self._should_create_new_protein(random_ppi, partner_id)
         
-        if should_create_new:
-            new_protein_counts[partner_id] = new_protein_counts.get(partner_id, 0) + 1
-        else:
-            # Connect to an existing protein, no change in protein_counts
-            pass
+#         if should_create_new:
+#             new_protein_counts[partner_id] = new_protein_counts.get(partner_id, 0) + 1
+#         else:
+#             # Connect to an existing protein, no change in protein_counts
+#             pass
         
-        # Check for conflicting configurations and potentially remove PPIs
-        self._handle_conflicting_configurations(new_protein_counts, random_ppi)
+#         # Check for conflicting configurations and potentially remove PPIs
+#         self._handle_conflicting_configurations(new_protein_counts, random_ppi)
         
-        # Create a new Stoichiometry object
-        child = Stoichiometry(self.network, new_protein_counts, parent=self)
-        self.child = child
+#         # Create a new Stoichiometry object
+#         child = Stoichiometry(self.network, new_protein_counts, parent=self)
+#         self.child = child
         
-        return child
+#         return child
 
-    def _should_create_new_protein(self, ppi: PPI, partner_id: str) -> bool:
-        edge = ppi.get_edge()
+#     def _should_create_new_protein(self, ppi: PPI, partner_id: str) -> bool:
+#         edge = ppi.get_edge()
         
-        # If the partner is not present, always create a new one
-        if partner_id not in self.protein_counts or self.protein_counts[partner_id] == 0:
-            return True
+#         # If the partner is not present, always create a new one
+#         if partner_id not in self.protein_counts or self.protein_counts[partner_id] == 0:
+#             return True
         
-        # Check for homooligomeric interactions
-        if ppi.is_homooligomeric():
-            return True
+#         # Check for homooligomeric interactions
+#         if ppi.is_homooligomeric():
+#             return True
         
-        # Check for multivalent interactions
-        if edge['valency']['cluster_n'] > 0:
-            return np.random.random() < 0.5  # 50% chance to create a new protein for multivalent interactions
+#         # Check for multivalent interactions
+#         if edge['valency']['cluster_n'] > 0:
+#             return np.random.random() < 0.5  # 50% chance to create a new protein for multivalent interactions
         
-        # By default, prefer connecting to existing proteins
-        return np.random.random() < 0.1  # 10% chance to create a new protein in other cases
+#         # By default, prefer connecting to existing proteins
+#         return np.random.random() < 0.1  # 10% chance to create a new protein in other cases
 
-    def _handle_conflicting_configurations(self, new_protein_counts: Dict[str, int], ppi: PPI):
-        edge = ppi.get_edge()
+#     def _handle_conflicting_configurations(self, new_protein_counts: Dict[str, int], ppi: PPI):
+#         edge = ppi.get_edge()
         
-        # Check for negative dynamics
-        if "Negative" in edge['dynamics']:
-            removal_probability = np.mean(list(edge['N_mers_data']['N_models'])) / 5
-            if np.random.random() < removal_probability:
-                # Remove the PPI (don't add it to the new configuration)
-                return
+#         # Check for negative dynamics
+#         if "Negative" in edge['dynamics']:
+#             removal_probability = np.mean(list(edge['N_mers_data']['N_models'])) / 5
+#             if np.random.random() < removal_probability:
+#                 # Remove the PPI (don't add it to the new configuration)
+#                 return
         
-        # Check for conflicts with N_mers data
-        for _, row in edge['N_mers_data'].iterrows():
-            proteins_in_model = set(row['proteins_in_model'])
-            if proteins_in_model.issubset(new_protein_counts.keys()):
-                if row['N_models'] < self.network.combined_graph['cutoffs_dict']['N_models_cutoff']:
-                    removal_probability = 1 - (row['N_models'] / self.network.combined_graph['cutoffs_dict']['N_models_cutoff'])
-                    if np.random.random() < removal_probability:
-                        # Remove the PPI (don't add it to the new configuration)
-                        return
+#         # Check for conflicts with N_mers data
+#         for _, row in edge['N_mers_data'].iterrows():
+#             proteins_in_model = set(row['proteins_in_model'])
+#             if proteins_in_model.issubset(new_protein_counts.keys()):
+#                 if row['N_models'] < self.network.combined_graph['cutoffs_dict']['N_models_cutoff']:
+#                     removal_probability = 1 - (row['N_models'] / self.network.combined_graph['cutoffs_dict']['N_models_cutoff'])
+#                     if np.random.random() < removal_probability:
+#                         # Remove the PPI (don't add it to the new configuration)
+#                         return
 
-    def __eq__(self, other):
-        if not isinstance(other, Stoichiometry):
-            return NotImplemented
-        return self.protein_counts == other.protein_counts
+#     def __eq__(self, other):
+#         if not isinstance(other, Stoichiometry):
+#             return NotImplemented
+#         return self.protein_counts == other.protein_counts
 
-    def __hash__(self):
-        return hash(tuple(sorted(self.protein_counts.items())))
+#     def __hash__(self):
+#         return hash(tuple(sorted(self.protein_counts.items())))
 
-def generate_stoichiometries(network, num_iterations: int = 50):
+# def generate_stoichiometries(network, num_iterations: int = 50):
 
-    # Progress
-    network.logger.info( 'INITIALIZING: Stoichiometric Space Exploration Algorithm...')
-    network.logger.info(f'   Nº of iterations per starting point: {num_iterations}')
+#     # Progress
+#     network.logger.info( 'INITIALIZING: Stoichiometric Space Exploration Algorithm...')
+#     network.logger.info(f'   Nº of iterations per starting point: {num_iterations}')
 
-    stoichiometries = []
+#     stoichiometries = []
     
-    # Start from each protein in the network
-    for point, start_protein in enumerate(network.get_proteins()):
+#     # Start from each protein in the network
+#     for point, start_protein in enumerate(network.get_proteins()):
 
-        # Progress
-        network.logger.info(f'   Starting point ({point + 1}/{len(network.get_proteins())}): {start_protein.get_ID()}')
+#         # Progress
+#         network.logger.info(f'   Starting point ({point + 1}/{len(network.get_proteins())}): {start_protein.get_ID()}')
 
-        initial_counts = {start_protein.get_ID(): 1}
-        root = Stoichiometry(network, initial_counts)
+#         initial_counts = {start_protein.get_ID(): 1}
+#         root = Stoichiometry(network, initial_counts)
         
-        current = root
-        path = [current]
+#         current = root
+#         path = [current]
         
-        for i in range(num_iterations):
+#         for i in range(num_iterations):
 
-            # Progress
-            if i % 10 == 0:
-                network.logger.info(f'      - Iteration: {i} | Nº of Stoichiometries in path: {len(path)}...')
+#             # Progress
+#             if i % 10 == 0:
+#                 network.logger.info(f'      - Iteration: {i} | Nº of Stoichiometries in path: {len(path)}...')
 
-            child = current.generate_child()
-            if child is None:
-                break
-            path.append(child)
-            current = child
+#             child = current.generate_child()
+#             if child is None:
+#                 break
+#             path.append(child)
+#             current = child
         
-        stoichiometries.extend(path)
+#         stoichiometries.extend(path)
     
-    network.logger.info('FINISHED: Stoichiometric Space Exploration Algorithm')
+#     network.logger.info('FINISHED: Stoichiometric Space Exploration Algorithm')
     
-    return stoichiometries
+#     return stoichiometries
 
-def analyze_stoichiometries(stoichiometries: List[Stoichiometry]):
-    # Count occurrences of each unique stoichiometry
-    stoich_counts = {}
-    for s in stoichiometries:
-        key = tuple(sorted(s.protein_counts.items()))
-        stoich_counts[key] = stoich_counts.get(key, 0) + 1
+# def analyze_stoichiometries(stoichiometries: List[Stoichiometry]):
+#     # Count occurrences of each unique stoichiometry
+#     stoich_counts = {}
+#     for s in stoichiometries:
+#         key = tuple(sorted(s.protein_counts.items()))
+#         stoich_counts[key] = stoich_counts.get(key, 0) + 1
     
-    # Sort by frequency and score
-    sorted_stoich = sorted(stoich_counts.items(), key=lambda x: (-x[1], -dict(x[0]).get('score', 0)))
+#     # Sort by frequency and score
+#     sorted_stoich = sorted(stoich_counts.items(), key=lambda x: (-x[1], -dict(x[0]).get('score', 0)))
     
-    return sorted_stoich
+#     return sorted_stoich
 
 
 
@@ -1419,148 +1418,148 @@ class Network(object):
         """
         return self.ppis
 
-    ########################## For stoichiometry computations (greedy method) ##########################
+    # ########################## For stoichiometry computations (greedy method) ##########################
 
-    def generate_stoichiometries_greedy(self, num_stoichiometries: int = 100, max_units: int = 6, max_iterations: int = 1000, convergent_iterations = 10) -> List[Stoichiometry]:
+    # def generate_stoichiometries_greedy(self, num_stoichiometries: int = 100, max_units: int = 6, max_iterations: int = 1000, convergent_iterations = 10) -> List[Stoichiometry]:
         
-        # Progress
-        self.logger.info(f"INITIALIZING: Stoichiometry Exploration (Greedy)...")
-        self.logger.info(f"   Parameters:")
-        self.logger.info(f"      - num_stoichiometries = {num_stoichiometries}")
-        self.logger.info(f"      - max_units = {max_units}")
-        self.logger.info(f"      - convergent_iterations = {convergent_iterations}")
-        self.logger.info(f"   Generating stoichiometries:")
+    #     # Progress
+    #     self.logger.info(f"INITIALIZING: Stoichiometry Exploration (Greedy)...")
+    #     self.logger.info(f"   Parameters:")
+    #     self.logger.info(f"      - num_stoichiometries = {num_stoichiometries}")
+    #     self.logger.info(f"      - max_units = {max_units}")
+    #     self.logger.info(f"      - convergent_iterations = {convergent_iterations}")
+    #     self.logger.info(f"   Generating stoichiometries:")
 
-        # Counters and results
-        stoichiometries = []
-        iterations = 0
-        convergency_counter = 0
+    #     # Counters and results
+    #     stoichiometries = []
+    #     iterations = 0
+    #     convergency_counter = 0
 
-        while len(stoichiometries) < num_stoichiometries and iterations < max_iterations and convergency_counter < convergent_iterations:
+    #     while len(stoichiometries) < num_stoichiometries and iterations < max_iterations and convergency_counter < convergent_iterations:
 
-            # Initial random guess
-            protein_counts = self._generate_random_protein_counts(max_units)
+    #         # Initial random guess
+    #         protein_counts = self._generate_random_protein_counts(max_units)
 
-            # Optimize the guess
-            stoichiometry, optimized_protein_counts = self._optimize_stoichiometry(protein_counts, max_units)
+    #         # Optimize the guess
+    #         stoichiometry, optimized_protein_counts = self._optimize_stoichiometry(protein_counts, max_units)
             
-            # If the iteration resulted in a valid stoichiometry
-            if stoichiometry:
+    #         # If the iteration resulted in a valid stoichiometry
+    #         if stoichiometry:
 
-                # If the stoichiometry was not previously explored
-                if stoichiometry not in stoichiometries:
-                    stoichiometries.append(stoichiometry)
-                    self.logger.info(f"      - Generated stoichiometry {len(stoichiometries)}/{num_stoichiometries}")
+    #             # If the stoichiometry was not previously explored
+    #             if stoichiometry not in stoichiometries:
+    #                 stoichiometries.append(stoichiometry)
+    #                 self.logger.info(f"      - Generated stoichiometry {len(stoichiometries)}/{num_stoichiometries}")
 
-                    # Get back the convergency counter to zero
-                    convergency_counter = 0
+    #                 # Get back the convergency counter to zero
+    #                 convergency_counter = 0
                 
-                # If it was previously explored
-                else:
-                    convergency_counter += 1
+    #             # If it was previously explored
+    #             else:
+    #                 convergency_counter += 1
             
-            iterations += 1
+    #         iterations += 1
 
-            # Progress
-            if iterations % 50 == 0:
-                self.logger.info(f"   - Reached iteration {iterations}:")
-                self.logger.info(f"      Current valid stoichiometries: {len(stoichiometries)}/{num_stoichiometries}")
-                self.logger.info(f"      Convergency counter: {convergency_counter}")
+    #         # Progress
+    #         if iterations % 50 == 0:
+    #             self.logger.info(f"   - Reached iteration {iterations}:")
+    #             self.logger.info(f"      Current valid stoichiometries: {len(stoichiometries)}/{num_stoichiometries}")
+    #             self.logger.info(f"      Convergency counter: {convergency_counter}")
 
 
-        self.logger.info(f"Greedy stoichiometry generation complete.")
-        if convergency_counter < convergent_iterations:
-            self.logger.info( "   - Algorithm reached convergency")
-        self.logger.info(f"   - Created {len(stoichiometries)} stoichiometries in {iterations} iterations.")
-        return sorted(stoichiometries, key=lambda s: s.score, reverse=True)
+    #     self.logger.info(f"Greedy stoichiometry generation complete.")
+    #     if convergency_counter < convergent_iterations:
+    #         self.logger.info( "   - Algorithm reached convergency")
+    #     self.logger.info(f"   - Created {len(stoichiometries)} stoichiometries in {iterations} iterations.")
+    #     return sorted(stoichiometries, key=lambda s: s.score, reverse=True)
 
-    def _generate_random_protein_counts(self, max_units: int) -> Dict[str, int]:
-        return {protein_id: random.randint(1, max_units) for protein_id in self.proteins_IDs}
+    # def _generate_random_protein_counts(self, max_units: int) -> Dict[str, int]:
+    #     return {protein_id: random.randint(1, max_units) for protein_id in self.proteins_IDs}
 
-    def _optimize_stoichiometry(self, initial_counts: Dict[str, int], max_units: int) -> Stoichiometry:
-        current_counts = initial_counts.copy()
-        current_stoichiometry = Stoichiometry(self, current_counts)
+    # def _optimize_stoichiometry(self, initial_counts: Dict[str, int], max_units: int) -> Stoichiometry:
+    #     current_counts = initial_counts.copy()
+    #     current_stoichiometry = Stoichiometry(self, current_counts)
         
-        if not current_stoichiometry.is_fully_connected():
-            return None
+    #     if not current_stoichiometry.is_fully_connected():
+    #         return None
 
-        for _ in range(100):  # Limit the number of optimization steps
-            improved = False
-            for protein_id in self.proteins_IDs:
-                for delta in [-1, 1]:
-                    new_counts = current_counts.copy()
-                    new_counts[protein_id] = max(1, min(new_counts[protein_id] + delta, max_units))
+    #     for _ in range(100):  # Limit the number of optimization steps
+    #         improved = False
+    #         for protein_id in self.proteins_IDs:
+    #             for delta in [-1, 1]:
+    #                 new_counts = current_counts.copy()
+    #                 new_counts[protein_id] = max(1, min(new_counts[protein_id] + delta, max_units))
                     
-                    if new_counts != current_counts:
-                        new_stoichiometry = Stoichiometry(self, new_counts)
-                        if new_stoichiometry.is_fully_connected() and new_stoichiometry.score > current_stoichiometry.score:
-                            current_counts = new_counts
-                            current_stoichiometry = new_stoichiometry
-                            improved = True
-                            break
+    #                 if new_counts != current_counts:
+    #                     new_stoichiometry = Stoichiometry(self, new_counts)
+    #                     if new_stoichiometry.is_fully_connected() and new_stoichiometry.score > current_stoichiometry.score:
+    #                         current_counts = new_counts
+    #                         current_stoichiometry = new_stoichiometry
+    #                         improved = True
+    #                         break
                 
-                if improved:
-                    break
+    #             if improved:
+    #                 break
             
-            if not improved:
-                break
+    #         if not improved:
+    #             break
 
-        return current_stoichiometry, current_counts
+    #     return current_stoichiometry, current_counts
 
-    ########################## For stoichiometry computations (full) ##########################
+    # ########################## For stoichiometry computations (full) ##########################
     
-    def generate_stoichiometries(self, max_units: int = 6) -> List[Stoichiometry]:
-        self.logger.info(f"Starting stoichiometry generation with max_units={max_units}")
-        protein_ids = self.get_proteins_IDs()
-        stoichiometries = []
-        total_combinations = len(list(itertools.product(range(1, max_units + 1), repeat=len(protein_ids))))
-        self.logger.info(f"Total possible combinations: {total_combinations}")
+    # def generate_stoichiometries(self, max_units: int = 6) -> List[Stoichiometry]:
+    #     self.logger.info(f"Starting stoichiometry generation with max_units={max_units}")
+    #     protein_ids = self.get_proteins_IDs()
+    #     stoichiometries = []
+    #     total_combinations = len(list(itertools.product(range(1, max_units + 1), repeat=len(protein_ids))))
+    #     self.logger.info(f"Total possible combinations: {total_combinations}")
 
-        # Progress
-        current_stoichiometry = 0
-        self.logger.info(print_progress_bar(current_stoichiometry, total_combinations, text = " (Stoichiometries)", progress_length = 40))
+    #     # Progress
+    #     current_stoichiometry = 0
+    #     self.logger.info(print_progress_bar(current_stoichiometry, total_combinations, text = " (Stoichiometries)", progress_length = 40))
 
-        filtered_combinations = 0
-        created_stoichiometries = 0
+    #     filtered_combinations = 0
+    #     created_stoichiometries = 0
 
-        for counts in itertools.product(range(1, max_units + 1), repeat=len(protein_ids)):
-            total_combinations += 1
-            protein_counts = dict(zip(protein_ids, counts))
+    #     for counts in itertools.product(range(1, max_units + 1), repeat=len(protein_ids)):
+    #         total_combinations += 1
+    #         protein_counts = dict(zip(protein_ids, counts))
             
-            if self._is_viable_stoichiometry(protein_counts):
-                stoichiometry = Stoichiometry(self, protein_counts)
-                if stoichiometry.is_fully_connected():
-                    stoichiometries.append(stoichiometry)
-                    created_stoichiometries += 1
-                    if created_stoichiometries % 10 == 0:
-                        self.logger.info(f"Created {created_stoichiometries} viable stoichiometries")
-                        self.logger.info(print_progress_bar(current_stoichiometry, total_combinations, text = " (Stoichiometries)", progress_length = 40))
+    #         if self._is_viable_stoichiometry(protein_counts):
+    #             stoichiometry = Stoichiometry(self, protein_counts)
+    #             if stoichiometry.is_fully_connected():
+    #                 stoichiometries.append(stoichiometry)
+    #                 created_stoichiometries += 1
+    #                 if created_stoichiometries % 10 == 0:
+    #                     self.logger.info(f"Created {created_stoichiometries} viable stoichiometries")
+    #                     self.logger.info(print_progress_bar(current_stoichiometry, total_combinations, text = " (Stoichiometries)", progress_length = 40))
 
-            else:
-                filtered_combinations += 1
-                if filtered_combinations % 1000000 == 0:
-                    self.logger.info(f"Filtered out {filtered_combinations} unviable combinations")
+    #         else:
+    #             filtered_combinations += 1
+    #             if filtered_combinations % 1000000 == 0:
+    #                 self.logger.info(f"Filtered out {filtered_combinations} unviable combinations")
 
-        self.logger.info(f"Stoichiometry generation complete. Created {len(stoichiometries)} stoichiometries.")
-        return sorted(stoichiometries, key=lambda s: s.score, reverse=True)
+    #     self.logger.info(f"Stoichiometry generation complete. Created {len(stoichiometries)} stoichiometries.")
+    #     return sorted(stoichiometries, key=lambda s: s.score, reverse=True)
 
-    def _is_viable_stoichiometry(self, protein_counts: Dict[str, int]) -> bool:
-        # Check if there are at least two proteins without a connection between them
-        for p1, p2 in itertools.combinations(protein_counts.keys(), 2):
-            if (p1, p2) not in self.edge_counts and (p2, p1) not in self.edge_counts:
-                return False
+    # def _is_viable_stoichiometry(self, protein_counts: Dict[str, int]) -> bool:
+    #     # Check if there are at least two proteins without a connection between them
+    #     for p1, p2 in itertools.combinations(protein_counts.keys(), 2):
+    #         if (p1, p2) not in self.edge_counts and (p2, p1) not in self.edge_counts:
+    #             return False
 
-        # Check if the number of proteins exceeds the number of possible interactions
-        for (p1, p2), count in self.edge_counts.items():
-            if p1 in protein_counts and p2 in protein_counts:
-                if p1 == p2:  # Homooligomeric interaction
-                    if protein_counts[p1] > count + 1:
-                        return False
-                else:  # Heterooligomeric interaction
-                    if min(protein_counts[p1], protein_counts[p2]) > count:
-                        return False
+    #     # Check if the number of proteins exceeds the number of possible interactions
+    #     for (p1, p2), count in self.edge_counts.items():
+    #         if p1 in protein_counts and p2 in protein_counts:
+    #             if p1 == p2:  # Homooligomeric interaction
+    #                 if protein_counts[p1] > count + 1:
+    #                     return False
+    #             else:  # Heterooligomeric interaction
+    #                 if min(protein_counts[p1], protein_counts[p2]) > count:
+    #                     return False
 
-        return True
+    #     return True
 
     def get_multivalent_pairs(self) -> List[Tuple[str, str]]:
         multivalent_pairs = []

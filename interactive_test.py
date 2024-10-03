@@ -11,16 +11,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ################################# Test 1 ######################################
 
-# fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
-# AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
-# AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/MM_interactive_test"
-# use_names = True 
-# overwrite = True
-# auto_domain_detection = False
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# # graph_resolution_preset = None
+fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
+AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
+AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/MM_interactive_test"
+use_names = True 
+overwrite = True
+auto_domain_detection = False
+graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# graph_resolution_preset = None
 
 ##############################################################################
 
@@ -63,16 +63,16 @@ pd.set_option( 'display.max_columns' , None )
 
 # ################################ Test 5 (SIN3) ################################
 
-fasta_file = "/home/elvio/Desktop/Assemblies/SIN3/SIN3_proteins.fasta"
-AF2_2mers = "/home/elvio/Desktop/Assemblies/SIN3/2-mers"
-AF2_Nmers = "/home/elvio/Desktop/Assemblies/SIN3/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/Assemblies/SIN3/MM_output"
-use_names = True 
-overwrite = True
-auto_domain_detection = False
-graph_resolution_preset = "/home/elvio/Desktop/Assemblies/SIN3/graph_resolution_preset.json"
-# graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/Assemblies/SIN3/SIN3_proteins.fasta"
+# AF2_2mers = "/home/elvio/Desktop/Assemblies/SIN3/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/Assemblies/SIN3/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/Assemblies/SIN3/MM_output"
+# use_names = True 
+# overwrite = True
+# auto_domain_detection = False
+# graph_resolution_preset = "/home/elvio/Desktop/Assemblies/SIN3/graph_resolution_preset.json"
+# # graph_resolution_preset = None
 
 # ###############################################################################
 
@@ -154,11 +154,16 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     # Answer y automatically
     automatic_true = True)
 
+# Explore the stoichiometric space
+best_stoichiometry, paths = mm.stoichiometric_space_exploration_pipeline(mm_output)
+
 # Create 3D network, generate a layout and create py3Dmol/Plotly visualizations
 nw = mm.Network(mm_output['combined_graph'], logger = logger)
 nw.generate_layout()
 nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph_py3Dmol.html', show_plot=True)
 nw.generate_plotly_3d_plot(save_path = out_path + '/3D_graph_plotly.html', show_plot=True)
+
+
 
 # Get suggested combinations
 suggested_combinations = mm.suggest_combinations(mm_output = mm_output, 
