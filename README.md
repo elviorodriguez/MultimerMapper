@@ -148,7 +148,8 @@ Two RRC graphs are generated. One uses py3Dmol as rendering software (tests/expe
 ![image](https://github.com/user-attachments/assets/d39026ff-63b6-48dd-b493-34539c6f4f5b)
 
 ### Plotly:
-![image](https://github.com/user-attachments/assets/0179efc2-34a2-4040-91df-032d079d3a24)
+![image](https://github.com/user-attachments/assets/411e2f81-c69d-425b-aeda-f84e915a9468)
+
 
 
 # Do you want to combine MultimerMapper with your own pipelines programatically?
