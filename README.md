@@ -37,8 +37,8 @@ By combining predictions and smart analysis, MultimerMapper helps bridge the gap
 # How does it works?
 The software can perform several tasks by analyzing AF2-multimer (AF3 comming soon) predictions ensembles of different combinations of proteins separated in two different directories:
 
-    ```2-mers```: contains all possible pairwise interaction predictions of the set of proteins (homo-2-mers and hetero-2-mers)
-    ```N-mers (optional)```: contains diifferent combinations (3-mers, 4-mers, etc.) interaction predictions of the set of proteins that 
+    2-mers: contains all possible pairwise interaction predictions of the set of proteins (homo-2-mers and hetero-2-mers)
+    N-mers: contains diifferent combinations (3-mers, 4-mers, etc.) interaction predictions of the set of proteins that 
     
 It maps all protein-protein interactions present in the predictions
 
