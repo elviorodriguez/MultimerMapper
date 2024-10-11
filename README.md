@@ -133,7 +133,7 @@ https://github.com/user-attachments/assets/064b9c0c-820a-49c7-94f6-560877e95440
 ## Visualization of Interactive 2D PPI graphs
 One of the main outputs of MultimerMapper is the interactive 2D PPI graph. You can find it inside the output folder (tests/expected_output/2D_graph.html). It represents proteins as nodes and disctinct interaction modes between proteins as edges:
 
-![image](https://github.com/user-attachments/assets/9c9bee17-0917-4a48-8c47-d61a5f3a80fc)
+[Interactive Version](https://elviorodriguez.github.io/MultimerMapper/htmls/2D_plot.html)
 
 The color of the nodes stands for the dynamic clasification of the protein (Static, Dynamic Negative, Dynamic Positive or No Data). Edge colors represents the classification of the interactions (Static, Dynamic Negative, Dynamic Positive or No Data) and the shape of the edge represents the intensity of the classification (solid, dash, dot).
 
