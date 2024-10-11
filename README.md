@@ -133,9 +133,9 @@ https://github.com/user-attachments/assets/064b9c0c-820a-49c7-94f6-560877e95440
 ## Visualization of Interactive 2D PPI graphs
 One of the main outputs of MultimerMapper is the interactive 2D PPI graph. You can find it inside the output folder (tests/expected_output/2D_graph.html). It represents proteins as nodes and disctinct interaction modes between proteins as edges:
 
-[Interactive Version](https://elviorodriguez.github.io/MultimerMapper/htmls/2D_plot.html)
+![image](https://github.com/user-attachments/assets/4629b19c-ad78-4d20-9e73-e9803650ce1a)
 
-The color of the nodes stands for the dynamic clasification of the protein (Static, Dynamic Negative, Dynamic Positive or No Data). Edge colors represents the classification of the interactions (Static, Dynamic Negative, Dynamic Positive or No Data) and the shape of the edge represents the intensity of the classification (solid, dash, dot).
+The color of the nodes stands for the dynamic clasification of the protein (Static, Dynamic Negative, Dynamic Positive). Edge colors represents the classification of the interactions (Static, Dynamic Negative, Dynamic Positive) and the shape of the edge represents the intensity of the classification (solid, dash, dot). In cases in which there is no N-mers or 2-mers data, edges and proteins will be colored in an orange tone.
 
 You can display more information about the proteins in different modelling contexts by clicking above nodes. The hovertext gives you information about detected domain spans and metrics variation (RMSD against reference and mean pLDDT) depending on the modelling context.
 
@@ -143,6 +143,13 @@ You can display more information about the PPIs in different modelling contexts 
 
 ## Visualization of Interactive 3D RRC graphs
 Two RRC graphs are generated. One uses py3Dmol as rendering software (tests/expected_output/3D_graph_py3Dmol.html) and the other uses Plotly (tests/expected_output/3D_graph_plotly.html). Both graphs shows RRCs between proteins, their classification and the surface residue centroids involved in different interactions. However, py3Dmol gives less interactivity but better depth perspective and nicer protein backbone visualizations; while Plotly is much more interactive but gives less depth awareness. Use the one you like the most.
+
+### py3Dmol:
+![image](https://github.com/user-attachments/assets/d39026ff-63b6-48dd-b493-34539c6f4f5b)
+
+### Plotly:
+![image](https://github.com/user-attachments/assets/0179efc2-34a2-4040-91df-032d079d3a24)
+
 
 # Do you want to combine MultimerMapper with your own pipelines programatically?
 Have a look at devs secction (for developers). There you will find explanaitions of MultimerMapper's main functionalities output data structures and their meaning.
