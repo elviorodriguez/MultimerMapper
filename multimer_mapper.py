@@ -495,7 +495,7 @@ if __name__ == "__main__":
     parser.add_argument('--manual_domains', type = str, default = None,
         help='Path to tsv file with manually defined domains (look at tests/EAF6_EPL1_PHD1/manual_domains.tsv for an example)')
     
-    parser.add_argument('--use_IDs', action='store_false',
+    parser.add_argument('--use_IDs', action='store_true',
         help='Use protein IDs instead of names')
     
     parser.add_argument('--overwrite', action='store_true',
@@ -512,7 +512,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Depackage arguments
-    use_names       = not args.use_IDs
+    use_names       = False if args.use_IDs else True
     fasta_file      = args.fasta_file
     AF_2mers        = args.AF_2mers
     AF_Nmers        = args.AF_Nmers
