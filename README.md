@@ -25,12 +25,13 @@ By combining predictions and smart analysis, MultimerMapper helps bridge the gap
 - Protein dynamics capturing
 - Interactive PPI graph (2D) generation
 - Residue-residue contact (RRC) detection
-- Interactive RRC graph (3D) generation (BETA)
-- Interaction surface mapping (BETA)
+- Interactive RRC graph (3D) generation
+- Interaction surface mapping
 - Metrics clustering analysis
 - Pseudo-molecular dynamics trajectories generation (RMSD trajectories)
 - Partner enrichment
-- Interface with combinatorial assembler
+- Stoichiometric Space Exploration (Assembly Path Simulation)
+- Interface with combinatorial assembler (CombFold)
 - Much more comming!
 
 # How does it works?
