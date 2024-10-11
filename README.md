@@ -93,7 +93,6 @@ python multimer_mapper.py --AF_2mers tests/EAF6_EPL1_PHD1/2-mers --out_path test
 python multimer_mapper.py --AF_2mers tests/EAF6_EPL1_PHD1/2-mers --AF_Nmers tests/EAF6_EPL1_PHD1/N-mers --out_path tests/output_Nmers tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta
 ```
 
-
 ## Using manual_domains.tsv
 We highly recommend to use the semi-automatic domain detection algorithm inside MultimerMapper to get the best results, as the pipeline relies on proper definition of compact domains to prerform RMSD trajectories and capture conformational changes. However, if you know the exact start and end positions of the globular domains of your proteins, you can use a ```manuals_domains.tsv``` file to define them:
 ```sh
