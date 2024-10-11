@@ -6,13 +6,13 @@ It is a computational tool for the integration, analysis and visualization of Al
 It is still under active development... So, keep an eye on it.
 
 Here's how it works:
- - *Start with protein sequences*: Input a list of protein sequences you want to study. Typically, they will come from an interactomic experiment.
- - *Generate predictions*: MultimerMapper guides you to create the most informative set of protein structure predictions using AF2-multimer (AF3 soon!).
- - *Analyze interactions*: The tool examines how proteins interact in different combinations (2-mers, 3-mers, etc.) and compares these interactions.
- - *Classify interactions*: MultimerMapper categorizes protein-protein interactions as: static (always present), dynamic positive (only activated in certain modeling contexts), dynamic negative (inhibited in different modeling context).
- - *Visualize results*: The tool creates 2D and 3D visualizations to help you answer: How proteins assemble into larger complexes? Which interactions are stable or changing? What are the potential stoichiometry of the complexes?
- - *Iterate and refine*: MultimerMapper suggests new combinations to predict, helping you explore the "interaction landscape" until you have a complete picture.
- - *Gain insights*: Use the visualizations and analyses to infer the most likely structures and dynamics of your protein complexes.
+ - **Start with protein sequences**: Input a list of protein sequences you want to study. Typically, they will come from an interactomic experiment.
+ - **Generate predictions**: MultimerMapper guides you to create the most informative set of protein structure predictions using AF2-multimer (AF3 soon!).
+ - **Analyze interactions**: The tool examines how proteins interact in different combinations (2-mers, 3-mers, etc.) and compares these interactions.
+ - **Classify interactions**: MultimerMapper categorizes protein-protein interactions as: static (always present), dynamic positive (only activated in certain modeling contexts), dynamic negative (inhibited in different modeling context).
+ - **Visualize results**: The tool creates 2D and 3D visualizations to help you answer: How proteins assemble into larger complexes? Which interactions are stable or changing? What are the potential stoichiometry of the complexes?
+ - **Iterate and refine**: MultimerMapper suggests new combinations to predict, helping you explore the "interaction landscape" until you have a complete picture.
+ - **Gain insights**: Use the visualizations and analyses to infer the most likely structures and dynamics of your protein complexes.
 By combining predictions and smart analysis, MultimerMapper helps bridge the gap between individual protein structures and complex molecular assemblies, offering new perspectives on how proteins work together in cells.
 
 # What can I do with MultimerMapper?
