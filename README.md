@@ -83,7 +83,7 @@ conda activate MultimerMapper
 # Take a look at the usage (this must give no errors)
 python multimer_mapper.py -h
 ```
-There is a testing dataset composed of three trypanosomatid proteins (EAF6, EPL1 and PHD1) with all possible 2-mers and N-mers combinations that reached convergence. First run the pipeline only with 2-mers, and take a look at the output located at ```tests/output_2mers```.
+There is a testing dataset composed of three trypanosomatid proteins (EAF6, EPL1 and PHD1) with all possible 2-mers and N-mers combinations that reached convergence. First run the pipeline only with 2-mers, and take a look at the output located at ```tests/output_2mers``` or ```tests/output_Nmers```, depending on which you run.
 
 ```sh
 # Only 2-mers
@@ -95,6 +95,7 @@ python multimer_mapper.py --AF_2mers tests/EAF6_EPL1_PHD1/2-mers --AF_Nmers test
 
 
 ## Using manual_domains.tsv
+We highly recommend to use the semi-automatic domain detection algorithm inside MultimerMapper to get the best results, as the pipeline relies on proper definition of compact domains to prerform RMSD trajectories and capture conformational changes. However, if you know the exact start and end positions of the globular domains of your proteins, you can use a ```manuals_domains.tsv``` file to define them:
 ```sh
 # Only 2-mers
 python multimer_mapper.py --AF_2mers tests/EAF6_EPL1_PHD1/2-mers --manual_domains tests/EAF6_EPL1_PHD1/manual_domains.tsv --out_path tests/output_2mers tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta 
@@ -102,7 +103,7 @@ python multimer_mapper.py --AF_2mers tests/EAF6_EPL1_PHD1/2-mers --manual_domain
 # Both 2-mers and N-mers
 python multimer_mapper.py --AF_2mers tests/EAF6_EPL1_PHD1/2-mers --AF_Nmers tests/EAF6_EPL1_PHD1/N-mers --manual_domains tests/EAF6_EPL1_PHD1/manual_domains.tsv --out_path tests/output_Nmers tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta 
 ```
-
+Note that you need to define the span of both disordered loops and globular domains. Have a look at the example file to know its format.
 
 ## Visualization of Interactive 2D PPI graphs
 One of the main outputs of MultimerMapper is the interactive 2D PPI graph. You can find it inside the output folder (tests/expected_output/2D_graph.html). It represents proteins as nodes and disctinct interaction modes between proteins as edges:
