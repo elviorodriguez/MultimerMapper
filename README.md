@@ -36,7 +36,7 @@ By combining predictions and smart analysis, MultimerMapper helps bridge the gap
 - Partner enrichment
 - Stoichiometric Space Exploration (Assembly Path Simulation)
 - Interface with combinatorial assembler (CombFold)
-- Much more comming!
+- Much more coming!
 
 # How does it works?
 The software can perform several tasks by analyzing AF2-multimer (AF3 comming soon) predictions ensembles of different combinations of proteins separated in two different directories:
