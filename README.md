@@ -44,7 +44,7 @@ The software can perform several tasks by analyzing AF2-multimer (AF3 comming so
     2-mers: contains all possible pairwise interaction predictions of the set of proteins (homo-2-mers and hetero-2-mers)
     N-mers: contains diifferent combinations (3-mers, 4-mers, etc.) interaction predictions of the set of proteins that 
     
-It maps all protein-protein interactions present in the predictions
+It maps all PPIs and RRCs present in the predictions by decomposing the models into their pairwise sub-components and captures how they change depending on the modelling context (which other proteins were present in the models and in which quantity). This information is converted into PPI and RRC graph representations inside MultimerMapper that you can visually explore in interactive HTML plots
 
 # Installation
 MultimerMapper requires Anaconda/Miniconda (Miniconda installation guide: https://docs.anaconda.com/miniconda/miniconda-install) to create an isolated environment for the software.
