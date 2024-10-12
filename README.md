@@ -25,11 +25,13 @@ By combining predictions and smart analysis, MultimerMapper helps bridge the gap
 - Protein dynamics capturing
 - Interactive PPI graph (2D) generation
 - Residue-residue contact (RRC) detection
+- RRC dynamics capturing
 - Interactive RRC graph (3D) generation
 - Interaction surface mapping
 - Metrics clustering analysis
-- Homo-oligomerization states detection
-- Multivalency states detection
+- Homo-oligomerization states inference
+- Contact matrix clustering analysis and multivalency detection
+- Multivalency states inference
 - Pseudo-molecular dynamics trajectories generation (RMSD trajectories)
 - Partner enrichment
 - Stoichiometric Space Exploration (Assembly Path Simulation)
