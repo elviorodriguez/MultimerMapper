@@ -28,6 +28,8 @@ By combining predictions and smart analysis, MultimerMapper helps bridge the gap
 - Interactive RRC graph (3D) generation
 - Interaction surface mapping
 - Metrics clustering analysis
+- Homo-oligomerization states detection
+- Multivalency states detection
 - Pseudo-molecular dynamics trajectories generation (RMSD trajectories)
 - Partner enrichment
 - Stoichiometric Space Exploration (Assembly Path Simulation)
