@@ -31,7 +31,7 @@ import igraph
 import numpy as np
 import pandas as pd
 import random
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Callable
 from collections import Counter, defaultdict
 from queue import PriorityQueue
 from sklearn.metrics import pairwise_distances
@@ -39,6 +39,7 @@ from sklearn.manifold import MDS
 import plotly.graph_objects as go
 from plotly.offline import plot
 from copy import deepcopy
+import matplotlib.pyplot as plt
 
 from src.ppi_graphs import remove_edges_by_condition
 from utils.logger_setup import configure_logger
@@ -67,7 +68,7 @@ class Stoichiometry:
         self.is_root = parent is None
         self.is_leaf = False
         self.stagnation_counter = 0
-        self.score = 0  # New attribute to store the score
+        self.score = 0
 
     def add_child(self, child: 'Stoichiometry'):
         self.children.append(child)
@@ -82,6 +83,14 @@ class Stoichiometry:
 
     def get_protein_count(self) -> Dict[str, int]:
         return dict(Counter(self.graph.vs['name']))
+    
+    def plot(self):
+        """
+        Plots the graph stored in the Stoichiometry object.
+        """
+        node_names = self.graph.vs["name"] if "name" in self.graph.vs.attributes() else None
+        fig, ax = plt.subplots(figsize=(8, 8))
+        igraph.plot(self.graph, target=ax, vertex_label=node_names)
 
     def __eq__(self, other: 'Stoichiometry') -> bool:
         return self.get_protein_count() == other.get_protein_count() and self.graph.isomorphic(other.graph)
@@ -298,7 +307,7 @@ def generate_child(parent: Stoichiometry,
                             break
     
     if growth_achieved:
-        update_dynamic_ppis(child, combined_graph)
+        children = update_dynamic_ppis(child, combined_graph)
         parent.add_child(child)
         return child
     
@@ -306,27 +315,28 @@ def generate_child(parent: Stoichiometry,
         return None
     
 # To remove or add dynamic ppis to the stoichiometry based on a probability
-def update_dynamic_ppis(stoichiometry: Stoichiometry, combined_graph: igraph.Graph):
+
+def update_dynamic_ppis(stoichiometry: Stoichiometry, combined_graph: igraph.Graph) -> List[Stoichiometry]:
     """
-    Update dynamic protein-protein interactions in the stoichiometry.
+    Update dynamic protein-protein interactions in the stoichiometry and handle detachment.
 
     Args:
         stoichiometry (Stoichiometry): The stoichiometry to update.
         combined_graph (igraph.Graph): The combined graph of all interactions.
 
     Returns:
-        List[Stoichiometry]: New child stoichiometries created during the update.
+        List[Stoichiometry]: New child stoichiometries created during the update, including detached pieces.
     """
     config = tuple(sorted(stoichiometry.get_protein_count().items()))
     new_children = []
 
-    for edge in list(stoichiometry.graph.es):  # Create a copy of the edge list
+    for edge in list(stoichiometry.graph.es):
         source_name = stoichiometry.graph.vs[edge.source]['name']
         target_name = stoichiometry.graph.vs[edge.target]['name']
         
         if source_name not in combined_graph.vs['name'] or target_name not in combined_graph.vs['name']:
-            continue  # Skip this edge if either vertex is not in the combined graph
-        
+            continue
+
         combined_edges = combined_graph.es.select(_between=([source_name], [target_name]))
         
         for combined_edge in combined_edges:
@@ -351,23 +361,28 @@ def update_dynamic_ppis(stoichiometry: Stoichiometry, combined_graph: igraph.Gra
                                 # Check if removal causes detachment
                                 if not stoichiometry.graph.is_connected():
                                     components = stoichiometry.graph.components()
-                                    if len(components) > 1:
-                                        # Create new child with detached piece
-                                        detached_graph = stoichiometry.graph.subgraph(components[1])
-                                        new_child = Stoichiometry(detached_graph, stoichiometry.parent)
-                                        new_children.append(new_child)
-                                        # Remove detached piece from current stoichiometry
-                                        stoichiometry.graph = stoichiometry.graph.subgraph(components[0])
+                                    for component in components:
+                                        if len(component) < len(stoichiometry.graph.vs):
+                                            # Create new child with detached piece
+                                            detached_graph = stoichiometry.graph.subgraph(component)
+                                            new_child = Stoichiometry(detached_graph, stoichiometry.parent)
+                                            new_children.append(new_child)
+                                    
+                                    # Update the current stoichiometry to the largest component
+                                    largest_component = max(components, key=len)
+                                    stoichiometry.graph = stoichiometry.graph.subgraph(largest_component)
     
     return new_children
 
-def calculate_stoichiometry_score(stoichiometry: Stoichiometry, combined_graph: igraph.Graph) -> float:
+def calculate_stoichiometry_score(stoichiometry: Stoichiometry, combined_graph: igraph.Graph, 
+                                  custom_rules: List[Callable[[Stoichiometry, igraph.Graph], float]] = None) -> float:
     """
     Calculate a score for a given stoichiometry.
 
     Args:
         stoichiometry (Stoichiometry): The stoichiometry to score.
         combined_graph (igraph.Graph): The combined graph of all interactions.
+        custom_rules (List[Callable]): List of custom scoring functions.
 
     Returns:
         float: The calculated score.
@@ -375,6 +390,7 @@ def calculate_stoichiometry_score(stoichiometry: Stoichiometry, combined_graph: 
     score = 0
     protein_count = stoichiometry.get_protein_count()
     
+    # Default scoring rules
     # Penalize homooligomers only if they're not in the original graph
     for protein, count in protein_count.items():
         if count > 1 and not is_homooligomer_in_original_graph(protein, combined_graph):
@@ -395,22 +411,38 @@ def calculate_stoichiometry_score(stoichiometry: Stoichiometry, combined_graph: 
     missing_proteins = set(combined_graph.vs['name']) - set(protein_count.keys())
     score -= len(missing_proteins) * 5
     
+    # Apply custom scoring rules
+    if custom_rules:
+        for rule in custom_rules:
+            score += rule(stoichiometry, combined_graph)
+    
     return score
 
 ###############################################################################
 ################################# Main function ###############################
 ###############################################################################
 
-def explore_stoichiometric_space(input_combined_graph: igraph.Graph, max_iterations: int = 1000, max_path_length: int = 100,
-                                 remove_interactions = ('Indirect', 'No N-mers Data', 'No 2-mers Data'), logger = None) -> List[AssemblyPath]:
+import concurrent.futures
+from tqdm import tqdm
+
+config = {
+    "max_iterations": 100,
+    "max_path_length": 100,
+    "remove_interactions": ('Indirect', 'No N-mers Data', 'No 2-mers Data')
+}
+
+def explore_stoichiometric_space(input_combined_graph: igraph.Graph, config: dict, 
+                                 custom_scoring_rules: List[Callable] = None, logger = None) -> List[AssemblyPath]:
     """
     Explore the stoichiometric space and generate assembly paths.
 
     Args:
         input_combined_graph (igraph.Graph): The input combined graph of all interactions.
-        max_iterations (int): Maximum number of iterations (paths) for exploration.
-        max_path_length (int): Maximum length of each assembly path.
-        remove_interactions (tuple): Types of interactions to remove from the graph.
+        config (dict): Configuration parameters including:
+            - max_iterations (int): Maximum number of iterations (paths) for exploration.
+            - max_path_length (int): Maximum length of each assembly path.
+            - remove_interactions (tuple): Types of interactions to remove from the graph.
+        custom_scoring_rules (List[Callable]): List of custom scoring functions.
         logger: Logger object for logging information.
 
     Returns:
@@ -419,29 +451,26 @@ def explore_stoichiometric_space(input_combined_graph: igraph.Graph, max_iterati
     
     if logger is None:
         logger = configure_logger()(__name__)
+
+    logger.info("INITIALIZE: Stoichiometric Space Exploration Algorithm...")
         
-    # DeepCopy the graph to avoid affecting the original
     combined_graph = deepcopy(input_combined_graph)
     
-    # Remove indirect interactions or other type of interaction?
-    for interaction_type in remove_interactions:
-        # Remove edges that meet the condition
-        remove_edges_by_condition(combined_graph, attribute = 'dynamics', condition = interaction_type)
+    for interaction_type in config['remove_interactions']:
+        remove_edges_by_condition(combined_graph, attribute='dynamics', condition=interaction_type)
     
     assembly_paths = []
     
-    logger.info("INITIALIZE: Stoichiometric Space Exploration Algorithm...")
-    
-    for i in range(max_iterations):
-        logger.info(f"   Iteration {i}...")
+    def explore_path(i):
+        logger.debug(f"   Iteration {i}...")
         try:
             root = initialize_stoichiometry(combined_graph)
             path = AssemblyPath(root)
             
             pq = PriorityQueue()
-            pq.put((-calculate_stoichiometry_score(root, combined_graph), root))
+            pq.put((-calculate_stoichiometry_score(root, combined_graph, custom_scoring_rules), root))
             
-            while not pq.empty() and len(path.path) < max_path_length:
+            while not pq.empty() and len(path.path) < config['max_path_length']:
                 _, current = pq.get()
                 
                 if current.stagnation_counter >= 5:
@@ -451,20 +480,27 @@ def explore_stoichiometric_space(input_combined_graph: igraph.Graph, max_iterati
                 child = generate_child(current, combined_graph)
                 if child is None:
                     current.stagnation_counter += 1
-                    pq.put((-calculate_stoichiometry_score(current, combined_graph), current))
+                    pq.put((-calculate_stoichiometry_score(current, combined_graph, custom_scoring_rules), current))
                 else:
-                    child_score = calculate_stoichiometry_score(child, combined_graph)
+                    child_score = calculate_stoichiometry_score(child, combined_graph, custom_scoring_rules)
                     child.score = child_score
                     path.add_stoichiometry(child)
                     pq.put((-child_score, child))
                     
                     new_children = update_dynamic_ppis(child, combined_graph)
                     for new_child in new_children:
-                        new_child_score = calculate_stoichiometry_score(new_child, combined_graph)
+                        new_child_score = calculate_stoichiometry_score(new_child, combined_graph, custom_scoring_rules)
                         new_child.score = new_child_score
                         new_path = AssemblyPath(new_child)
                         assembly_paths.append(new_path)
                         pq.put((-new_child_score, new_child))
+                        
+                        # Continue exploration for detached pieces
+                        detached_child = generate_child(new_child, combined_graph)
+                        if detached_child:
+                            detached_score = calculate_stoichiometry_score(detached_child, combined_graph, custom_scoring_rules)
+                            detached_child.score = detached_score
+                            pq.put((-detached_score, detached_child))
                     
                     if child.get_protein_count() == current.get_protein_count():
                         current.stagnation_counter += 1
@@ -472,17 +508,20 @@ def explore_stoichiometric_space(input_combined_graph: igraph.Graph, max_iterati
                         current.stagnation_counter = 0
             
             path.merge_contiguous_stoichiometries()
-            assembly_paths.append(path)
-        except ValueError as e:
-            logger.error(f"   - Error in iteration: {e}")
-            continue
+            return path
         except Exception as e:
-            logger.error(f"   - Error in iteration: {e}")
-            continue
-        
+            logger.error(f"   - Error in iteration {i}: {str(e)}")
+            return None
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [executor.submit(explore_path, i) for i in range(config['max_iterations'])]
+        for future in tqdm(concurrent.futures.as_completed(futures), total=config['max_iterations'], desc="Exploring paths"):
+            path = future.result()
+            if path:
+                assembly_paths.append(path)
+
     logger.info("FINISHED: Stoichiometric Space Exploration Algorithm")
     
-    # Sort assembly paths by the score of their final stoichiometry
     assembly_paths.sort(key=lambda p: p.path[-1].score if p.path else 0, reverse=True)
     
     return assembly_paths
@@ -803,7 +842,7 @@ def visualize_paths_3d(coords, paths, protein_counts, stoichiometry_dict, protei
 ############################## Wrapper function ###############################
 ###############################################################################
 
-def stoichiometric_space_exploration_pipeline(mm_output, log_level = 'info', open_plots = True):
+def stoichiometric_space_exploration_pipeline(mm_output, max_iterations = 100,  log_level = 'info', open_plots = True):
     """
     Main pipeline for exploring and visualizing stoichiometric space.
 
@@ -825,7 +864,7 @@ def stoichiometric_space_exploration_pipeline(mm_output, log_level = 'info', ope
     
     
     paths = explore_stoichiometric_space(input_combined_graph = combined_graph,
-                                         max_iterations=100, max_path_length=100,
+                                         config= config,
                                          logger = logger)
 
     # Analyze paths

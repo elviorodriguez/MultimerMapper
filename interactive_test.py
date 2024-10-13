@@ -11,16 +11,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ################################# Test 1 ######################################
 
-fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
-AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
-AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/MM_interactive_test"
-use_names = True 
-overwrite = True
-auto_domain_detection = False
-graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# graph_resolution_preset = None
+# fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
+# AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
+# AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/MM_interactive_test"
+# use_names = True 
+# overwrite = True
+# auto_domain_detection = False
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# # graph_resolution_preset = None
 
 ##############################################################################
 
@@ -39,15 +39,16 @@ graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 
 # ################################# Test 3 ######################################
 
-# fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/NuA4_proteins.fasta"
-# AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/2-mers"
-# AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4"
-# use_names = True 
-# overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4/graph_resolution_preset.json"
-# # graph_resolution_preset = None
+fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/NuA4_proteins.fasta"
+AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4"
+use_names = True 
+overwrite = True
+graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4/graph_resolution_preset.json"
+auto_domain_detection = False
+# graph_resolution_preset = None
 
 # ###################### Test 4 (indirect interactions) #########################
 
@@ -144,7 +145,7 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
 # combined_graph, dynamic_proteins, homooligomerization_states, multivalency_states = mm.generate_combined_graph(mm_output)
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
     mm_output['combined_graph'], out_path = out_path,
-    layout_algorithm = 'fr',    
+    layout_algorithm = 'kk',    
     
     # You can remove specific interaction types from the graph
     # "No 2-mers Data"
@@ -155,7 +156,11 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     automatic_true = True)
 
 # Explore the stoichiometric space
+import multimer_mapper as mm
 best_stoichiometry, paths = mm.stoichiometric_space_exploration_pipeline(mm_output)
+
+from src.stoichiometries import stoichiometric_space_exploration_pipeline
+best_stoichiometry, paths = stoichiometric_space_exploration_pipeline(mm_output)
 
 # Create 3D network, generate a layout and create py3Dmol/Plotly visualizations
 nw = mm.Network(mm_output['combined_graph'], logger = logger)
