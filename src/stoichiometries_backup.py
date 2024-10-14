@@ -1,4 +1,31 @@
 
+"""
+Stoichiometric Space Exploration and Visualization
+
+This module provides functionality for exploring and visualizing the stoichiometric space
+of PPIs on the combined graph. It includes classes and functions for generating assembly
+paths, calculating scores, and creating 2D and 3D visualizations of the stoichiometric space.
+
+Classes:
+- Stoichiometry: Represents a specific stoichiometric state of proteins.
+- AssemblyPath: Represents a path of stoichiometric states.
+
+Main Functions:
+- explore_stoichiometric_space: Explores the stoichiometric space and generates assembly paths.
+- generate_protein_matrix: Generates a matrix representation of protein counts.
+- dimensionality_reduction_chunked: Performs dimensionality reduction on the protein matrix.
+- visualize_paths_2d: Creates a 2D visualization of the stoichiometric space.
+- visualize_paths_3d: Creates a 3D visualization of the stoichiometric space.
+- stoichiometric_space_exploration_pipeline: Main pipeline for the entire process.
+
+Dependencies:
+- igraph: For graph operations
+- numpy: For numerical operations
+- pandas: For data manipulation
+- sklearn: For dimensionality reduction
+- plotly: For creating interactive visualizations
+"""
+
 import os
 import igraph
 import numpy as np
@@ -13,18 +40,9 @@ import plotly.graph_objects as go
 from plotly.offline import plot
 from copy import deepcopy
 import matplotlib.pyplot as plt
-import concurrent.futures
-from tqdm import tqdm
-import itertools
 
 from src.ppi_graphs import remove_edges_by_condition
 from utils.logger_setup import configure_logger
-
-config = {
-    "max_iterations": 100,
-    "max_path_length": 100,
-    "remove_interactions": ('Indirect', 'No N-mers Data', 'No 2-mers Data')
-}
 
 ###############################################################################
 ##################### Classes Stoichiometry & AssemblyPath ####################
@@ -44,7 +62,6 @@ class Stoichiometry:
         score (float): Score of the stoichiometry.
     """
     def __init__(self, graph: igraph.Graph, parent: Optional['Stoichiometry'] = None):
-
         self.graph = graph.copy()
         self.parent = parent
         self.children: List[Stoichiometry] = []
@@ -53,145 +70,27 @@ class Stoichiometry:
         self.stagnation_counter = 0
         self.score = 0
 
-        # Dictionaries for fast lookups
-        if parent is None:
-            self.vertex_id_map = {}
-            self.vertex_name_map = {}
-        else:
-            self._inherit_lookup_dicts(parent)
-
     def add_child(self, child: 'Stoichiometry'):
         self.children.append(child)
 
-    def add_protein(self, id: tuple, return_vertex = False):
-        
-        # Unpack data
-        protein_name: str = id[0]
-        instance_id : int = id[1]   # Each instance of the protein will have a unique id (0, 1, 2, etc)
-        
-        # Add the vertex
-        vertex: igraph.Vertex = self.graph.add_vertex(id=id, name=protein_name, instance=instance_id)
-        
-        # Update maps
-        self.vertex_id_map[id] = vertex
-        if protein_name not in self.vertex_name_map:
-            self.vertex_name_map[protein_name] = []
-        self.vertex_name_map[protein_name].append(vertex)
+    def add_protein(self, protein: str):
+        self.graph.add_vertex(name=protein)
 
-        if return_vertex:
-            return vertex
-
-    def add_ppi(self, id1: tuple, id2: tuple, ppi_data: Dict):
-
-        # Prevent self-loops
-        if id1 == id2:
-            return
-        
-        # Unpack names and instance ids
-        protein_name_1, instance_id_1 = id1
-        protein_name_2, instance_id_2 = id2
-
-        # Get or add proteins
-        vertex_1 = self.vertex_id_map.get(id1) or self.add_protein(id1, return_vertex=True)
-        vertex_2 = self.vertex_id_map.get(id2) or self.add_protein(id2, return_vertex=True)
-
-        # Get the vertex indices
-        index_1 = vertex_1.index
-        index_2 = vertex_2.index
-
-        # Create edge name and id
-        edge_name = tuple(sorted((protein_name_1, protein_name_2)))
-        edge_id = tuple(sorted((id1, id2)))
-
-        # Remove 'name' from ppi_data if it exists to avoid conflicts
-        ppi_data_copy = ppi_data.copy()
-        ppi_data_copy.pop('name', None)
-
-        # Add the edge using the vertex indices
-        self.graph.add_edge(index_1, index_2, edge_id=edge_id, edge_name=edge_name, **ppi_data_copy)
-
-    def remove_ppi(self,id1: tuple, id2: tuple) -> List['Stoichiometry']:
-        """
-        Remove a PPI from the stoichiometry and handle potential splits.
-
-        Args:
-            stoichiometry (Stoichiometry): The stoichiometry to modify.
-            id1 (tuple): The ID of the first protein in the interaction.
-            id2 (tuple): The ID of the second protein in the interaction.
-
-        Returns:
-            List[Stoichiometry]: The resulting stoichiometries after removal, including split pieces.
-        """
-        # Remove the edge
-        edge = self.get_edge_using_id(tuple(sorted((id1, id2))))
-        if edge is not None:
-            self.graph.delete_edges(edge)
-
-        # Check if the removal caused a split
-        components = self.graph.components()
-        if len(components) > 1:
-            
-            # Create new stoichiometries for each component
-            split_stoichiometries = []
-            for component in components:
-                new_graph = self.graph.subgraph(component)
-                
-                # Components with only one protein are discarded
-                if len(new_graph.vs) == 1:
-                    continue
-
-                new_stoich = Stoichiometry(new_graph, self.parent)
-                split_stoichiometries.append(new_stoich)
-            return split_stoichiometries
-        else:
-            # If no split occurred, return the original stoichiometry
-            return [self]
-
-    def _inherit_lookup_dicts(self, parent: 'Stoichiometry'):
-        self.vertex_id_map   = parent.vertex_id_map.copy()
-        self.vertex_name_map = parent.vertex_name_map.copy()
-
-    def is_protein_name_in_stoichiometry(self, protein_name: str):
-        return protein_name in self.vertex_name_map
-
-    def is_protein_id_in_stoichiometry(self, id: tuple):
-        return id in self.vertex_id_map
-
-    def how_many_instances_of_protein(self, protein_name: str):
-        return len(self.vertex_name_map.get(protein_name, []))
-
-    def get_vertex_using_id(self, vertex_id: tuple):
-        return self.vertex_id_map.get(vertex_id)
-
-    def get_edge_using_id(self, edge_id: tuple):
-        for e in self.graph.es:
-            if edge_id == e["edge_id"]:
-                return e
+    def add_ppi(self, protein1: str, protein2: str, ppi_data: Dict):
+        edge_name = tuple(sorted((protein1, protein2)))
+        if not self.graph.are_connected(protein1, protein2):
+            self.graph.add_edge(protein1, protein2, name=edge_name, **ppi_data)
 
     def get_protein_count(self) -> Dict[str, int]:
         return dict(Counter(self.graph.vs['name']))
     
     def plot(self):
         """
-        Plots the graph stored in the Stoichiometry object, coloring vertices by protein name.
+        Plots the graph stored in the Stoichiometry object.
         """
-        # Get the unique protein names
-        protein_names = self.graph.vs["name"]
-        unique_proteins = list(set(protein_names))
-        
-        # Generate a color map with a unique color for each protein
-        colors = plt.cm.get_cmap('tab20', len(unique_proteins))
-        color_map = {name: colors(i) for i, name in enumerate(unique_proteins)}
-        
-        # Assign colors to vertices based on their protein name
-        vertex_colors = [color_map[name] for name in protein_names]
-
-        # Create a figure for the plot
+        node_names = self.graph.vs["name"] if "name" in self.graph.vs.attributes() else None
         fig, ax = plt.subplots(figsize=(8, 8))
-        
-        # Plot the graph with specified vertex colors
-        igraph.plot(self.graph, target=ax, vertex_label=protein_names, vertex_color=vertex_colors)
-
+        igraph.plot(self.graph, target=ax, vertex_label=node_names)
 
     def __eq__(self, other: 'Stoichiometry') -> bool:
         return self.get_protein_count() == other.get_protein_count() and self.graph.isomorphic(other.graph)
@@ -232,30 +131,25 @@ class AssemblyPath:
 ############################### Helper functions ##############################
 ###############################################################################
 
-def select_weighted_ppi(protein_name: str, combined_graph: igraph.Graph, existing_stoichiometry: Stoichiometry) -> Tuple[str, Dict]:
+def select_weighted_ppi(protein: int, combined_graph: igraph.Graph, existing_stoichiometry: Stoichiometry) -> Tuple[str, Dict]:
     """
-    Select a protein-protein interaction based on weighted probabilities, avoiding duplicate cluster_n interactions.
+    Select a protein-protein interaction based on weighted probabilities.
 
     Args:
-        protein_name (str): The protein name to select an interaction for.
-        combined_graph (igraph.Graph): The combined graph with all interactions.
+        protein (int): The protein ID to select an interaction for.
+        combined_graph (igraph.Graph): The combined graph of all interactions.
         existing_stoichiometry (Stoichiometry): The current stoichiometry.
 
     Returns:
         Tuple[str, Dict]: The selected partner protein and the interaction data.
     """
-
-    edges = combined_graph.incident(protein_name, mode="all")
+    edges = combined_graph.incident(protein, mode="all")
     weights = []
     valid_edges = []
     
     # Compute the weights
     for edge in edges:
         edge_data = combined_graph.es[edge].attributes()
-        
-        # Skip edges with interaction types that should be removed
-        if edge_data.get('dynamics') in config['remove_interactions']:
-            continue
         
         two_mers_data = edge_data.get('2_mers_data', pd.DataFrame())
         n_mers_data   = edge_data.get('N_mers_data', pd.DataFrame())
@@ -287,39 +181,29 @@ def select_weighted_ppi(protein_name: str, combined_graph: igraph.Graph, existin
         elif dynamics == 'Strong Negative':
             weight *= 0.5
 
-        # Get the partner protein
+        # Penalize edges that would create homooligomers only if the protein is not involved in homooligomerization in the original graph
         source, target = combined_graph.es[edge].tuple
-        partner = combined_graph.vs[target]['name'] if combined_graph.vs[source]['name'] == protein_name else combined_graph.vs[source]['name']
+        partner = target if combined_graph.vs[source]['name'] == protein else source
+        if partner in existing_stoichiometry.get_protein_count():
+            if not is_homooligomer_in_original_graph(protein, combined_graph):
+                weight *= 0.1
         
-        # Check if the interaction already exists in the stoichiometry with the same cluster_n
-        existing_interaction = False
-        if partner in existing_stoichiometry.vertex_name_map:
-            for existing_edge in existing_stoichiometry.graph.es:
-                if (existing_edge.source_vertex['name'] == protein_name and existing_edge.target_vertex['name'] == partner) or \
-                   (existing_edge.source_vertex['name'] == partner and existing_edge.target_vertex['name'] == protein_name):
-                    if existing_edge['valency']['cluster_n'] == edge_data['valency']['cluster_n']:
-                        existing_interaction = True
-                        break
-        
-        # If the interaction doesn't exist or has a different cluster_n, add it to valid edges
-        if not existing_interaction:
-            if np.isfinite(weight) and weight > 0:
-                weights.append(weight)
-                valid_edges.append(edge)
+        if np.isfinite(weight) and weight > 0:
+            weights.append(weight)
+            valid_edges.append(edge)
     
     if not valid_edges:
-        raise ValueError(f"No valid edges found for protein {protein_name}")
+        raise ValueError(f"No valid edges found for protein {protein}")
     
     # Select PPI edge and get its attributes
     selected_edge = random.choices(valid_edges, weights=weights)[0]
     edge_data = combined_graph.es[selected_edge].attributes()
     
-    # Get the partner protein name
+    # 
     source, target = combined_graph.es[selected_edge].tuple
-    partner = combined_graph.vs[target]['name'] if combined_graph.vs[source]['name'] == protein_name else combined_graph.vs[source]['name']
+    partner = target if combined_graph.vs[source]['name'] == protein else source
     
-    return partner, edge_data
-
+    return combined_graph.vs[partner]['name'], edge_data
 
 def is_homooligomer_in_original_graph(protein: str, combined_graph: igraph.Graph) -> bool:
     """
@@ -339,10 +223,6 @@ def is_homooligomer_in_original_graph(protein: str, combined_graph: igraph.Graph
             return True
     return False
 
-###################################################################################################
-############################# Initialize, Generate children and update ############################
-###################################################################################################
-
 def initialize_stoichiometry(combined_graph: igraph.Graph) -> Stoichiometry:
     """
     Initialize a stoichiometry with a random protein and its first interaction.
@@ -353,69 +233,49 @@ def initialize_stoichiometry(combined_graph: igraph.Graph) -> Stoichiometry:
     Returns:
         Stoichiometry: The initial stoichiometry.
     """
-
-    # Select a random protein and create attributes
-    protein_name1: str   = random.choice(combined_graph.vs)['name']
-    instance_id1 : int   = 0
-    protein_id1  : tuple = (protein_name1, instance_id1)
-
-    # Initialize the root Stoichiometry and add the first protein
+    root_protein = random.choice(combined_graph.vs)['name']
     initial_graph = igraph.Graph()
+    initial_graph.add_vertex(name=root_protein)
     initial_stoichiometry = Stoichiometry(initial_graph)
-    initial_stoichiometry.add_protein(id=protein_id1)
-
-    # Select a random partner
-    protein_name2, ppi_data = select_weighted_ppi(protein_name1, combined_graph, initial_stoichiometry)
-    instance_id2 : int      = 0 if protein_name2 != protein_name1 else 1
-    protein_id2  : tuple    = (protein_name2, instance_id2)
     
-    # Add partner to root Stoichiometry
-    initial_stoichiometry.add_protein(protein_id2)
+    partner, ppi_data = select_weighted_ppi(root_protein, combined_graph, initial_stoichiometry)
+    
+    initial_stoichiometry.add_protein(partner)
+    edge_name = tuple(sorted((root_protein, partner)))
     
     ppi_data_copy = ppi_data.copy()
     ppi_data_copy.pop('name', None)
     
-    initial_stoichiometry.add_ppi(protein_id1, protein_id2, ppi_data_copy)
+    initial_stoichiometry.add_ppi(root_protein, partner, ppi_data_copy)
     
     return initial_stoichiometry
 
-
 def generate_child(parent: Stoichiometry,
                    combined_graph: igraph.Graph,
-                   add_number = 1,
-                   n_models_cutoff = 3) -> List[Stoichiometry]:
+                   add_number = 1) -> Optional[Stoichiometry]:
     """
-    Generate child stoichiometries by adding proteins and interactions.
+    Generate a child stoichiometry by adding proteins and interactions.
 
     Args:
         parent (Stoichiometry): The parent stoichiometry.
         combined_graph (igraph.Graph): The combined graph of all interactions.
         add_number (int): The number of additions to attempt.
-        n_models_cutoff (int): The minimum number of models required to consider an interaction.
 
     Returns:
-        List[Stoichiometry]: The generated child stoichiometries, including potential split pieces.
+        Optional[Stoichiometry]: The generated child stoichiometry, or None if generation fails.
     """
     
-    # Create the child stoichiometry
     child = Stoichiometry(parent.graph, parent)
     growth_achieved = False
-    children = []
     
     for _ in range(add_number):
-
-        # Return empty list if the child graph is empty
         if not child.graph.vs:
-            return children
+            return None  # Return None if the child graph is empty
         
-        # List of proteins in the child graph with at least one connection in the combined graph
         available_proteins = [v for v in child.graph.vs if combined_graph.degree(v['name']) > 0]
-        
-        # Return current children if no proteins have available interactions
         if not available_proteins:
-            return children if children else [child]
+            return None  # Return None if no proteins have available interactions
         
-        # Select a random protein from the available ones
         selected_protein = random.choice(available_proteins)['name']
         
         try:
@@ -428,13 +288,13 @@ def generate_child(parent: Stoichiometry,
         ppi_data_copy.pop('name', None)
         
         if partner not in child.graph.vs['name']:
-            child.add_protein((partner, 0))
-            child.add_ppi((selected_protein, 0), (partner, 0), ppi_data_copy)
+            child.add_protein(partner)
+            child.add_ppi(selected_protein, partner, ppi_data_copy)
             growth_achieved = True
         else:
             existing_edges = child.graph.es.select(_between=([selected_protein], [partner]))
             if not existing_edges:
-                child.add_ppi((selected_protein, 0), (partner, 0), ppi_data_copy)
+                child.add_ppi(selected_protein, partner, ppi_data_copy)
                 growth_achieved = True
             else:
                 for existing_edge in existing_edges:
@@ -442,86 +302,76 @@ def generate_child(parent: Stoichiometry,
                         existing_cluster_n = existing_edge['valency']['cluster_n']
                         new_cluster_n = ppi_data_copy['valency']['cluster_n']
                         if existing_cluster_n != new_cluster_n:
-                            child.add_ppi((selected_protein, 0), (partner, 0), ppi_data_copy)
+                            child.add_ppi(selected_protein, partner, ppi_data_copy)
                             growth_achieved = True
                             break
     
     if growth_achieved:
-            new_children = update_dynamic_ppis(child, combined_graph, n_models_cutoff)
-            children.extend(new_children)
-            children.append(child)
+        children = update_dynamic_ppis(child, combined_graph)
+        parent.add_child(child)
+        return child
     
-    return children if children else [child]
-
-# ---------------------- Helpers for update_dynamic_ppis ----------------------
-def is_combination_in_stoichiometry(combination, current_proteins):
-    return set(name for name, _ in combination).issubset(set(name for name, _ in current_proteins))
-
-def calculate_probability(n_models):
-    return min(n_models / 10, 0.9)  # Cap probability at 0.9
-# ---------------------- Helpers for update_dynamic_ppis ----------------------
+    else:
+        return None
     
 # To remove or add dynamic ppis to the stoichiometry based on a probability
-def update_dynamic_ppis(stoichiometry: Stoichiometry, combined_graph: igraph.Graph, n_models_cutoff: int = 3) -> List[Stoichiometry]:
 
+def update_dynamic_ppis(stoichiometry: Stoichiometry, combined_graph: igraph.Graph) -> List[Stoichiometry]:
+    """
+    Update dynamic protein-protein interactions in the stoichiometry and handle detachment.
+
+    Args:
+        stoichiometry (Stoichiometry): The stoichiometry to update.
+        combined_graph (igraph.Graph): The combined graph of all interactions.
+
+    Returns:
+        List[Stoichiometry]: New child stoichiometries created during the update, including detached pieces.
+    """
+    config = tuple(sorted(stoichiometry.get_protein_count().items()))
     new_children = []
-    current_proteins = [(v['name'], v['instance']) for v in stoichiometry.graph.vs]
-    edges_to_remove = []
-    edges_to_add = []
 
-    # Check all possible protein combinations in the stoichiometry
-    for size in range(2, len(current_proteins) + 1):
-        for combination in itertools.combinations(current_proteins, size):
-            protein_names = [name for name, _ in combination]
-            # Check N_mers_data for this combination
-            for edge in combined_graph.es:
-                n_mers_data = edge['N_mers_data']
-                if isinstance(n_mers_data, pd.DataFrame) and 'proteins_in_model' in n_mers_data.columns:
-                    matching_rows = n_mers_data[n_mers_data['proteins_in_model'].apply(lambda x: set(x).issubset(set(protein_names)))]
-                    
-                    if not matching_rows.empty:
-                        avg_n_models = matching_rows['N_models'].mean()
-                        
-                        if avg_n_models < n_models_cutoff:
-                            # Potential negative dynamic interaction
-                            for (protein1, instance1), (protein2, instance2) in itertools.combinations(combination, 2):
-                                if stoichiometry.graph.are_connected(stoichiometry.vertex_id_map[(protein1, instance1)], stoichiometry.vertex_id_map[(protein2, instance2)]):
-                                    prob_remove = calculate_probability(n_models_cutoff - avg_n_models)
-                                    if random.random() < prob_remove:
-                                        edges_to_remove.append(((protein1, instance1), (protein2, instance2)))
-                        else:
-                            # Potential positive dynamic interaction
-                            for (protein1, instance1), (protein2, instance2) in itertools.combinations(combination, 2):
-                                if not stoichiometry.graph.are_connected(stoichiometry.vertex_id_map[(protein1, instance1)], stoichiometry.vertex_id_map[(protein2, instance2)]):
-                                    # Check if there's no 2-mers interaction
-                                    two_mers_edge = combined_graph.es.select(_between=([protein1], [protein2]))
-                                    if not two_mers_edge or 'No 2-mers Data' in two_mers_edge[0]['dynamics']:
-                                        prob_add = calculate_probability(avg_n_models - n_models_cutoff)
-                                        if random.random() < prob_add:
-                                            edges_to_add.append(((protein1, instance1), (protein2, instance2), edge.attributes()))
-
-    # Remove edges
-    for (protein1, instance1), (protein2, instance2) in edges_to_remove:
-        stoichiometry.remove_ppi((protein1, instance1), (protein2, instance2))
-
-    # Add edges
-    for (protein1, instance1), (protein2, instance2), attributes in edges_to_add:
-        stoichiometry.add_ppi((protein1, instance1), (protein2, instance2), attributes)
-
-    # Check if removal causes detachment
-    components = stoichiometry.graph.components()
-    if len(components) > 1:
-        for component in components:
-            if len(component) < len(stoichiometry.graph.vs):
-                # Create new child with detached piece
-                detached_graph = stoichiometry.graph.subgraph(component)
-                new_child = Stoichiometry(detached_graph, stoichiometry.parent)
-                new_children.append(new_child)
+    for edge in list(stoichiometry.graph.es):
+        source_name = stoichiometry.graph.vs[edge.source]['name']
+        target_name = stoichiometry.graph.vs[edge.target]['name']
         
-        # Update the current stoichiometry to the largest component
-        largest_component = max(components, key=len)
-        stoichiometry.graph = stoichiometry.graph.subgraph(largest_component)
+        if source_name not in combined_graph.vs['name'] or target_name not in combined_graph.vs['name']:
+            continue
 
+        combined_edges = combined_graph.es.select(_between=([source_name], [target_name]))
+        
+        for combined_edge in combined_edges:
+            if combined_edge['valency']['cluster_n'] == edge['valency']['cluster_n']:
+                n_mers_data = combined_edge['N_mers_data']
+                
+                if isinstance(n_mers_data, pd.DataFrame) and 'proteins_in_model' in n_mers_data.columns:
+                    matching_rows = n_mers_data[n_mers_data['proteins_in_model'] == config]
+                    if not matching_rows.empty:
+                        n_models = matching_rows['N_models'].values[0]
+                        p_add = n_models / 5
+                        
+                        dynamics = combined_edge['dynamics']
+                        if dynamics in ['Weak Positive', 'Positive', 'Strong Positive']:
+                            if random.random() < p_add:
+                                stoichiometry.add_ppi(source_name, target_name, combined_edge.attributes())
+                        elif dynamics in ['Weak Negative', 'Negative', 'Strong Negative']:
+                            p_rem = 1 - p_add
+                            if random.random() < p_rem:
+                                stoichiometry.graph.delete_edges(edge)
+                                
+                                # Check if removal causes detachment
+                                if not stoichiometry.graph.is_connected():
+                                    components = stoichiometry.graph.components()
+                                    for component in components:
+                                        if len(component) < len(stoichiometry.graph.vs):
+                                            # Create new child with detached piece
+                                            detached_graph = stoichiometry.graph.subgraph(component)
+                                            new_child = Stoichiometry(detached_graph, stoichiometry.parent)
+                                            new_children.append(new_child)
+                                    
+                                    # Update the current stoichiometry to the largest component
+                                    largest_component = max(components, key=len)
+                                    stoichiometry.graph = stoichiometry.graph.subgraph(largest_component)
+    
     return new_children
 
 def calculate_stoichiometry_score(stoichiometry: Stoichiometry, combined_graph: igraph.Graph, 
@@ -572,6 +422,15 @@ def calculate_stoichiometry_score(stoichiometry: Stoichiometry, combined_graph: 
 ################################# Main function ###############################
 ###############################################################################
 
+import concurrent.futures
+from tqdm import tqdm
+
+config = {
+    "max_iterations": 100,
+    "max_path_length": 100,
+    "remove_interactions": ('Indirect', 'No N-mers Data', 'No 2-mers Data')
+}
+
 def explore_stoichiometric_space(input_combined_graph: igraph.Graph, config: dict, 
                                  custom_scoring_rules: List[Callable] = None, logger = None) -> List[AssemblyPath]:
     """
@@ -609,44 +468,39 @@ def explore_stoichiometric_space(input_combined_graph: igraph.Graph, config: dic
             path = AssemblyPath(root)
             
             pq = PriorityQueue()
-            pq.put((-calculate_stoichiometry_score(root, combined_graph, custom_scoring_rules), i, root))  # Added unique identifier
+            pq.put((-calculate_stoichiometry_score(root, combined_graph, custom_scoring_rules), root))
             
             while not pq.empty() and len(path.path) < config['max_path_length']:
-                _, _, current = pq.get()
+                _, current = pq.get()
                 
                 if current.stagnation_counter >= 5:
                     current.is_leaf = True
                     break
                 
-                try:
-                    children = generate_child(current, combined_graph)
-                except KeyError as e:
-                    logger.warning(f"Protein not found in graph: {str(e)}")
-                    continue
-                
-                if not children:
+                child = generate_child(current, combined_graph)
+                if child is None:
                     current.stagnation_counter += 1
-                    pq.put((-calculate_stoichiometry_score(current, combined_graph, custom_scoring_rules), i, current))
+                    pq.put((-calculate_stoichiometry_score(current, combined_graph, custom_scoring_rules), current))
                 else:
-                    for child in children:
-                        child_score = calculate_stoichiometry_score(child, combined_graph, custom_scoring_rules)
-                        child.score = child_score
-                        path.add_stoichiometry(child)
-                        pq.put((-child_score, i, child))  # Added unique identifier
+                    child_score = calculate_stoichiometry_score(child, combined_graph, custom_scoring_rules)
+                    child.score = child_score
+                    path.add_stoichiometry(child)
+                    pq.put((-child_score, child))
                     
-                        try:
-                            new_children = update_dynamic_ppis(child, combined_graph)
-                        except KeyError as e:
-                            logger.warning(f"Protein not found in graph during dynamic PPI update: {str(e)}")
-                            continue
+                    new_children = update_dynamic_ppis(child, combined_graph)
+                    for new_child in new_children:
+                        new_child_score = calculate_stoichiometry_score(new_child, combined_graph, custom_scoring_rules)
+                        new_child.score = new_child_score
+                        new_path = AssemblyPath(new_child)
+                        assembly_paths.append(new_path)
+                        pq.put((-new_child_score, new_child))
                         
-                        for new_child in new_children:
-                            new_child_score = calculate_stoichiometry_score(new_child, combined_graph, custom_scoring_rules)
-                            new_child.score = new_child_score
-                            new_path = AssemblyPath(new_child)
-                            new_path.path = path.path[:-1] + [new_child]  # Copy path up to split point
-                            assembly_paths.append(new_path)
-                            pq.put((-new_child_score, i, new_child))  # Added unique identifier
+                        # Continue exploration for detached pieces
+                        detached_child = generate_child(new_child, combined_graph)
+                        if detached_child:
+                            detached_score = calculate_stoichiometry_score(detached_child, combined_graph, custom_scoring_rules)
+                            detached_child.score = detached_score
+                            pq.put((-detached_score, detached_child))
                     
                     if child.get_protein_count() == current.get_protein_count():
                         current.stagnation_counter += 1
@@ -676,6 +530,7 @@ def explore_stoichiometric_space(input_combined_graph: igraph.Graph, config: dic
 ###############################################################################
 ####################### PCoA reduction and Visualization ######################
 ###############################################################################
+
 
 def generate_protein_matrix(paths):
     """
