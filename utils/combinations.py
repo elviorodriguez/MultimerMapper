@@ -475,8 +475,8 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
             if e['symmetry_fallback']['fallback_detected'] is True:
                  fall_back_edges.append(tuple(sorted(set(e['name']))))
         except KeyError:
-            logger.warn(f'   Edge {e["name"]} does not have symmetry fallback')
-            logger.warn(f'   This is an unexpected behavior...')
+            logger.warning(f'   Edge {e["name"]} does not have symmetry fallback')
+            logger.warning(f'   This is an unexpected behavior...')
             continue
         except Exception as e:
             logger.error(f'   Unknown exception occurred when searching for edge {e["name"]} symmetry fallback')

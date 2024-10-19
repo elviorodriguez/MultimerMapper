@@ -11,16 +11,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ################################# Test 1 ######################################
 
-fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
-AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
-AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/MM_interactive_test"
-use_names = True 
-overwrite = True
-auto_domain_detection = False
-graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# graph_resolution_preset = None
+# fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
+# AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
+# AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/MM_interactive_test"
+# use_names = True 
+# overwrite = True
+# auto_domain_detection = False
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# # graph_resolution_preset = None
 
 ##############################################################################
 
@@ -39,16 +39,16 @@ graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 
 # ################################# Test 3 ######################################
 
-# fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/NuA4_proteins.fasta"
-# AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/2-mers"
-# AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4"
-# use_names = True 
-# overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4/graph_resolution_preset.json"
-# auto_domain_detection = False
-# # graph_resolution_preset = None
+fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/NuA4_proteins.fasta"
+AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4"
+use_names = True 
+overwrite = True
+graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4/graph_resolution_preset.json"
+auto_domain_detection = False
+# graph_resolution_preset = None
 
 # ###################### Test 4 (indirect interactions) #########################
 
@@ -130,15 +130,16 @@ graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 log_level = 'info'
 logger = mm.configure_logger(out_path = out_path, log_level = log_level, clear_root_handlers = True)(__name__)
 
+
 # Run the main MultimerMapper pipeline
 mm_output = mm.parse_AF2_and_sequences(fasta_file,
-                                       AF2_2mers,
-                                       AF2_Nmers,
-                                       out_path,
-                                       use_names = use_names,
-                                       overwrite = overwrite,
-                                       auto_domain_detection = auto_domain_detection,
-                                       graph_resolution_preset = graph_resolution_preset)
+                                        AF2_2mers,
+                                        AF2_Nmers,
+                                        out_path,
+                                        use_names = use_names,
+                                        overwrite = overwrite,
+                                        auto_domain_detection = auto_domain_detection,
+                                        graph_resolution_preset = graph_resolution_preset)
 
 # Generate interactive graph
 # import multimer_mapper as mm

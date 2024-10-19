@@ -18,7 +18,7 @@ import numpy as np
 import io
 from scipy.spatial.distance import cdist
 
-from utils.logger_setup import configure_logger
+from utils.logger_setup import configure_logger, default_error_msgs
 from utils.combinations import get_untested_2mer_pairs, get_tested_Nmer_pairs
 from src.analyze_homooligomers import add_chain_information_to_df, does_all_have_at_least_one_interactor
 from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff
@@ -1646,7 +1646,8 @@ def check_if_2mer_interact(pair, mm_output):
 def find_multivalency_states(combined_graph, mm_output,
                              min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
                              pDockQ_cutoff_Nmers  = pDockQ_cutoff_Nmers,
-                             N_models_cutoff      = N_models_cutoff):
+                             N_models_cutoff      = N_models_cutoff,
+                             logger: Logger | None = None):
 
 
     multivalent_pairs: list[tuple[str]] = get_multivalent_pairs_list(combined_graph, drop_homooligomers = True)
@@ -1668,7 +1669,23 @@ def find_multivalency_states(combined_graph, mm_output,
         # ------------------------------------------------------------------------------------
 
         expanded_Nmers_for_pair_df: pd.DataFrame        = get_expanded_Nmers_df_for_pair(pair, mm_output)
-        expanded_Nmers_for_pair_models: set[tuple[str]] = set(expanded_Nmers_for_pair_df['proteins_in_model'])
+
+        try:
+            expanded_Nmers_for_pair_models: set[tuple[str]] = set(expanded_Nmers_for_pair_df['proteins_in_model'])
+
+        # If there is no N-mers, it will give a KeyError
+        except KeyError:
+            logger.warning(f"   - Multivalent pair {pair} has no N-mers predictions.")
+            logger.warning( "   - You will find N-mers suggestion for this pair in ./suggestions")
+        
+        except Exception as e:
+            logger.error(f"   - An unknown exception appeared for the multivalent pair {pair}")
+            logger.error(f"      - Exception: {e}")
+            logger.error(f"      - Module: {__name__}")
+            logger.error( "      - Function: find_multivalency_states")
+            logger.error(f"      - expanded_Nmers_for_pair_models: {expanded_Nmers_for_pair_models}")
+            logger.error(f"    {default_error_msgs[0]}")
+            logger.error(f"    {default_error_msgs[1]}")
 
         # For each expanded Nmer
         for model in list(expanded_Nmers_for_pair_models):
@@ -1715,9 +1732,10 @@ def add_multivalency_state(combined_graph, mm_output, logger,
 
     # Compute multivalency states data
     multivalency_states: dict = find_multivalency_states(combined_graph, mm_output,
-                            min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
-                            pDockQ_cutoff_Nmers  = pDockQ_cutoff_Nmers,
-                            N_models_cutoff      = N_models_cutoff)
+                                    min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
+                                    pDockQ_cutoff_Nmers  = pDockQ_cutoff_Nmers,
+                                    N_models_cutoff      = N_models_cutoff,
+                                    logger = logger)
 
     # Initialize edge attribute
     combined_graph.es["multivalency_states"] = None

@@ -584,7 +584,8 @@ if __name__ == "__main__":
     nw = interactive_igraph_to_py3dmol(mm_output['combined_graph'], logger = logger)
     
     # Explore the stoichiometric space of the complex
-    stoichiometric_space_exploration_pipeline(mm_output, log_level = log_level, open_plots = True)
+    logger.warning("Stoichiometric Space Exploration Algorithm is not available yet.")
+    # stoichiometric_space_exploration_pipeline(mm_output, log_level = log_level, open_plots = True)
 
     # Progress
     logger.info("MultimerMapper pipeline completed! Enjoy exploring your interactions!")
