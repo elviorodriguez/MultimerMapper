@@ -1677,6 +1677,7 @@ def find_multivalency_states(combined_graph, mm_output,
         except KeyError:
             logger.warning(f"   - Multivalent pair {pair} has no N-mers predictions.")
             logger.warning( "   - You will find N-mers suggestion for this pair in ./suggestions")
+            continue
         
         except Exception as e:
             logger.error(f"   - An unknown exception appeared for the multivalent pair {pair}")
@@ -1686,6 +1687,7 @@ def find_multivalency_states(combined_graph, mm_output,
             logger.error(f"      - expanded_Nmers_for_pair_models: {expanded_Nmers_for_pair_models}")
             logger.error(f"    {default_error_msgs[0]}")
             logger.error(f"    {default_error_msgs[1]}")
+            continue
 
         # For each expanded Nmer
         for model in list(expanded_Nmers_for_pair_models):
