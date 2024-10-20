@@ -27,8 +27,8 @@ again the pipeline from the command line after saving).
 # auto_domain_detection = True
 
 # self_loop_size (radius)
-self_loop_size = 4
+# self_loop_size = 4
 
 
-multivalency_silhouette_threshold         = 0.25
-multivalency_contact_similarity_threshold = 0.1
+# multivalency_silhouette_threshold         = 0.25
+# multivalency_contact_similarity_threshold = 0.1
