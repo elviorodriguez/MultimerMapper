@@ -239,40 +239,12 @@ def get_expanded_3mer_suggestions(combined_graph, pairwise_Nmers_df):
 # ------------------- To suggest multivalent combinations ---------------------
 # -----------------------------------------------------------------------------
 
-'''
-# This section is to write down the Methods of the paper
-##Multivalent Protein Combination Suggestions Generation
-To generate suggestions for possible combinations of multivalent proteins, we developed a multi-step algorithm that takes into account
-the multivalent nature of the protein interactions and the ability of the combinations to produce "children" (i.e., higher N-mer combinations).
-
-1) Identify Multivalent Protein Pairs: The first step is to identify the multivalent protein pairs from the input graph. For each edge in the graph,
-we check if the 'multivalency_states' attribute is not None, indicating that the edge represents a multivalent interaction. The source and target
-vertex names of these edges are added to the multivalent_pairs list.
-2) Generate Combinations for Each Multivalent Pair: For each multivalent protein pair, we generate all possible combinations up to the specified
-maximum stoichiometry (e.g., 2-mers, 3-mers, 4-mers, etc.). This is done using the generate_pair_combinations function.
-3) Validate Combinations: The generate_pair_combinations function generates all possible combinations for a given pair, but it then checks if each
-combination is valid using the is_valid_combination function. To be considered valid, a combination must meet the following criteria:
-The combination must have the correct stoichiometry, i.e., the number of unique proteins in the combination must be equal to the stoichiometry.
-If the stoichiometry is greater than 2, the combination must be able to "produce children", i.e., the combinations with one protein less must also
-be present in the suggestions list.
-4)Remove Monomeric and Duplicate Suggestions: After generating the suggestions for all multivalent pairs, we remove any monomeric suggestions (i.e.,
-combinations with only one unique protein) and remove any duplicate suggestions.
-5)Return Suggestions: The final list of suggested multivalent protein combinations is returned.
-
-By focusing on the multivalent pairs and ensuring that the suggested combinations can produce children, this algorithm helps to efficiently explore
-the potentially useful stoichiometric space while avoiding combinations where the symmetry is broken. However, in contrast to what happened with
-homooligomeric interaction suggestions, given that the actin case was producing not broken symmetries in models of high N-mer combination values
-(3P2Q, in particular, where P is actin and Q is cofilin), we do not added the orange label marks of unexplored stoichiometries as in homooligomers.
-So, users must be aware that this situation can occur. For cases that this situation does not happens and convergence is reachable, the highest
-N-mer of the combinations might represent the true stoichiometry.
-'''
-
-def generate_multivalent_combinations(graph, max_stoichiometry):
+def generate_multivalent_combinations(graph, multivalency_states):
     """
     Generates suggestions for possible combinations of multivalent proteins.
 
     Args:
-        graph (igraph.Graph): The graph representing the multivalent protein interactions.
+        graph (igraph.Graph): Combined graph with the multivalent protein interactions.
         max_stoichiometry (int): The maximum stoichiometry to consider.
 
     Returns:
@@ -285,7 +257,8 @@ def generate_multivalent_combinations(graph, max_stoichiometry):
 
     # Generate combinations for each multivalent pair
     for pair in multivalent_pairs:
-        pair_combinations = generate_pair_combinations(pair, max_stoichiometry)
+        pair_multivalency_states = multivalency_states[tuple(sorted(pair))]
+        pair_combinations = generate_multivalent_pair_suggestions(pair, pair_multivalency_states)
         suggestions.extend(pair_combinations)
 
     # Remove monomeric suggestions and duplicates
@@ -313,7 +286,25 @@ def get_multivalent_pairs(graph):
 
     return multivalent_pairs
 
-def generate_pair_combinations(pair, max_stoichiometry):
+
+def get_max_continuous_mer_size(pair_multivalency_states: dict) -> int:
+    """
+    Finds the maximum continuous mer size in the configurations.
+    Only considers consecutive mer sizes.
+    """
+    mer_sizes = sorted(set(len(config) for config in pair_multivalency_states.keys()))
+    max_continuous = min(mer_sizes)
+
+    for i, mer in enumerate(mer_sizes, start= max_continuous):
+        if i == mer:
+            max_continuous = i
+        else:
+            break
+            
+    return max_continuous
+
+
+def generate_multivalent_pair_suggestions(pair, pair_multivalency_states):
     """
     Generates suggestions for possible combinations of a multivalent protein pair.
 
@@ -324,42 +315,25 @@ def generate_pair_combinations(pair, max_stoichiometry):
     Returns:
         list: A list of suggested multivalent protein combinations for the given pair.
     """
+
     suggestions = []
+    max_continuous_size = get_max_continuous_mer_size(pair_multivalency_states)
 
-    # Generate all possible combinations up to the max stoichiometry
-    for n in range(2, max_stoichiometry + 1):
-        combos = [list(combo) for combo in itertools.product([pair[0]], repeat=n-1)]
-        combos += [list(combo) for combo in itertools.product([pair[1]], repeat=n-1)]
-        for combo in combos:
-            combo = [pair[0]] + combo
-            combo = [pair[1]] + combo
-            combo = tuple(sorted(combo))
-            if is_valid_combination(combo, n, suggestions):
-                suggestions.append(combo)
+    for state in pair_multivalency_states.keys():
+        if pair_multivalency_states[state] and len(state) <= max_continuous_size:
 
-    return suggestions
+            # Generate two children (one +P and the other +Q)
+            sug_p = tuple(sorted(state + (pair[0],)))
+            sug_q = tuple(sorted(state + (pair[1],)))
 
-def is_valid_combination(combo, n, suggestions):
-    """
-    Checks if a given combination of proteins forms a valid multivalent complex.
+            # Add them to suggestions
+            if sug_p not in pair_multivalency_states.keys() and sug_p not in suggestions:
+                suggestions.append(sug_p)
+            if sug_q not in pair_multivalency_states.keys() and sug_q not in suggestions:
+                suggestions.append(sug_q)
 
-    Args:
-        combo (tuple): A tuple of protein IDs representing a potential multivalent complex.
-        n (int): The stoichiometry of the combination.
-        suggestions (list): list of current suggestions.
+    return list(set(suggestions))
 
-    Returns:
-        bool: True if the combination is valid, False otherwise.
-    """
-    # Check if the combination has the correct stoichiometry
-    if len(set(combo)) != n:
-        return False
-
-    # Check if the combination can produce children
-    if n > 2 and (tuple(sorted(combo[:n-1])) not in suggestions or tuple(sorted(combo[1:])) not in suggestions):
-        return False
-
-    return True
 
 # -----------------------------------------------------------------------------
 # ------------------- To generate files with suggestions ----------------------
@@ -429,7 +403,7 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
     prot_seqs        : list[str]    = mm_output['prot_seqs']
     pairwise_2mers_df: pd.DataFrame = mm_output['pairwise_2mers_df']
     pairwise_Nmers_df: pd.DataFrame = mm_output['pairwise_Nmers_df']
-
+    multivalency_states: dict       = mm_output['multivalency_states']
 
     # Get edges classified as "No 2-mers Data" 
     list_of_untested_2mers: list[tuple[str]] = find_untested_2mers(prot_IDs, pairwise_2mers_df)
@@ -462,7 +436,7 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
     list_of_expanded_3mer_suggestions: list[tuple[str]] = list(get_expanded_3mer_suggestions(combined_graph, pairwise_Nmers_df))
 
     # Get suggestions for multivalent pairs
-    list_of_multivalent_suggestions: list[tuple[str]] = generate_multivalent_combinations(combined_graph, max_stoichiometry=14)
+    list_of_multivalent_suggestions: list[tuple[str]] = generate_multivalent_combinations(combined_graph, multivalency_states)
 
     # Combine all suggested combinations and remove duplicates (if any)
     suggested_combinations: list[tuple[str]] = list_of_untested_2mers + list_of_homo_oligomeric_Nstates_plus_one + list_of_homo_oligomeric_Nstates_inconsistent + list_of_untested_Nmers + list_of_expanded_3mer_suggestions + list_of_multivalent_suggestions
@@ -484,6 +458,10 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
             logger.error(default_error_msgs[1])
             continue
     suggested_combinations = [ comb for comb in suggested_combinations if tuple(sorted(set(comb))) not in fall_back_edges ]
+
+    # Remove already computed suggestions
+    already_computed: list[tuple[str]] = list(get_user_2mers_combinations(pairwise_2mers_df)) + list(get_user_Nmers_combinations(pairwise_Nmers_df))
+    suggested_combinations: list[tuple[str]] = [ sug for sug in suggested_combinations if sug not in already_computed ]
 
     # Save the suggestions
     if out_path is not None:

@@ -39,16 +39,16 @@ pd.set_option( 'display.max_columns' , None )
 
 # ################################# Test 3 ######################################
 
-fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/NuA4_proteins.fasta"
-AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/2-mers"
-AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4"
-use_names = True 
-overwrite = True
-graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4/graph_resolution_preset.json"
-auto_domain_detection = False
-# graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/NuA4_proteins.fasta"
+# AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4"
+# use_names = True 
+# overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4/graph_resolution_preset.json"
+# auto_domain_detection = False
+# # graph_resolution_preset = None
 
 # ###################### Test 4 (indirect interactions) #########################
 
@@ -89,6 +89,21 @@ auto_domain_detection = False
 # # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 # auto_domain_detection = True
 # graph_resolution_preset = None
+
+###############################################################################
+
+################### Test 6' (multivalency detection RuvBL) ####################
+
+fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
+AF2_2mers = "tests/multivalency_test/2-mers"
+AF2_Nmers = "tests/multivalency_test/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/RuvBL_test"
+use_names = True
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+auto_domain_detection = True
+graph_resolution_preset = None
 
 ###############################################################################
 
@@ -156,12 +171,12 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     # Answer y automatically
     automatic_true = True)
 
-# Explore the stoichiometric space
-import multimer_mapper as mm
-best_stoichiometry, paths = mm.stoichiometric_space_exploration_pipeline(mm_output)
+# # Explore the stoichiometric space
+# import multimer_mapper as mm
+# best_stoichiometry, paths = mm.stoichiometric_space_exploration_pipeline(mm_output)
 
-from src.stoichiometries import stoichiometric_space_exploration_pipeline
-best_stoichiometry, paths = stoichiometric_space_exploration_pipeline(mm_output)
+# from src.stoichiometries import stoichiometric_space_exploration_pipeline
+# best_stoichiometry, paths = stoichiometric_space_exploration_pipeline(mm_output)
 
 # Create 3D network, generate a layout and create py3Dmol/Plotly visualizations
 nw = mm.Network(mm_output['combined_graph'], logger = logger)
@@ -401,8 +416,6 @@ mm_output['contacts_clusters'][tuple_pair][0]
 #     print(f"  Frequency: {count}")
 #     print(f"  Score: {next(s for s in stoichiometries if dict(stoich) == s.protein_counts).score:.2f}")
 #     print()
-
-
 
 
 

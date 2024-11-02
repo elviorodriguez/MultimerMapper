@@ -17,6 +17,7 @@ from src.interpret_dynamics import read_classification_df, classify_edge_dynamic
 from src.coordinate_analyzer import add_domain_RMSD_against_reference
 from src.analyze_multivalency import add_multivalency_state
 from cfg.default_settings import vertex_color1, vertex_color2, vertex_color3, vertex_color_both
+from utils.combinations import generate_multivalent_pair_suggestions
 
 # -----------------------------------------------------------------------------
 # PPI graph for 2-mers --------------------------------------------------------
@@ -974,10 +975,15 @@ def format_homooligomerization_states(homooligomerization_states, symmetry_fallb
 def format_multivalency_states(edge, logger = None):
 
     # Unpack data
-    multivalency_states: dict = edge['multivalency_states']
+    multivalency_states: dict = edge['multivalency_states'].copy()
     pair: tuple[str] = tuple(sorted(edge['name']))
     p_ID: str = pair[0]
     q_ID: str = pair[1]
+    
+    # Add the suggestions to the copy
+    suggested_multivalency_states = generate_multivalent_pair_suggestions(pair, multivalency_states)
+    for suggestion in suggested_multivalency_states:
+        multivalency_states[suggestion] = None
     
     # Initialize result variable and size tracker
     formatted_multivalency_states: list = []
@@ -993,6 +999,8 @@ def format_multivalency_states(edge, logger = None):
         # Color based on interactor presence
         if multivalency_states[model]:
             state = f'<b style="color:black;">{state}</b>'
+        elif multivalency_states[model] is None:
+            state = f'<b style="color:orange;">{state}</b>'
         else:
             state = f'<b style="color:red;">{state}</b>'
         
