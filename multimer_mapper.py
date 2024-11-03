@@ -21,7 +21,7 @@ try:
     from src.coordinate_analyzer import generate_RMSF_pLDDT_cluster_and_RMSD_trajectories
     from utils.temp_files_manager import setup_temp_file
     from utils.combinations import suggest_combinations
-    from src.contact_extractor import compute_pairwise_contacts, visualize_pair_matrices
+    from src.contact_extractor import compute_pairwise_contacts, visualize_pair_matrices, remove_Nmers_without_enough_contacts
     from src.analyze_multivalency import cluster_all_pairs, add_cluster_contribution_by_dataset
     from src.fallback import analyze_fallback
     from src.contact_graph import Residue, Surface, Protein, PPI, Network
@@ -250,6 +250,11 @@ def parse_AF2_and_sequences(
                                                           contact_pLDDT_cutoff    = contact_pLDDT_cutoff,
                                                           )
     multimer_mapper_output["pairwise_contact_matrices"] = pairwise_contact_matrices
+
+    # Remove Nmers that do not have enough contacts from pairwise_Nmers_df_F3 df and their matrices
+    pairwise_Nmers_df_F3, pairwise_contact_matrices = remove_Nmers_without_enough_contacts(multimer_mapper_output)
+    multimer_mapper_output["pairwise_contact_matrices"] = pairwise_contact_matrices
+    multimer_mapper_output['pairwise_Nmers_df_F3'] = pairwise_Nmers_df_F3
 
     # Cluster contacts (extract valency) and add it to output
     contacts_clusters = cluster_all_pairs(pairwise_contact_matrices, 

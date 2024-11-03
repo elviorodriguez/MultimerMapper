@@ -9,6 +9,15 @@ import multimer_mapper as mm
 pd.set_option( 'display.max_columns' , None )
 
 
+# # BORRAR #############33
+# import numpy as np
+# # Load the .npy file
+# data = np.load('reduced_features.npy')
+# # Print or manipulate the data
+# print(data)
+
+
+
 ################################# Test 1 ######################################
 
 # fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
@@ -417,6 +426,45 @@ mm_output['contacts_clusters'][tuple_pair][0]
 #     print(f"  Score: {next(s for s in stoichiometries if dict(stoich) == s.protein_counts).score:.2f}")
 #     print()
 
+Nmers_contacts_cutoff = 5
+N_models_cutoff = 3
 
+# Unpack data
+pairwise_contact_matrices = mm_output["pairwise_contact_matrices"]
+pairwise_Nmers_df_F3 = mm_output['pairwise_Nmers_df_F3'].copy()
 
+# To store which predictions have at least Nmers_contacts_cutoff    
+predictions_with_contacts = {}
 
+# Count matrices that have at least Nmers_contacts_cutoff for each pair
+for pair, pair_data in pairwise_contact_matrices.items():
+    predictions_with_contacts[pair] = {}
+    for model, model_data in pair_data.items():
+        if model_data['is_contact'].sum() >= Nmers_contacts_cutoff:
+            try:
+                predictions_with_contacts[pair][model[0]] += 1
+            except:
+                predictions_with_contacts[pair][model[0]] = 1
+        else:
+            try:
+                predictions_with_contacts[pair][model[0]] += 0
+            except:
+                predictions_with_contacts[pair][model[0]] = 0
+
+# Remove those that do not have enough models to surpass N_models_cutoff
+indices_to_remove = []
+
+for i, row in pairwise_Nmers_df_F3.iterrows():
+    tuple_pair = tuple(sorted([row['protein1'], row['protein2']]))
+    if predictions_with_contacts[tuple_pair][row['proteins_in_model']] < N_models_cutoff:
+        indices_to_remove.append(i)
+            
+# Drop the rows by index
+pairwise_Nmers_df_F3 = pairwise_Nmers_df_F3.drop(indices_to_remove).reset_index(drop=True)
+
+for pair, pair_data in predictions_with_contacts.items():
+    print(pair, any(N >= N_models_cutoff for N in pair_data.values()))
+
+            
+            
+            

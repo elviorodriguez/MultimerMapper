@@ -9,6 +9,7 @@ from itertools import combinations_with_replacement
 from utils.logger_setup import configure_logger
 from utils.progress_bar import print_progress_bar
 from utils.pdb_utils import calculate_distance
+from cfg.default_settings import Nmers_contacts_cutoff, N_models_cutoff
 
 # -----------------------------------------------------------------------------
 # ----------------------------- Helper functions ------------------------------
@@ -968,3 +969,58 @@ def visualize_pair_matrices(mm_output, pair=None, matrix_types=['is_contact', 'P
 # visualize_pair_matrices(all_pair_matrices, mm_output, combine_models=True)
 # # Limit the number of models to visualize
 # visualize_pair_matrices(all_pair_matrices, mm_output, max_models=100)
+
+
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# -----------------------------------------------------------------------------
+# -------------- To remove Nmers predictions with no contacts -----------------
+# -----------------------------------------------------------------------------
+
+
+def remove_Nmers_without_enough_contacts(mm_output, N_models_cutoff = N_models_cutoff, Nmers_contacts_cutoff = Nmers_contacts_cutoff):
+
+    # Unpack data
+    pairwise_contact_matrices = mm_output["pairwise_contact_matrices"].copy()
+    pairwise_Nmers_df_F3 = mm_output['pairwise_Nmers_df_F3'].copy()
+
+    # To store which predictions have at least Nmers_contacts_cutoff    
+    predictions_with_contacts = {}
+
+    # Count matrices that have at least Nmers_contacts_cutoff for each pair
+    for pair, pair_data in pairwise_contact_matrices.items():
+        predictions_with_contacts[pair] = {}
+        for model, model_data in pair_data.items():
+            if model_data['is_contact'].sum() >= Nmers_contacts_cutoff:
+                try:
+                    predictions_with_contacts[pair][model[0]] += 1
+                except:
+                    predictions_with_contacts[pair][model[0]] = 1
+            else:
+                try:
+                    predictions_with_contacts[pair][model[0]] += 0
+                except:
+                    predictions_with_contacts[pair][model[0]] = 0
+
+    # Remove those that do not have enough models to surpass N_models_cutoff
+    indices_to_remove = []
+
+    for i, row in pairwise_Nmers_df_F3.iterrows():
+        tuple_pair = tuple(sorted([row['protein1'], row['protein2']]))
+        if predictions_with_contacts[tuple_pair][row['proteins_in_model']] < N_models_cutoff:
+            indices_to_remove.append(i)
+                
+    # Drop the rows by index and create a new filtered F3 df
+    pairwise_Nmers_df_F3 = pairwise_Nmers_df_F3.drop(indices_to_remove).reset_index(drop=True)
+
+    # Remove the matrices too
+    for pair, pair_data in predictions_with_contacts.items():
+        if not any(N >= N_models_cutoff for N in pair_data.values()):
+            del pairwise_contact_matrices[pair]
+
+    return pairwise_Nmers_df_F3, pairwise_contact_matrices
+
