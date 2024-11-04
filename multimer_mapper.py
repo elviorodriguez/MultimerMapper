@@ -590,7 +590,7 @@ if __name__ == "__main__":
     
     # Explore the stoichiometric space of the complex
     logger.warning("Stoichiometric Space Exploration Algorithm is not available yet")
-    logger.warning("   - We making sure this feature is fully functional before release")
+    logger.warning("   - We are making sure this feature is fully functional before release")
     logger.warning("   - It will be available soon. Skipping...")
     # stoichiometric_space_exploration_pipeline(mm_output, log_level = log_level, open_plots = True)
 
