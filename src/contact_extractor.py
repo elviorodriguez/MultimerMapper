@@ -995,32 +995,36 @@ def remove_Nmers_without_enough_contacts(mm_output, N_models_cutoff = N_models_c
     for pair, pair_data in pairwise_contact_matrices.items():
         predictions_with_contacts[pair] = {}
         for model, model_data in pair_data.items():
+
+            # Add key to dict if it do not exists
+            if model[0] not in predictions_with_contacts[pair]:
+                predictions_with_contacts[pair][model[0]] = [0, 0, 0, 0, 0]
+
+            # Change to 1 the rank that surpasses Nmers contacts cutoff
             if model_data['is_contact'].sum() >= Nmers_contacts_cutoff:
-                try:
-                    predictions_with_contacts[pair][model[0]] += 1
-                except:
-                    predictions_with_contacts[pair][model[0]] = 1
-            else:
-                try:
-                    predictions_with_contacts[pair][model[0]] += 0
-                except:
-                    predictions_with_contacts[pair][model[0]] = 0
+                predictions_with_contacts[pair][model[0]][model[2] - 1] = 1
 
     # Remove those that do not have enough models to surpass N_models_cutoff
     indices_to_remove = []
 
     for i, row in pairwise_Nmers_df_F3.iterrows():
         tuple_pair = tuple(sorted([row['protein1'], row['protein2']]))
-        if predictions_with_contacts[tuple_pair][row['proteins_in_model']] < N_models_cutoff:
+        if sum(predictions_with_contacts[tuple_pair][row['proteins_in_model']]) < N_models_cutoff:
             indices_to_remove.append(i)
                 
     # Drop the rows by index and create a new filtered F3 df
     pairwise_Nmers_df_F3 = pairwise_Nmers_df_F3.drop(indices_to_remove).reset_index(drop=True)
 
-    # Remove the matrices too
+    # Convert contact matrices of predictions that do not surpass cutoffs to zero matrices or remove the pair
     for pair, pair_data in predictions_with_contacts.items():
-        if not any(N >= N_models_cutoff for N in pair_data.values()):
+        if not any(sum(N) >= N_models_cutoff for N in pair_data.values()):
             del pairwise_contact_matrices[pair]
+        else:
+            for model, ranks_bool_list in pair_data.items():
+                if sum(ranks_bool_list) < N_models_cutoff:
+                    models_to_remove = [ m for m in pairwise_contact_matrices[pair] if m[0] == model ]
+                    for m in models_to_remove:
+                        pairwise_contact_matrices[pair][m]['is_contact'][:] = False
 
     return pairwise_Nmers_df_F3, pairwise_contact_matrices
 
