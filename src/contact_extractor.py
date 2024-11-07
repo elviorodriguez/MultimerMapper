@@ -730,14 +730,14 @@ def get_all_pair_matrices(mm_contacts):
             result[sorted_pair] = pair_matrices[sorted_pair]
             
     # Orient matrices consistently
-    for pair in pair_matrices.keys():
+    for pair in result.keys():
         expected_dim = None
-        for k, d in pair_matrices[pair].items():
+        for k, d in result[pair].items():
             for sub_k, m in d.items():
                 if expected_dim is None:
                     expected_dim = d[sub_k].shape
                 elif expected_dim != d[sub_k].shape:
-                    pair_matrices[pair][k][sub_k] = pair_matrices[pair][k][sub_k].T
+                    result[pair][k][sub_k] = result[pair][k][sub_k].T
                 else:                
                     continue
     

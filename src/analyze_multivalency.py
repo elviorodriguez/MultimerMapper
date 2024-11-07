@@ -23,43 +23,6 @@ from utils.combinations import get_untested_2mer_pairs, get_tested_Nmer_pairs
 from src.analyze_homooligomers import add_chain_information_to_df, does_all_have_at_least_one_interactor
 from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff
 
-###############################################################################
-############################### Clustering ####################################
-###############################################################################
-                
-'''
-This implementation does the following:
-
-1) Preprocessing and Feature Extraction:
-
-    - preprocess_matrices(all_pair_matrices, pair) extracts valid models (contact matrices) for a given pair of proteins.
-    - create_feature_vector(matrices) transforms these matrices into feature vectors, which are numerical representations suitable for clustering.
-
-2) Feature Scaling and Dimensionality Reduction:
-
-    - Scaling: The feature vectors are standardized using StandardScaler(). This ensures that all features contribute equally to the clustering algorithm by centering them around a mean of 0 and scaling them to have a standard deviation of 1.
-    -PCA (Principal Component Analysis): The scaled features are reduced to a lower-dimensional space while retaining 95% of the variance (PCA(n_components=0.95)). This step reduces computational complexity and noise in the data.
-
-3)Clustering:
-
-    - The code iterates over a range of possible cluster numbers (n_clusters from 2 to max_clusters) and performs Agglomerative Clustering.
-    - For each n_clusters, the clustering labels are computed, and the Silhouette Score is calculated, which measures how similar each point is to its own cluster compared to other clusters.
-    - If the Silhouette Score is above a certain threshold (silhouette_threshold), the corresponding clustering configuration is considered valid. Otherwise, the data is treated as belonging to a single cluster.
-
-4) Cluster Visualization:
-
-    -After determining the optimal number of clusters, the code visualizes the clusters by averaging the contact matrices in each cluster and plotting them.
-
-5) The main function cluster_and_visualize ties everything together and can be run for each protein pair.
-
-
-This approach is able to:
-    
-    Handle models with fewer contacts by considering them as part of the same cluster if they're similar enough.
-    Utilize information from all matrix types (is_contact, PAE, min_pLDDT, distance) to make clustering decisions.
-    Identify different binding sites (if they exist) by separating models into different clusters.
-'''
-
 #########################################################################################
 ################################# Helper functions ######################################
 #########################################################################################
@@ -361,7 +324,7 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
     valid_models_keys = list(valid_models.keys())
     
     if len(valid_models) == 0:
-        logger.warn(f"   No valid models found for pair {pair}")
+        logger.warning(f"   No valid models found for pair {pair}")
         return None, None, None, None
     
     logger.info("   Generating feature vectors...")
@@ -419,7 +382,7 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
                 else:
                     logger.info(f"   Agglomerative Clustering with {n_clusters} clusters: skipped due to insufficient data shape.")
             except Exception as e:
-                logger.warn(f"   Agglomerative Clustering with {n_clusters} clusters caused an error: {str(e)}")
+                logger.warning(f"   Agglomerative Clustering with {n_clusters} clusters caused an error: {str(e)}")
 
         # Compute the boolean contact matrices for each cluster to compare them
         bool_contacts_matrices_per_cluster = []
@@ -1047,24 +1010,6 @@ def visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
         plt.close()
 
 
-# def create_interactive_plot(reduced_features, labels, model_keys, cluster_dict, pair, explained_variance, all_pair_matrices):
-#     # Create PCA plot
-#     pca_fig = create_pca_plot(reduced_features, labels, model_keys, explained_variance, all_pair_matrices, pair)
-    
-#     # Create contact maps for each cluster
-#     contact_maps = {}
-#     for cluster, data in cluster_dict.items():
-#         contact_maps[cluster] = create_contact_map(
-#             data['average_matrix'],
-#             pair,
-#             f'Cluster {cluster}',
-#             x_domains=data['x_dom'],  # Pass x domains
-#             y_domains=data['y_dom']   # Pass y domains
-#         )
-    
-#     # Create unified HTML
-#     return create_unified_html(pca_fig, contact_maps, pair)
-
 def create_interactive_plot(reduced_features, labels, model_keys, cluster_dict, pair, explained_variance, all_pair_matrices):
     # Create PCA plot
     pca_fig = create_pca_plot(reduced_features, labels, model_keys, explained_variance, all_pair_matrices, pair)
@@ -1212,192 +1157,6 @@ def create_pca_plot(reduced_features, labels, model_keys, explained_variance, al
     
     return fig
 
-# def create_contact_map(avg_matrix, pair, title, x_domains, y_domains):
-
-#     fig = go.Figure(data=go.Heatmap(
-#         z=avg_matrix,
-#         colorscale='Viridis',
-#         zmin=0, zmax=1,
-#         colorbar=dict(title     = f'Contact Frequency (max={round(avg_matrix.max(), ndigits=2)})',
-#                       titleside = 'right')))
-    
-#     # Add domain separation lines (horizontal and vertical)
-#     for _, row in y_domains.iterrows():
-#         # Horizontal lines for the y-axis domains
-#         fig.add_shape(type="line",
-#                       x0=-0.5, x1=avg_matrix.shape[1]-0.5,  # Span the whole width of the matrix
-#                       y0=row['Start'] - 1.5, y1=row['Start'] - 1.5,  # Domain start
-#                       line=dict(color="red", width=1, dash="dash"))
-#         fig.add_shape(type="line",
-#                       x0=-0.5, x1=avg_matrix.shape[1]-0.5,
-#                       y0=row['End'] - 0.5, y1=row['End'] - 0.5,  # Domain end
-#                       line=dict(color="red", width=1, dash="dash"))
-#     for _, row in x_domains.iterrows():
-#         # Vertical lines for the x-axis domains
-#         fig.add_shape(type="line",
-#                       x0=row['Start'] - 1.5, x1=row['Start'] - 1.5,  # Domain start
-#                       y0=-0.5, y1=avg_matrix.shape[0]-0.5,  # Span the whole height of the matrix
-#                       line=dict(color="red", width=1, dash="dash"))
-#         fig.add_shape(type="line",
-#                       x0=row['End'] - 0.5, x1=row['End'] - 0.5,  # Domain end
-#                       y0=-0.5, y1=avg_matrix.shape[0]-0.5,
-#                       line=dict(color="red", width=1, dash="dash"))
-    
-#     fig.update_layout(
-#         title=dict(text=title, x=0.5),
-#         xaxis_title=f"{pair[1]}",
-#         yaxis_title=f"{pair[0]}",
-#         yaxis=dict(scaleanchor="x", scaleratio=1),
-#         margin=dict(l=50, r=50, t=50, b=50),
-#         xaxis_showgrid=False,
-#         yaxis_showgrid=False,
-#         plot_bgcolor='white',
-#         paper_bgcolor='white'
-#     )
-#     return fig
-
-# def create_unified_html(pca_fig, contact_maps, pair):
-#     pca_plot = io.StringIO()
-#     pca_fig.write_html(pca_plot, include_plotlyjs='cdn', full_html=False, config={'responsive': True})
-
-#     contact_plots = {cluster: io.StringIO() for cluster in contact_maps}
-#     for cluster, fig in contact_maps.items():
-#         fig.write_html(contact_plots[cluster], include_plotlyjs='cdn', full_html=False, config={'responsive': True})
-
-#     buttons = '\n'.join([f'<button onclick="showContactMap({cluster})">{cluster}</button>' for cluster in contact_maps])
-
-#     html_content = f"""
-#     <!DOCTYPE html>
-#     <html lang="en">
-#     <head>
-#         <meta charset="UTF-8">
-#         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-#         <title>PCA and Contact Maps for {pair[0]} vs {pair[1]}</title>
-#         <style>
-#             body {{
-#                 margin: 0;
-#                 padding: 0;
-#                 font-family: Arial, sans-serif;
-#                 display: flex;
-#                 flex-direction: column;
-#                 height: 100vh;
-#                 overflow: hidden;
-#             }}
-#             h1 {{
-#                 text-align: center;
-#                 margin: 10px 0;
-#             }}
-#             .controls {{
-#                 display: flex;
-#                 justify-content: center;
-#                 align-items: center;
-#                 padding: 10px;
-#             }}
-#             .label {{
-#                 margin-right: 10px;
-#                 font-size: 16px;
-#             }}
-#             .buttons {{
-#                 display: inline-block;
-#             }}
-#             .container {{
-#                 display: flex;
-#                 flex: 1;
-#                 overflow: hidden;
-#             }}
-#             .plot {{
-#                 flex: 1;
-#                 height: 100%;
-#                 padding: 10px;
-#                 box-sizing: border-box;
-#                 position: relative;
-#             }}
-#             #contactMaps > div {{
-#                 position: absolute;
-#                 top: 0;
-#                 left: 0;
-#                 width: 100%;
-#                 height: 100%;
-#                 opacity: 0;
-#                 transition: opacity 0.3s ease-in-out;
-#                 pointer-events: none;
-#             }}
-#             #contactMaps > div.active {{
-#                 opacity: 1;
-#                 pointer-events: auto;
-#             }}
-#             .buttons {{
-#                 text-align: center;
-#                 padding: 10px;
-#             }}
-#             button {{
-#                 margin: 0 5px;
-#             }}
-#         </style>
-#         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-#     </head>
-#     <body>
-#         <h1>PCA and Contact Maps for {pair[0]} vs {pair[1]}</h1>
-#         <div class="controls">
-#             <span class="label">Select cluster to display its contact map: </span>
-#             <div class="buttons">
-#                 {buttons}
-#             </div>
-#         </div>
-#         <div class="container">
-#             <div id="pcaPlot" class="plot">
-#                 {pca_plot.getvalue()}
-#             </div>
-#             <div id="contactMaps" class="plot">
-#                 {''.join([f'<div id="contactMap{cluster}">{plot.getvalue()}</div>' for cluster, plot in contact_plots.items()])}
-#             </div>
-#         </div>
-#         <script>
-#             function showContactMap(cluster) {{
-#                 const contactMaps = document.querySelectorAll('#contactMaps > div');
-#                 contactMaps.forEach(map => {{
-#                     map.classList.remove('active');
-#                 }});
-#                 const selectedMap = document.getElementById(`contactMap${{cluster}}`);
-#                 selectedMap.classList.add('active');
-#                 Plotly.Plots.resize(selectedMap);
-#             }}
-
-#             function resizePlots() {{
-#                 Plotly.Plots.resize(document.getElementById('pcaPlot'));
-#                 const visibleContactMap = document.querySelector('#contactMaps > div.active');
-#                 if (visibleContactMap) {{
-#                     Plotly.Plots.resize(visibleContactMap);
-#                 }}
-#             }}
-
-#             // Function to trigger a fake resize event
-#             function triggerFakeResize() {{
-#                 window.dispatchEvent(new Event('resize'));
-#             }}
-
-#             window.addEventListener('resize', resizePlots);
-#             document.addEventListener('DOMContentLoaded', function() {{
-#                 showContactMap(0);  // Show the first contact map by default
-#                 setTimeout(resizePlots, 0);
-#                 triggerFakeResize();
-#             }});
-
-#             // Ensure plots are properly sized after they're fully loaded
-#             window.addEventListener('load', function() {{
-#                 resizePlots();
-#                 // Trigger another resize after a short delay to account for any final rendering
-#                 setTimeout(resizePlots, 0);
-#                 triggerFakeResize();
-#             }});
-#         </script>
-#     </body>
-#     </html>
-#     """
-    
-#     return html_content
-
-
 def create_unified_html(pca_fig, contact_fig, pair):
     html_content = f"""
     <!DOCTYPE html>
@@ -1446,18 +1205,25 @@ def create_unified_html(pca_fig, contact_fig, pair):
         </div>
         <script>
             function resizePlots() {{
-                Plotly.Plots.resize('pcaPlot');
-                Plotly.Plots.resize('contactMaps');
+                Plotly.Plots.resize(document.getElementById('pcaPlot'));
+                Plotly.Plots.resize(document.getElementById('contactMaps'));
+            }}
+
+            function triggerFakeResize() {{
+                window.dispatchEvent(new Event('resize'));
             }}
 
             window.addEventListener('resize', resizePlots);
+
             document.addEventListener('DOMContentLoaded', function() {{
                 setTimeout(resizePlots, 0);
+                triggerFakeResize();
             }});
 
             window.addEventListener('load', function() {{
                 resizePlots();
                 setTimeout(resizePlots, 0);
+                triggerFakeResize();
             }});
         </script>
     </body>
@@ -1465,6 +1231,7 @@ def create_unified_html(pca_fig, contact_fig, pair):
     """
     
     return html_content
+
 
 
 def create_domain_shapes(x_domains, y_domains, matrix_shape):

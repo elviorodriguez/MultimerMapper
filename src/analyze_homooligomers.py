@@ -5,8 +5,30 @@ import pandas as pd
 from src.interpret_dynamics import classify_edge_dynamics, classification_df
 from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff
 
+def does_2mer_homodimerize(query_protein: str, pairwise_2mers_df: pd.DataFrame, pairwise_2mers_df_F3: pd.DataFrame):
+    '''Returns True if homo-2-mer forms, False if not, and None if it was not tested'''
+
+    for i, row in pairwise_2mers_df_F3.iterrows():
+        
+        protein1 = str(row["protein1"])
+        protein2 = str(row["protein2"])
+               
+        if (protein1 == protein2) and (protein1 == query_protein):
+            return True
+    
+    for i, row in pairwise_2mers_df.iterrows():
+        
+        protein1 = str(row["protein1"])
+        protein2 = str(row["protein2"])
+               
+        if (protein1 == protein2) and (protein1 == query_protein):
+            return False
+
+    return None
+
 # Get proteins that dimerize (mm_output["pairwise_2mers_df_F3"]):
-def get_proteins_that_homodimerize(pairwise_2mers_df_F3: pd.DataFrame):
+def get_proteins_that_homodimerize(pairwise_2mers_df_F3: pd.DataFrame,
+                                   pairwise_Nmers_df_F3: pd.DataFrame):
     '''
     Analyzes pairwise_2mers_df_F3 and return the set of proteins that
     forms homodimers.
@@ -32,8 +54,16 @@ def get_proteins_that_homodimerize(pairwise_2mers_df_F3: pd.DataFrame):
                
         if (protein1 == protein2) and (protein1 not in homodim_prots):
             homodim_prots.add(protein1)
+
+    for i, row in pairwise_Nmers_df_F3.iterrows():
+        
+        protein1 = str(row["protein1"])
+        protein2 = str(row["protein2"])
+               
+        if (protein1 == protein2) and (protein1 not in homodim_prots):
+            homodim_prots.add(protein1)
             
-    return homodim_prots
+    return set(homodim_prots)
 
 
 def get_homo_N_mers_pairwise_df(pairwise_Nmers_df):
@@ -164,17 +194,17 @@ def does_all_have_at_least_one_interactor(model_pairwise_df: pd.DataFrame,
 #                                           N_models_cutoff)
 
 
-def find_homooligomerization_breaks(pairwise_2mers_df_F3, pairwise_Nmers_df,
+def find_homooligomerization_breaks(pairwise_2mers_df, pairwise_Nmers_df, pairwise_2mers_df_F3, pairwise_Nmers_df_F3,
                                     logger,
                                     min_PAE_cutoff_Nmers,
                                     pDockQ_cutoff_Nmers,
                                     N_models_cutoff):
     
     # Proteins that homodimerize
-    homodim_prots: set = get_proteins_that_homodimerize(pairwise_2mers_df_F3)
+    homodim_prots: set = get_proteins_that_homodimerize(pairwise_2mers_df_F3, pairwise_Nmers_df_F3)
     
     # Initialize dict to store homooligomerization states of each protein
-    homooligomerization_states: dict = {protein_ID: {"is_ok": [], "N_states": []} for protein_ID in homodim_prots}
+    homooligomerization_states: dict = {protein_ID: {"is_ok": [], "N_states": [], "2mer_interact": []} for protein_ID in homodim_prots}
     
     # This manages the case in which there is no N-mers models for the homooligomerization states
     try:
@@ -222,6 +252,9 @@ def find_homooligomerization_breaks(pairwise_2mers_df_F3, pairwise_Nmers_df,
             # State that there is a problem with the models filling N_states with Nones
             homooligomerization_states[protein]["is_ok"] = is_ok
             homooligomerization_states[protein]["N_states"] = [None] * len(is_ok)
+            homooligomerization_states[protein]["2mer_interact"] = does_2mer_homodimerize(query_protein        = protein,
+                                                                                          pairwise_2mers_df    = pairwise_2mers_df,
+                                                                                          pairwise_2mers_df_F3 = pairwise_2mers_df_F3)
             
             # Skip to the next protein
             continue
@@ -231,6 +264,9 @@ def find_homooligomerization_breaks(pairwise_2mers_df_F3, pairwise_Nmers_df,
             
             # Add information to dict
             homooligomerization_states[protein]["is_ok"] = is_ok
+            homooligomerization_states[protein]["2mer_interact"] = does_2mer_homodimerize(query_protein        = protein,
+                                                                                          pairwise_2mers_df    = pairwise_2mers_df,
+                                                                                          pairwise_2mers_df_F3 = pairwise_2mers_df_F3)
             
             # Progress
             logger.info(f'   - DONE: {len(is_ok)} homooligomerization state(s) found')
@@ -244,10 +280,10 @@ def find_homooligomerization_breaks(pairwise_2mers_df_F3, pairwise_Nmers_df,
             
             # Make the verification
             all_have_at_least_one_interactor: bool = does_all_have_at_least_one_interactor(
-                                                        model_pairwise_df,
-                                                        min_PAE_cutoff_Nmers,
-                                                        pDockQ_cutoff_Nmers,
-                                                        N_models_cutoff)
+                                                        model_pairwise_df = model_pairwise_df,
+                                                        min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
+                                                        pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
+                                                        N_models_cutoff = N_models_cutoff)
             
             # Add if it surpass cutoff to N_states
             homooligomerization_states[protein]["N_states"].append(all_have_at_least_one_interactor)
@@ -261,7 +297,7 @@ def find_homooligomerization_breaks(pairwise_2mers_df_F3, pairwise_Nmers_df,
     return homooligomerization_states
             
             
-def add_homooligomerization_state(graph, pairwise_2mers_df_F3, pairwise_Nmers_df, 
+def add_homooligomerization_state(graph, pairwise_2mers_df, pairwise_Nmers_df, pairwise_2mers_df_F3, pairwise_Nmers_df_F3,
                                   edges_g1_sort, edges_g2_sort, untested_edges_tuples, tested_Nmers_edges_sorted,
                                   logger,
                                   min_PAE_cutoff_Nmers  = min_PAE_cutoff_Nmers,
@@ -270,8 +306,10 @@ def add_homooligomerization_state(graph, pairwise_2mers_df_F3, pairwise_Nmers_df
 
     # Compute homooligomerization data
     homooligomerization_states = find_homooligomerization_breaks(
-                                        pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
+                                        pairwise_2mers_df = pairwise_2mers_df,
                                         pairwise_Nmers_df = pairwise_Nmers_df,
+                                        pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
+                                        pairwise_Nmers_df_F3 = pairwise_Nmers_df_F3,
                                         logger = logger,
                                         min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
                                         pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,

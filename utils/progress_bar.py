@@ -17,8 +17,15 @@ def print_progress_bar(current, total, text = "", progress_length = 40):
     Returns:
     - None    
     '''
-    percent = current / total * 100
-    progress = int(progress_length * current / total)
+    try:
+        percent = current / total * 100
+        progress = int(progress_length * current / total)
+    except ZeroDivisionError:
+        percent = 100
+        progress = int(progress_length)
+    except Exception as e:
+        print("ERROR: ")
+        return f"Progress{text}: UNKNOWN ERROR ({e})"
     progress_bar_template = "[{:<" + str(progress_length - 1) + "}]"
     
     if current >= total:

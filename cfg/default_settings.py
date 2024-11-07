@@ -71,15 +71,15 @@ DOMAIN_COLORS = ['red', 'green', 'blue', 'purple', 'yellow', 'orange', 'brown', 
 # ----------------------------------------------------------------------------
 
 # General cutoff
-N_models_cutoff = 3
+N_models_cutoff = 5
 
-# Cutoffs for 2-mers (Sens = 57.4%, FPR = 0.05)
-min_PAE_cutoff_2mers = 8.99
-ipTM_cutoff_2mers = 0.240
+# Cutoffs for 2-mers (Sens = 61.5%, FPR = 0.05)
+min_PAE_cutoff_2mers = 13
+ipTM_cutoff_2mers = 0.0     # Do not change
   
-# Cutoffs for N-mers (Sens = 57.4%, FPR = 0.05)
-min_PAE_cutoff_Nmers = 8.99
-pDockQ_cutoff_Nmers = 0.022
+# Cutoffs for N-mers (Sens = 61.5%, FPR = 0.05)
+min_PAE_cutoff_Nmers = 13
+pDockQ_cutoff_Nmers = 0.0   # Do not change
 
 # For Nmers
 Nmers_contacts_cutoff = 5
@@ -104,7 +104,6 @@ display_fallback_ranges: bool       = True
 # Cutoff to consider a domain disordered (domain_mean_pLDDT < cutoff => disordered)
 domain_RMSD_plddt_cutoff = 60
 trimming_RMSD_plddt_cutoff = 70
-
 
 # ----------------------------------------------------------------------------
 # ------------- For PPI classification and interactive PPI graph -------------
@@ -135,13 +134,14 @@ PT_palette = {
 # edge_color6=PT_palette["blue"]          # 
 # edge_color_both=PT_palette["black"]     # 
 
-vertex_color1     = PT_palette["red"]
-vertex_color2     = PT_palette["green"]
-vertex_color3     = PT_palette["orange"]
-vertex_color_both = PT_palette["gray"]
+# Colors for protein dynamics
+vertex_color1     = PT_palette["red"]       # Negative Dynamic Protein
+vertex_color2     = PT_palette["green"]     # Positive Dynamic Protein
+vertex_color3     = PT_palette["orange"]    # No N-mers Data Protein
+vertex_color_both = PT_palette["gray"]      # Static Protein
 
 # Which interactions do not take int account in interactive combined graph?
-remove_interactions_from_ppi_graph = ("Indirect",)      # (indirect: mediated by a 3rd protein)
+remove_interactions_from_ppi_graph = ("Indirect", "No 2-mers Data")      # (indirect: mediated by a 3rd protein)
 
 # ----- For homooligomerization edges (self-loops) ---------------------------
 # 0: up, 0.25: left, 0.5: down, 0.75: right
@@ -188,7 +188,7 @@ save_ref_structures = True
 # ----------------------------------------------------------------------------
 
 contact_distance_cutoff: float | int = 8.0
-contact_PAE_cutoff     : float | int = 9
+contact_PAE_cutoff     : float | int = 13
 contact_pLDDT_cutoff   : float | int = 50
 
 # ----------------------------------------------------------------------------
@@ -215,12 +215,14 @@ multivalency_contact_similarity_threshold: float = 0.7
 # Maximum valency to test (max_contact_clusters modes of interactions)
 max_contact_clusters: int = 5
 
-# For MCFT (Merging by Contact Fraction Threshold) - DEFAULT -----------------
+# For MCFT (Merging by Contact Fraction Threshold) - Experimental ------------
 
 # To optimize
 contact_fraction_threshold: float               = 0.1
 refinement_contact_similarity_threshold: float  = 0.5
 refinement_cf_threshold: float                  = 0.5
+
+# ----------------------------------------------------------------------------
 
 # Save/display the contact clusters with PCA plots?
 display_contact_clusters = False

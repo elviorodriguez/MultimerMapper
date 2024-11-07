@@ -34,6 +34,7 @@ def generate_2mers_graph(pairwise_2mers_df_F3: pd.DataFrame,
     graph = igraph.Graph()
     
     # Add vertices (nodes) to the graph
+    graph.vs['name'] = ""       # To avoid KeyError in igraph.plot
     graph.add_vertices(nodes)
     
     # Add edges to the graph
@@ -461,13 +462,13 @@ def add_vertices_meaning(graph, vertex_color1='red', vertex_color2='green', vert
     # Function to determine the meaning based on color
     def get_meaning(row):
         if row['color'] == vertex_color_both:
-            return 'Static protein'
+            return 'Static'
         elif row['color'] == vertex_color1:
-            return 'Dynamic protein (disappears in N-mers)'
+            return 'Negative'
         elif row['color'] == vertex_color2:
-            return 'Dynamic protein (appears in N-mers)'
+            return 'Positive'
         elif row['color'] == vertex_color3:
-            return 'Protein dynamics not explored in N-mers'
+            return 'No N-mers Data'
         else:
             return 'unknown'
         
@@ -660,6 +661,7 @@ def generate_combined_graph(
     domains_df            = mm_output['domains_df']
     sliced_PAE_and_pLDDTs = mm_output['sliced_PAE_and_pLDDTs']
     pairwise_2mers_df_F3  = mm_output['pairwise_2mers_df_F3']
+    pairwise_Nmers_df_F3  = mm_output['pairwise_Nmers_df_F3']
     symmetry_fallbacks    = mm_output['symmetry_fallbacks']
     
     # Prot IDs and prot names to add them to the graph as hovertext later on
@@ -782,8 +784,10 @@ def generate_combined_graph(
 
     homooligomerization_states = add_homooligomerization_state(
         graph                     = graphC,
-        pairwise_2mers_df_F3      = pairwise_2mers_df_F3,
+        pairwise_2mers_df         = pairwise_2mers_df,
         pairwise_Nmers_df         = pairwise_Nmers_df,
+        pairwise_2mers_df_F3      = pairwise_2mers_df_F3,
+        pairwise_Nmers_df_F3      = pairwise_Nmers_df_F3,
         edges_g1_sort             = edges_g1_sort,
         edges_g2_sort             = edges_g2_sort,
         untested_edges_tuples     = untested_edges_tuples,
@@ -947,7 +951,14 @@ def format_homooligomerization_states(homooligomerization_states, symmetry_fallb
         if style == 2:
             return '<b style="color:orange;">' + str(N) + '</b>'
 
-    formatted_N_states = '<b style="color:black;">2</b>|'
+    # Add a 2 with different colors depending on the value of 2mer_interact
+    if homooligomerization_states['2mer_interact']:
+        formatted_N_states = '<b style="color:black;">2</b>|'
+    elif homooligomerization_states['2mer_interact'] is None:
+        formatted_N_states = '<b style="color:orange;">2</b>|'
+    else:
+        formatted_N_states = '<b style="color:red;">2</b>|'
+
 
     for N, (is_ok, N_state) in enumerate(zip(homooligomerization_states["is_ok"], homooligomerization_states["N_states"]), start = 3):
         
@@ -956,8 +967,11 @@ def format_homooligomerization_states(homooligomerization_states, symmetry_fallb
             if symmetry_fallback['fallback_N'] == N:
                 N_fallback = symmetry_fallback['fallback_target']
 
+        # If the homooligomerization state is the last one but there was a fallback or a previous negative
+        if N == len(homooligomerization_states["is_ok"]) + 2 and (homooligomerization_states["N_states"][-1] is None or False in homooligomerization_states["N_states"] or symmetry_fallback['fallback_detected']):
+            pass
         # If there is lacking predictions (error in the protocol)
-        if N_state is None:
+        elif N_state is None:
             formatted_N_states += apply_style(N, 2, N_fallback) + '|'
         # If the homooligomerization state is negative
         elif N_state is False:
