@@ -968,7 +968,7 @@ def format_homooligomerization_states(homooligomerization_states, symmetry_fallb
                 N_fallback = symmetry_fallback['fallback_target']
 
         # If the homooligomerization state is the last one but there was a fallback or a previous negative
-        if N == len(homooligomerization_states["is_ok"]) + 2 and (homooligomerization_states["N_states"][-1] is None or False in homooligomerization_states["N_states"] or symmetry_fallback['fallback_detected']):
+        if N == len(homooligomerization_states["is_ok"]) + 2 and homooligomerization_states["N_states"][-1] is None and (False in homooligomerization_states["N_states"] or symmetry_fallback['fallback_detected']):
             pass
         # If there is lacking predictions (error in the protocol)
         elif N_state is None:

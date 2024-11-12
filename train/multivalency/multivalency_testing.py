@@ -1,36 +1,31 @@
-
 import numpy as np
 import pandas as pd
-from sklearn.metrics import roc_curve, precision_recall_curve, auc
-from typing import Dict, List, Tuple, Any
+from sklearn.metrics import mean_squared_error, r2_score
+from typing import Dict, List, Tuple, Any, Optional
 from scipy.spatial.distance import cdist
 from collections import Counter
 import logging
 from dataclasses import dataclass
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
+import numpy.typing as npt
 
 @dataclass
 class ClusteringMetrics:
     """Class to store clustering evaluation metrics."""
-    fpr: np.ndarray
-    tpr: np.ndarray
-    precision: np.ndarray
-    recall: np.ndarray
-    auroc: float
-    auprc: float
     thresholds: np.ndarray
+    mse: np.ndarray  # Mean squared error for each threshold
+    r2: np.ndarray   # R² score for each threshold
+    pred_clusters: List[List[int]]  # Predicted clusters for each threshold
+    true_clusters: List[int]        # True number of clusters
+    best_threshold: float           # Threshold with lowest MSE
 
 class MultivalencyTester:
     def __init__(self, matrices_dict: Dict[Tuple, Dict], true_labels_df: pd.DataFrame):
-        """
-        Initialize the MultivalencyTester.
-        
-        Args:
-            matrices_dict: Dictionary with structure {(protein1, protein2): {model_id: {'is_contact': matrix, ...}}}
-            true_labels_df: DataFrame with columns ['protein1', 'protein2', 'true_n_clusters']
-        """
         self.matrices_dict = matrices_dict
         self.true_labels_df = true_labels_df
         self.logger = self._setup_logger()
+        self._preprocess_matrices()
         
     def _setup_logger(self) -> logging.Logger:
         """Set up logging configuration."""
@@ -42,23 +37,42 @@ class MultivalencyTester:
             handler.setFormatter(formatter)
             logger.addHandler(handler)
         return logger
+        
+    def _preprocess_matrices(self):
+        """Pre-process matrices to avoid repeated computations."""
+        self.processed_matrices = {}
+        for pair, models_data in self.matrices_dict.items():
+            contact_matrices = [models_data[model]['is_contact'] > 0 
+                              for model in models_data.keys()]
+            self.processed_matrices[pair] = np.array(contact_matrices, dtype=bool)
+    
+    def _calculate_consensus_matrix(self, matrices: np.ndarray, indices: List[int]) -> np.ndarray:
+        """Efficiently calculate consensus matrix for given indices."""
+        if len(indices) == 1:
+            return matrices[indices[0]]
+        return np.mean(matrices[indices], axis=0) > 0.5
+
+    @staticmethod
+    def _get_contact_positions(matrix: np.ndarray) -> np.ndarray:
+        """Get contact positions efficiently using numpy operations."""
+        return np.array(np.where(matrix)).T
 
     def _calculate_iou(self, matrix1: np.ndarray, matrix2: np.ndarray) -> float:
-        """Calculate Intersection over Union between two contact matrices."""
-        intersection = np.sum(np.logical_and(matrix1, matrix2))
-        union = np.sum(np.logical_or(matrix1, matrix2))
+        """Vectorized IoU calculation."""
+        intersection = np.sum(matrix1 & matrix2)
+        union = np.sum(matrix1 | matrix2)
         return intersection / union if union > 0 else 0
 
     def _calculate_contact_fraction(self, small_matrix: np.ndarray, large_matrix: np.ndarray) -> float:
-        """Calculate Contact Fraction between two matrices."""
-        shared_contacts = np.sum(np.logical_and(small_matrix, large_matrix))
+        """Vectorized Contact Fraction calculation."""
+        shared_contacts = np.sum(small_matrix & large_matrix)
         small_contacts = np.sum(small_matrix)
         return shared_contacts / small_contacts if small_contacts > 0 else 0
 
     def _calculate_mean_closeness(self, matrix1: np.ndarray, matrix2: np.ndarray, use_median: bool = True) -> float:
-        """Calculate Mean/Median Closeness between two matrices."""
-        contacts1 = np.array(np.where(matrix1)).T
-        contacts2 = np.array(np.where(matrix2)).T
+        """Optimized Mean/Median Closeness calculation."""
+        contacts1 = self._get_contact_positions(matrix1)
+        contacts2 = self._get_contact_positions(matrix2)
         
         if len(contacts1) == 0 or len(contacts2) == 0:
             return np.inf
@@ -71,52 +85,30 @@ class MultivalencyTester:
         
         return np.median(min_distances) if use_median else np.mean(min_distances)
 
-    def _cluster_with_metric(self, pair: Tuple, threshold: float, metric: str) -> List[int]:
+    def _cluster_with_metric(self, pair: Tuple, threshold: float, metric: str) -> int:
         """
-        Cluster models using specified metric.
-        
-        Args:
-            pair: Tuple of (protein1, protein2)
-            threshold: Clustering threshold
-            metric: One of ['iou', 'cf', 'mc', 'medc']
-        
-        Returns:
-            List of cluster labels
+        Optimized clustering implementation that returns the number of clusters.
         """
-        # Get contact matrices for the pair
-        models_data = self.matrices_dict[pair]
-        model_keys = list(models_data.keys())
-        contact_matrices = [models_data[model]['is_contact'] > 0 for model in model_keys]
-        
-        # Initialize each model in its own cluster
-        labels = list(range(len(model_keys)))
+        matrices = self.processed_matrices[pair]
+        n_models = len(matrices)
+        labels = list(range(n_models))
         
         while True:
             label_counts = Counter(labels)
             if len(label_counts) == 1:
                 break
-                
-            # Sort clusters by size
-            sorted_clusters = sorted(label_counts.items(), 
-                                  key=lambda x: np.sum(np.mean([contact_matrices[i] 
-                                                              for i, label in enumerate(labels) 
-                                                              if label == x[0]], axis=0) > 0))
+            
+            consensus_matrices = {
+                label: self._calculate_consensus_matrix(matrices, [i for i, l in enumerate(labels) if l == label])
+                for label in label_counts
+            }
+            
+            sorted_clusters = sorted(consensus_matrices.items(), 
+                                  key=lambda x: np.sum(x[1]))
             
             merged = False
-            for small_label, _ in sorted_clusters[:-1]:
-                small_matrix = np.mean([contact_matrices[i] 
-                                      for i, label in enumerate(labels) 
-                                      if label == small_label], axis=0) > 0
-                
-                for big_label, _ in reversed(sorted_clusters):
-                    if big_label == small_label:
-                        continue
-                        
-                    big_matrix = np.mean([contact_matrices[i] 
-                                        for i, label in enumerate(labels) 
-                                        if label == big_label], axis=0) > 0
-                    
-                    # Calculate similarity based on chosen metric
+            for i, (small_label, small_matrix) in enumerate(sorted_clusters[:-1]):
+                for big_label, big_matrix in reversed(sorted_clusters[i+1:]):
                     if metric == 'iou':
                         similarity = self._calculate_iou(small_matrix, big_matrix)
                         should_merge = similarity >= threshold
@@ -129,7 +121,7 @@ class MultivalencyTester:
                         should_merge = similarity <= threshold
                     
                     if should_merge:
-                        labels = [big_label if label == small_label else label for label in labels]
+                        labels = [big_label if l == small_label else l for l in labels]
                         merged = True
                         break
                 
@@ -139,115 +131,99 @@ class MultivalencyTester:
             if not merged:
                 break
         
-        # Reassign labels to be consecutive integers
-        unique_labels = sorted(set(labels))
-        label_mapping = {old: new for new, old in enumerate(unique_labels)}
-        labels = [label_mapping[label] for label in labels]
-        
-        return labels
+        return len(set(labels))  # Return the number of clusters
+
+    def _process_threshold(self, threshold: float, metric: str) -> List[Tuple[str, str, int, int]]:
+        """Process a single threshold for all pairs."""
+        self.logger.info(f"Processing threshold: {threshold}")
+        results = []
+        for _, row in self.true_labels_df.iterrows():
+            pair = (row['protein1'], row['protein2'])
+            pred_n_clusters = self._cluster_with_metric(pair, threshold, metric)
+            results.append((row['protein1'], row['protein2'], row['true_n_clusters'], pred_n_clusters))
+        return results
 
     def evaluate_clustering(self, metric: str, thresholds: List[float]) -> ClusteringMetrics:
-        """
-        Evaluate clustering performance across all pairs using different thresholds.
+        """Evaluate clustering performance across thresholds."""
+        self.logger.info(f"Processing metric: {metric}")
+        self.logger.info(f"   - Metric Thresholds: {thresholds}")
         
-        Args:
-            metric: Clustering metric to use
-            thresholds: List of thresholds to test
-            
-        Returns:
-            ClusteringMetrics object containing evaluation metrics
-        """
+        # Process all thresholds
+        with ProcessPoolExecutor() as executor:
+            process_fn = partial(self._process_threshold, metric=metric)
+            all_results = list(executor.map(process_fn, thresholds))
+        
+        # Organize results
         true_clusters = []
-        pred_clusters = []
+        pred_clusters_by_threshold = [[] for _ in thresholds]
         
-        for threshold in thresholds:
-            self.logger.info(f"Evaluating threshold {threshold} for metric {metric}")
-            
-            for _, row in self.true_labels_df.iterrows():
-                pair = tuple(sorted([row['protein1'], row['protein2']]))
-                true_n_clusters = row['true_n_clusters']
-
-                self.logger.info(f"   - Pair: {pair}")
-                
-                # Get predicted clusters
-                pred_labels = self._cluster_with_metric(pair, threshold, metric)
-                pred_n_clusters = len(set(pred_labels))
-                
-                # Append to lists for metric calculation
-                true_clusters.append(true_n_clusters)
-                pred_clusters.append(pred_n_clusters)
+        # First set of results will have all true values
+        first_threshold_results = all_results[0]
+        true_clusters = [result[2] for result in first_threshold_results]
         
-        # Convert to numpy arrays
-        y_true = np.array(true_clusters)
-        y_pred = np.array(pred_clusters)
+        # Collect predictions for each threshold
+        for threshold_idx, threshold_results in enumerate(all_results):
+            pred_clusters_by_threshold[threshold_idx] = [result[3] for result in threshold_results]
         
-        # Calculate ROC curve
-        fpr, tpr, _ = roc_curve(y_true, y_pred)
-        auroc = auc(fpr, tpr)
+        # Calculate metrics for each threshold
+        mse_scores = []
+        r2_scores = []
+        for pred_clusters in pred_clusters_by_threshold:
+            mse = mean_squared_error(true_clusters, pred_clusters)
+            r2 = r2_score(true_clusters, pred_clusters)
+            mse_scores.append(mse)
+            r2_scores.append(r2)
         
-        # Calculate Precision-Recall curve
-        precision, recall, _ = precision_recall_curve(y_true, y_pred)
-        auprc = auc(recall, precision)
+        # Find best threshold (lowest MSE)
+        best_threshold_idx = np.argmin(mse_scores)
+        best_threshold = thresholds[best_threshold_idx]
         
         return ClusteringMetrics(
-            fpr=fpr,
-            tpr=tpr,
-            precision=precision,
-            recall=recall,
-            auroc=auroc,
-            auprc=auprc,
-            thresholds=np.array(thresholds)
+            thresholds=np.array(thresholds),
+            mse=np.array(mse_scores),
+            r2=np.array(r2_scores),
+            pred_clusters=pred_clusters_by_threshold,
+            true_clusters=true_clusters,
+            best_threshold=best_threshold
         )
 
 def run_multivalency_testing(matrices_dict: Dict[Tuple, Dict], 
                            true_labels_df: pd.DataFrame,
-                           save_path: str = None) -> Dict[str, ClusteringMetrics]:
-    """
-    Run multivalency testing for all metrics and save results.
-    
-    Args:
-        matrices_dict: Dictionary of contact matrices
-        true_labels_df: DataFrame with true cluster labels
-        save_path: Optional path to save results
-        
-    Returns:
-        Dictionary mapping metric names to their ClusteringMetrics
-    """
-    # Initialize tester
+                           save_path: Optional[str] = None) -> Dict[str, ClusteringMetrics]:
+    """Run optimized multivalency testing."""
     tester = MultivalencyTester(matrices_dict, true_labels_df)
     
-    # Define thresholds for each metric
     thresholds = {
-        'iou': np.linspace(0.01, 0.99, 10),  # IoU thresholds
-        'cf': np.linspace(0.01, 0.99, 10),   # Contact Fraction thresholds
-        'mc': np.linspace(0.01, 20.0, 10),  # Mean Closeness thresholds
-        'medc': np.linspace(0.01, 20.0, 10) # Median Closeness thresholds
+        'iou': np.linspace(0.01, 0.99, 10),
+        'cf': np.linspace(0.01, 0.99, 10),
+        'mc': np.linspace(0.01, 20.0, 10),
+        'medc': np.linspace(0.01, 20.0, 10)
     }
     
-    # Evaluate each metric
     results = {}
     for metric, metric_thresholds in thresholds.items():
         results[metric] = tester.evaluate_clustering(metric, metric_thresholds)
     
-    # Save results if path provided
     if save_path:
-        save_results(results, save_path)
+        for metric, metrics in results.items():
+            # Save detailed results for each threshold
+            results_data = {
+                'threshold': metrics.thresholds,
+                'mse': metrics.mse,
+                'r2': metrics.r2,
+                'best_threshold': metrics.best_threshold
+            }
+            
+            # Add predictions for each threshold
+            for i, thresh in enumerate(metrics.thresholds):
+                results_data[f'predictions_threshold_{thresh:.2f}'] = metrics.pred_clusters[i]
+            
+            # Add true clusters
+            results_data['true_clusters'] = metrics.true_clusters
+            
+            # Save to CSV
+            df = pd.DataFrame(results_data)
+            df.to_csv(f"{save_path}/{metric}_results.csv", index=False)
     
     return results
 
-def save_results(results: Dict[str, ClusteringMetrics], save_path: str):
-    """Save evaluation results to files."""
-    for metric, metrics in results.items():
-        # Create DataFrame with results
-        df = pd.DataFrame({
-            'threshold': metrics.thresholds,
-            'fpr': [metrics.fpr],
-            'tpr': [metrics.tpr],
-            'precision': [metrics.precision],
-            'recall': [metrics.recall],
-            'auroc': metrics.auroc,
-            'auprc': metrics.auprc
-        })
-        
-        # Save to CSV
-        df.to_csv(f"{save_path}/{metric}_results.csv", index=False)
