@@ -1,11 +1,13 @@
 
 import numpy as np
 import pandas as pd
-import json
 import pickle
+import matplotlib.pyplot as plt
 
 from train.multivalency.parse_raw_data import parse_raw_data
 from train.multivalency.multivalency_testing import run_multivalency_testing
+
+from train.multivalency.visualize_clustering import visualize_clustering_results, ClusteringVisualizer
 
 
 # matrices_dict data structure ---------------------------------
@@ -52,4 +54,38 @@ else:
 true_labels_file = "train/multivalency//true_multivalency_labels.tsv"
 true_labels_df = pd.read_csv(true_labels_file, sep= "\t")
 
-results = run_multivalency_testing(matrices_dict, true_labels_df, save_path="results")
+thresholds = {
+    'iou': np.linspace(0.01, 0.99, 10),
+    'cf': np.linspace(0.01, 0.99, 10),
+    'mc': np.linspace(0.01, 20.0, 10),
+    'medc': np.linspace(0.01, 20.0, 10)
+}
+
+results = run_multivalency_testing(matrices_dict, true_labels_df,
+                                   thresholds = thresholds,
+                                   save_path="results")
+
+results.keys()
+
+
+
+###############################################################################
+########################### Results visualization #############################
+###############################################################################
+
+# Simple usage - just show the plots
+visualize_clustering_results('results')
+
+# Save all visualizations to a directory
+visualize_clustering_results('results', output_dir='visualization_output')
+
+# Or use the ClusteringVisualizer class directly for more control
+visualizer = ClusteringVisualizer('results')
+
+# Plot ROC and PR curves with custom size
+fig, axes = visualizer.plot_curves(figsize=(15, 6))
+plt.show()
+
+# Create performance heatmap
+visualizer.plot_performance_heatmap(metric='mse')
+plt.show()

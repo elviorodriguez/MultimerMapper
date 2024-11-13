@@ -38,12 +38,11 @@ class MultivalencyTester:
             logger.addHandler(handler)
         return logger
         
-    def _preprocess_matrices(self):
-        """Pre-process matrices to avoid repeated computations."""
+    def _preprocess_matrices(self, min_contacts = 3):
+        """Pre-process matrices to avoid repeated computations and keep only valid matrices (more than min_contacts)"""
         self.processed_matrices = {}
         for pair, models_data in self.matrices_dict.items():
-            contact_matrices = [models_data[model]['is_contact'] > 0 
-                              for model in models_data.keys()]
+            contact_matrices = [models_data[model]['is_contact'] > 0 for model in models_data.keys() if np.sum(models_data[model]['is_contact']) >= min_contacts]
             self.processed_matrices[pair] = np.array(contact_matrices, dtype=bool)
     
     def _calculate_consensus_matrix(self, matrices: np.ndarray, indices: List[int]) -> np.ndarray:
@@ -186,19 +185,20 @@ class MultivalencyTester:
             true_clusters=true_clusters,
             best_threshold=best_threshold
         )
+    
+thresholds = {
+    'iou': np.linspace(0.01, 0.99, 10),
+    'cf': np.linspace(0.01, 0.99, 10),
+    'mc': np.linspace(0.01, 20.0, 10),
+    'medc': np.linspace(0.01, 20.0, 10)
+}
 
 def run_multivalency_testing(matrices_dict: Dict[Tuple, Dict], 
                            true_labels_df: pd.DataFrame,
+                           thresholds: dict = thresholds,
                            save_path: Optional[str] = None) -> Dict[str, ClusteringMetrics]:
     """Run optimized multivalency testing."""
     tester = MultivalencyTester(matrices_dict, true_labels_df)
-    
-    thresholds = {
-        'iou': np.linspace(0.01, 0.99, 10),
-        'cf': np.linspace(0.01, 0.99, 10),
-        'mc': np.linspace(0.01, 20.0, 10),
-        'medc': np.linspace(0.01, 20.0, 10)
-    }
     
     results = {}
     for metric, metric_thresholds in thresholds.items():
@@ -206,23 +206,35 @@ def run_multivalency_testing(matrices_dict: Dict[Tuple, Dict],
     
     if save_path:
         for metric, metrics in results.items():
-            # Save detailed results for each threshold
+            # Create a base dictionary with arrays of equal length
+            n_samples = len(metrics.true_clusters)
+            n_thresholds = len(metrics.thresholds)
+            
+            # Initialize the results dictionary with proper shapes
             results_data = {
-                'threshold': metrics.thresholds,
-                'mse': metrics.mse,
-                'r2': metrics.r2,
-                'best_threshold': metrics.best_threshold
+                'threshold': np.repeat(metrics.thresholds, n_samples),
+                'mse': np.repeat(metrics.mse, n_samples),
+                'r2': np.repeat(metrics.r2, n_samples),
+                'best_threshold': np.repeat(metrics.best_threshold, n_samples * n_thresholds),
+                'true_clusters': metrics.true_clusters * n_thresholds
             }
             
             # Add predictions for each threshold
-            for i, thresh in enumerate(metrics.thresholds):
-                results_data[f'predictions_threshold_{thresh:.2f}'] = metrics.pred_clusters[i]
+            all_predictions = []
+            for pred_cluster in metrics.pred_clusters:
+                all_predictions.extend(pred_cluster)
+            results_data['predicted_clusters'] = all_predictions
             
-            # Add true clusters
-            results_data['true_clusters'] = metrics.true_clusters
+            # Create DataFrame and add sample identifiers
+            df = pd.DataFrame(results_data)
+            
+            # Add protein identifiers by repeating the true_labels_df for each threshold
+            protein_data = pd.concat([true_labels_df[['protein1', 'protein2']]] * n_thresholds)
+            df = pd.concat([protein_data.reset_index(drop=True), df], axis=1)
             
             # Save to CSV
-            df = pd.DataFrame(results_data)
+            import os
+            os.makedirs(save_path, exist_ok=True)
             df.to_csv(f"{save_path}/{metric}_results.csv", index=False)
     
     return results
