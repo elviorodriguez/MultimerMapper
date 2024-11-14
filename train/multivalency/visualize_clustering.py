@@ -17,12 +17,11 @@ class ClusteringVisualizer:
         Args:
             results_dir (str): Path to directory containing *_results.csv files
         """
-        self.results_dir = Path(results_dir)
         self.method_names = {
-            'iou': 'Intersection over Union',
-            'cf': 'Contact Fraction',
-            'mc': 'Mean Closeness',
-            'medc': 'Median Closeness'
+            'iou': 'IoU',
+            'cf': 'CF',
+            'mc': 'MC',
+            'medc': 'MedC'
         }
         self.colors = {
             'iou': '#1f77b4',    # blue
@@ -30,6 +29,7 @@ class ClusteringVisualizer:
             'mc': '#ff7f0e',     # orange
             'medc': '#d62728'    # red
         }
+        self.results_dir = Path(results_dir)
         self.results = self._load_results()
         
     def _load_results(self) -> Dict[str, pd.DataFrame]:

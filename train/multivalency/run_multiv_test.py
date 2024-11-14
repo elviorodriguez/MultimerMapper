@@ -51,19 +51,20 @@ else:
 #     'true_n_clusters': [n_clusters, ...]
 # })
 
-true_labels_file = "train/multivalency//true_multivalency_labels.tsv"
+true_labels_file = "train/multivalency/true_multivalency_labels.tsv"
 true_labels_df = pd.read_csv(true_labels_file, sep= "\t")
+benchmark_results_path = "/home/elvio/Desktop/multivalency_benchmark/benchmark_results"
 
 thresholds = {
-    'iou': np.linspace(0.01, 0.99, 10),
-    'cf': np.linspace(0.01, 0.99, 10),
-    'mc': np.linspace(0.01, 20.0, 10),
-    'medc': np.linspace(0.01, 20.0, 10)
+    'iou': np.linspace(0.00, 1, 100),
+    'cf': np.linspace(0.00, 1, 100),
+    'mc': np.linspace(0.00, 50, 100),
+    'medc': np.linspace(0.00, 50, 100)
 }
 
 results = run_multivalency_testing(matrices_dict, true_labels_df,
                                    thresholds = thresholds,
-                                   save_path="results")
+                                   save_path = benchmark_results_path)
 
 results.keys()
 
@@ -73,19 +74,21 @@ results.keys()
 ########################### Results visualization #############################
 ###############################################################################
 
-# Simple usage - just show the plots
-visualize_clustering_results('results')
 
-# Save all visualizations to a directory
-visualize_clustering_results('results', output_dir='visualization_output')
 
-# Or use the ClusteringVisualizer class directly for more control
-visualizer = ClusteringVisualizer('results')
+# # Simple usage - just show the plots
+# visualize_clustering_results(benchmark_results_path)
 
-# Plot ROC and PR curves with custom size
-fig, axes = visualizer.plot_curves(figsize=(15, 6))
-plt.show()
+# # Save all visualizations to a directory
+# visualize_clustering_results(benchmark_results_path, output_dir=benchmark_results_path)
 
-# Create performance heatmap
-visualizer.plot_performance_heatmap(metric='mse')
-plt.show()
+# # Or use the ClusteringVisualizer class directly for more control
+# visualizer = ClusteringVisualizer(benchmark_results_path)
+
+# # Plot ROC and PR curves with custom size
+# fig, axes = visualizer.plot_curves(figsize=(15, 6))
+# plt.show()
+
+# # Create performance heatmap
+# visualizer.plot_performance_heatmap(metric='mse')
+# plt.show()

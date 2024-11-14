@@ -22,10 +22,9 @@ class ClusteringMetrics:
 
 class MultivalencyTester:
     def __init__(self, matrices_dict: Dict[Tuple, Dict], true_labels_df: pd.DataFrame):
-        self.matrices_dict = matrices_dict
         self.true_labels_df = true_labels_df
         self.logger = self._setup_logger()
-        self._preprocess_matrices()
+        self._preprocess_matrices(matrices_dict)
         
     def _setup_logger(self) -> logging.Logger:
         """Set up logging configuration."""
@@ -38,18 +37,18 @@ class MultivalencyTester:
             logger.addHandler(handler)
         return logger
         
-    def _preprocess_matrices(self, min_contacts = 3):
+    def _preprocess_matrices(self, matrices_dict, min_contacts = 3):
         """Pre-process matrices to avoid repeated computations and keep only valid matrices (more than min_contacts)"""
         self.processed_matrices = {}
-        for pair, models_data in self.matrices_dict.items():
-            contact_matrices = [models_data[model]['is_contact'] > 0 for model in models_data.keys() if np.sum(models_data[model]['is_contact']) >= min_contacts]
+        for pair, models_data in matrices_dict.items():
+            contact_matrices = [models_data[model]['is_contact'] for model in models_data.keys() if np.sum(models_data[model]['is_contact']) >= min_contacts]
             self.processed_matrices[pair] = np.array(contact_matrices, dtype=bool)
     
     def _calculate_consensus_matrix(self, matrices: np.ndarray, indices: List[int]) -> np.ndarray:
         """Efficiently calculate consensus matrix for given indices."""
         if len(indices) == 1:
             return matrices[indices[0]]
-        return np.mean(matrices[indices], axis=0) > 0.5
+        return np.mean(matrices[indices], axis=0) > 0
 
     @staticmethod
     def _get_contact_positions(matrix: np.ndarray) -> np.ndarray:
@@ -134,7 +133,7 @@ class MultivalencyTester:
 
     def _process_threshold(self, threshold: float, metric: str) -> List[Tuple[str, str, int, int]]:
         """Process a single threshold for all pairs."""
-        self.logger.info(f"Processing threshold: {threshold}")
+        self.logger.info(f"   - Processing threshold: {threshold}")
         results = []
         for _, row in self.true_labels_df.iterrows():
             pair = (row['protein1'], row['protein2'])
