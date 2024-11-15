@@ -94,7 +94,7 @@ print(results_df)
 plot_precision_recall(results_df)
 plot_accuracy_vs_threshold(results_df)
 from train.multivalency.visualize_results import plot_precision_recall_accuracy_static
-plot_precision_recall_accuracy_static(results_df)
+plot_precision_recall_accuracy_static(results_df, out_dir = benchmark_results_path)
 from train.multivalency.visualize_results import plot_precision_recall_accuracy_interactive
 plot_precision_recall_accuracy_interactive(results_df, out_dir = benchmark_results_path)
 
