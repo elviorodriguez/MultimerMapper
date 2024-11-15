@@ -7,8 +7,13 @@ import matplotlib.pyplot as plt
 from train.multivalency.parse_raw_data import parse_raw_data
 from train.multivalency.multivalency_testing import run_multivalency_testing
 
-from train.multivalency.visualize_clustering import visualize_clustering_results, ClusteringVisualizer
+# from train.multivalency.visualize_clustering import visualize_clustering_results, ClusteringVisualizer
+from train.multivalency.visualize_results import process_files, plot_precision_recall,plot_accuracy_vs_threshold, plot_precision_recall_accuracy_static, plot_precision_recall_accuracy_interactive
 
+
+###############################################################################
+############################## Data Generation ################################
+###############################################################################
 
 # matrices_dict data structure ---------------------------------
 
@@ -68,6 +73,30 @@ results = run_multivalency_testing(matrices_dict, true_labels_df,
 
 results.keys()
 
+
+###############################################################################
+########################### Results visualization #############################
+###############################################################################
+
+# File paths
+filepaths = ['/home/elvio/Desktop/multivalency_benchmark/benchmark_results/cf_results.csv',
+             '/home/elvio/Desktop/multivalency_benchmark/benchmark_results/iou_results.csv',
+             '/home/elvio/Desktop/multivalency_benchmark/benchmark_results/mc_results.csv',
+             '/home/elvio/Desktop/multivalency_benchmark/benchmark_results/medc_results.csv']
+
+# Process the files and get the results
+results_df = process_files(filepaths)
+
+# Display the resulting DataFrame
+print(results_df)
+
+# Plots
+plot_precision_recall(results_df)
+plot_accuracy_vs_threshold(results_df)
+from train.multivalency.visualize_results import plot_precision_recall_accuracy_static
+plot_precision_recall_accuracy_static(results_df)
+from train.multivalency.visualize_results import plot_precision_recall_accuracy_interactive
+plot_precision_recall_accuracy_interactive(results_df, out_dir = benchmark_results_path)
 
 
 ###############################################################################
