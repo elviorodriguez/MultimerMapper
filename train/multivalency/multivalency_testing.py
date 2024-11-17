@@ -78,7 +78,8 @@ class MultivalencyTester:
         # Always compare the smallest against the biggest
         if len(contacts1) > len(contacts2):
             contacts1, contacts2 = contacts2, contacts1
-            
+        
+        # Compute MC/MedC
         distances = cdist(contacts1, contacts2, metric='cityblock')
         min_distances = np.min(distances, axis=1)
         
