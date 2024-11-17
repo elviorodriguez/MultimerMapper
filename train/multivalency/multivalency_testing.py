@@ -75,6 +75,7 @@ class MultivalencyTester:
         if len(contacts1) == 0 or len(contacts2) == 0:
             return np.inf
             
+        # Always compare the smallest against the biggest
         if len(contacts1) > len(contacts2):
             contacts1, contacts2 = contacts2, contacts1
             
@@ -92,18 +93,22 @@ class MultivalencyTester:
         labels = list(range(n_models))
         
         while True:
+
+            # Count the labels 
             label_counts = Counter(labels)
             if len(label_counts) == 1:
                 break
             
+            # Compute the consensus contact matrix (bool matrix) for each cluster (label)
             consensus_matrices = {
                 label: self._calculate_consensus_matrix(matrices, [i for i, l in enumerate(labels) if l == label])
                 for label in label_counts
             }
             
-            sorted_clusters = sorted(consensus_matrices.items(), 
-                                  key=lambda x: np.sum(x[1]))
+            # Sort matrix cluster by size (Nº of contacts)
+            sorted_clusters = sorted(consensus_matrices.items(), key=lambda x: np.sum(x[1]))
             
+            # Perform merging
             merged = False
             for i, (small_label, small_matrix) in enumerate(sorted_clusters[:-1]):
                 for big_label, big_matrix in reversed(sorted_clusters[i+1:]):
@@ -132,7 +137,8 @@ class MultivalencyTester:
         return len(set(labels))  # Return the number of clusters
 
     def _process_threshold(self, threshold: float, metric: str) -> List[Tuple[str, str, int, int]]:
-        """Process a single threshold for all pairs."""
+        """Process a single threshold for all pairs.
+        Returns list with tuples (prot1, prot2, true_n_clusters, pred_n_clusters), one for each threshold"""
         self.logger.info(f"   - Processing threshold: {threshold}")
         results = []
         for _, row in self.true_labels_df.iterrows():
