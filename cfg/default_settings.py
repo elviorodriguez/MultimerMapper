@@ -141,7 +141,7 @@ vertex_color3     = PT_palette["orange"]    # No N-mers Data Protein
 vertex_color_both = PT_palette["gray"]      # Static Protein
 
 # Which interactions do not take int account in interactive combined graph?
-remove_interactions_from_ppi_graph = ("Indirect", "No 2-mers Data")      # (indirect: mediated by a 3rd protein)
+remove_interactions_from_ppi_graph = ("Indirect",)      # (indirect: mediated by a 3rd protein)
 
 # ----- For homooligomerization edges (self-loops) ---------------------------
 # 0: up, 0.25: left, 0.5: down, 0.75: right

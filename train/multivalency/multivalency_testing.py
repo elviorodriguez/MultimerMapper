@@ -6,7 +6,7 @@ from scipy.spatial.distance import cdist
 from collections import Counter
 import logging
 from dataclasses import dataclass
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from functools import partial
 import numpy.typing as npt
 
@@ -85,15 +85,62 @@ class MultivalencyTester:
         
         return np.median(min_distances) if use_median else np.mean(min_distances)
 
-    def _cluster_with_metric(self, pair: Tuple, threshold: float, metric: str) -> int:
+    def _cluster_with_metric(self, pair: Tuple, threshold: float, metric: str, use_greedy = False) -> int:
         """
-        Optimized clustering implementation that returns the number of clusters.
+        Clustering implementation that returns the number of clusters. For greedy implementation (takes less time),
+        set use_greedy to True.
         """
         matrices = self.processed_matrices[pair]
         n_models = len(matrices)
         labels = list(range(n_models))
+
+        # ------------------------------------------ Greedy implementation ------------------------------------------
+
+        while True and use_greedy:
+
+            # Count the labels 
+            label_counts = Counter(labels)
+            if len(label_counts) == 1:
+                break
+            
+            # Compute the consensus contact matrix (bool matrix) for each cluster (label)
+            consensus_matrices = {
+                label: self._calculate_consensus_matrix(matrices, [i for i, l in enumerate(labels) if l == label])
+                for label in label_counts
+            }
+            
+            # Sort matrix cluster by size (Nº of contacts)
+            sorted_clusters = sorted(consensus_matrices.items(), key=lambda x: np.sum(x[1]))
+            
+            # Perform merging
+            merged = False
+            for i, (small_label, small_matrix) in enumerate(sorted_clusters[:-1]):
+                for big_label, big_matrix in reversed(sorted_clusters[i+1:]):
+                    if metric == 'iou':
+                        similarity = self._calculate_iou(small_matrix, big_matrix)
+                        should_merge = similarity >= threshold
+                    elif metric == 'cf':
+                        similarity = self._calculate_contact_fraction(small_matrix, big_matrix)
+                        should_merge = similarity >= threshold
+                    elif metric in ['mc', 'medc']:
+                        similarity = self._calculate_mean_closeness(small_matrix, big_matrix, 
+                                                                 use_median=(metric == 'medc'))
+                        should_merge = similarity <= threshold
+                    
+                    if should_merge:
+                        labels = [big_label if l == small_label else l for l in labels]
+                        merged = True
+                        break
+                
+                if merged:
+                    break
+                    
+            if not merged:
+                break
         
-        while True:
+        # ------------------------------------------ Optimal implementation ------------------------------------------
+
+        while True and not use_greedy:
 
             # Count the labels 
             label_counts = Counter(labels)
@@ -148,16 +195,48 @@ class MultivalencyTester:
             results.append((row['protein1'], row['protein2'], row['true_n_clusters'], pred_n_clusters))
         return results
 
+    def _process_with_error_handling(self, threshold: float, metric: str):
+        """Helper method to process threshold with error handling."""
+        try:
+            return self._process_threshold(threshold, metric)
+        except Exception as e:
+            self.logger.error(f"Worker failed processing threshold {threshold}: {str(e)}")
+            raise  # Re-raise to be caught by the main process
+
     def evaluate_clustering(self, metric: str, thresholds: List[float]) -> ClusteringMetrics:
-        """Evaluate clustering performance across thresholds."""
+        """Evaluate clustering performance across thresholds with improved error handling."""
         self.logger.info(f"Processing metric: {metric}")
         self.logger.info(f"   - Metric Thresholds: {thresholds}")
         
-        # Process all thresholds
-        with ProcessPoolExecutor() as executor:
-            process_fn = partial(self._process_threshold, metric=metric)
-            all_results = list(executor.map(process_fn, thresholds))
+        # Process all thresholds with error handling
+        all_results = []
+        failed_thresholds = []
         
+        with ProcessPoolExecutor() as executor:
+            future_to_threshold = {
+                executor.submit(self._process_with_error_handling, threshold, metric): threshold 
+                for threshold in thresholds
+            }
+            
+            for future in as_completed(future_to_threshold):
+                threshold = future_to_threshold[future]
+                try:
+                    result = future.result()
+                    all_results.append((threshold, result))
+                except Exception as e:
+                    failed_thresholds.append(threshold)
+                    self.logger.error(f"Failed to process threshold {threshold}: {str(e)}")
+                    
+        if failed_thresholds:
+            self.logger.warning(f"Failed to process thresholds: {failed_thresholds}")
+            if len(failed_thresholds) == len(thresholds):
+                raise RuntimeError("All threshold processing failed")
+        
+        # Sort results by threshold to maintain order
+        all_results.sort(key=lambda x: x[0])
+        all_results = [r[1] for r in all_results]
+        
+        # Rest of your code remains the same...
         # Organize results
         true_clusters = []
         pred_clusters_by_threshold = [[] for _ in thresholds]

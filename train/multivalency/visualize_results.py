@@ -118,7 +118,111 @@ def normalize_threshold_by_metric(results_df):
         lambda x: (x - x.min()) / (x.max() - x.min())
     )
     return results_df
+
+
+################################################################################################################
+########################################## Preprocessing data 2 ################################################
+################################################################################################################
+
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score
+
+def read_csvs(filepaths):
+    # Initialize an empty list to store each DataFrame
+    df_list = []
+
+    # Iterate through each file and read the CSV files
+    for filepath in filepaths:
+        # Read the CSV file
+        df = pd.read_csv(filepath)
+
+        # Get the metric name from the file path
+        metric_name = os.path.basename(filepath).split('_')[0]
+
+        # Add a new column for the metric name
+        df['metric'] = metric_name
+
+        # Append the DataFrame to the list
+        df_list.append(df)
+
+    # Concatenate all DataFrames into a single DataFrame
+    merged_df = pd.concat(df_list, ignore_index=True)
+
+    return merged_df
+
+def calculate_precision_recall_accuracy(df, threshold):
+    """Calculate precision, recall, and accuracy using proper label alignment
     
+    Args:
+        df: DataFrame with true_clusters and predicted_clusters columns
+        threshold: Current threshold value
+    
+    Returns:
+        precision, recall, accuracy (macro averages for precision/recall)
+    """
+    subset = df[df['threshold'] == threshold]
+    
+    # Convert true and predicted clusters to zero-based consecutive integers
+    le = LabelEncoder()
+    true_labels = le.fit_transform(subset['true_clusters'])
+    
+    # Fit a new encoder for predicted labels to handle potentially different label sets
+    pred_labels = LabelEncoder().fit_transform(subset['predicted_clusters'])
+    
+    # Calculate precision and recall using sklearn's implementation
+    precision, recall, _, _ = precision_recall_fscore_support(
+        true_labels,
+        pred_labels,
+        average='macro',  # Use macro averaging
+        zero_division=0   # Handle cases with zero predictions for a class
+    )
+    
+    # Calculate accuracy
+    accuracy = accuracy_score(true_labels, pred_labels)
+    
+    return precision, recall, accuracy
+
+def evaluate_clustering_metrics(df):
+    """Evaluate clustering results with proper metric calculation
+    
+    Args:
+        df: DataFrame with columns [protein1, protein2, threshold, true_clusters, 
+            predicted_clusters, metric]
+    
+    Returns:
+        DataFrame with precision-recall-accuracy values for each threshold and metric
+    """
+    results = []
+    
+    # Process each metric separately
+    for metric in df['metric'].unique():
+        metric_df = df[df['metric'] == metric]
+        
+        # Calculate P-R-A for each threshold
+        for threshold in sorted(metric_df['threshold'].unique()):
+            precision, recall, accuracy = calculate_precision_recall_accuracy(metric_df, threshold)
+            
+            results.append({
+                'metric': metric,
+                'threshold': threshold,
+                'precision': precision,
+                'recall': recall,
+                'accuracy': accuracy
+            })
+    
+    return pd.DataFrame(results)
+
+# Example usage:
+# results_df = evaluate_clustering_metrics(merged_df)
+# 
+# To see the results:
+# print(results_df.sort_values(['metric', 'threshold']))
+
+# Example usage:
+# results_df = evaluate_clustering_metrics(merged_df)
+
 
 ################################################################################################################
 ############################################# Plotting functions ###############################################
