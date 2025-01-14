@@ -506,6 +506,9 @@ if __name__ == "__main__":
     parser.add_argument('--overwrite', action='store_true',
         help='If exists, overwrites the existent folder')
     
+    parser.add_argument('--skip_traj', action='store_true',
+        help='Skips pseudo-dynamic computations (RMSD trajectories)')
+    
     parser.add_argument('--reduce_verbosity', action='store_true',
         help='Changes logging level from INFO to WARNING (only displays warnings and errors)')
     
@@ -525,6 +528,7 @@ if __name__ == "__main__":
     overwrite       = args.overwrite
     manual_domains  = args.manual_domains
     N_value         = args.N_value
+    skip_traj        = args.skip_traj
 
     # Verbosity level
     if args.reduce_verbosity:
@@ -573,11 +577,10 @@ if __name__ == "__main__":
                                                               log_level = log_level)
     
     # Generate RMSF, pLDDT clusters and RMSD trajectories
-    mm_traj = generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(mm_output = mm_output,
-                                                                out_path = out_path,
-                                                                log_level = log_level)
-    
-    
+    if not skip_traj:
+        mm_traj = generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(mm_output = mm_output,
+                                                                    out_path = out_path,
+                                                                    log_level = log_level)    
     
     # Generate suggested combinations files
     sug_combs = suggest_combinations(mm_output = mm_output,
