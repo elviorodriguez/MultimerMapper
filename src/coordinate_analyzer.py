@@ -1059,7 +1059,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                 rmsd_traj_files = [f for f in os.listdir(domain_trajectory_folder) 
                                  if f.endswith('RMSD_traj.tsv')]
 
-                # Parse each RMSD file                                
+                # Parse each RMSD file                              
                 for rmsd_traj_file in rmsd_traj_files:
 
                     # Get the prefix (everything before _RMSD_traj.tsv)
@@ -1069,16 +1069,16 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                     tsv_path = os.path.join(domain_trajectory_folder, rmsd_traj_file)
                     
                     # Read the trajectory file
-                    df = pd.read_csv(tsv_path, sep='\t')
+                    domain_rmsd_traj_df = pd.read_csv(tsv_path, sep='\t')
                     
                     # Run the analysis functions directly
                     windows = [5, 10, 15, 20]
-                    results, rolling_data = analyze_protein_distribution(df, windows=windows)
+                    domain_rmsd_traj_results, rolling_data = analyze_protein_distribution(domain_rmsd_traj_df, windows=windows)
                     
                     # Save results to CSV using the same prefix
                     output_csv = os.path.join(domain_trajectory_folder, 
                                             f'{tsv_prefix}_protein_distribution_results.csv')
-                    results_df = save_results_to_csv(results, output_csv)
+                    domain_distribution_results_df = save_results_to_csv(domain_rmsd_traj_results, output_csv)
                     
                     # Create a subdirectory for plots using the same prefix
                     plots_dir = os.path.join(domain_trajectory_folder, f'{tsv_prefix}_distribution_plots')
@@ -1134,6 +1134,40 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                                               aligned_chains = aligned_chains,
                                               all_chain_types = all_chain_types,
                                               all_chain_info = all_chain_info)
+    
+    # Run distribution analysis if monomer trajectory folder exists
+    if os.path.exists(monomer_trajectory_folder):
+        
+        # Find all RMSD trajectory TSV files (ends with RMSD_traj.tsv)
+        rmsd_traj_files = [f for f in os.listdir(monomer_trajectory_folder) 
+                            if f.endswith('RMSD_traj.tsv')]
+        # Parse each RMSD file                                
+        for rmsd_traj_file in rmsd_traj_files:
+
+            # Get the prefix (everything before _RMSD_traj.tsv)
+            tsv_prefix = rmsd_traj_file.replace('_RMSD_traj.tsv', '')
+            
+            # Full path to the TSV file
+            tsv_path = os.path.join(monomer_trajectory_folder, rmsd_traj_file)
+            
+            # Read the trajectory file
+            monomer_rmsd_traj_df = pd.read_csv(tsv_path, sep='\t')
+            
+            # Run the analysis functions directly
+            windows = [5, 10, 15, 20]
+            monomer_distribution_results, rolling_data = analyze_protein_distribution(monomer_rmsd_traj_df, windows=windows)
+            
+            # Save results to CSV using the same prefix
+            output_csv = os.path.join(monomer_trajectory_folder, 
+                                    f'{tsv_prefix}_protein_distribution_results.csv')
+            monomer_distribution_results_df = save_results_to_csv(monomer_distribution_results, output_csv)
+            
+            # Create a subdirectory for plots using the same prefix
+            plots_dir = os.path.join(monomer_trajectory_folder, f'{tsv_prefix}_distribution_plots')
+            os.makedirs(plots_dir, exist_ok=True)
+            
+            # Generate plots
+            plot_distributions(rolling_data, plots_dir, soft=True, noise_scale=0.01)
         
     # Prepare the results
     results = {
