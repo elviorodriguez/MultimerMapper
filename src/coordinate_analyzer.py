@@ -1,9 +1,11 @@
 
+from asyncio import subprocess
 from logging import Logger
 import pandas as pd
 import numpy as np
 from Bio.PDB import Chain, Superimposer
 from Bio.PDB.Polypeptide import protein_letters_3to1
+from traj.partners_density import analyze_protein_distribution, save_results_to_csv, plot_distributions
 
 from utils.logger_setup import configure_logger
 
@@ -761,6 +763,20 @@ def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_traject
     return trajectory_file
 
 
+# Helper functions for RMSD trajectories
+def get_domain_mean_plddt(chain, domain_start, domain_end):
+    """Calculate mean pLDDT for a specific domain in a chain."""
+    domain_atoms = get_domain_atoms(chain, domain_start, domain_end)
+    return np.mean([atom.bfactor for atom in domain_atoms])
+
+def get_best_reference_domain(chains, domain_start, domain_end):
+    """Find the domain with highest mean pLDDT to use as reference."""
+    mean_plddts = [get_domain_mean_plddt(chain, domain_start, domain_end) 
+                   for chain in chains]
+    best_idx = np.argmax(mean_plddts)
+    best_chain = chains[best_idx]
+    return get_domain_atoms(best_chain, domain_start, domain_end)
+
 
 def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                             pairwise_2mers_df: pd.DataFrame,
@@ -944,92 +960,135 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     # -------------------------------------------------------------------------
     # -------------------- Compute per domain trajectories --------------------
     # -------------------------------------------------------------------------
-    
-    # Process each domain
+
+    # Check number of domains
     protein_domains = domains_df[domains_df['Protein_ID'] == protein_ID]
-    for _, domain in protein_domains.iterrows():
+    perform_domain_analysis = len(protein_domains) > 1
+    
+    if perform_domain_analysis:
+        logger.info(f"   - Multiple domains detected for {protein_ID}, performing domain analysis...")
         
-        # Progress
-        logger.info(f"   - Generating RMSD trajectories for domain {domain['Domain']}...")
-        
-        domain_start, domain_end = domain['Start'], domain['End']
-        domain_name = f"{protein_ID}_domain_{domain['Domain']}"
+        # Process each domain
+        for _, domain in protein_domains.iterrows():
+            
+            # Progress
+            logger.info(f"   - Generating RMSD trajectories for domain {domain['Domain']}...")
+            
+            domain_start, domain_end = domain['Start'], domain['End']
+            domain_name = f"{protein_ID}_domain_{domain['Domain']}"
 
-        # Calculate RMSD and extract coordinates for RMSF calculation for the domain
-        domain_rmsd_values = []
-        domain_weighted_rmsd_values = []
-        domain_aligned_chains = []
-        domain_all_coords = []
-        domain_b_factors = []
+            # Get the best reference domain based on pLDDT
+            domain_ref_atoms = get_best_reference_domain(all_chains, domain_start, domain_end)
+            domain_ref_coords = np.array([atom.coord for atom in domain_ref_atoms])
 
-        # Get domain atoms for reference
-        domain_ref_atoms = get_domain_atoms(ref_model, domain_start, domain_end)
-        domain_ref_coords = np.array([atom.coord for atom in domain_ref_atoms])
+            # Calculate RMSD and extract coordinates for RMSF calculation for the domain
+            domain_rmsd_values = []
+            domain_weighted_rmsd_values = []
+            domain_aligned_chains = []
+            domain_all_coords = []
+            domain_b_factors = []
 
-        for chain in all_chains:
-            domain_chain_atoms = get_domain_atoms(chain, domain_start, domain_end)
+            for chain in all_chains:
+                domain_chain_atoms = get_domain_atoms(chain, domain_start, domain_end)
 
-            # Calculate standard RMSD for the domain
-            super_imposer.set_atoms(domain_ref_atoms, domain_chain_atoms)
-            domain_rmsd_values.append(super_imposer.rms)
+                # Calculate standard RMSD for the domain
+                super_imposer.set_atoms(domain_ref_atoms, domain_chain_atoms)
+                domain_rmsd_values.append(super_imposer.rms)
 
-            # Apply rotation and translation to align the domain
-            # super_imposer.apply(chain)                            # This modifies the original model in all_pdb_data. Not recommended
-            domain_aligned_chains.append(chain)
+                domain_aligned_chains.append(chain)
 
-            # Calculate weighted RMSD for the domain
-            domain_chain_coords = np.array([atom.coord for atom in domain_chain_atoms])
-            domain_plddt_values = np.array([atom.bfactor for atom in domain_chain_atoms])
+                # Calculate weighted RMSD for the domain
+                domain_chain_coords = np.array([atom.coord for atom in domain_chain_atoms])
+                domain_plddt_values = np.array([atom.bfactor for atom in domain_chain_atoms])
 
-            weights = domain_plddt_values / 100.0
-            domain_weighted_rmsd = calculate_weighted_rmsd(domain_ref_coords, domain_chain_coords, weights)
-            domain_weighted_rmsd_values.append(domain_weighted_rmsd)
+                weights = domain_plddt_values / 100.0
+                domain_weighted_rmsd = calculate_weighted_rmsd(domain_ref_coords, domain_chain_coords, weights)
+                domain_weighted_rmsd_values.append(domain_weighted_rmsd)
 
-            # Store coordinates for RMSF calculation and pLDDT values for the domain
-            domain_all_coords.append(domain_chain_coords)
-            domain_b_factors.append(domain_plddt_values)
+                domain_all_coords.append(domain_chain_coords)
+                domain_b_factors.append(domain_plddt_values)
 
-        # Save domain trajectories
-        domain_trajectory_folder = os.path.join(protein_trajectory_folder, domain_name)
-        os.makedirs(domain_trajectory_folder, exist_ok=True)
-        domain_RMSD_traj_indices = np.argsort(domain_rmsd_values)
-        domain_weighted_RMSD_traj_indices = np.argsort(domain_weighted_rmsd_values)
+            # Save domain trajectories
+            domain_trajectory_folder = os.path.join(protein_trajectory_folder, domain_name)
+            os.makedirs(domain_trajectory_folder, exist_ok=True)
+            
+            # Sort by RMSD values and keep track of the indices
+            domain_RMSD_traj_indices = np.argsort(domain_rmsd_values)
+            domain_weighted_RMSD_traj_indices = np.argsort(domain_weighted_rmsd_values)
 
-        # Compute some extra data (ROG and mean pLDDT per model)
-        domain_mean_pLDDTs = [np.mean(model_plddt_values) for model_plddt_values in domain_b_factors]
-        domain_ROGs = compute_rog_for_all_chains(domain_all_coords)
+            # Compute some extra data (ROG and mean pLDDT per model)
+            domain_mean_pLDDTs = [np.mean(model_plddt_values) for model_plddt_values in domain_b_factors]
+            domain_ROGs = compute_rog_for_all_chains(domain_all_coords)
 
-        # RMSD traj
-        save_trajectory(sorted_indices = domain_RMSD_traj_indices,
-                        protein_ID=domain_name,
-                        filename_suffix=f'Dom{domain["Domain"]}_RMSD',
-                        protein_trajectory_folder=domain_trajectory_folder,
+            # RMSD traj
+            save_trajectory(sorted_indices = domain_RMSD_traj_indices,
+                            protein_ID=domain_name,
+                            filename_suffix=f'Dom{domain["Domain"]}_RMSD',
+                            protein_trajectory_folder=domain_trajectory_folder,
 
-                        RMSDs = domain_rmsd_values,
-                        mean_pLDDTs = domain_mean_pLDDTs,
-                        ROGs = domain_ROGs,
+                            RMSDs = domain_rmsd_values,
+                            mean_pLDDTs = domain_mean_pLDDTs,
+                            ROGs = domain_ROGs,
 
-                        aligned_chains=aligned_chains,
-                        all_chain_types=all_chain_types,
-                        all_chain_info=all_chain_info,
-                        domain_start=domain_start,
-                        domain_end=domain_end)
-        
-        # Weighted RMSD traj
-        save_trajectory(sorted_indices = domain_weighted_RMSD_traj_indices,
-                        protein_ID=domain_name,
-                        filename_suffix=f'Dom{domain["Domain"]}_weighted_RMSD',
-                        protein_trajectory_folder=domain_trajectory_folder,
+                            aligned_chains=aligned_chains,
+                            all_chain_types=all_chain_types,
+                            all_chain_info=all_chain_info,
+                            domain_start=domain_start,
+                            domain_end=domain_end)
+            
+            # Weighted RMSD traj
+            save_trajectory(sorted_indices = domain_weighted_RMSD_traj_indices,
+                            protein_ID=domain_name,
+                            filename_suffix=f'Dom{domain["Domain"]}_weighted_RMSD',
+                            protein_trajectory_folder=domain_trajectory_folder,
 
-                        RMSDs = domain_weighted_rmsd_values,
-                        mean_pLDDTs = domain_mean_pLDDTs,
-                        ROGs = domain_ROGs,
+                            RMSDs = domain_weighted_rmsd_values,
+                            mean_pLDDTs = domain_mean_pLDDTs,
+                            ROGs = domain_ROGs,
 
-                        aligned_chains=aligned_chains,
-                        all_chain_types=all_chain_types,
-                        all_chain_info=all_chain_info,
-                        domain_start=domain_start,
-                        domain_end=domain_end)
+                            aligned_chains=aligned_chains,
+                            all_chain_types=all_chain_types,
+                            all_chain_info=all_chain_info,
+                            domain_start=domain_start,
+                            domain_end=domain_end)
+            
+            # Run distribution analysis if domain trajectory folder exists
+            if os.path.exists(domain_trajectory_folder):
+                
+                # Find all RMSD trajectory TSV files (ends with RMSD_traj.tsv)
+                rmsd_traj_files = [f for f in os.listdir(domain_trajectory_folder) 
+                                 if f.endswith('RMSD_traj.tsv')]
+
+                # Parse each RMSD file                                
+                for rmsd_traj_file in rmsd_traj_files:
+
+                    # Get the prefix (everything before _RMSD_traj.tsv)
+                    tsv_prefix = rmsd_traj_file.replace('_RMSD_traj.tsv', '')
+                    
+                    # Full path to the TSV file
+                    tsv_path = os.path.join(domain_trajectory_folder, rmsd_traj_file)
+                    
+                    # Read the trajectory file
+                    df = pd.read_csv(tsv_path, sep='\t')
+                    
+                    # Run the analysis functions directly
+                    windows = [5, 10, 15, 20]
+                    results, rolling_data = analyze_protein_distribution(df, windows=windows)
+                    
+                    # Save results to CSV using the same prefix
+                    output_csv = os.path.join(domain_trajectory_folder, 
+                                            f'{tsv_prefix}_protein_distribution_results.csv')
+                    results_df = save_results_to_csv(results, output_csv)
+                    
+                    # Create a subdirectory for plots using the same prefix
+                    plots_dir = os.path.join(domain_trajectory_folder, f'{tsv_prefix}_distribution_plots')
+                    os.makedirs(plots_dir, exist_ok=True)
+                    
+                    # Generate plots
+                    plot_distributions(rolling_data, plots_dir, soft=True, noise_scale=0.01)
+
+    else:
+        logger.info(f"   - Single domain detected for {protein_ID}, skipping domain analysis...")
     
     # -------------------------------------------------------------------------
     # ------------------- Compute whole protein trajectory --------------------
@@ -1038,7 +1097,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     # Output path
     monomer_trajectory_folder = os.path.join(protein_trajectory_folder, f"{protein_ID}_monomer")
     os.makedirs(monomer_trajectory_folder, exist_ok=True)
-
+ 
     # Sort models by RMSD and weighted RMSD (RMSD trajectories)
     monomer_RMSD_traj_indices = np.argsort(rmsd_values)
     monomer_weighted_RMSD_traj_indices = np.argsort(weighted_rmsd_values)
