@@ -7,7 +7,15 @@ import argparse
 from pathlib import Path
 from scipy.interpolate import make_interp_spline  # For smooth curves
 
-def analyze_protein_distribution(df, windows=[5, 10, 15, 20]):
+def analyze_protein_distribution(df, target_protein, windows=[5, 10, 15, 20]):
+    """
+    Analyze protein distribution with special handling for the target protein.
+    
+    Args:
+        df: DataFrame with the trajectory data
+        target_protein: str, the specific protein being studied
+        windows: list of window sizes for analysis
+    """
     # Extract unique proteins from the Model column
     all_proteins = set()
     for model in df['Model'].str.split('__vs__'):
@@ -19,7 +27,16 @@ def analyze_protein_distribution(df, windows=[5, 10, 15, 20]):
     # For each protein, create a binary list of its presence in each trajectory
     for protein in all_proteins:
         for idx in df.index:
-            protein_occurrences[protein].append(1 if protein in df.loc[idx, 'Model'].split('__vs__') else 0)
+            model_proteins = df.loc[idx, 'Model'].split('__vs__')
+            
+            if protein == target_protein:
+                # For the target protein, count only if it appears twice (potential self-interaction)
+                count = model_proteins.count(protein)
+                protein_occurrences[protein].append(1 if count > 1 else 0)
+            else:
+                # For other proteins, count normal presence
+                protein_occurrences[protein].append(1 if protein in model_proteins else 0)
+    
     
     # Convert to DataFrame for easier analysis
     occurrence_df = pd.DataFrame(protein_occurrences)
@@ -71,9 +88,7 @@ def save_results_to_csv(results, output_path):
     results_df.to_csv(output_path, index=False)
     return results_df
 
-def plot_distributions(rolling_data, output_dir, soft=False, noise_scale=0.01):
-    from scipy.interpolate import make_interp_spline
-    import numpy as np
+def plot_distributions(rolling_data, output_dir, soft=False, noise_scale=0.01, target_protein = ""):
 
     # Create output directory if it doesn't exist
     output_dir = Path(output_dir)
@@ -119,11 +134,14 @@ def plot_distributions(rolling_data, output_dir, soft=False, noise_scale=0.01):
             else:
                 # Regular straight-line plot
                 ax.plot(x, y, label=protein, color=color, alpha=0.7, linewidth=2)
+
+        # Add reference line at y=1
+        ax.axhline(y=1, color='black', linestyle='--', alpha=0.5)
         
-        ax.set_title(f'Protein Distribution (Window Size: {window_size})', 
+        ax.set_title(f'{target_protein} RMSD Trajectory Partners Distribution Bias (Window Size: {window_size})', 
                     pad=20, fontsize=14)
         ax.set_xlabel('Trajectory Number', fontsize=12)
-        ax.set_ylabel('Occurrence Density', fontsize=12)
+        ax.set_ylabel('Partner Frequency (Bias)', fontsize=12)
         ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         
         # Adjust layout to prevent legend cutoff

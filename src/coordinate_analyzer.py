@@ -1073,7 +1073,10 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                     
                     # Run the analysis functions directly
                     windows = [5, 10, 15, 20]
-                    domain_rmsd_traj_results, rolling_data = analyze_protein_distribution(domain_rmsd_traj_df, windows=windows)
+                    domain_rmsd_traj_results, rolling_data = analyze_protein_distribution(
+                        domain_rmsd_traj_df,
+                        target_protein = protein_ID,
+                        windows = windows)
                     
                     # Save results to CSV using the same prefix
                     output_csv = os.path.join(domain_trajectory_folder, 
@@ -1085,7 +1088,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                     os.makedirs(plots_dir, exist_ok=True)
                     
                     # Generate plots
-                    plot_distributions(rolling_data, plots_dir, soft=True, noise_scale=0.01)
+                    plot_distributions(rolling_data, plots_dir, soft=True, noise_scale=0.01, target_protein=f'{protein_ID}-Dom{domain["Domain"]}')
 
     else:
         logger.info(f"   - Single domain detected for {protein_ID}, skipping domain analysis...")
@@ -1155,7 +1158,10 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
             
             # Run the analysis functions directly
             windows = [5, 10, 15, 20]
-            monomer_distribution_results, rolling_data = analyze_protein_distribution(monomer_rmsd_traj_df, windows=windows)
+            monomer_distribution_results, rolling_data = analyze_protein_distribution(
+                monomer_rmsd_traj_df,
+                target_protein = protein_ID,
+                windows = windows)
             
             # Save results to CSV using the same prefix
             output_csv = os.path.join(monomer_trajectory_folder, 
@@ -1167,7 +1173,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
             os.makedirs(plots_dir, exist_ok=True)
             
             # Generate plots
-            plot_distributions(rolling_data, plots_dir, soft=True, noise_scale=0.01)
+            plot_distributions(rolling_data, plots_dir, soft=True, noise_scale=0.01, target_protein=protein_ID)
         
     # Prepare the results
     results = {
