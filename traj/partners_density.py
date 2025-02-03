@@ -160,11 +160,13 @@ def main():
     parser.add_argument('--output_dir', type=str, default='protein_analysis',
                       help='Output directory for results (default: protein_analysis)')
     parser.add_argument('--windows', type=int, nargs='+', default=[5, 10, 15, 20],
-                      help='Window sizes for analysis (default: 5 10)')
+                      help='Window sizes for analysis (default: 5 10 15 20)')
     parser.add_argument('--noise', type=float, default=0.01,
                       help='Add small noise to curves to separate them (default: 0.01)')
     parser.add_argument('--soft', action='store_true', 
                       help='Use smooth curves for plotting (default: straight lines)')
+    parser.add_argument('--target_protein', type=str,
+                      help='Protein under analysis')
     
     args = parser.parse_args()
     
@@ -178,7 +180,10 @@ def main():
     
     # Run analysis
     print("Analyzing protein distributions...")
-    results, rolling_data = analyze_protein_distribution(df, windows=args.windows)
+    results, rolling_data = analyze_protein_distribution(
+        df,
+        windows=args.windows,
+        target_protein=args.target_protein)
     
     # Save results to CSV
     output_csv = output_dir / 'protein_distribution_results.csv'
