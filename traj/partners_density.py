@@ -138,11 +138,11 @@ def plot_distributions(rolling_data, output_dir, soft=False, noise_scale=0.01, t
         # Add reference line at y=1
         ax.axhline(y=1, color='black', linestyle='--', alpha=0.5)
         
-        ax.set_title(f'{target_protein} RMSD Trajectory Partners Distribution Bias (Window Size: {window_size})', 
-                    pad=20, fontsize=14)
-        ax.set_xlabel('Trajectory Number', fontsize=12)
-        ax.set_ylabel('Partner Frequency (Bias)', fontsize=12)
-        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        ax.set_title(f'{target_protein} - Bias in Partners Distribution (Window Size: {window_size})', 
+                    pad=20, fontsize=18)
+        ax.set_xlabel('Trajectory Number', fontsize=16)
+        ax.set_ylabel('Partner Frequency (Bias)', fontsize=16)
+        ax.legend(bbox_to_anchor=(1.03, 1), loc='upper left')
         
         # Adjust layout to prevent legend cutoff
         plt.tight_layout()
