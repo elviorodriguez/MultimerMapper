@@ -525,6 +525,26 @@ def cluster_curves(curve_lists, domains_df: pd.DataFrame | None = None,
 
     return cluster_assignments
 
+def calculate_rmsf(all_coords):
+    """
+    Calculates Root Mean Square Fluctuation (RMSF)
+    
+    Args:
+    all_coords (np.ndarray): Coordinates of models, shape (num_models, num_residues, 3)
+    
+    Returns:
+    np.ndarray: RMSF values for each residue
+    """
+    # Compute mean position for each residue across all models
+    mean_coords = np.mean(all_coords, axis=0)
+    
+    # Compute per-residue RMSF
+    rmsf_values = np.sqrt(np.mean((all_coords - mean_coords)**2, axis=0))
+    rmsf_values = np.mean(rmsf_values, axis=1)  # Average RMSF per residue
+    
+    return rmsf_values
+
+
 def plot_rmsf(rmsf_values, domains_df,
               y_label="RMSF (Å)", x_label="Residue", 
               protein_ID="Protein", filename="RMSF.png",
@@ -626,23 +646,23 @@ def plot_traj_metadata(metadata_list, metadata_type: str, protein_trajectory_fol
 
     plt.figure()
     plt.plot(range(1, len(metadata_list) + 1 ), metadata_list)
-    plt.title(f'{protein_ID} {filename_suffix} {metadata_type}')
-    plt.xlabel("Trajectory Model (Nº)")
-    plt.ylabel(f"{metadata_type}")
+    plt.title(f'{protein_ID} {filename_suffix} {metadata_type}', fontsize = 18)
+    plt.xlabel("Trajectory Model (Nº)", fontsize = 16)
+    plt.ylabel(f"{metadata_type}", fontsize = 16)
 
     plt.savefig(plot_filename)
 
     plt.close()
 
 
-def plot_traj_heatmap(metadata_list, metadata_type_y: str, metadata_type_color: str, 
+def plot_traj_heatmap(metadata_list, sorted_indices: list[int], metadata_type_y: str, metadata_type_color: str, 
                       protein_trajectory_folder: str, protein_ID: str, filename_suffix: str,
                       domain_start = None, domain_end = None):
     
     plot_filename = os.path.join(protein_trajectory_folder, f'{protein_ID}_{filename_suffix}_traj_{metadata_type_color}_heatmap.png')
     
     # Convert metadata_list to a NumPy array for processing
-    metadata_array = np.array(metadata_list)
+    metadata_array = np.array([metadata_list[idx] for idx in sorted_indices])
     
     # Ensure shape is (n_models, n_residues)
     if metadata_array.ndim != 2:
@@ -744,7 +764,7 @@ def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_traject
                        metadata_type = "ROG",
                        protein_trajectory_folder = protein_trajectory_folder,
                        protein_ID = protein_ID, filename_suffix = filename_suffix)
-    plot_traj_heatmap(metadata_list = pLDDTs,
+    plot_traj_heatmap(metadata_list = pLDDTs, sorted_indices = sorted_indices,
                       metadata_type_y = "Residue",
                       metadata_type_color = "pLDDT",
                       domain_start = domain_start, domain_end = domain_start,
@@ -1076,10 +1096,8 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
             domain_ROGs = compute_rog_for_all_chains(domain_all_coords)
 
             # Calculate RMSF for domain and save it -----------------
-            dom_mean_coords = np.mean(domain_all_coords, axis=0)
-            dom_rmsf_values = np.sqrt(np.mean((domain_all_coords - dom_mean_coords)**2, axis=0))
-            dom_rmsf_values = np.mean(dom_rmsf_values, axis=1)  # Average RMSF per residue
-            dom_rmsf_plot_filename = os.path.join(domain_trajectory_folder, protein_ID + "_RMSF.png")
+            dom_rmsf_values = calculate_rmsf(domain_all_coords)
+            dom_rmsf_plot_filename = os.path.join(domain_trajectory_folder, domain_name + "_RMSF.png")
             plot_rmsf(dom_rmsf_values,
                       domains_df = None,
                       protein_ID = f'{protein_ID} Domain {str(domain["Domain"])}',
@@ -1097,7 +1115,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
             # RMSD traj
             save_trajectory(sorted_indices = domain_RMSD_traj_indices,
                             protein_ID=domain_name,
-                            filename_suffix=f'Dom{domain["Domain"]}_RMSD',
+                            filename_suffix=f'RMSD',
                             protein_trajectory_folder=domain_trajectory_folder,
 
                             RMSDs = domain_rmsd_values,
@@ -1168,15 +1186,13 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     monomer_ROGs = compute_rog_for_all_chains(all_coords)
 
     # Calculate RMSF for full length and save it -----------------
-    mean_coords = np.mean(all_coords, axis=0)
-    rmsf_values = np.sqrt(np.mean((all_coords - mean_coords)**2, axis=0))
-    rmsf_values = np.mean(rmsf_values, axis=1)  # Average RMSF per residue
-    rmsf_plot_filename = os.path.join(monomer_trajectory_folder, protein_ID + "_RMSF.png")
+    rmsf_values = calculate_rmsf(all_coords)
+    rmsf_plot_filename = os.path.join(monomer_trajectory_folder, protein_ID + "_monomer_RMSF.png")
     plot_rmsf(rmsf_values, domains_df = domains_df,
               protein_ID = protein_ID,
               filename = rmsf_plot_filename)
     # Save RMSF to CSV file
-    RMSF_filename = os.path.join(monomer_trajectory_folder, f'{protein_ID}_RMSF.csv')
+    RMSF_filename = os.path.join(monomer_trajectory_folder, f'{protein_ID}_monomer_RMSF.csv')
     with open(RMSF_filename, 'w') as f:
         f.write(f'{protein_ID}: {str(list(rmsf_values))}\n')
     # ------------------------------------------------------------
@@ -1233,6 +1249,10 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
             
             # Generate plots
             plot_distributions(rolling_data, plots_dir, soft=True, noise_scale=0.01, target_protein=protein_ID)
+    
+    # Fill per domain rmsf_values with whole protein
+    if not perform_domain_analysis:
+        rmsf_values_per_domain = rmsf_values
         
     # Prepare the results
     results = {
