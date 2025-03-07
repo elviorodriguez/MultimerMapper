@@ -281,88 +281,67 @@ def html_interactive_metadata(protein_ID: str,
     )
     
     # Default window size to show (first one)
-    current_window_size = window_sizes[0] if window_sizes else None
+    default_window_size = window_sizes[0] if window_sizes else None
+    
+    # Track trace indices for different plots
+    trace_index = 0
+    bpd_traces_info = {}  # {window_size: [start_idx, end_idx]}
+    rog_trend_traces = {}  # {window_size: trace_idx}
+    plddt_trend_traces = {}  # {window_size: trace_idx}
     
     # ------------------------------------------------------------------------------------------------
     # 1. Plot BPD (Bias in Partners Distribution) ----------------------------------------------------
     # ------------------------------------------------------------------------------------------------
 
     if processed_bpd_data:
-        window_data = processed_bpd_data[current_window_size]
-        
-        for protein, distribution in window_data.items():
-            # Filter out NaN values
-            valid_idx = ~np.isnan(distribution.values)
-            x_values = distribution.index[valid_idx] + 1  # +1 for 1-based indexing
-            y_values = distribution.values[valid_idx]
-
-            # Prepend the first value to indices 1 to (window_size - 1)
-            if len(y_values) > 0:  # Ensure there are valid values
-                first_value = y_values[0]  # Get the first valid value
-                num_missing = current_window_size - 1  # Number of missing indices
-                x_prepended = list(range(1, current_window_size))  # Indices to prepend
-                y_prepended = [first_value] * num_missing  # Repeat first value
-                
-                # Combine prepended and valid values
-                x_values = np.concatenate([x_prepended, x_values])
-                y_values = np.concatenate([y_prepended, y_values])
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=x_values,
-                    y=y_values,
-                    mode='lines',
-                    name=protein,
-                    line=dict(width=2),
-                    hovertemplate=
-                    "Traj_N: %{x}<br>" +
-                    "Bias: %{y:.2f}<br>" +
-                    "Protein: " + protein + "<br>" +
-                    "Window: " + str(current_window_size) + "<br>" +
-                    "<extra></extra>",
-                    visible=True
-                ),
-                row=1, col=1
-            )
-        
-        # Add hidden traces for other window sizes
+        # Process each window size
         for window_size in window_sizes:
-            if window_size != current_window_size:
-                window_data = processed_bpd_data[window_size]
-                for protein, distribution in window_data.items():
-                    valid_idx = ~np.isnan(distribution.values)
-                    x_values = distribution.index[valid_idx] + 1
-                    y_values = distribution.values[valid_idx]
+            window_data = processed_bpd_data[window_size]
+            start_idx = trace_index
+            
+            for protein, distribution in window_data.items():
+                # Filter out NaN values
+                valid_idx = ~np.isnan(distribution.values)
+                x_values = distribution.index[valid_idx] + 1  # +1 for 1-based indexing
+                y_values = distribution.values[valid_idx]
 
-                    # Prepend the first value for missing indices
-                    if len(y_values) > 0:
-                        first_value = y_values[0]
-                        num_missing = window_size - 1
-                        x_prepended = list(range(1, window_size))
-                        y_prepended = [first_value] * num_missing
-                        
-                        x_values = np.concatenate([x_prepended, x_values])
-                        y_values = np.concatenate([y_prepended, y_values])
+                # Prepend the first value to indices 1 to (window_size - 1)
+                if len(y_values) > 0:  # Ensure there are valid values
+                    first_value = y_values[0]  # Get the first valid value
+                    num_missing = window_size - 1  # Number of missing indices
+                    x_prepended = list(range(1, window_size))  # Indices to prepend
+                    y_prepended = [first_value] * num_missing  # Repeat first value
                     
-                    fig.add_trace(
-                        go.Scatter(
-                            x=x_values,
-                            y=y_values,
-                            mode='lines',
-                            name=protein,
-                            line=dict(width=2),
-                            hovertemplate=
-                            "Traj_N: %{x}<br>" +
-                            "Bias: %{y:.2f}<br>" +
-                            "Protein: " + protein + "<br>" +
-                            "Window: " + str(window_size) + "<br>" +
-                            "<extra></extra>",
-                            visible=False
-                        ),
-                        row=1, col=1
-                    )
+                    # Combine prepended and valid values
+                    x_values = np.concatenate([x_prepended, x_values])
+                    y_values = np.concatenate([y_prepended, y_values])
+                
+                # Set visibility based on if this is the default window size
+                is_visible = window_size == default_window_size
+                
+                fig.add_trace(
+                    go.Scatter(
+                        x=x_values,
+                        y=y_values,
+                        mode='lines',
+                        name=protein,
+                        line=dict(width=2),
+                        hovertemplate=
+                        "Traj_N: %{x}<br>" +
+                        "Bias: %{y:.2f}<br>" +
+                        "Protein: " + protein + "<br>" +
+                        "Window: " + str(window_size) + "<br>" +
+                        "<extra></extra>",
+                        visible=is_visible
+                    ),
+                    row=1, col=1
+                )
+                trace_index += 1
+            
+            end_idx = trace_index - 1
+            bpd_traces_info[window_size] = [start_idx, end_idx]
         
-        # Add reference line at y=1
+        # Add reference line at y=1 (always visible)
         fig.add_trace(
             go.Scatter(
                 x=[1, n_models],
@@ -374,6 +353,8 @@ def html_interactive_metadata(protein_ID: str,
             ),
             row=1, col=1
         )
+        trace_index += 1
+
     # ------------------------------------------------------------------------------------------------
     # 2. Plot RMSD -----------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------
@@ -400,6 +381,7 @@ def html_interactive_metadata(protein_ID: str,
         ),
         row=2, col=1
     )
+    trace_index += 1
     
     # ------------------------------------------------------------------------------------------------
     # 3. Plot ROG (Radius of Gyration) ---------------------------------------------------------------
@@ -415,6 +397,7 @@ def html_interactive_metadata(protein_ID: str,
         for i in range(n_models)
     ]
     
+    # Main ROG plot (always visible)
     fig.add_trace(
         go.Scatter(
             x=x_traj,
@@ -427,26 +410,37 @@ def html_interactive_metadata(protein_ID: str,
         ),
         row=3, col=1
     )
-
-    # Apply moving average for ROG values
-    rog_window_size = 10  # Adjust window size for smoothing
-    smoothed_rog_values = moving_average(sorted_rog_values, rog_window_size)
-
-    # Adjust x-values to match the reduced size after smoothing
-    smoothed_x_traj = x_traj[(rog_window_size-1)//2 : -(rog_window_size-1)//2]  # Center alignment
-
-    # Add the smoothed trend line (dotted) to the ROG plot
-    fig.add_trace(
-        go.Scatter(
-            x=smoothed_x_traj,
-            y=smoothed_rog_values,
-            mode='lines',
-            line=dict(color='black', width=2, dash='dot'),  # Dotted line
-            showlegend=False,  # Hide legend (optional)
-            hoverinfo="skip"  # No hover info for the trend line
-        ),
-        row=3, col=1
-    )
+    trace_index += 1
+    
+    # Add trend lines for ROG with different window sizes
+    for window_size in window_sizes:
+        # Apply moving average
+        smoothed_rog_values = moving_average(sorted_rog_values, window_size)
+        
+        # Adjust x-values to match the reduced size after smoothing
+        # For centered alignment of the moving average
+        smoothed_x_traj = x_traj[(window_size-1)//2 : -(window_size-1)//2]
+        
+        # Set visibility based on if this is the default window size
+        is_visible = window_size == default_window_size
+        
+        fig.add_trace(
+            go.Scatter(
+                x=smoothed_x_traj,
+                y=smoothed_rog_values,
+                mode='lines',
+                line=dict(color='black', width=2, dash='dot'),
+                showlegend=False,
+                hovertemplate=
+                "Window: " + str(window_size) + "<br>" +
+                "Avg ROG: %{y:.2f}<br>" +
+                "<extra></extra>",
+                visible=is_visible
+            ),
+            row=3, col=1
+        )
+        rog_trend_traces[window_size] = trace_index
+        trace_index += 1
 
     # ------------------------------------------------------------------------------------------------
     # 4. Plot mean pLDDT -----------------------------------------------------------------------------
@@ -462,11 +456,12 @@ def html_interactive_metadata(protein_ID: str,
         for i in range(n_models)
     ]
     
+    # Main pLDDT plot (always visible)
     fig.add_trace(
         go.Scatter(
             x=x_traj,
             y=sorted_mean_plddts,
-            mode='lines',  # Removed markers
+            mode='lines',
             line=dict(color='#2ca02c', width=2),
             showlegend=False,
             hovertemplate="%{hovertext}<extra></extra>",
@@ -474,26 +469,37 @@ def html_interactive_metadata(protein_ID: str,
         ),
         row=4, col=1
     )
+    trace_index += 1
+    
+    # Add trend lines for pLDDT with different window sizes
+    for window_size in window_sizes:
+        # Apply moving average
+        smoothed_plddt_values = moving_average(sorted_mean_plddts, window_size)
+        
+        # Adjust x-values to match the reduced size after smoothing
+        smoothed_x_traj_plddt = x_traj[(window_size-1)//2 : -(window_size-1)//2]
+        
+        # Set visibility based on if this is the default window size
+        is_visible = window_size == default_window_size
+        
+        fig.add_trace(
+            go.Scatter(
+                x=smoothed_x_traj_plddt,
+                y=smoothed_plddt_values,
+                mode='lines',
+                line=dict(color='black', width=2, dash='dot'),
+                showlegend=False,
+                hovertemplate=
+                "Window: " + str(window_size) + "<br>" +
+                "Avg pLDDT: %{y:.2f}<br>" +
+                "<extra></extra>",
+                visible=is_visible
+            ),
+            row=4, col=1
+        )
+        plddt_trend_traces[window_size] = trace_index
+        trace_index += 1
 
-    # Apply moving average for mean pLDDT values
-    plddt_window_size = 10
-    smoothed_plddt_values = moving_average(sorted_mean_plddts, plddt_window_size)
-
-    # Adjust x-values to match the reduced size after smoothing
-    smoothed_x_traj_plddt = x_traj[(plddt_window_size-1)//2 : -(plddt_window_size-1)//2]
-
-    # Add the smoothed trend line (dotted) to the mean pLDDT plot
-    fig.add_trace(
-        go.Scatter(
-            x=smoothed_x_traj_plddt,
-            y=smoothed_plddt_values,
-            mode='lines',
-            line=dict(color='black', width=2, dash='dot'),  # Dotted line
-            showlegend=False,
-            hoverinfo="skip"
-        ),
-        row=4, col=1
-    )
     # ------------------------------------------------------------------------------------------------
     # 5. Plot RMSF as vertical bar (left column of bottom row) ---------------------------------------
     # ------------------------------------------------------------------------------------------------
@@ -532,6 +538,7 @@ def html_interactive_metadata(protein_ID: str,
         ),
         row=5, col=1
     )
+    trace_index += 1
     
     # ------------------------------------------------------------------------------------------------
     # 6. Plot per-residue pLDDT heatmap - FIXED ORIENTATION ------------------------------------------
@@ -588,12 +595,77 @@ def html_interactive_metadata(protein_ID: str,
         ),
         row=5, col=2
     )
+    trace_index += 1
 
     # ------------------------------------------------------------------------------------------------
+    # Add buttons for window size selection (only if there are multiple window sizes)
     # ------------------------------------------------------------------------------------------------
+    if len(window_sizes) > 1:
+        buttons = []
+        for window_size in window_sizes:
+            # Create visibility settings for all traces
+            visibility = [True] * len(fig.data)  # Start with all visible
+            
+            # Hide BPD traces that don't match this window size
+            for ws, (start, end) in bpd_traces_info.items():
+                if ws != window_size:
+                    for i in range(start, end + 1):
+                        visibility[i] = False
+            
+            # Hide ROG trend lines that don't match this window size
+            for ws, idx in rog_trend_traces.items():
+                visibility[idx] = (ws == window_size)
+            
+            # Hide pLDDT trend lines that don't match this window size
+            for ws, idx in plddt_trend_traces.items():
+                visibility[idx] = (ws == window_size)
+            
+            buttons.append(
+                dict(
+                    label=f"{window_size}",
+                    method="update",
+                    args=[{"visible": visibility}]
+                )
+            )
+        
+        # Add the buttons to the layout
+        fig.update_layout(
+            updatemenus=[
+                dict(
+                    type="buttons",
+                    direction="right",
+                    active=0,
+                    buttons=buttons,
+                    pad={"r": 5, "t": 5},
+                    showactive=True,
+                    x=-0.05,
+                    xanchor="left",
+                    y=1.1,
+                    yanchor="top"
+                )
+            ]
+        )
+
+        # Add an annotation above the buttons and a subtitle
+        fig.update_layout(
+            annotations=[
+                dict(
+                    text="Window Size:",
+                    x=-0.05,
+                    y=1.12,  # Position above the buttons (adjust as needed)
+                    xref="paper",  # Relative to figure
+                    yref="paper",
+                    showarrow=False,
+                    font=dict(size=14, family="Arial", color="black")
+                )
+            ]
+        )
+
+    # ------------------------------------------------------------------------------------------------
+    # Update layout and axes
     # ------------------------------------------------------------------------------------------------
     
-    # Update layout and axes
+    # Update layout
     fig.update_layout(
         title=dict(
             text=f"{protein_ID}" if domain_number is None else f"{protein_ID} domain {domain_number}",
@@ -633,89 +705,6 @@ def html_interactive_metadata(protein_ID: str,
     fig.update_yaxes(title_text="Residue", row=5, col=1)                # RMSF
     fig.update_yaxes(title_text="", row=5, col=2, showticklabels=False) # pLDDT
     
-    # Add vertical line for each model to highlight when hovering (NOT WORKING)
-    for i in range(1, n_models+1):
-        df_idx = sorted_indexes[i-1] if i <= len(sorted_indexes) else 0
-        model_info = traj_df.iloc[df_idx]
-        model_type = model_info['Type']
-        model_chain = model_info['Is_chain']
-        model_rank = model_info['Rank']
-        model_name = model_info['Model']
-        
-        # Create a vertical line for each model
-        # These will be hidden by default and shown on hover
-        fig.add_shape(
-            type="line",
-            x0=i, x1=i,
-            y0=0, y1=1,
-            yref="paper",
-            line=dict(color="rgba(0,0,0,0.5)", width=1, dash="dot"),
-            visible=False,
-            name=f"Model {i}"
-        )
-    
-    # Add buttons for window size selection (only if there are multiple window sizes)
-    if len(window_sizes) > 1:
-        buttons = []
-        for i, window_size in enumerate(window_sizes):
-            # Create visibility settings for all traces
-            # We need to know how many traces per window size
-            traces_per_window = len(processed_bpd_data[window_sizes[0]])
-            total_window_traces = traces_per_window * len(window_sizes)
-            
-            # Default: all traces are hidden
-            visibility = [False] * total_window_traces
-            
-            # Set the correct window size traces to visible
-            start_idx = i * traces_per_window
-            end_idx = start_idx + traces_per_window
-            for j in range(start_idx, end_idx):
-                visibility[j] = True
-                
-            # Add rest of traces (RMSD, ROG, etc.)
-            visibility.extend([True] * (len(fig.data) - total_window_traces))
-            
-            buttons.append(
-                dict(
-                    label=f"{window_size}",
-                    method="update",
-                    args=[{"visible": visibility}]
-                )
-            )
-        
-        # Add the buttons to the layout
-        fig.update_layout(
-            updatemenus=[
-                dict(
-                    type="buttons",
-                    direction="right",
-                    active=0,
-                    buttons=buttons,
-                    pad={"r": 5, "t": 5},
-                    showactive=True,
-                    x=-0.05,
-                    xanchor="left",
-                    y=1.1,
-                    yanchor="top"
-                )
-            ]
-        )
-
-        # Add an annotation above the buttons and a subtitle
-        fig.update_layout(
-            annotations=[
-                dict(
-                    text="BPD Window Size:",
-                    x=-0.05,
-                    y=1.12,  # Position above the buttons (adjust as needed)
-                    xref="paper",  # Relative to figure
-                    yref="paper",
-                    showarrow=False,
-                    font=dict(size=14, family="Arial", color="black")
-                )
-            ]
-        )
-
     # Get the domain of the pLDDT heatmap x-axis (bottom right subplot)
     plddt_heatmap_domain = fig.layout.xaxis6.domain
 
@@ -761,7 +750,6 @@ def html_interactive_metadata(protein_ID: str,
     )
     
     return str(output_path)
-
 
 #####################################################################################
 ###################################### Main #########################################
