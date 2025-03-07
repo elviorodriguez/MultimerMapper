@@ -7,7 +7,7 @@ from Bio.PDB import Chain, Superimposer
 from Bio.PDB.Polypeptide import protein_letters_3to1
 import seaborn as sns
 
-from traj.partners_density import analyze_protein_distribution, save_results_to_csv, plot_distributions
+from traj.partners_density import analyze_protein_distribution, save_results_to_csv, plot_distributions, html_interactive_metadata
 from utils.logger_setup import configure_logger
 
 
@@ -776,10 +776,6 @@ def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_traject
     
     return trajectory_file
 
-def plot_interactive_metadata(metadata_list, metadata_type_y: str, metadata_type_color: str,
-                              protein_trajectory_folder: str, protein_ID: str, filename_suffix: str):
-    pass
-
 
 def generate_protein_enrichment(proteins_in_models,
                                 b_factor_clusters,
@@ -1167,6 +1163,24 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                     # Generate plots
                     plot_distributions(rolling_data, plots_dir, soft=True, noise_scale=0.01, target_protein=f'{protein_ID}-Dom{domain["Domain"]}')
 
+                    # Run html
+                    html_interactive_metadata(
+                        protein_ID=protein_ID, 
+                        protein_trajectory_folder=domain_trajectory_folder,
+                        traj_df=domain_rmsd_traj_df,
+                        domain_start=domain['Start'],
+
+                        sorted_indexes=domain_RMSD_traj_indices,
+                        rmsd_values=domain_rmsd_values,
+                        rmsf_values=dom_rmsf_values,
+                        mean_plddts=domain_mean_pLDDTs, 
+                        per_res_plddts = domain_b_factors,
+                        rog_values = domain_ROGs,
+                        bpd_values = rolling_data,
+
+                        domain_number=str(domain["Domain"])
+                    )
+
     else:
         logger.info(f"   - Single domain detected for {protein_ID}, skipping domain analysis...")
     
@@ -1249,6 +1263,21 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
             
             # Generate plots
             plot_distributions(rolling_data, plots_dir, soft=True, noise_scale=0.01, target_protein=protein_ID)
+
+            html_interactive_metadata(
+                        protein_ID=protein_ID, 
+                        protein_trajectory_folder=monomer_trajectory_folder,
+                        sorted_indexes=monomer_RMSD_traj_indices,
+                        traj_df=monomer_rmsd_traj_df,
+
+                        domain_start=1,
+                        rmsd_values=rmsd_values,
+                        rmsf_values=rmsf_values,
+                        mean_plddts=monomer_mean_pLDDTs, 
+                        per_res_plddts = b_factors,
+                        rog_values = monomer_ROGs,
+                        bpd_values = rolling_data
+                    )
     
     # Fill per domain rmsf_values with whole protein
     if not perform_domain_analysis:
