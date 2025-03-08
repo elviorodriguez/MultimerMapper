@@ -1088,34 +1088,55 @@ def remove_edges_by_condition(graph: igraph.Graph, attribute: str, condition):
 # def indirect_condition(value):
 #     return value == "Indirect"
 
-def generate_layout_ignoring_edges(graph, layout_algorithm="fr", ignore_attr=None, ignore_conditions=None):
+def generate_layout_ignoring_edges(graph, layout_algorithm="fr", ignore_attr=None, ignore_conditions=None, 
+                                   one_edge_per_pair=False):
     """
-    Generate a layout for the graph while ignoring edges that meet specified conditions.
+    Generate a layout for the graph while ignoring edges that meet specified conditions
+    and optionally considering only one edge per vertex pair.
     
     Parameters:
     - graph (igraph.Graph): The graph to generate a layout for
     - layout_algorithm (str): The layout algorithm to use (e.g., "fr", "kk")
     - ignore_attr (str): The edge attribute to check for ignore conditions
     - ignore_conditions (list): List of values for the attribute that should cause an edge to be ignored
+    - one_edge_per_pair (bool): If True, consider only one edge between each vertex pair when calculating layout
     
     Returns:
     - layout (igraph.Layout): The generated layout with the specified edges ignored
     """
-    import igraph as ig
-    from copy import deepcopy
-    
-    # If no conditions to ignore, just return the regular layout
-    if ignore_attr is None or ignore_conditions is None or not ignore_conditions:
-        return graph.layout(layout_algorithm)
     
     # Create a temporary copy of the graph to modify for layout calculation
     temp_graph = deepcopy(graph)
     
-    # Find all edges that match the ignore conditions
-    edges_to_ignore = [e.index for e in temp_graph.es if e[ignore_attr] in ignore_conditions]
+    # Initialize list to collect edges for removal
+    edges_to_ignore = []
     
-    # Remove these edges for layout calculation
-    temp_graph.delete_edges(edges_to_ignore)
+    # Step 1: Find edges that match attribute conditions to ignore
+    if ignore_attr is not None and ignore_conditions:
+        edges_to_ignore.extend([e.index for e in temp_graph.es if e[ignore_attr] in ignore_conditions])
+    
+    # Step 2: Handle multiple edges between same vertices
+    if one_edge_per_pair:
+        # Create a dictionary to track processed vertex pairs
+        processed_pairs = {}
+        
+        # Iterate through edges to find duplicates
+        for edge in temp_graph.es:
+            # Sort the vertices to ensure consistent key regardless of edge direction
+            v_pair = tuple(sorted([edge.source, edge.target]))
+            
+            # If we've already seen this vertex pair, mark this edge for removal
+            if v_pair in processed_pairs:
+                edges_to_ignore.append(edge.index)
+            else:
+                # Record that we've seen this vertex pair
+                processed_pairs[v_pair] = edge.index
+    
+    # Remove all collected edges (duplicates and those matching ignore conditions)
+    if edges_to_ignore:
+        # Remove duplicates and sort in descending order to avoid index shifting issues
+        edges_to_ignore = sorted(set(edges_to_ignore), reverse=True)
+        temp_graph.delete_edges(edges_to_ignore)
     
     # Generate the layout with the filtered graph
     layout = temp_graph.layout(layout_algorithm)
@@ -1136,6 +1157,7 @@ def igraph_to_plotly(
         # Layout generation options
         ignore_dynamics_for_layout: tuple[str] | None = ("Weak Positive", "Strong Negative", "Indirect", "No N-mers Data", "No 2-mers Data"),
         layout_algorithm = "fr",
+        one_edge_per_pair_for_layout: bool = True,
         
         # Edges visualization
         edge_width: int = 2,
@@ -1180,6 +1202,8 @@ def igraph_to_plotly(
     - save_html (str): path to html file to be created.
     - ignore_dynamics_for_layout (tuple[str]): dynamics types to ignore when calculating layout
       (default: ("Weak Positive", "Strong Negative", "Indirect", "No N-mers Data", "No 2-mers Data"))
+    - one_edge_per_pair_for_layout (bool): If True, only one edge between each vertex pair is considered
+      during layout calculation, preventing nodes with multiple connections from being drawn too close
     - edge_width (float): thickness of edges lines.
     - self_loop_orientation (float): rotates self-loop edges around the corresponding vertex (0.25 a quarter turn, 0.5 half, etc).
     - self_loop_size (float): self-loops circumferences size.
@@ -1219,19 +1243,26 @@ def igraph_to_plotly(
         # Remove edges that meet the condition
         remove_edges_by_condition(graph, attribute = 'dynamics', condition = interaction_type)
     
-    # Generate layout if if was not provided
-    if layout is None:
-        if ignore_dynamics_for_layout:
-            # Use the a function to generate a layout without certain edge types
-            layout = generate_layout_ignoring_edges(
-                graph, 
-                layout_algorithm=layout_algorithm, 
-                ignore_attr="dynamics", 
-                ignore_conditions=ignore_dynamics_for_layout
-            )
-        else:
-            layout = graph.layout(layout_algorithm)
+    # Generate layout if it was not provided
+    if layout == None:
+        # Use the modified function to generate a layout with various filtering options
+        layout = generate_layout_ignoring_edges(
+            graph, 
+            layout_algorithm=layout_algorithm, 
+            ignore_attr="dynamics" if ignore_dynamics_for_layout else None, 
+            ignore_conditions=ignore_dynamics_for_layout,
+            one_edge_per_pair=one_edge_per_pair_for_layout
+        )
     elif type(layout) == str:
+        # Use the modified function with the specified algorithm
+        layout = generate_layout_ignoring_edges(
+            graph, 
+            layout_algorithm=layout, 
+            ignore_attr="dynamics" if ignore_dynamics_for_layout else None, 
+            ignore_conditions=ignore_dynamics_for_layout,
+            one_edge_per_pair=one_edge_per_pair_for_layout
+        )
+    else:
         layout = graph.layout(layout_algorithm)
     
     # Extract node and edge positions from the layout
