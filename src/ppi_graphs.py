@@ -55,7 +55,7 @@ def generate_2mers_graph(pairwise_2mers_df_F3: pd.DataFrame,
     graph.es['N_models'] = N_models_W
     
     # Create the directory if it doesn't exist
-    out_2d_dir = out_path + "/2D_graphs"
+    out_2d_dir = out_path + "/graphs"
     os.makedirs(out_2d_dir, exist_ok = overwrite)
     
     # Plot full graph
@@ -92,7 +92,7 @@ def find_sub_graphs(graph: igraph.Graph,
     fully_connected_subgraphs = [graph.subgraph(component) for component in graph.components() if graph.subgraph(component).is_connected()]
     
     # Create the directory if it doesn't exist
-    out_2d_dir = out_path + "/2D_graphs"
+    out_2d_dir = out_path + "/graphs"
     os.makedirs(out_2d_dir, exist_ok = overwrite)
 
     # Print the fully connected subgraphs
@@ -170,7 +170,7 @@ def generate_Nmers_graph(pairwise_Nmers_df_F3: pd.DataFrame,
     graph.es['N_models'] = N_models_W
     
     # Create the directory if it doesn't exist
-    out_2d_dir = out_path + "/2D_graphs"
+    out_2d_dir = out_path + "/graphs"
     os.makedirs(out_2d_dir, exist_ok = overwrite)
 
     # Plot full graph

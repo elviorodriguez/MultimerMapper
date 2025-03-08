@@ -371,8 +371,10 @@ def interactive_igraph_to_plotly(combined_graph,
     # Initialize the logger
     logger = configure_logger(out_path, log_level = log_level)(__name__)
 
-    # Convert combined PPI graph to interactive plotly
-    save_html = out_path + "/2D_graph.html"
+    # Convert combined PPI graph to interactive plotly (Create the directory if it doesn't exist)
+    graphs_dir = out_path + "/graphs"
+    os.makedirs(graphs_dir, exist_ok = overwrite)
+    save_html = out_path + "/graphs/2D_graph.html"
     
     while True:
 
@@ -435,17 +437,21 @@ def interactive_igraph_to_plotly(combined_graph,
             else:
                 logger.info("   Invalid input. Please enter 'y' or 'n'.")
 
-def interactive_igraph_to_py3dmol(combined_graph, logger, automatic_true = False):
+def interactive_igraph_to_py3dmol(combined_graph, logger, automatic_true = False, show_plots = True):
 
     # Create 3D network
     nw = Network(combined_graph, logger = logger)
+
+    # Convert combined PPI graph to interactive plotly (Create the directory if it doesn't exist)
+    graphs_dir = out_path + "/graphs"
+    os.makedirs(graphs_dir, exist_ok = overwrite)
 
     # Generate 3D network visualization
     while True:
 
         nw.generate_layout()
-        nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph_py3Dmol.html', show_plot = True)
-        nw.generate_plotly_3d_plot(save_path = out_path + '/3D_graph_Plotly.html', show_plot = True)
+        nw.generate_py3dmol_plot(save_path = graphs_dir + '/3D_graph_py3Dmol.html', show_plot = show_plots)
+        nw.generate_plotly_3d_plot(save_path = graphs_dir + '/3D_graph_Plotly.html', show_plot = show_plots)
 
         logger.info("Some 3D layout generation algorithms are stochastic:")
         logger.info("   - Do you like the plot? (y/n): ")
