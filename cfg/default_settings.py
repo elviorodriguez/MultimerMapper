@@ -82,7 +82,7 @@ min_PAE_cutoff_Nmers = 13
 pDockQ_cutoff_Nmers = 0.0   # Do not change
 
 # For Nmers
-Nmers_contacts_cutoff = 5
+Nmers_contacts_cutoff = 3
 
 # ----------------------------------------------------------------------------
 # ---------------------- For Symmetry Fallback Analysis ----------------------
@@ -147,7 +147,7 @@ remove_interactions_from_ppi_graph = ("Indirect",)      # (indirect: mediated by
 # 0: up, 0.25: left, 0.5: down, 0.75: right
 self_loop_orientation: float = 0.0
 # Size of the homooligomerization edge circle
-self_loop_size: float = 3
+self_loop_size: float = 4
 # ----------------------------------------------------------------------------
 
 # Remove background and set protein names as bold
@@ -188,8 +188,8 @@ save_ref_structures = True
 # ----------------------------------------------------------------------------
 
 contact_distance_cutoff: float | int = 8.0
-contact_PAE_cutoff     : float | int = 13
-contact_pLDDT_cutoff   : float | int = 50
+contact_PAE_cutoff     : float | int = 15
+contact_pLDDT_cutoff   : float | int = 45
 
 # ----------------------------------------------------------------------------
 # -------------------------- For contact detection ---------------------------

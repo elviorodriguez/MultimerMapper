@@ -1282,8 +1282,8 @@ def igraph_to_plotly(
                             width = int(edge_width * edge_weight),
                             dash  = edge_linetype),
                 hoverinfo  ="text",
-                text       = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
-                hovertext  = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * len(circle_x),
+                text       = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * len(circle_x),
+                hovertext  = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * len(circle_x),
                 hoverlabel = dict(font=dict(family='Courier New', size=hovertext_size)),
                 showlegend = False
             )
@@ -1395,8 +1395,8 @@ def igraph_to_plotly(
                             width = int(edge_width * edge_weight),
                             dash  = edge_linetype),
                 hoverinfo   = "text",  # Add hover text
-                text        = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
-                hovertext   = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data --------<br>" + edge["N_mers_info"]] * (resolution + 2),
+                text        = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * (resolution + 2),
+                hovertext   = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * (resolution + 2),
                 hoverlabel  = dict(font=dict(family='Courier New', size=hovertext_size)),
                 showlegend  = False
             )

@@ -134,6 +134,20 @@ def find_rows_that_contains_interval(df, interval_name, lambda_val):
 # ------------------------------- Classify the edge -----------------------------------
 # -------------------------------------------------------------------------------------
 
+# debug logger
+def log_debug(logger, tuple_edge, is_present_in_2mers, is_present_in_Nmers,
+              was_tested_in_2mers, was_tested_in_Nmers,
+              e_dynamics, true_edge,
+              Nmers_variation = "Not Reached", Nmers_mean_pdockq = "Not Reached"):
+    logger.debug(f"Found dynamic classification of edge: {tuple_edge}")
+    logger.debug(f"   - is_present_in_2mers: {is_present_in_2mers}")
+    logger.debug(f"   - is_present_in_Nmers: {is_present_in_Nmers}")
+    logger.debug(f"   - was_tested_in_2mers: {was_tested_in_2mers}")
+    logger.debug(f"   - was_tested_in_Nmers: {was_tested_in_Nmers}")
+    logger.debug(f"   - Nmers_variation    : {Nmers_variation}")
+    logger.debug(f"   - Nmers_mean_pdockq  : {Nmers_mean_pdockq}")
+    logger.debug(f"   - Classification     : <--- {e_dynamics} --->")
+    logger.debug(f"   - True edge          : {true_edge}")
 
 
 def classify_edge_dynamics(tuple_edge: tuple,
@@ -149,12 +163,14 @@ def classify_edge_dynamics(tuple_edge: tuple,
                            untested_edges_tuples     : list[tuple],
                            tested_Nmers_edges_sorted : list[tuple],
 
-                           classification_df: pd.DataFrame = classification_df,
+                           classification_df: pd.DataFrame|None = classification_df,
 
                            logger = None
     ):
     
-    classification_df = read_classification_df()
+    # Read classification df if needed
+    if classification_df is None:
+        classification_df = read_classification_df()
 
     # Configure logger
     if logger == None:
@@ -163,10 +179,12 @@ def classify_edge_dynamics(tuple_edge: tuple,
     # Get parameters for classification
     valency_contains_2mers = any(mer_number == 2 for mer_number in [len(model[0]) for model in true_edge['valency']['models']])
     valency_contains_Nmers = any(mer_number  > 2 for mer_number in [len(model[0]) for model in true_edge['valency']['models']])
-    is_present_in_2mers = tuple_edge in sorted_edges_2mers_graph and valency_contains_2mers
-    is_present_in_Nmers = tuple_edge in sorted_edges_Nmers_graph and valency_contains_Nmers
+    is_present_in_2mers = tuple_edge in sorted_edges_2mers_graph or valency_contains_2mers
+    is_present_in_Nmers = tuple_edge in sorted_edges_Nmers_graph or valency_contains_Nmers
     was_tested_in_2mers = tuple_edge not in untested_edges_tuples
     was_tested_in_Nmers = tuple_edge in tested_Nmers_edges_sorted
+
+    # --------------------------------------- (1) ---------------------------------------
 
     # Classify rows untested in 2-mers
     e_dynamics_rows = (
@@ -177,20 +195,13 @@ def classify_edge_dynamics(tuple_edge: tuple,
     # If the info is enough to classify
     if e_dynamics_rows.shape[0] == 1:
         e_dynamics = str(e_dynamics_rows["Classification"].iloc[0])
-        logger.debug(f"Found dynamic classification of edge: {tuple_edge}")
-        logger.debug(f"   - is_present_in_2mers: {is_present_in_2mers}")
-        logger.debug(f"   - is_present_in_Nmers: {is_present_in_Nmers}")
-        logger.debug(f"   - was_tested_in_2mers: {was_tested_in_2mers}")
-        logger.debug(f"   - was_tested_in_Nmers: {was_tested_in_Nmers}")
-        logger.debug(f"   - Nmers_variation    : not reached")
-        logger.debug( "   - Nmers_mean_pdockq  : not reached")
-        logger.debug(f"   - Classification     : <--- {e_dynamics} --->")
-        logger.debug(f"   - True edge          : {true_edge}")
+        log_debug(logger, tuple_edge, is_present_in_2mers, is_present_in_Nmers, was_tested_in_2mers, was_tested_in_Nmers, e_dynamics, true_edge)
         return e_dynamics
     # This happens for indirectly interacting proteins (they have no contacts and both is_present_in_2/Nmers end up as false)
     elif e_dynamics_rows.shape[0] == 0:
         return "Indirect"
     
+    # --------------------------------------- (2) ---------------------------------------
 
     # Classify the rest of possibilities
     e_dynamics_rows = (
@@ -203,20 +214,14 @@ def classify_edge_dynamics(tuple_edge: tuple,
     # If the info is enough to classify
     if e_dynamics_rows.shape[0] == 1:
         e_dynamics = str(e_dynamics_rows["Classification"].iloc[0])
-        logger.debug(f"Found dynamic classification of edge: {tuple_edge}")
-        logger.debug(f"   - is_present_in_2mers: {is_present_in_2mers}")
-        logger.debug(f"   - is_present_in_Nmers: {is_present_in_Nmers}")
-        logger.debug(f"   - was_tested_in_2mers: {was_tested_in_2mers}")
-        logger.debug(f"   - was_tested_in_Nmers: {was_tested_in_Nmers}")
-        logger.debug( "   - Nmers_variation    : not reached")
-        logger.debug( "   - Nmers_mean_pdockq  : not reached")
-        logger.debug(f"   - Classification     : <--- {e_dynamics} --->")
-        logger.debug(f"   - True edge          : {true_edge}")
+        log_debug(logger, tuple_edge, is_present_in_2mers, is_present_in_Nmers, was_tested_in_2mers, was_tested_in_Nmers, e_dynamics, true_edge)
         return e_dynamics
     # This happens for indirectly interacting proteins (they have no contacts and both is_present_in_2/Nmers end up as false)
     elif e_dynamics_rows.shape[0] == 0:
         return "Indirect"
     
+    # --------------------------------------- (3) ---------------------------------------
+
     # If not, get more info
     Nmers_variation = get_edge_Nmers_variation(edge = true_edge, N_models_cutoff = N_models_cutoff)
     
@@ -228,19 +233,13 @@ def classify_edge_dynamics(tuple_edge: tuple,
     # If the info is enough to classify
     if e_dynamics_rows.shape[0] == 1:
         e_dynamics = str(e_dynamics_rows["Classification"].iloc[0])
-        logger.debug(f"Found dynamic classification of edge: {tuple_edge}")
-        logger.debug(f"   - is_present_in_2mers: {is_present_in_2mers}")
-        logger.debug(f"   - is_present_in_Nmers: {is_present_in_Nmers}")
-        logger.debug(f"   - was_tested_in_2mers: {was_tested_in_2mers}")
-        logger.debug(f"   - was_tested_in_Nmers: {was_tested_in_Nmers}")
-        logger.debug(f"   - Nmers_variation    : {Nmers_variation}")
-        logger.debug( "   - Nmers_mean_pdockq  : not reached")
-        logger.debug(f"   - Classification     : <--- {e_dynamics} --->")
-        logger.debug(f"   - True edge          : {true_edge}")
+        log_debug(logger, tuple_edge, is_present_in_2mers, is_present_in_Nmers, was_tested_in_2mers, was_tested_in_Nmers, e_dynamics, true_edge, Nmers_variation)
         return e_dynamics
     # This happens for indirectly interacting proteins (they have no contacts and both is_present_in_2/Nmers end up as false)
     elif e_dynamics_rows.shape[0] == 0:
         return "Indirect"
+    
+    # --------------------------------------- (4) ---------------------------------------
     
     # If not, get more info
     Nmers_mean_pdockq = get_edge_Nmers_pDockQ(edge = true_edge, N_models_cutoff = N_models_cutoff)
@@ -253,17 +252,10 @@ def classify_edge_dynamics(tuple_edge: tuple,
     # Info must be enough to classify at this point
     if e_dynamics_rows.shape[0] == 1:
         e_dynamics = str(e_dynamics_rows["Classification"].iloc[0])
-        logger.debug(f"Found dynamic classification of edge: {tuple_edge}")
-        logger.debug(f"   - is_present_in_2mers: {is_present_in_2mers}")
-        logger.debug(f"   - is_present_in_Nmers: {is_present_in_Nmers}")
-        logger.debug(f"   - was_tested_in_2mers: {was_tested_in_2mers}")
-        logger.debug(f"   - was_tested_in_Nmers: {was_tested_in_Nmers}")
-        logger.debug(f"   - Nmers_variation    : {Nmers_variation}")
-        logger.debug(f"   - Nmers_mean_pdockq  : {Nmers_mean_pdockq}")
-        logger.debug(f"   - Classification     : <--- {e_dynamics} --->")
-        logger.debug(f"   - True edge          : {true_edge}")
         return e_dynamics
     
+    # --------------------------------------- (5) ---------------------------------------
+
     # If not, something went wrong
     else:
         logger.error(f"Something went wrong with dynamics classification of edge: {tuple_edge}")
@@ -274,7 +266,6 @@ def classify_edge_dynamics(tuple_edge: tuple,
         logger.error(f"  - Edge dynamics will be classified as {e_dynamics}")
         logger.error( "  - Results may be unreliable or the program may crash later...")
         return e_dynamics
-
 
 
 # -------------------------------------------------------------------------------------

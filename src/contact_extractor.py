@@ -981,11 +981,12 @@ def visualize_pair_matrices(mm_output, pair=None, matrix_types=['is_contact', 'P
 # -------------- To remove Nmers predictions with no contacts -----------------
 # -----------------------------------------------------------------------------
 
-
-def remove_Nmers_without_enough_contacts(mm_output, N_models_cutoff = N_models_cutoff, Nmers_contacts_cutoff = Nmers_contacts_cutoff):
+def remove_Nmers_without_enough_contacts(mm_output, N_models_cutoff = N_models_cutoff, Nmers_contacts_cutoff = Nmers_contacts_cutoff,
+                                         skip_positive_2mers = False):
 
     # Unpack data
     pairwise_contact_matrices = mm_output["pairwise_contact_matrices"].copy()
+    pairwise_2mers_df_F3_pairs_list: list = [ tuple(sorted([row['protein1'], row['protein2']])) for i, row in mm_output['pairwise_2mers_df_F3'].iterrows()]
     pairwise_Nmers_df_F3 = mm_output['pairwise_Nmers_df_F3'].copy()
 
     # To store which predictions have at least Nmers_contacts_cutoff    
@@ -998,9 +999,11 @@ def remove_Nmers_without_enough_contacts(mm_output, N_models_cutoff = N_models_c
 
             # Add key to dict if it do not exists
             if model[0] not in predictions_with_contacts[pair]:
+
+                # Each index position is a different rank
                 predictions_with_contacts[pair][model[0]] = [0, 0, 0, 0, 0]
 
-            # Change to 1 the rank that surpasses Nmers contacts cutoff
+            # Change to 1 at the rank position if it surpasses Nmers contacts cutoff
             if model_data['is_contact'].sum() >= Nmers_contacts_cutoff:
                 predictions_with_contacts[pair][model[0]][model[2] - 1] = 1
 
@@ -1009,6 +1012,12 @@ def remove_Nmers_without_enough_contacts(mm_output, N_models_cutoff = N_models_c
 
     for i, row in pairwise_Nmers_df_F3.iterrows():
         tuple_pair = tuple(sorted([row['protein1'], row['protein2']]))
+
+        # If the pair was positive in the 2-mers, skip it (if skip_positive_2mers is set to True)
+        if skip_positive_2mers and tuple_pair in pairwise_2mers_df_F3_pairs_list:
+            continue
+        
+        # Add the N-mer pair to be removed
         if sum(predictions_with_contacts[tuple_pair][row['proteins_in_model']]) < N_models_cutoff:
             indices_to_remove.append(i)
                 
@@ -1017,8 +1026,16 @@ def remove_Nmers_without_enough_contacts(mm_output, N_models_cutoff = N_models_c
 
     # Convert contact matrices of predictions that do not surpass cutoffs to zero matrices or remove the pair
     for pair, pair_data in predictions_with_contacts.items():
+
+        # If the pair was positive in the 2-mers, skip it (if skip_positive_2mers is set to True)
+        if skip_positive_2mers and pair in pairwise_2mers_df_F3_pairs_list:
+            continue
+        
+        # If there is no N-mer combination that surpasses the N_models cutoff, remove the pair matrixes
         if not any(sum(N) >= N_models_cutoff for N in pair_data.values()):
             del pairwise_contact_matrices[pair]
+
+        # Otherwise, remove only those matrixes that do not have enough contacts
         else:
             for model, ranks_bool_list in pair_data.items():
                 if sum(ranks_bool_list) < N_models_cutoff:

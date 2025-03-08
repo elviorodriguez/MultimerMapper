@@ -22,6 +22,7 @@ again the pipeline from the command line after saving).
 
 # remove_interactions_from_ppi_graph
 # remove_interactions_from_ppi_graph = ("Indirect", "No 2-mers Data")
+remove_interactions_from_ppi_graph = ("Indirect", )
 
 # auto_domain_detection
 # auto_domain_detection = True
@@ -32,3 +33,28 @@ again the pipeline from the command line after saving).
 
 # multivalency_silhouette_threshold         = 0.25
 # multivalency_contact_similarity_threshold = 0.1
+
+# General cutoff
+# N_models_cutoff = 4
+
+
+# ----------- Conflictive cutoffs -----------
+
+# This is OK?
+Nmers_contacts_cutoff = 5
+contact_distance_cutoff: float | int = 8.0
+contact_PAE_cutoff     : float | int = 13
+contact_pLDDT_cutoff   : float | int = 50
+
+# # This adds more spurious interactions?
+# Nmers_contacts_cutoff = 3
+# contact_distance_cutoff: float | int = 8.0
+# contact_PAE_cutoff     : float | int = 15
+# contact_pLDDT_cutoff   : float | int = 45
+
+# # Changing this to 4 causes the "No 2-mers Data" bug?
+# N_models_cutoff = 4
+
+# 
+available_layout = ['fr', 'kk', 'circle', 'drl', 'lgl', 'random', 'rt', 'rt_circular', ]
+ppi_graph_layout_algorithm = available_layout[1]

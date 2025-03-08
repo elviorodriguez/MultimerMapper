@@ -252,7 +252,7 @@ def parse_AF2_and_sequences(
     multimer_mapper_output["pairwise_contact_matrices"] = pairwise_contact_matrices
 
     # Remove Nmers that do not have enough contacts from pairwise_Nmers_df_F3 df and their matrices
-    pairwise_Nmers_df_F3, pairwise_contact_matrices = remove_Nmers_without_enough_contacts(multimer_mapper_output)
+    pairwise_Nmers_df_F3, pairwise_contact_matrices = remove_Nmers_without_enough_contacts(multimer_mapper_output, skip_positive_2mers=True)
     multimer_mapper_output["pairwise_contact_matrices"] = pairwise_contact_matrices
     multimer_mapper_output['pairwise_Nmers_df_F3'] = pairwise_Nmers_df_F3
 

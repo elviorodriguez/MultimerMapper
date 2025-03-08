@@ -17,9 +17,9 @@ pd.set_option( 'display.max_columns' , None )
 # out_path = "/home/elvio/Desktop/MM_interactive_test"
 # use_names = True 
 # overwrite = True
-# auto_domain_detection = False
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# # graph_resolution_preset = None
+# auto_domain_detection = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# graph_resolution_preset = None
 
 ##############################################################################
 
@@ -38,16 +38,16 @@ pd.set_option( 'display.max_columns' , None )
 
 # ################################# Test 3 ######################################
 
-# fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/NuA4_proteins.fasta"
-# AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/2-mers"
-# AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4"
-# use_names = True 
-# overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4/graph_resolution_preset.json"
-# auto_domain_detection = False
-# # graph_resolution_preset = None
+fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/NuA4_proteins.fasta"
+AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4"
+use_names = True 
+overwrite = True
+graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/graph_resolution_preset.json"
+auto_domain_detection = False
+# graph_resolution_preset = None
 
 # ###################### Test 4 (indirect interactions) #########################
 
@@ -93,16 +93,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ################### Test 6' (multivalency detection RuvBL) ####################
 
-fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
-AF2_2mers = "tests/multivalency_test/2-mers"
-AF2_Nmers = "tests/multivalency_test/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/RuvBL_test"
-use_names = True
-overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-auto_domain_detection = True
-graph_resolution_preset = None
+# fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
+# AF2_2mers = "tests/multivalency_test/2-mers"
+# AF2_Nmers = "tests/multivalency_test/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/RuvBL_test"
+# use_names = True
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
@@ -140,6 +140,8 @@ graph_resolution_preset = None
 ############################### MM main run ###################################
 ###############################################################################
 
+# import multimer_mapper as mm
+
 # Setup the root logger with desired level
 log_level = 'info'
 logger = mm.configure_logger(out_path = out_path, log_level = log_level, clear_root_handlers = True)(__name__)
@@ -147,24 +149,48 @@ logger = mm.configure_logger(out_path = out_path, log_level = log_level, clear_r
 
 # Run the main MultimerMapper pipeline
 mm_output = mm.parse_AF2_and_sequences(fasta_file,
-                                        AF2_2mers,
-                                        AF2_Nmers,
-                                        out_path,
-                                        use_names = use_names,
-                                        overwrite = overwrite,
-                                        auto_domain_detection = auto_domain_detection,
-                                        graph_resolution_preset = graph_resolution_preset)
+                                       AF2_2mers,
+                                       AF2_Nmers,
+                                       out_path,
+                                       use_names = use_names,
+                                       overwrite = overwrite,
+                                       auto_domain_detection = auto_domain_detection,
+                                       graph_resolution_preset = graph_resolution_preset)
+
+from src.ppi_graphs import generate_combined_graph
+generate_combined_graph(
+        
+        # Input
+        mm_output = mm_output,
+        
+        # 2-mers cutoffs
+        # min_PAE_cutoff_2mers = min_PAE_cutoff_2mers, ipTM_cutoff_2mers = ipTM_cutoff_2mers,
+        
+        # N-mers cutoffs
+        # min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
+        
+        # General cutoffs
+        # N_models_cutoff = N_models_cutoff,
+
+        # For RMSD calculations
+        # domain_RMSD_plddt_cutoff = domain_RMSD_plddt_cutoff,
+        # trimming_RMSD_plddt_cutoff = trimming_RMSD_plddt_cutoff,
+
+        # Style options (see cfg/default_settings module for their meaning)
+        # vertex_color1=vertex_color1, vertex_color2=vertex_color2, vertex_color3=vertex_color3, vertex_color_both=vertex_color_both
+        )
+
 
 # Generate interactive graph
-# import multimer_mapper as mm
 # combined_graph, dynamic_proteins, homooligomerization_states, multivalency_states = mm.generate_combined_graph(mm_output)
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
     mm_output['combined_graph'], out_path = out_path,
-    layout_algorithm = 'kk',    
+    layout_algorithm = 'fr',    
     
     # You can remove specific interaction types from the graph
     # "No 2-mers Data"
-    remove_interactions = ("Indirect", "No 2-mers Data"),
+    # remove_interactions = ("Indirect", "No 2-mers Data"),
+    remove_interactions = ("Indirect",),
     self_loop_size = 4,
     
     # Answer y automatically
@@ -183,14 +209,15 @@ nw.generate_layout()
 nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph_py3Dmol.html', show_plot=True)
 nw.generate_plotly_3d_plot(save_path = out_path + '/3D_graph_plotly.html', show_plot=True)
 
+# Generate RMSF, pLDDT clusters & RMSD trajectories considering models as monomers
+mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
+    mm_output = mm_output, out_path = out_path)
+
 # Get suggested combinations
 suggested_combinations = mm.suggest_combinations(mm_output = mm_output, 
                                                  # To ommit saving, change to None
                                                  out_path = out_path)
 
-# Generate RMSF, pLDDT clusters & RMSD trajectories considering models as monomers
-mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
-    mm_output = mm_output, out_path = out_path)
 
 
 ###############################################################################
