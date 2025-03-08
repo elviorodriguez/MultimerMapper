@@ -302,17 +302,24 @@ def get_edge_linetype(graph_edge: igraph.Edge, classification_df: pd.DataFrame):
     return edge_line_type
 
 # Weight
-def get_edge_weight(graph_edge: igraph.Edge, classification_df: pd.DataFrame, default_edge_weight = 0.5):
+def get_edge_weight(graph_edge: igraph.Edge, classification_df: pd.DataFrame, default_edge_weight = 0.5, scaling_factor = 7):
 
     edge_dynamics = graph_edge["dynamics"]
     edge_width_is_variable = classification_df.query(f'Classification == "{edge_dynamics}"')["Variable_Edge_width"].iloc[0]
 
     if edge_width_is_variable:
+
+            
+        # Using 1/mean_miPAE and 2mer ipTM
+        if edge_width_is_variable:
+            edge_weight_2mer_iptm = np.mean(list(graph_edge["2_mers_data"]["ipTM"]))
+            edge_weight_PAE = 1/ np.mean(list(graph_edge["2_mers_data"]["min_PAE"]) + list(graph_edge["N_mers_data"]["min_PAE"]))
+            edge_weight = edge_weight_2mer_iptm * edge_weight_PAE * scaling_factor
         
-        # Use mean number of models that surpass the cutoff and 1/mean(miPAE) to construct a weight
-        edge_weight_Nmers = int(np.mean(list(graph_edge["2_mers_data"]["N_models"]) + list(graph_edge["N_mers_data"]["N_models"])))
-        edge_weight_PAE = int(1/ np.mean(list(graph_edge["2_mers_data"]["min_PAE"]) + list(graph_edge["N_mers_data"]["min_PAE"])))
-        edge_weight = edge_weight_Nmers * edge_weight_PAE
+        # # Use mean number of models that surpass the cutoff and 1/mean(miPAE) to construct a weight
+        # edge_weight_Nmers = int(np.mean(list(graph_edge["2_mers_data"]["N_models"]) + list(graph_edge["N_mers_data"]["N_models"])))
+        # edge_weight_PAE = int(1/ np.mean(list(graph_edge["2_mers_data"]["min_PAE"]) + list(graph_edge["N_mers_data"]["min_PAE"])))
+        # edge_weight = edge_weight_Nmers * edge_weight_PAE
 
         # Limit to reasonable values
         if edge_weight < 1:

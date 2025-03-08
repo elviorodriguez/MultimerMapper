@@ -382,7 +382,8 @@ def interactive_igraph_to_plotly(combined_graph,
 
             # Input
             graph = combined_graph,
-            layout = layout_algorithm,
+            layout = None,
+            layout_algorithm = layout_algorithm,
 
             # Aspect of homooligomerization edges
             self_loop_orientation = self_loop_orientation,

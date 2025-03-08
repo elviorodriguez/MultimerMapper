@@ -158,33 +158,35 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
                                        graph_resolution_preset = graph_resolution_preset)
 
 from src.ppi_graphs import generate_combined_graph
-generate_combined_graph(
+combined_graph, _, _, _ = generate_combined_graph(
         
         # Input
         mm_output = mm_output,
         
         # 2-mers cutoffs
-        # min_PAE_cutoff_2mers = min_PAE_cutoff_2mers, ipTM_cutoff_2mers = ipTM_cutoff_2mers,
+        min_PAE_cutoff_2mers = mm.min_PAE_cutoff_2mers, ipTM_cutoff_2mers = mm.ipTM_cutoff_2mers,
         
         # N-mers cutoffs
-        # min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
+        min_PAE_cutoff_Nmers = mm.min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers = mm.pDockQ_cutoff_Nmers,
         
         # General cutoffs
-        # N_models_cutoff = N_models_cutoff,
+        N_models_cutoff = mm.N_models_cutoff,
 
         # For RMSD calculations
-        # domain_RMSD_plddt_cutoff = domain_RMSD_plddt_cutoff,
-        # trimming_RMSD_plddt_cutoff = trimming_RMSD_plddt_cutoff,
+        domain_RMSD_plddt_cutoff = mm.domain_RMSD_plddt_cutoff,
+        trimming_RMSD_plddt_cutoff = mm.trimming_RMSD_plddt_cutoff,
 
         # Style options (see cfg/default_settings module for their meaning)
-        # vertex_color1=vertex_color1, vertex_color2=vertex_color2, vertex_color3=vertex_color3, vertex_color_both=vertex_color_both
+        vertex_color1=mm.vertex_color1, vertex_color2=mm.vertex_color2,
+        vertex_color3=mm.vertex_color3, vertex_color_both=mm.vertex_color_both
         )
 
 
 # Generate interactive graph
+import multimer_mapper as mm
 # combined_graph, dynamic_proteins, homooligomerization_states, multivalency_states = mm.generate_combined_graph(mm_output)
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
-    mm_output['combined_graph'], out_path = out_path,
+    combined_graph, out_path = out_path,
     layout_algorithm = 'fr',    
     
     # You can remove specific interaction types from the graph
@@ -395,3 +397,39 @@ mm_output['contacts_clusters'][tuple_pair][0]
 
 
             
+
+# Weight
+def get_edge_weight(graph_edge, classification_df: pd.DataFrame, default_edge_weight = 0.5):
+
+    edge_dynamics = graph_edge["dynamics"]
+    edge_width_is_variable = classification_df.query(f'Classification == "{edge_dynamics}"')["Variable_Edge_width"].iloc[0]
+    
+
+    if edge_width_is_variable:
+        edge_weight_2mer_iptm = np.mean(list(graph_edge["2_mers_data"]["ipTM"]))
+        edge_weight_PAE = 1/ np.mean(list(graph_edge["2_mers_data"]["min_PAE"]) + list(graph_edge["N_mers_data"]["min_PAE"]))
+        edge_weight = edge_weight_2mer_iptm * edge_weight_PAE * 10
+        
+    
+    # Use mean number of models that surpass the cutoff and 1/mean(miPAE) to construct a weight
+    # edge_weight_Nmers = int(np.mean(list(graph_edge["2_mers_data"]["N_models"]) + list(graph_edge["N_mers_data"]["N_models"])))
+    # edge_weight_PAE = int(1/ np.mean(list(graph_edge["2_mers_data"]["min_PAE"]) + list(graph_edge["N_mers_data"]["min_PAE"])))
+    # edge_weight = edge_weight_Nmers * edge_weight_PAE
+
+        # Limit to reasonable values
+        if edge_weight < 1:
+            return 1
+        elif edge_weight > 8:
+            return 8
+        return edge_weight
+
+    # If it has fixed length
+    else:
+        return default_edge_weight
+
+
+from src.interpret_dynamics import read_classification_df
+for e in combined_graph.es:
+    print(e['valency']['cluster_n'], e['name'])
+    print(f'   - Dynamics: {e["dynamics"]}')
+    print(f'   - Weight: {get_edge_weight(e, read_classification_df())}')

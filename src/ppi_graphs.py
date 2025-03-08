@@ -1072,7 +1072,7 @@ def generate_layout_for_combined_graph(
     return layout
 
 
-# ----------------------- Edge removal based in conditions --------------------------
+# ------------------- Edge removal/ignoring based in conditions -------------------
 def remove_edges_by_condition(graph: igraph.Graph, attribute: str, condition):
     """
     Remove edges from the graph that meet the given condition on an attribute.
@@ -1088,6 +1088,41 @@ def remove_edges_by_condition(graph: igraph.Graph, attribute: str, condition):
 # def indirect_condition(value):
 #     return value == "Indirect"
 
+def generate_layout_ignoring_edges(graph, layout_algorithm="fr", ignore_attr=None, ignore_conditions=None):
+    """
+    Generate a layout for the graph while ignoring edges that meet specified conditions.
+    
+    Parameters:
+    - graph (igraph.Graph): The graph to generate a layout for
+    - layout_algorithm (str): The layout algorithm to use (e.g., "fr", "kk")
+    - ignore_attr (str): The edge attribute to check for ignore conditions
+    - ignore_conditions (list): List of values for the attribute that should cause an edge to be ignored
+    
+    Returns:
+    - layout (igraph.Layout): The generated layout with the specified edges ignored
+    """
+    import igraph as ig
+    from copy import deepcopy
+    
+    # If no conditions to ignore, just return the regular layout
+    if ignore_attr is None or ignore_conditions is None or not ignore_conditions:
+        return graph.layout(layout_algorithm)
+    
+    # Create a temporary copy of the graph to modify for layout calculation
+    temp_graph = deepcopy(graph)
+    
+    # Find all edges that match the ignore conditions
+    edges_to_ignore = [e.index for e in temp_graph.es if e[ignore_attr] in ignore_conditions]
+    
+    # Remove these edges for layout calculation
+    temp_graph.delete_edges(edges_to_ignore)
+    
+    # Generate the layout with the filtered graph
+    layout = temp_graph.layout(layout_algorithm)
+    
+    # Return the layout
+    return layout
+
 # ------------------------------------------------------------------------------------
 
 # Convert igraph graph to interactive plotly plot
@@ -1095,8 +1130,12 @@ def igraph_to_plotly(
         
         # Inputs
         graph: igraph.Graph,
-        layout: igraph.Layout | str | None = "fr",
+        layout: igraph.Layout | str | None = None,
         save_html: str | None = None,
+
+        # Layout generation options
+        ignore_dynamics_for_layout: tuple[str] | None = ("Weak Positive", "Strong Negative", "Indirect", "No N-mers Data", "No 2-mers Data"),
+        layout_algorithm = "fr",
         
         # Edges visualization
         edge_width: int = 2,
@@ -1139,6 +1178,8 @@ def igraph_to_plotly(
         if None (default), a layout will be produced using "fr" algorithm
         if str, a layout with layout algorithm will be created (eg: "kk" or "fr")
     - save_html (str): path to html file to be created.
+    - ignore_dynamics_for_layout (tuple[str]): dynamics types to ignore when calculating layout
+      (default: ("Weak Positive", "Strong Negative", "Indirect", "No N-mers Data", "No 2-mers Data"))
     - edge_width (float): thickness of edges lines.
     - self_loop_orientation (float): rotates self-loop edges around the corresponding vertex (0.25 a quarter turn, 0.5 half, etc).
     - self_loop_size (float): self-loops circumferences size.
@@ -1179,10 +1220,19 @@ def igraph_to_plotly(
         remove_edges_by_condition(graph, attribute = 'dynamics', condition = interaction_type)
     
     # Generate layout if if was not provided
-    if layout == None:
-        layout = graph.layout("fr")
+    if layout is None:
+        if ignore_dynamics_for_layout:
+            # Use the a function to generate a layout without certain edge types
+            layout = generate_layout_ignoring_edges(
+                graph, 
+                layout_algorithm=layout_algorithm, 
+                ignore_attr="dynamics", 
+                ignore_conditions=ignore_dynamics_for_layout
+            )
+        else:
+            layout = graph.layout(layout_algorithm)
     elif type(layout) == str:
-        layout = graph.layout(layout)
+        layout = graph.layout(layout_algorithm)
     
     # Extract node and edge positions from the layout
     pos = {vertex.index: layout[vertex.index] for vertex in graph.vs}
