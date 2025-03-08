@@ -526,7 +526,7 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
                    auto_domain_detection: bool = True, graph_resolution_preset: bool | None = None, save_preset: bool  = True,
                    save_png_file: bool  = True, show_image: bool  = False, show_structure: bool  = False, show_inline: bool  = False,
                    save_html: bool  = True, save_tsv: bool  = True, overwrite: bool = False, manual_domains: str | None = None,
-                   logger: Logger | None = None, show_PAE_along_backbone: bool = True):
+                   logger: Logger | None = None, show_PAE_along_backbone: bool = True, save_svg: bool = True):
     
     '''Modifies sliced_PAE_and_pLDDTs to add domain information. Generates the 
     following sub-keys for each protein_ID key:
@@ -785,6 +785,12 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
         save_folder = out_path + "/domains"
         tsv_file_path = save_folder + "/domains.tsv"
         domains_df.to_csv(tsv_file_path, sep='\t', index=False)
+
+        if save_svg:
+            from report.domains_svg.tsv_to_domains_svg import parse_tsv, create_svg
+            data, backbone_lengths = parse_tsv(tsv_file_path, threshold = 40) # Threshold = minimum mean pLDDT to consider as domain
+            create_svg(data, backbone_lengths, save_folder + "/domains.svg")
+            
         
     return domains_df
 
