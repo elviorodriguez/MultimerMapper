@@ -186,7 +186,7 @@ combined_graph, _, _, _ = generate_combined_graph(
 import multimer_mapper as mm
 # combined_graph, dynamic_proteins, homooligomerization_states, multivalency_states = mm.generate_combined_graph(mm_output)
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
-    combined_graph, out_path = out_path,
+    mm_output["combined_graph"], out_path = out_path,
     layout_algorithm = 'fr',    
     
     # You can remove specific interaction types from the graph
@@ -206,10 +206,10 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
 # best_stoichiometry, paths = stoichiometric_space_exploration_pipeline(mm_output)
 
 # Create 3D network, generate a layout and create py3Dmol/Plotly visualizations
-nw = mm.Network(mm_output['combined_graph'], logger = logger)
+nw = mm.Network(combined_graph, logger = logger)
 nw.generate_layout()
-nw.generate_py3dmol_plot(save_path = out_path + '/3D_graph_py3Dmol.html', show_plot=True)
-nw.generate_plotly_3d_plot(save_path = out_path + '/3D_graph_plotly.html', show_plot=True)
+nw.generate_py3dmol_plot(save_path = out_path + '/graphs/3D_graph_py3Dmol.html', show_plot=True)
+nw.generate_plotly_3d_plot(save_path = out_path + '/graphs/3D_graph_plotly.html', show_plot=True)
 
 # Generate RMSF, pLDDT clusters & RMSD trajectories considering models as monomers
 mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(

@@ -1051,7 +1051,7 @@ def create_contact_maps_with_buttons(cluster_dict, pair):
         visibility = [j == i for j in range(len(cluster_dict))]
         
         button = dict(
-            label=f'Cluster {i}',
+            label=f'{i}',
             method='update',
             args=[
                 {'visible': visibility},
@@ -1084,11 +1084,26 @@ def create_contact_maps_with_buttons(cluster_dict, pair):
         updatemenus=[dict(
             type="buttons",
             direction="right",
+            xanchor="left",
+            yanchor="top",
             active=0,
-            x=0.5,
+            x=0.0,
             y=1.15,
-            buttons=buttons
-        )]
+            buttons=buttons,
+            pad={"r": 5, "t": 5},
+            showactive=True
+        )],
+        annotations=[
+            dict(
+                text="Cluster:",
+                x=0.0,
+                y=1.19,  # Position above the buttons
+                xref="paper",  # Relative to figure
+                yref="paper",
+                showarrow=False,
+                font=dict(size=14, family="Arial", color="black")
+            )
+        ]
     )
     
     return fig
@@ -1141,18 +1156,33 @@ def create_pca_plot(reduced_features, labels, model_keys, explained_variance, al
         updatemenus=[dict(
             type="buttons",
             direction="right",
+            xanchor="left",
+            yanchor="top",
             active=0,
-            x=0.57,
-            y=1.2,
+            pad={"r": 5, "t": 5},
+            showactive=True,
+            x=0.0,
+            y=1.17,
             buttons=list([
-                dict(label="Cluster Colors", method="update", args=[{"visible": [True]*n_clusters + [False]*len(unique_models)}]),
-                dict(label="Model Colors", method="update", args=[{"visible": [False]*n_clusters + [True]*len(unique_models)}]),
+                dict(label="Cluster", method="update", args=[{"visible": [True]*n_clusters + [False]*len(unique_models)}]),
+                dict(label="Model", method="update", args=[{"visible": [False]*n_clusters + [True]*len(unique_models)}]),
             ]),
         )],
         showlegend=True,
         legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5),
         yaxis=dict(scaleanchor="x", scaleratio=1),
         margin=dict(l=50, r=50, t=50, b=100),
+        annotations=[
+            dict(
+                text="Color by:",
+                x=0.0,
+                y=1.21,  # Position above the buttons
+                xref="paper",  # Relative to figure
+                yref="paper",
+                showarrow=False,
+                font=dict(size=14, family="Arial", color="black")
+            )
+        ]
     )
     
     return fig

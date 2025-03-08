@@ -373,8 +373,8 @@ def interactive_igraph_to_plotly(combined_graph,
 
     # Convert combined PPI graph to interactive plotly (Create the directory if it doesn't exist)
     graphs_dir = out_path + "/graphs"
-    os.makedirs(graphs_dir, exist_ok = overwrite)
-    save_html = out_path + "/graphs/2D_graph.html"
+    os.makedirs(graphs_dir, exist_ok = True)
+    save_html = graphs_dir + "/2D_graph.html"
     
     while True:
 
@@ -444,7 +444,7 @@ def interactive_igraph_to_py3dmol(combined_graph, logger, automatic_true = False
 
     # Convert combined PPI graph to interactive plotly (Create the directory if it doesn't exist)
     graphs_dir = out_path + "/graphs"
-    os.makedirs(graphs_dir, exist_ok = overwrite)
+    os.makedirs(graphs_dir, exist_ok = True)
 
     # Generate 3D network visualization
     while True:
