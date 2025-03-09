@@ -867,7 +867,7 @@ def create_interactive_plddt_visualization(
     std_curves: list,
     b_factor_clusters: list,
     domains_df: pd.DataFrame = None,
-    representative_proteins: list = None,
+    plddt_clust_df: pd.DataFrame = None,
     plddt_clusters_folder: str = None,
     y_label: str = "Mean cluster pLDDT",
     fontsize: int = 30,
@@ -883,7 +883,7 @@ def create_interactive_plddt_visualization(
         std_curves (list): List of standard deviation curves for each cluster
         b_factor_clusters (list): Cluster assignments for each model
         domains_df (pd.DataFrame, optional): DataFrame with domain information
-        representative_proteins (list, optional): List of representative proteins for each cluster
+        plddt_clust_df (pd.DataFrame, optional): ["Cluster","Type","Is_chain","Rank","Model","Representative_Partner"]
         plddt_clusters_folder (str, optional): Folder where wordcloud images are stored
         y_label (str): Label for the y-axis
         fontsize (int): Base font size for plot elements
@@ -939,15 +939,21 @@ def create_interactive_plddt_visualization(
         i = cluster_to_index[cluster]
         cluster_number = cluster + 1
         color = colors[i % len(colors)]
-        
-        # Convert array indices (0-based) to residue positions (1-based)
         x_values = list(range(1, len(mean_curves[i]) + 1))
-        
-        # Create hover text
         cluster_size = cluster_counts[cluster]
-        repr_partner = representative_proteins[i] if representative_proteins and i < len(representative_proteins) else "N/A"
-        
-        # Add mean line
+
+        # Extract the most common representative partner
+        repr_partner_list = plddt_clust_df.query(f'Cluster == {cluster_number}')['Representative_Partner'].dropna().tolist()
+        if repr_partner_list:  # Ensure the list is not empty
+            repr_partner, repr_partner_frequency = Counter(repr_partner_list).most_common(1)[0]
+            repr_partner_frequency = repr_partner_frequency/cluster_size*100
+        else:
+            repr_partner, repr_partner_frequency = None, 0  # Handle empty cases
+
+        # Generate the hovertext
+        customdata = list(std_curves[i])
+
+        # Add the trace for each cluster
         fig.add_trace(
             go.Scatter(
                 x=x_values,
@@ -956,17 +962,21 @@ def create_interactive_plddt_visualization(
                 name=f'Cluster {cluster_number}',
                 hovertemplate=(
                     f"<b>Cluster {cluster_number}</b><br>" +
+                    f"Size: {cluster_size} models<br>" +
                     "Residue: %{x}<br>" +
                     "Mean pLDDT: %{y:.2f}<br>" +
-                    f"Std Dev: ±{std_curves[i][0]:.2f}<br>" +
-                    f"Repr. Partner: {repr_partner}<br>" +
-                    f"Size: {cluster_size} models<br>" +
+                    "Std Dev: ±%{customdata:.2f}<br>" +
+                    f"Representative Partner:<br>" +
+                    f"   - Partner: <b>{repr_partner}</b><br>" +
+                    f"   - Freq.: {repr_partner_frequency:.1f}%<br>" +
                     "<extra></extra>"
                 ),
+                customdata=customdata,
+                legendgroup=f'cluster_{cluster_number}',
+                showlegend=True,
             )
         )
         
-        # Add std dev area
         fig.add_trace(
             go.Scatter(
                 x=x_values + x_values[::-1],
@@ -976,29 +986,19 @@ def create_interactive_plddt_visualization(
                 opacity=0.3,
                 line=dict(color='rgba(255,255,255,0)'),
                 hoverinfo='skip',
+                legendgroup=f'cluster_{cluster_number}',
                 showlegend=False,
             )
         )
     
-    # Add domain boundaries if available
     if domains_df is not None:
         matching_domains = domains_df[domains_df['Protein_ID'] == protein_ID]
-        
-        # Add vertical line at position 1
         fig.add_vline(x=1, line=dict(color="black", width=2, dash="dash"))
-        
-        # Add domain annotations
         for _, row in matching_domains.iterrows():
-            # Adjust end position to match 1-based indexing
             end_position = row['End'] + 1
-            
-            # Add vertical line at domain boundary
             fig.add_vline(x=end_position, line=dict(color="black", width=2, dash="dash"))
-            
-            # Add domain label
             mid_point = (row['Start'] + row['End'] + 1) / 2
             y_max = max([max(curve) for curve in mean_curves])
-            
             fig.add_annotation(
                 x=mid_point,
                 y=y_max,
@@ -1008,7 +1008,6 @@ def create_interactive_plddt_visualization(
                 yshift=10,
             )
     
-    # Update layout
     fig.update_layout(
         title=dict(
             text=f"{protein_ID}",
@@ -1016,16 +1015,17 @@ def create_interactive_plddt_visualization(
             x=0.5,
         ),
         legend=dict(
-            font=dict(size=fontsize),
+            font=dict(size=fontsize * 0.8),
             borderwidth=2,
             bordercolor="black",
-            bgcolor="rgba(255, 255, 255, 0.8)"
+            bgcolor="rgba(255, 255, 255, 0.7)",
+            xanchor="auto",
+            yanchor="auto",
         ),
         height=700,
         margin=dict(l=50, r=50, t=100, b=50),
     )
     
-    # Update axes for pLDDT plot
     fig.update_xaxes(
         title=dict(text="Residue", font=dict(size=fontsize * 1.2)),
         tickfont=dict(size=fontsize),
@@ -1041,9 +1041,16 @@ def create_interactive_plddt_visualization(
         gridwidth=1,
         gridcolor="lightgray",
     )
+
+    # # Ensure mode bar is correctly positioned
+    # config = {
+    #     "displayModeBar": True,
+    #     "modeBarButtonsToAdd": [],
+    #     "displaylogo": True
+    # }
     
     # Convert the Plotly figure to HTML
-    plot_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
+    plot_html = fig.to_html(full_html=False, include_plotlyjs='cdn')#, config=config)
     
     # Create HTML with split layout
     html_content = f"""
@@ -1155,7 +1162,7 @@ def create_interactive_plddt_visualization(
                 {plot_html}
             </div>
             <div class="wordcloud-container">
-                <div class="wordcloud-title">Protein Enrichment for Cluster:</div>
+                <div class="wordcloud-title"><br><br><br><br><br>Protein Enrichment for Cluster:</div>
                 <div class="button-container">
     """
     
@@ -1359,7 +1366,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     plddt_clusters_metadata_filename = os.path.join(
         plddt_clusters_folder, f'{protein_ID}-pLDDT_clusters_metadata.tsv')
     proteins_in_models = [model[1] for model in all_chain_info]
-    representative_partner = generate_protein_enrichment(
+    representative_partners = generate_protein_enrichment(
         proteins_in_models = proteins_in_models,
         b_factor_clusters = b_factor_clusters,
         protein_ID = protein_ID,
@@ -1377,7 +1384,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
             "Is_chain"               : [chain_info[0]],
             "Rank"                   : [chain_info[2]],
             "Model"                  : ['__vs__'.join(map(str, chain_info[1]))],
-            "Representative_Partner": [representative_partner[i]]
+            "Representative_Partner" : [representative_partners[i]]
         })
         plddt_clust_df = pd.concat([plddt_clust_df, plddt_model_data], ignore_index=True)
     plddt_clust_df.sort_values('Cluster').to_csv(plddt_clusters_metadata_filename, sep = "\t", index = False)
@@ -1392,7 +1399,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
             std_curves=std_curves,
             b_factor_clusters=b_factor_clusters,
             domains_df=domains_df,
-            representative_proteins=representative_partner,
+            plddt_clust_df=plddt_clust_df,
             plddt_clusters_folder=plddt_clusters_folder,
             y_label="Mean cluster pLDDT",
             show_plot=False,
