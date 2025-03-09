@@ -6,6 +6,12 @@ import numpy as np
 from Bio.PDB import Chain, Superimposer
 from Bio.PDB.Polypeptide import protein_letters_3to1
 import seaborn as sns
+import plotly.graph_objects as go
+import plotly.express as px
+# from plotly.subplots import make_subplots
+import base64
+from collections import Counter
+import os
 
 from traj.partners_density import analyze_protein_distribution, save_results_to_csv, plot_distributions, html_interactive_metadata
 from utils.logger_setup import configure_logger
@@ -436,7 +442,10 @@ def cluster_curves(curve_lists, domains_df: pd.DataFrame | None = None,
         filename (str): Filename to save the plot.
 
     Returns:
-        List[int]: Cluster assignments for each curve.
+        Tuple[List[int], List[np.ndarray], List[np.ndarray]]: A tuple containing:
+            - Cluster assignments for each curve
+            - Mean curves for each cluster
+            - Standard deviation curves for each cluster
     """
     if logger is None:
         logger = configure_logger()(__name__)
@@ -523,7 +532,7 @@ def cluster_curves(curve_lists, domains_df: pd.DataFrame | None = None,
     
     plt.close()
 
-    return cluster_assignments
+    return cluster_assignments, mean_curves, std_curves
 
 def calculate_rmsf(all_coords):
     """
@@ -851,6 +860,345 @@ def generate_protein_enrichment(proteins_in_models,
 
     return representative_proteins
 
+########### Interactive pLDDT clusters #########
+def create_interactive_plddt_visualization(
+    protein_ID: str,
+    mean_curves: list,
+    std_curves: list,
+    b_factor_clusters: list,
+    domains_df: pd.DataFrame = None,
+    representative_proteins: list = None,
+    plddt_clusters_folder: str = None,
+    y_label: str = "Mean cluster pLDDT",
+    fontsize: int = 30,
+    show_plot: bool = False,
+    logger: Logger | None = None):
+    """
+    Creates an interactive visualization combining pLDDT clusters and protein enrichment wordclouds
+    using Plotly for the cluster plot and HTML for the layout.
+    
+    Args:
+        protein_ID (str): ID of the protein being analyzed
+        mean_curves (list): List of mean curves for each cluster
+        std_curves (list): List of standard deviation curves for each cluster
+        b_factor_clusters (list): Cluster assignments for each model
+        domains_df (pd.DataFrame, optional): DataFrame with domain information
+        representative_proteins (list, optional): List of representative proteins for each cluster
+        plddt_clusters_folder (str, optional): Folder where wordcloud images are stored
+        y_label (str): Label for the y-axis
+        fontsize (int): Base font size for plot elements
+        show_plot (bool): Whether to show the plot in browser
+        logger (Logger, optional): Logger object for logging information
+        
+    Returns:
+        str: Path to the saved HTML file
+    """
+    
+    if logger is None:
+        logger = configure_logger()(__name__)
+    
+    # Count the number of models in each cluster
+    cluster_counts = Counter(b_factor_clusters)
+    
+    # Number of clusters
+    num_clusters = len(set(b_factor_clusters))
+    
+    # Get image paths for each cluster
+    wordcloud_images = []
+    for cluster in range(num_clusters):
+        wordcloud_path = os.path.join(
+            plddt_clusters_folder, 
+            "protein_IDs_clouds", 
+            f"{protein_ID}_cluster_{cluster+1}_protein_clouds.png"
+        )
+        wordcloud_images.append(wordcloud_path)
+    
+    # Read and encode images
+    encoded_images = []
+    for img_path in wordcloud_images:
+        try:
+            with open(img_path, "rb") as img_file:
+                encoded_image = base64.b64encode(img_file.read()).decode()
+                encoded_images.append(encoded_image)
+        except FileNotFoundError:
+            logger.warn(f"Image file not found: {img_path}")
+            encoded_images.append("")
+    
+    # Create figure for pLDDT plot
+    fig = go.Figure()
+    
+    # Colors for clusters
+    colors = px.colors.qualitative.D3 if hasattr(px.colors.qualitative, 'D3') else px.colors.qualitative.Plotly
+    
+    # Create a mapping of unique clusters to indices
+    unique_clusters = sorted(set(b_factor_clusters))
+    cluster_to_index = {cluster: i for i, cluster in enumerate(unique_clusters)}
+    
+    # Add traces for each cluster
+    for cluster in unique_clusters:
+        i = cluster_to_index[cluster]
+        cluster_number = cluster + 1
+        color = colors[i % len(colors)]
+        
+        # Convert array indices (0-based) to residue positions (1-based)
+        x_values = list(range(1, len(mean_curves[i]) + 1))
+        
+        # Create hover text
+        cluster_size = cluster_counts[cluster]
+        repr_partner = representative_proteins[i] if representative_proteins and i < len(representative_proteins) else "N/A"
+        
+        # Add mean line
+        fig.add_trace(
+            go.Scatter(
+                x=x_values,
+                y=mean_curves[i],
+                line=dict(color=color, width=4),
+                name=f'Cluster {cluster_number}',
+                hovertemplate=(
+                    f"<b>Cluster {cluster_number}</b><br>" +
+                    "Residue: %{x}<br>" +
+                    "Mean pLDDT: %{y:.2f}<br>" +
+                    f"Std Dev: ±{std_curves[i][0]:.2f}<br>" +
+                    f"Repr. Partner: {repr_partner}<br>" +
+                    f"Size: {cluster_size} models<br>" +
+                    "<extra></extra>"
+                ),
+            )
+        )
+        
+        # Add std dev area
+        fig.add_trace(
+            go.Scatter(
+                x=x_values + x_values[::-1],
+                y=list(mean_curves[i] + std_curves[i]) + list(mean_curves[i] - std_curves[i])[::-1],
+                fill='toself',
+                fillcolor=color,
+                opacity=0.3,
+                line=dict(color='rgba(255,255,255,0)'),
+                hoverinfo='skip',
+                showlegend=False,
+            )
+        )
+    
+    # Add domain boundaries if available
+    if domains_df is not None:
+        matching_domains = domains_df[domains_df['Protein_ID'] == protein_ID]
+        
+        # Add vertical line at position 1
+        fig.add_vline(x=1, line=dict(color="black", width=2, dash="dash"))
+        
+        # Add domain annotations
+        for _, row in matching_domains.iterrows():
+            # Adjust end position to match 1-based indexing
+            end_position = row['End'] + 1
+            
+            # Add vertical line at domain boundary
+            fig.add_vline(x=end_position, line=dict(color="black", width=2, dash="dash"))
+            
+            # Add domain label
+            mid_point = (row['Start'] + row['End'] + 1) / 2
+            y_max = max([max(curve) for curve in mean_curves])
+            
+            fig.add_annotation(
+                x=mid_point,
+                y=y_max,
+                text=f"Dom{row['Domain']}",
+                showarrow=False,
+                font=dict(size=fontsize/2),
+                yshift=10,
+            )
+    
+    # Update layout
+    fig.update_layout(
+        title=dict(
+            text=f"{protein_ID}",
+            font=dict(size=fontsize * 1.4),
+            x=0.5,
+        ),
+        legend=dict(
+            font=dict(size=fontsize),
+            borderwidth=2,
+            bordercolor="black",
+            bgcolor="rgba(255, 255, 255, 0.8)"
+        ),
+        height=700,
+        margin=dict(l=50, r=50, t=100, b=50),
+    )
+    
+    # Update axes for pLDDT plot
+    fig.update_xaxes(
+        title=dict(text="Residue", font=dict(size=fontsize * 1.2)),
+        tickfont=dict(size=fontsize),
+        showgrid=True,
+        gridwidth=1,
+        gridcolor="lightgray",
+    )
+    
+    fig.update_yaxes(
+        title=dict(text=y_label, font=dict(size=fontsize * 1.2)),
+        tickfont=dict(size=fontsize),
+        showgrid=True,
+        gridwidth=1,
+        gridcolor="lightgray",
+    )
+    
+    # Convert the Plotly figure to HTML
+    plot_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
+    
+    # Create HTML with split layout
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>{protein_ID} - pLDDT Clusters and Protein Enrichment</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 20px;
+            }}
+            .container {{
+                display: flex;
+                flex-wrap: wrap;
+                width: 100%;
+            }}
+            .plot-container {{
+                width: 66%;
+                min-width: 600px;
+            }}
+            .wordcloud-container {{
+                width: 33%;
+                min-width: 300px;
+                padding: 0 20px;
+                box-sizing: border-box;
+                text-align: center;
+            }}
+            .wordcloud-title {{
+                font-size: {fontsize}px;
+                margin-bottom: 15px;
+                font-weight: bold;
+            }}
+            .wordcloud-image {{
+                max-width: 100%;
+                height: auto;
+                margin: 20px 0;
+                max-height: 500px;
+            }}
+            .button-container {{
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px;
+                margin-bottom: 20px;
+            }}
+            .cluster-button {{
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+                font-weight: bold;
+                background-color: #f0f0f0;
+                border: 2px solid #999;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: background-color 0.3s;
+            }}
+            .cluster-button:hover {{
+                background-color: #ddd;
+            }}
+            .cluster-button.active {{
+                background-color: #4CAF50;
+                color: white;
+                border-color: #2E7D32;
+            }}
+            @media (max-width: 1100px) {{
+                .plot-container, .wordcloud-container {{
+                    width: 100%;
+                    padding: 0;
+                }}
+            }}
+        </style>
+        <script>
+            function showWordcloud(clusterNum) {{
+                // Hide all wordclouds
+                var wordclouds = document.getElementsByClassName('wordcloud-image');
+                for (var i = 0; i < wordclouds.length; i++) {{
+                    wordclouds[i].style.display = 'none';
+                }}
+                
+                // Show the selected wordcloud
+                var selectedWordcloud = document.getElementById('wordcloud-' + clusterNum);
+                if (selectedWordcloud) {{
+                    selectedWordcloud.style.display = 'block';
+                }}
+                
+                // Update buttons
+                var buttons = document.getElementsByClassName('cluster-button');
+                for (var i = 0; i < buttons.length; i++) {{
+                    buttons[i].classList.remove('active');
+                }}
+                
+                var selectedButton = document.getElementById('button-' + clusterNum);
+                if (selectedButton) {{
+                    selectedButton.classList.add('active');
+                }}
+            }}
+            
+            // Initialize with the first cluster selected
+            window.onload = function() {{
+                showWordcloud(1);
+            }};
+        </script>
+    </head>
+    <body>
+        <div class="container">
+            <div class="plot-container">
+                {plot_html}
+            </div>
+            <div class="wordcloud-container">
+                <div class="wordcloud-title">Protein Enrichment for Cluster:</div>
+                <div class="button-container">
+    """
+    
+    # Add buttons for each cluster
+    for i in range(1, num_clusters + 1):
+        html_content += f"""
+                    <button id="button-{i}" class="cluster-button" onclick="showWordcloud({i})">{i}</button>
+        """
+    
+    html_content += """
+                </div>
+    """
+    
+    # Add wordcloud images
+    for i, encoded_image in enumerate(encoded_images, 1):
+        if encoded_image:
+            html_content += f"""
+                <img id="wordcloud-{i}" class="wordcloud-image" src="data:image/png;base64,{encoded_image}" style="display: none;">
+            """
+    
+    html_content += """
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    # Save the HTML file
+    output_filename = os.path.join(plddt_clusters_folder, f"{protein_ID}-interactive_plddt_clusters.html")
+    with open(output_filename, 'w') as f:
+        f.write(html_content)
+    
+    logger.info(f"   - Interactive pLDDT visualization saved to {output_filename}")
+    
+    # Open in browser if requested
+    if show_plot:
+        import webbrowser
+        webbrowser.open('file://' + os.path.abspath(output_filename))
+    
+    return output_filename
+
+################################
+
 
 # Helper functions for RMSD trajectories
 def get_domain_mean_plddt(chain, domain_start, domain_end):
@@ -877,6 +1225,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                                                   "highest_plddt"] = "highest_plddt",
                             plddt_clustering_method = 'silhouette',
                             repeated_protein_IDs_cloud_mode = "single_query_repeat",
+                            generate_interactive_viz: bool = True,
                             logger: logging.Logger | None = None, log_level: str = "info"):
     """
     Calculate the RMSD trajectory, RMSF, and B-factor clustering for a protein across different models.
@@ -889,7 +1238,11 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
         all_pdb_data (dict): A dictionary containing PDB data structures.
         out_path (str): output path of MM project
         point_of_ref (Literal["lowest_plddt", "highest_plddt"]): The reference point for RMSD calculation.
-        n_clusters (int): Number of clusters for B-factor clustering.
+        plddt_clustering_method (str): Method for clustering pLDDT curves.
+        repeated_protein_IDs_cloud_mode (str): Mode for handling repeated proteins in enrichment.
+        generate_interactive_viz (bool): Whether to generate interactive visualization.
+        logger (logging.Logger, optional): Logger for logging information.
+        log_level (str): Logging level.
 
     Returns:
         dict: A dictionary containing RMSD values, RMSF values, B-factor clusters, and related information.
@@ -988,15 +1341,17 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     
     # Generate automatic pLDDT (b-factors) clusters using the silhouette method
     plddt_clusters_filename = os.path.join(plddt_clusters_folder, protein_ID + "-pLDDT_clusters.png")
-    b_factor_clusters = cluster_curves(b_factors,
-                                       domains_df = domains_df,
-                                       method = plddt_clustering_method,
-                                       y_label = "Mean cluster pLDDT",
-                                       x_label = "Position",
-                                       protein_ID = protein_ID,
-                                       filename = plddt_clusters_filename,
-                                       show_plot = False,
-                                       logger = logger)
+    b_factor_clusters, mean_curves, std_curves = cluster_curves(
+        b_factors,
+        domains_df = domains_df,
+        method = plddt_clustering_method,
+        y_label = "Mean cluster pLDDT",
+        x_label = "Position",
+        protein_ID = protein_ID,
+        filename = plddt_clusters_filename,
+        show_plot = False,
+        logger = logger
+    )
     
     # Save pLDDT clusters metadata
     plddt_clust_df_cols = ['Cluster', 'Type', 'Is_chain', 'Rank', 'Model', 'Representative_Partner']
@@ -1010,7 +1365,9 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
         protein_ID = protein_ID,
         plddt_clusters_folder = plddt_clusters_folder,
         out_path = out_path,
-        mode = repeated_protein_IDs_cloud_mode)
+        mode = repeated_protein_IDs_cloud_mode
+    )
+    
     for i, cluster in enumerate(b_factor_clusters):
         chain_type = all_chain_types[i]
         chain_info = all_chain_info[i]
@@ -1025,6 +1382,25 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
         plddt_clust_df = pd.concat([plddt_clust_df, plddt_model_data], ignore_index=True)
     plddt_clust_df.sort_values('Cluster').to_csv(plddt_clusters_metadata_filename, sep = "\t", index = False)
     
+    # Create interactive visualization if requested
+    if generate_interactive_viz:
+        logger.info(f"   - Creating interactive pLDDT visualization for {protein_ID}...")
+        
+        interactive_viz_path = create_interactive_plddt_visualization(
+            protein_ID=protein_ID,
+            mean_curves=mean_curves,
+            std_curves=std_curves,
+            b_factor_clusters=b_factor_clusters,
+            domains_df=domains_df,
+            representative_proteins=representative_partner,
+            plddt_clusters_folder=plddt_clusters_folder,
+            y_label="Mean cluster pLDDT",
+            show_plot=False,
+            logger=logger
+        )
+        
+        logger.info(f"   - Interactive visualization saved to: {interactive_viz_path}")
+
     # Create PDB trajectory dirs (one for each protein)
     trajectory_folder = os.path.join(out_path, 'monomer_trajectories')
     protein_trajectory_folder = os.path.join(trajectory_folder, protein_ID)
