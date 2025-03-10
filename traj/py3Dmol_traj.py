@@ -173,7 +173,7 @@ def create_trajectory_viewer(pdb_file, output_html):
         }
         .viewer-container {
             width: 600px;
-            height: 400px;
+            height: 600px;
             margin: 20px auto;
             border: 1px solid #ddd;
             border-radius: 4px;

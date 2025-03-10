@@ -22,3 +22,4 @@ dependencies:
   - tqdm==4.66.5
   - plotnine==0.12.4
   - seaborn==0.13.2
+  - bs4==4.13.3
