@@ -726,6 +726,8 @@ def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_traject
                     
                     RMSDs: list, pLDDTs: np.array, mean_pLDDTs: list, ROGs: np.array,
 
+                    rot_matrixes: list, tran_vectors: list,
+
                     all_chains, all_chain_types, all_chain_info, domain_start=None, domain_end=None):
     
     trajectory_file = os.path.join(protein_trajectory_folder, f'{protein_ID}_{filename_suffix}_traj.pdb')
@@ -752,13 +754,26 @@ def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_traject
                 "ROG"     : [ROGs[idx]]
                 })
             trajectory_df = pd.concat([trajectory_df, model_data], ignore_index=True)
+
+            ### APPLY ROTATION AND TRANSLATION TO ALL ATOMS ###
+            rotation_matrix = rot_matrixes[idx]
+            translation_vector = tran_vectors[idx]
             
+            # Apply transformation at the chain level
+            chain.transform(rotation_matrix, translation_vector)
+
+            # Save transformed chain            
             io.set_structure(chain.parent)
             if domain_start is not None and domain_end is not None:
                 io.save(f1, select=DomainSelect(chain, domain_start, domain_end), write_end=False)
             else:
                 io.save(f1, select=ChainSelect(chain), write_end=False)
             f1.write(f"ENDMDL\nTITLE     {model_name}\n")
+
+            ### REVERT BACK TO ORIGINAL POSITIONS ###
+            inverse_rotation = rotation_matrix.T
+            inverse_translation = -np.dot(inverse_rotation, translation_vector)
+            chain.transform(inverse_rotation, inverse_translation)
     
     # Generate some plots
     plot_traj_metadata(metadata_list = trajectory_df['RMSD'],
@@ -1292,6 +1307,8 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     b_factors = []
     rmsf_values = []
     rmsf_values_per_domain = []
+    monomer_rot_matrixes = []
+    monomer_tran_vectors = []
 
     # Initialize superimposer
     super_imposer = PDB.Superimposer()
@@ -1327,6 +1344,10 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
         # Apply rotation and translation to the coordinates
         rotation_matrix, translation_vector = super_imposer.rotran
         transformed_coords = np.dot(chain_coords, rotation_matrix.T) + translation_vector
+
+        # Save rotation matrix and translation vector
+        monomer_rot_matrixes.append(rotation_matrix)
+        monomer_tran_vectors.append(translation_vector)
 
         # Store coordinates and pLDDT values
         all_coords.append(transformed_coords)
@@ -1440,9 +1461,11 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
             domain_ref_atoms = get_best_reference_domain(all_chains, domain_start, domain_end)
 
             # Initialize lists
-            domain_rmsd_values = []
-            domain_all_coords  = []
-            domain_b_factors   = []
+            domain_rmsd_values  = []
+            domain_all_coords   = []
+            domain_b_factors    = []
+            domain_rot_matrixes = []
+            domain_tran_vectors = []
 
             for chain in all_chains:
                 domain_chain_atoms = get_domain_atoms(chain, domain_start, domain_end)
@@ -1458,6 +1481,10 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                 # Apply rotation and translation to the coordinates
                 rotation_matrix, translation_vector = super_imposer.rotran
                 transformed_coords = np.dot(domain_chain_coords, rotation_matrix.T) + translation_vector
+
+                # Save rotation matrix and translation vector
+                domain_rot_matrixes.append(rotation_matrix)
+                domain_tran_vectors.append(translation_vector)
 
                 # Store coordinates and pLDDT values
                 domain_all_coords.append(transformed_coords)
@@ -1501,6 +1528,9 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                             pLDDTs = domain_b_factors,
                             mean_pLDDTs = domain_mean_pLDDTs,
                             ROGs = domain_ROGs,
+
+                            rot_matrixes = domain_rot_matrixes,
+                            tran_vectors = domain_tran_vectors,
 
                             all_chains=all_chains,
                             all_chain_types=all_chain_types,
@@ -1605,6 +1635,9 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                                      pLDDTs = b_factors,
                                      mean_pLDDTs = monomer_mean_pLDDTs,
                                      ROGs = monomer_ROGs,
+
+                                     rot_matrixes = monomer_rot_matrixes,
+                                     tran_vectors = monomer_tran_vectors,
 
                                      all_chains = all_chains,
                                      all_chain_types = all_chain_types,
