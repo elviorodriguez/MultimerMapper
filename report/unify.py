@@ -30,9 +30,6 @@ def create_report(directory_path):
     # Collect available fallback analysis images
     fallback_images = get_fallback_images(directory_path)
     
-    # # Collect available combinations suggestion files
-    # combinations_files = get_combinations_files(directory_path)
-
     # Collect combination suggestion files with content
     combinations_data = get_combinations_data(directory_path)
 
@@ -164,13 +161,6 @@ def get_fallback_images(directory_path):
     """Get all PNG files in the fallback_analysis directory."""
     fallback_images = glob.glob(os.path.join(directory_path, "fallback_analysis", "*.png"))
     return [os.path.relpath(img, directory_path) for img in fallback_images]
-
-# def get_combinations_files(directory_path):
-#     """Get all text files in the combinations_suggestions directory."""
-#     files = glob.glob(os.path.join(directory_path, "combinations_suggestions", "*.txt"))
-#     files.extend(glob.glob(os.path.join(directory_path, "combinations_suggestions", "*.csv")))
-#     files.extend(glob.glob(os.path.join(directory_path, "combinations_suggestions", "*.fasta")))
-#     return [os.path.relpath(f, directory_path) for f in files]
 
 def get_combinations_data(directory_path):
     """Read contents of combination suggestion files."""
