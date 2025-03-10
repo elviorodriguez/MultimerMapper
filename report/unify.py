@@ -910,7 +910,8 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
                 button.className = 'protein-button';
                 button.textContent = protein;
                 button.addEventListener('click', () => {{
-                    loadInFrame(`domains/${{protein}}-domains_plot.html`);
+                    // Replace loadInFrame with setMainContent to recreate iframe
+                    setMainContent(`<iframe id="main-frame" src="domains/${{protein}}-domains_plot.html"></iframe>`);
                     document.getElementById('domains-panel').style.right = '-600px';
                 }});
                 container.appendChild(button);
@@ -926,7 +927,8 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
                 button.className = 'protein-button';
                 button.textContent = protein;
                 button.addEventListener('click', () => {{
-                    loadInFrame(plddtClusters[protein]);
+                    // Replace loadInFrame with setMainContent to recreate iframe
+                    setMainContent(`<iframe id="main-frame" src="${{plddtClusters[protein]}}"></iframe>`);
                     document.getElementById('plddt-clusters-panel').style.right = '-600px';
                 }});
                 container.appendChild(button);
