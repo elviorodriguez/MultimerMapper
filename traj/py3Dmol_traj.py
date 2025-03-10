@@ -24,7 +24,7 @@ def parse_pdb_models(pdb_file):
         content = f.read()
     
     # For debugging
-    print(f"Read PDB file: {pdb_file}, size: {len(content)} bytes")
+    # print(f"Read PDB file: {pdb_file}, size: {len(content)} bytes")
     
     # Split the content into models based on ENDMDL + TITLE pattern
     models_raw = []
@@ -35,7 +35,7 @@ def parse_pdb_models(pdb_file):
     model_matches = re.findall(model_pattern, content, re.DOTALL)
     
     if model_matches:
-        print(f"Found {len(model_matches)} models using ENDMDL+TITLE pattern")
+        # print(f"Found {len(model_matches)} models using ENDMDL+TITLE pattern")
         
         for i, model_text in enumerate(model_matches):
             # Extract the title from the end of the model text
@@ -52,7 +52,7 @@ def parse_pdb_models(pdb_file):
             model_titles.append(model_title)
     else:
         # Fallback method: Try to split by just ENDMDL
-        print("No models found with ENDMDL+TITLE pattern. Trying alternative approach...")
+        # print("No models found with ENDMDL+TITLE pattern. Trying alternative approach...")
         
         sections = content.split('ENDMDL')
         
@@ -77,17 +77,17 @@ def parse_pdb_models(pdb_file):
                     else:
                         model_titles.append(f"Model {i+1}")
         
-        print(f"Found {len(models_raw)} models using ENDMDL-only pattern")
+        # print(f"Found {len(models_raw)} models using ENDMDL-only pattern")
     
     # If still no models found, try another approach based on ATOM pattern
     if not models_raw:
-        print("Still no models found. Trying to parse based on ATOM sections...")
+        # print("Still no models found. Trying to parse based on ATOM sections...")
         
         # Look for patterns where ATOM 1 appears (beginning of each model)
         atom_starts = [m.start() for m in re.finditer(r'ATOM\s+1\s+N\s+MET', content)]
         
         if len(atom_starts) > 1:
-            print(f"Found {len(atom_starts)} potential model starts with 'ATOM 1'")
+            # print(f"Found {len(atom_starts)} potential model starts with 'ATOM 1'")
             
             for i in range(len(atom_starts)):
                 start = atom_starts[i]
@@ -110,16 +110,16 @@ def parse_pdb_models(pdb_file):
                 model_titles.append(model_title)
     
     # Print some diagnostic info about the models
-    print(f"Found {len(models_raw)} models in the PDB file")
+    # print(f"Found {len(models_raw)} models in the PDB file")
     for i, model in enumerate(models_raw):
         atom_count = model.count("ATOM")
         hetatm_count = model.count("HETATM")
-        print(f"Model {i+1}: {atom_count} ATOM records, {hetatm_count} HETATM records")
-        print(f"Title: {model_titles[i]}")
+        # print(f"Model {i+1}: {atom_count} ATOM records, {hetatm_count} HETATM records")
+        # print(f"Title: {model_titles[i]}")
         
         # Print the first few lines of each model for verification
         first_lines = model.split('\n')[:2]
-        print(f"First lines: {first_lines}")
+        # print(f"First lines: {first_lines}")
         
         # Check if model starts with ATOM and contains ENDMDL
         if not model.lstrip().startswith("ATOM"):
@@ -142,7 +142,7 @@ def create_trajectory_viewer(pdb_file, output_html):
     # Parse PDB models
     models, model_titles = parse_pdb_models(pdb_file)
     
-    print(f"Found {len(models)} models in the PDB file")
+    # print(f"Found {len(models)} models in the PDB file")
     
     # Embed models and titles in the HTML
     html_content = """
@@ -153,6 +153,9 @@ def create_trajectory_viewer(pdb_file, output_html):
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
     <style>
+        h1 {
+            text-align: center;
+        }
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -253,6 +256,7 @@ def create_trajectory_viewer(pdb_file, output_html):
                 <option value="chain">Chain</option>
                 <option value="residue">Residue</option>
                 <option value="secondary">Secondary Structure</option>
+                <option value="plddt">pLDDT</option>
             </select>
         </div>
         <div class="controls">
@@ -274,6 +278,61 @@ def create_trajectory_viewer(pdb_file, output_html):
     </div>
 
     <script>
+        // Define custom colorscale for pLDDT
+        const plddt_colorscale = [
+            [0.0, "#FF0000"],
+            [0.4, "#FFA500"],
+            [0.6, "#FFFF00"],
+            [0.8, "#ADD8E6"],
+            [1.0, "#00008B"]
+        ];
+
+        // Helper function to interpolate colors in the scale
+        function getColorFromScale(value, scale) {
+            // Find the appropriate color range
+            let lowerIndex = 0;
+            for (let i = 0; i < scale.length; i++) {
+                if (value <= scale[i][0]) {
+                    break;
+                }
+                lowerIndex = i;
+            }
+            
+            // If at the end of the scale, return the last color
+            if (lowerIndex >= scale.length - 1) {
+                return scale[scale.length - 1][1];
+            }
+            
+            // Interpolate between the two nearest colors
+            const lowerValue = scale[lowerIndex][0];
+            const upperValue = scale[lowerIndex + 1][0];
+            const valueFraction = (value - lowerValue) / (upperValue - lowerValue);
+            
+            const lowerColor = hexToRgb(scale[lowerIndex][1]);
+            const upperColor = hexToRgb(scale[lowerIndex + 1][1]);
+            
+            // Linear interpolation of RGB values
+            const r = Math.round(lowerColor.r + valueFraction * (upperColor.r - lowerColor.r));
+            const g = Math.round(lowerColor.g + valueFraction * (upperColor.g - lowerColor.g));
+            const b = Math.round(lowerColor.b + valueFraction * (upperColor.b - lowerColor.b));
+            
+            return rgbToHex(r, g, b);
+        }
+
+        // Helper function to convert hex to rgb
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : {r: 0, g: 0, b: 0};
+        }
+
+        // Helper function to convert rgb to hex
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+        }
         // Function to show status messages
         function showStatus(message, isError = false) {
             const statusElement = document.getElementById('status');
@@ -327,6 +386,16 @@ def create_trajectory_viewer(pdb_file, output_html):
                 styleObj[style] = {colorscheme: 'amino'};
             } else if (colorScheme === 'secondary') {
                 styleObj[style] = {colorscheme: 'ssPyMOL'};
+            } else if (colorScheme === 'plddt') {
+                // Apply pLDDT coloring based on B-factor values
+                styleObj[style] = {colorfunc: function(atom) {
+                    // Normalize B-factor value (clamped between 0 and 100)
+                    const bfactor = Math.max(0, Math.min(100, atom.b));
+                    const normalizedValue = bfactor / 100;
+                    
+                    // Find the color using the pLDDT colorscale
+                    return getColorFromScale(normalizedValue, plddt_colorscale);
+                }};
             }
             
             viewer.setStyle({}, styleObj);
@@ -533,7 +602,7 @@ def create_trajectory_viewer(pdb_file, output_html):
     with open(output_html, 'w') as f:
         f.write(html_content)
     
-    print(f"Trajectory viewer created at: {output_html}")
+    # print(f"Trajectory viewer created at: {output_html}")
     return output_html
 
 if __name__ == "__main__":
