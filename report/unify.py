@@ -30,8 +30,18 @@ def create_report(directory_path):
     # Collect available fallback analysis images
     fallback_images = get_fallback_images(directory_path)
     
-    # Collect available combinations suggestion files
-    combinations_files = get_combinations_files(directory_path)
+    # # Collect available combinations suggestion files
+    # combinations_files = get_combinations_files(directory_path)
+
+    # Collect combination suggestion files with content
+    combinations_data = get_combinations_data(directory_path)
+
+    # Read log content if exists
+    log_content = None
+    log_path = os.path.join(directory_path, "multimer_mapper.log")
+    if os.path.exists(log_path):
+        with open(log_path, "r") as f:
+            log_content = f.read()
     
     # Generate the main HTML content
     html_content = generate_html(
@@ -41,7 +51,8 @@ def create_report(directory_path):
         plddt_clusters, 
         monomer_trajectories,
         fallback_images,
-        combinations_files
+        combinations_data,
+        log_content
     )
     
     # Write the HTML content to the output file
@@ -154,15 +165,36 @@ def get_fallback_images(directory_path):
     fallback_images = glob.glob(os.path.join(directory_path, "fallback_analysis", "*.png"))
     return [os.path.relpath(img, directory_path) for img in fallback_images]
 
-def get_combinations_files(directory_path):
-    """Get all text files in the combinations_suggestions directory."""
-    files = glob.glob(os.path.join(directory_path, "combinations_suggestions", "*.txt"))
-    files.extend(glob.glob(os.path.join(directory_path, "combinations_suggestions", "*.csv")))
-    files.extend(glob.glob(os.path.join(directory_path, "combinations_suggestions", "*.fasta")))
-    return [os.path.relpath(f, directory_path) for f in files]
+# def get_combinations_files(directory_path):
+#     """Get all text files in the combinations_suggestions directory."""
+#     files = glob.glob(os.path.join(directory_path, "combinations_suggestions", "*.txt"))
+#     files.extend(glob.glob(os.path.join(directory_path, "combinations_suggestions", "*.csv")))
+#     files.extend(glob.glob(os.path.join(directory_path, "combinations_suggestions", "*.fasta")))
+#     return [os.path.relpath(f, directory_path) for f in files]
+
+def get_combinations_data(directory_path):
+    """Read contents of combination suggestion files."""
+    files = glob.glob(os.path.join(directory_path, "combinations_suggestions", "*"))
+    combinations_data = []
+    
+    for file_path in files:
+        try:
+            with open(file_path, "r") as f:
+                content = f.read()
+            combinations_data.append({
+                "filename": os.path.basename(file_path),
+                "content": content
+            })
+        except Exception as e:
+            combinations_data.append({
+                "filename": os.path.basename(file_path),
+                "content": f"Error reading file: {str(e)}"
+            })
+    
+    return combinations_data
 
 def generate_html(directory_path, protein_names, contact_clusters, plddt_clusters, 
-                  monomer_trajectories, fallback_images, combinations_files):
+                  monomer_trajectories, fallback_images, combinations_data, log_content):
     """Generate the main HTML content."""
     
     # Convert data to JSON for JavaScript use
@@ -171,7 +203,8 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
     monomer_trajectories_json = json.dumps(monomer_trajectories)
     protein_names_json = json.dumps(protein_names)
     fallback_images_json = json.dumps(fallback_images)
-    combinations_files_json = json.dumps(combinations_files)
+    combinations_data_json = json.dumps(combinations_data)
+    log_content_json = json.dumps(log_content)
     
     # Main HTML template
     html = f"""<!DOCTYPE html>
@@ -781,7 +814,8 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         const plddtClusters = {plddt_clusters_json};
         const monomerTrajectories = {monomer_trajectories_json};
         const fallbackImages = {fallback_images_json};
-        const combinationsFiles = {combinations_files_json};
+        const combinationsData = {combinations_data_json};
+        const logContent = {log_content_json};
         
         // DOM Elements
         const mainContent = document.getElementById('main-content');
@@ -1171,7 +1205,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         
         // Show Combinations Suggestions
         function showCombinationsSuggestions() {{
-            if (combinationsFiles.length === 0) {{
+            if (combinationsData.length === 0) {{
                 setMainContent(`
                     <div class="about-content">
                         <h2>No Combinations Suggestions Available</h2>
@@ -1187,8 +1221,8 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
                     <ul class="file-list">
             `;
             
-            combinationsFiles.forEach(file => {{
-                const fileName = file.split('/').pop();
+            combinationsData.forEach(file => {{
+                const fileName = file.filename;
                 const fileExt = fileName.split('.').pop().toLowerCase();
                 
                 let icon = 'fa-file-alt';
@@ -1196,7 +1230,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
                 if (fileExt === 'fasta') icon = 'fa-dna';
                 
                 html += `
-                    <li class="file-item" onclick="showFileContent('${{file}}')">
+                    <li class="file-item" onclick="showFileContent('${{fileName}}')">
                         <i class="fas ${{icon}}"></i> ${{fileName}}
                     </li>
                 `;
@@ -1212,37 +1246,28 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         }}
         
         // Show File Content
-        function showFileContent(path) {{
-            fetch(path)
-                .then(response => response.text())
-                .then(content => {{
-                    const container = document.getElementById('file-content-container');
-                    container.innerHTML = `
-                        <div class="file-content">${{content}}</div>
-                    `;
-                }})
-                .catch(error => {{
-                    console.error('Error fetching file:', error);
-                }});
+        function showFileContent(filename) {{
+            const file = combinationsData.find(f => f.filename === filename);
+            if (!file) return;
+            
+            const container = document.getElementById('file-content-container');
+            container.innerHTML = `
+                <div class="file-content">${{file.content}}</div>
+            `;
         }}
         
         // Show Run Loggings
         function showRunLoggings() {{
-            fetch('loggings.txt')
-                .then(response => response.text())
-                .then(content => {{
-                    setMainContent(`
-                        <div class="log-content">${{content}}</div>
-                    `);
-                }})
-                .catch(error => {{
-                    setMainContent(`
-                        <div class="about-content">
-                            <h2>Run Loggings Not Available</h2>
-                            <p>The loggings.txt file was not found in the output directory.</p>
-                        </div>
-                    `);
-                }});
+            if (!logContent) {{
+                setMainContent(`
+                    <div class="about-content">
+                        <h2>Run Loggings Not Available</h2>
+                        <p>The multimer_mapper.log file was not found in the output directory.</p>
+                    </div>
+                `);
+                return;
+            }}
+            setMainContent(`<div class="log-content">${{logContent}}</div>`);
         }}
         
         // Show About Page
