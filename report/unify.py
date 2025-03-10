@@ -622,6 +622,11 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
                 flex-direction: column;
             }}
         }}
+        /* Add this to the existing slide-panel CSS */
+        .slide-panel {{
+            /* existing styles */
+            right: -600px; /* Ensure this matches the initial position */
+        }}
     </style>
 </head>
 <body>
@@ -734,6 +739,39 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
                 <i class="fas fa-eye"></i> View Contact Cluster
             </button>
         </div>
+
+        <!-- Slide panel for domains -->
+        <div class="slide-panel" id="domains-panel">
+            <div class="slide-panel-header">
+                <h3>Domains Selection</h3>
+                <button class="close-panel" id="close-domains-panel">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="protein-selector">
+                <div class="protein-column">
+                    <h4>Select Protein</h4>
+                    <div id="domains-protein-buttons"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide panel for pLDDT Clusters -->
+        <div class="slide-panel" id="plddt-clusters-panel">
+            <div class="slide-panel-header">
+                <h3>pLDDT Clusters Selection</h3>
+                <button class="close-panel" id="close-plddt-panel">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="protein-selector">
+                <div class="protein-column">
+                    <h4>Select Protein</h4>
+                    <div id="plddt-protein-buttons"></div>
+                </div>
+            </div>
+        </div>
+
     </div>
     
     <script>
@@ -825,64 +863,73 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             }});
         }}
         
-        // Initialize Domains dropdown
+        // With this corrected code:
+        // Keep the original menu initialization and add panel handlers
         function initDomainsDropdown() {{
-            const domainsSubmenu = document.getElementById('domains-submenu');
+            // Original dropdown functionality removed, just keep empty
+        }}
+
+        function initPLDDTClustersDropdown() {{
+            // Original dropdown functionality removed, just keep empty
+        }}
+
+        // Add panel handlers for domains and pLDDT clusters
+        document.getElementById('domains-dropdown').addEventListener('click', openDomainsPanel);
+        document.getElementById('plddt-clusters-dropdown').addEventListener('click', openPLDDTPanel);
+
+        // Domains button click handler
+        document.getElementById('domains-dropdown').addEventListener('click', openDomainsPanel);
+        document.getElementById('plddt-clusters-dropdown').addEventListener('click', openPLDDTPanel);
+
+        function openDomainsPanel() {{
+            const panel = document.getElementById('domains-panel');
+            panel.style.right = '0';
+            populateDomainButtons();
             
-            // Clear existing content
-            domainsSubmenu.innerHTML = '';
-            
-            // For each protein, add a submenu item
-            proteinNames.forEach(protein => {{
-                const domainPath = `domains/${{protein}}-domains_plot.html`;
-                
-                // Check if the file exists by checking if it's in the protein names list
-                const submenuItem = document.createElement('div');
-                submenuItem.className = 'submenu-item';
-                submenuItem.textContent = protein;
-                submenuItem.addEventListener('click', () => {{
-                    setMainContent(`<iframe id="main-frame" src="${{domainPath}}"></iframe>`);
-                }});
-                
-                domainsSubmenu.appendChild(submenuItem);
-            }});
-            
-            // If dropdown is clicked, set max-height based on content
-            document.getElementById('domains-dropdown').addEventListener('click', () => {{
-                if (domainsSubmenu.style.maxHeight) {{
-                    domainsSubmenu.style.maxHeight = null;
-                }} else {{
-                    domainsSubmenu.style.maxHeight = (proteinNames.length * 40) + 'px';
-                }}
+            document.getElementById('close-domains-panel').addEventListener('click', () => {{
+                panel.style.right = '-600px';
             }});
         }}
-        
-        // Initialize pLDDT Clusters dropdown
-        function initPLDDTClustersDropdown() {{
-            const plddtClustersSubmenu = document.getElementById('plddt-clusters-submenu');
+
+        function openPLDDTPanel() {{
+            const panel = document.getElementById('plddt-clusters-panel');
+            panel.style.right = '0';
+            populatePLDDTButtons();
             
-            // Clear existing content
-            plddtClustersSubmenu.innerHTML = '';
-            
-            // Add submenu items for each protein with pLDDT clusters
-            Object.keys(plddtClusters).forEach(protein => {{
-                const submenuItem = document.createElement('div');
-                submenuItem.className = 'submenu-item';
-                submenuItem.textContent = protein;
-                submenuItem.addEventListener('click', () => {{
-                    setMainContent(`<iframe id="main-frame" src="${{plddtClusters[protein]}}"></iframe>`);
-                }});
-                
-                plddtClustersSubmenu.appendChild(submenuItem);
+            document.getElementById('close-plddt-panel').addEventListener('click', () => {{
+                panel.style.right = '-600px';
             }});
+        }}
+
+        function populateDomainButtons() {{
+            const container = document.getElementById('domains-protein-buttons');
+            container.innerHTML = '';
             
-            // If dropdown is clicked, set max-height based on content
-            document.getElementById('plddt-clusters-dropdown').addEventListener('click', () => {{
-                if (plddtClustersSubmenu.style.maxHeight) {{
-                    plddtClustersSubmenu.style.maxHeight = null;
-                }} else {{
-                    plddtClustersSubmenu.style.maxHeight = (Object.keys(plddtClusters).length * 40) + 'px';
-                }}
+            proteinNames.forEach(protein => {{
+                const button = document.createElement('button');
+                button.className = 'protein-button';
+                button.textContent = protein;
+                button.addEventListener('click', () => {{
+                    loadInFrame(`domains/${{protein}}-domains_plot.html`);
+                    document.getElementById('domains-panel').style.right = '-600px';
+                }});
+                container.appendChild(button);
+            }});
+        }}
+
+        function populatePLDDTButtons() {{
+            const container = document.getElementById('plddt-protein-buttons');
+            container.innerHTML = '';
+            
+            Object.keys(plddtClusters).forEach(protein => {{
+                const button = document.createElement('button');
+                button.className = 'protein-button';
+                button.textContent = protein;
+                button.addEventListener('click', () => {{
+                    loadInFrame(plddtClusters[protein]);
+                    document.getElementById('plddt-clusters-panel').style.right = '-600px';
+                }});
+                container.appendChild(button);
             }});
         }}
         
@@ -1035,6 +1082,11 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             
             Object.keys(monomerTrajectories).forEach(protein => {{
                 const data = monomerTrajectories[protein];
+                // Sort domains numerically
+                const sortedDomains = data.domains.sort((a, b) => 
+                    parseInt(a.domain_num) - parseInt(b.domain_num)
+                );
+                
                 html += `<div class="protein-row">
                     <div class="protein-name">${{protein}}</div>
                     <div class="trajectory-buttons">`;
@@ -1047,7 +1099,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
                     `;
                 }}
                 
-                data.domains.forEach(domain => {{
+                sortedDomains.forEach(domain => {{
                     html += `
                         <button class="trajectory-button" onclick="showSplitView('${{domain.interactive}}', '${{domain.rmsd}}')">
                             <i class="fas fa-puzzle-piece"></i> Domain ${{domain.domain_num}}
