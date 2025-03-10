@@ -14,6 +14,7 @@ from collections import Counter
 import os
 
 from traj.partners_density import analyze_protein_distribution, save_results_to_csv, plot_distributions, html_interactive_metadata
+from traj.py3Dmol_traj import create_trajectory_viewer
 from utils.logger_setup import configure_logger
 
 
@@ -1519,7 +1520,8 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     
 
             # RMSD traj
-            save_trajectory(sorted_indices = domain_RMSD_traj_indices,
+            trajectory_file = save_trajectory(
+                            sorted_indices = domain_RMSD_traj_indices,
                             protein_ID=domain_name,
                             filename_suffix=f'RMSD',
                             protein_trajectory_folder=domain_trajectory_folder,
@@ -1593,6 +1595,10 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
 
                         domain_number=str(domain["Domain"])
                     )
+
+                    input_pdb_filename = domain_trajectory_folder + "/" + os.path.splitext(rmsd_traj_file)[0] + ".pdb"
+                    out_html_py3dmol =  domain_trajectory_folder + "/" +  os.path.splitext(rmsd_traj_file)[0] + ".html"
+                    create_trajectory_viewer(input_pdb_filename, out_html_py3dmol)
 
     else:
         logger.info(f"   - Single domain detected for {protein_ID}, skipping domain analysis...")
@@ -1694,6 +1700,10 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                         rog_values = monomer_ROGs,
                         bpd_values = rolling_data
                     )
+            
+            input_pdb_filename = monomer_trajectory_folder + "/" + os.path.splitext(rmsd_traj_file)[0] + ".pdb"
+            out_html_py3dmol = monomer_trajectory_folder + "/" + os.path.splitext(rmsd_traj_file)[0] + ".html"
+            create_trajectory_viewer(input_pdb_filename, out_html_py3dmol)
     
     # Fill per domain rmsf_values with whole protein
     if not perform_domain_analysis:
