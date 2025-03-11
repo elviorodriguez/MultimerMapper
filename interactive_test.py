@@ -157,33 +157,33 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
                                        auto_domain_detection = auto_domain_detection,
                                        graph_resolution_preset = graph_resolution_preset)
 
-from src.ppi_graphs import generate_combined_graph
-combined_graph, _, _, _ = generate_combined_graph(
+# from src.ppi_graphs import generate_combined_graph
+# combined_graph, _, _, _ = generate_combined_graph(
         
-        # Input
-        mm_output = mm_output,
+#         # Input
+#         mm_output = mm_output,
         
-        # 2-mers cutoffs
-        min_PAE_cutoff_2mers = mm.min_PAE_cutoff_2mers, ipTM_cutoff_2mers = mm.ipTM_cutoff_2mers,
+#         # 2-mers cutoffs
+#         min_PAE_cutoff_2mers = mm.min_PAE_cutoff_2mers, ipTM_cutoff_2mers = mm.ipTM_cutoff_2mers,
         
-        # N-mers cutoffs
-        min_PAE_cutoff_Nmers = mm.min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers = mm.pDockQ_cutoff_Nmers,
+#         # N-mers cutoffs
+#         min_PAE_cutoff_Nmers = mm.min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers = mm.pDockQ_cutoff_Nmers,
         
-        # General cutoffs
-        N_models_cutoff = mm.N_models_cutoff,
+#         # General cutoffs
+#         N_models_cutoff = mm.N_models_cutoff,
 
-        # For RMSD calculations
-        domain_RMSD_plddt_cutoff = mm.domain_RMSD_plddt_cutoff,
-        trimming_RMSD_plddt_cutoff = mm.trimming_RMSD_plddt_cutoff,
+#         # For RMSD calculations
+#         domain_RMSD_plddt_cutoff = mm.domain_RMSD_plddt_cutoff,
+#         trimming_RMSD_plddt_cutoff = mm.trimming_RMSD_plddt_cutoff,
 
-        # Style options (see cfg/default_settings module for their meaning)
-        vertex_color1=mm.vertex_color1, vertex_color2=mm.vertex_color2,
-        vertex_color3=mm.vertex_color3, vertex_color_both=mm.vertex_color_both
-        )
+#         # Style options (see cfg/default_settings module for their meaning)
+#         vertex_color1=mm.vertex_color1, vertex_color2=mm.vertex_color2,
+#         vertex_color3=mm.vertex_color3, vertex_color_both=mm.vertex_color_both
+#         )
 
 
 # Generate interactive graph
-import multimer_mapper as mm
+# import multimer_mapper as mm
 # combined_graph, dynamic_proteins, homooligomerization_states, multivalency_states = mm.generate_combined_graph(mm_output)
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
     mm_output["combined_graph"], out_path = out_path,
@@ -206,12 +206,13 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
 # best_stoichiometry, paths = stoichiometric_space_exploration_pipeline(mm_output)
 
 # Create 3D network, generate a layout and create py3Dmol/Plotly visualizations
-nw = mm.Network(combined_graph, logger = logger)
+nw = mm.Network(mm_output['combined_graph'], logger = logger)
 nw.generate_layout()
 nw.generate_py3dmol_plot(save_path = out_path + '/graphs/3D_graph_py3Dmol.html', show_plot=True)
 nw.generate_plotly_3d_plot(save_path = out_path + '/graphs/3D_graph_plotly.html', show_plot=True)
 
 # Generate RMSF, pLDDT clusters & RMSD trajectories considering models as monomers
+import multimer_mapper as mm
 mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
     mm_output = mm_output, out_path = out_path)
 

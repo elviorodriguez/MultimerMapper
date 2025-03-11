@@ -26,6 +26,7 @@ try:
     from src.fallback import analyze_fallback
     from src.contact_graph import Residue, Surface, Protein, PPI, Network
     from src.stoichiometries import stoichiometric_space_exploration_pipeline
+    from report.unify import create_report
 
     # These are for interactive usage
     from traj.pairwise_rmsd_trajectories import generate_pairwise_domain_trajectories, generate_pairwise_domain_trajectory_in_context
@@ -597,6 +598,9 @@ if __name__ == "__main__":
     
     # Create 3D network
     nw = interactive_igraph_to_py3dmol(mm_output['combined_graph'], logger = logger)
+
+    # Integrate everything into an HTML report
+    create_report(out_path)
     
     # Explore the stoichiometric space of the complex
     logger.warning("Stoichiometric Space Exploration Algorithm is not available yet")

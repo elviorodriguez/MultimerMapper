@@ -3,7 +3,6 @@ import os
 import glob
 import re
 import json
-from pathlib import Path
 
 def create_report(directory_path):
     """
@@ -56,7 +55,7 @@ def create_report(directory_path):
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html_content)
     
-    print(f"Report created at: {output_path}")
+    # print(f"Report created at: {output_path}")
 
 def get_protein_names(directory_path):
     """Extract unique protein names from the directory structure."""
