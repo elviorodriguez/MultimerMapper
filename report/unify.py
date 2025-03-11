@@ -842,7 +842,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             
             // plotly3D Graph button
             document.getElementById('graph-plotly3d-button').addEventListener('click', () => {{
-                setMainContent('<iframe id="main-frame" src="graphs/3D_graph_plotly.html"></iframe>');
+                setMainContent('<iframe id="main-frame" src="graphs/3D_graph_Plotly.html"></iframe>');
             }});
             
             // Initialize domains dropdown
