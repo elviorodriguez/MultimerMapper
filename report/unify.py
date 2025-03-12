@@ -3,59 +3,12 @@ import os
 import glob
 import re
 import json
+import shutil
+import zipfile
 
-def create_report(directory_path):
-    """
-    Creates a unified HTML report for the MultimerMapper output.
-    
-    Args:
-        directory_path (str): Path to the directory containing the MultimerMapper output.
-    """
-    directory_path = os.path.abspath(directory_path)
-    output_path = os.path.join(directory_path, "report.html")
-    
-    # Collect protein names
-    protein_names = get_protein_names(directory_path)
-    
-    # Collect available contact clusters
-    contact_clusters = get_contact_clusters(directory_path)
-    
-    # Collect available pLDDT clusters
-    plddt_clusters = get_plddt_clusters(directory_path)
-    
-    # Collect available monomer trajectories
-    monomer_trajectories = get_monomer_trajectories(directory_path)
-    
-    # Collect available fallback analysis images
-    fallback_images = get_fallback_images(directory_path)
-    
-    # Collect combination suggestion files with content
-    combinations_data = get_combinations_data(directory_path)
-
-    # Read log content if exists
-    log_content = None
-    log_path = os.path.join(directory_path, "multimer_mapper.log")
-    if os.path.exists(log_path):
-        with open(log_path, "r") as f:
-            log_content = f.read()
-    
-    # Generate the main HTML content
-    html_content = generate_html(
-        directory_path, 
-        protein_names, 
-        contact_clusters, 
-        plddt_clusters, 
-        monomer_trajectories,
-        fallback_images,
-        combinations_data,
-        log_content
-    )
-    
-    # Write the HTML content to the output file
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(html_content)
-    
-    # print(f"Report created at: {output_path}")
+#########################################################################################
+######################################## Helpers ########################################
+#########################################################################################
 
 def get_protein_names(directory_path):
     """Extract unique protein names from the directory structure."""
@@ -181,6 +134,155 @@ def get_combinations_data(directory_path):
             })
     
     return combinations_data
+
+
+#########################################################################################
+######################################## Reports ########################################
+#########################################################################################
+
+def create_zip_report(directory_path):
+    """
+    Creates a zip file containing all necessary files to render the report.html independently.
+    
+    Args:
+        directory_path (str): Path to the directory containing the MultimerMapper output.
+    """
+    zip_path = os.path.join(directory_path, "report.zip")
+    
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        # Add report.html and logo
+        report_html = os.path.join(directory_path, "report.html")
+        if os.path.exists(report_html):
+            zipf.write(report_html, os.path.relpath(report_html, directory_path))
+        
+        logo = os.path.join(directory_path, "multimermapper_logo.png")
+        if os.path.exists(logo):
+            zipf.write(logo, os.path.relpath(logo, directory_path))
+        
+        # Add log file
+        log_file = os.path.join(directory_path, "multimer_mapper.log")
+        if os.path.exists(log_file):
+            zipf.write(log_file, os.path.relpath(log_file, directory_path))
+        
+        # Add contact cluster files
+        contact_clusters = get_contact_clusters(directory_path)
+        for cluster in contact_clusters:
+            cluster_path = os.path.join(directory_path, cluster['path'])
+            if os.path.exists(cluster_path):
+                zipf.write(cluster_path, cluster['path'])
+        
+        # Add pLDDT cluster files
+        plddt_clusters = get_plddt_clusters(directory_path)
+        for path in plddt_clusters.values():
+            full_path = os.path.join(directory_path, path)
+            if os.path.exists(full_path):
+                zipf.write(full_path, path)
+        
+        # Add domain files
+        domain_files = glob.glob(os.path.join(directory_path, "domains", "*-domains_plot.html"))
+        for domain_file in domain_files:
+            rel_path = os.path.relpath(domain_file, directory_path)
+            zipf.write(domain_file, rel_path)
+        
+        # Add monomer trajectory files
+        monomer_trajs = get_monomer_trajectories(directory_path)
+        for protein_data in monomer_trajs.values():
+            if protein_data['monomer']:
+                for key in ['interactive', 'rmsd']:
+                    file_path = os.path.join(directory_path, protein_data['monomer'][key])
+                    if os.path.exists(file_path):
+                        zipf.write(file_path, protein_data['monomer'][key])
+            for domain in protein_data['domains']:
+                for key in ['interactive', 'rmsd']:
+                    file_path = os.path.join(directory_path, domain[key])
+                    if os.path.exists(file_path):
+                        zipf.write(file_path, domain[key])
+        
+        # Add fallback analysis images
+        fallback_imgs = get_fallback_images(directory_path)
+        for img_rel in fallback_imgs:
+            img_path = os.path.join(directory_path, img_rel)
+            if os.path.exists(img_path):
+                zipf.write(img_path, img_rel)
+        
+        # Add combinations suggestions files
+        combo_files = glob.glob(os.path.join(directory_path, "combinations_suggestions", "*"))
+        for combo_file in combo_files:
+            rel_path = os.path.relpath(combo_file, directory_path)
+            zipf.write(combo_file, rel_path)
+        
+        # Add graph files
+        graph_files = glob.glob(os.path.join(directory_path, "graphs", "*.html"))
+        for graph_file in graph_files:
+            rel_path = os.path.relpath(graph_file, directory_path)
+            zipf.write(graph_file, rel_path)
+    
+    # print(f"Zip report created at: {zip_path}")
+
+def create_report(directory_path, zip_report = True):
+    """
+    Creates a unified HTML report for the MultimerMapper output.
+    
+    Args:
+        directory_path (str): Path to the directory containing the MultimerMapper output.
+    """
+    directory_path = os.path.abspath(directory_path)
+    output_path = os.path.join(directory_path, "report.html")
+
+    # Copy the logo file to the directory_path
+    logo_source_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "multimermapper_logo.png")
+    print(logo_source_path)
+    logo_destination_path = os.path.join(directory_path, "multimermapper_logo.png")
+    
+    # Check if the source logo file exists and copy it
+    if os.path.exists(logo_source_path):
+        shutil.copy(logo_source_path, logo_destination_path)
+    else:
+        print(f"Logo file not found: {logo_source_path}")
+    
+    # Collect protein names
+    protein_names = get_protein_names(directory_path)
+    
+    # Collect available contact clusters
+    contact_clusters = get_contact_clusters(directory_path)
+    
+    # Collect available pLDDT clusters
+    plddt_clusters = get_plddt_clusters(directory_path)
+    
+    # Collect available monomer trajectories
+    monomer_trajectories = get_monomer_trajectories(directory_path)
+    
+    # Collect available fallback analysis images
+    fallback_images = get_fallback_images(directory_path)
+    
+    # Collect combination suggestion files with content
+    combinations_data = get_combinations_data(directory_path)
+
+    # Read log content if exists
+    log_content = None
+    log_path = os.path.join(directory_path, "multimer_mapper.log")
+    if os.path.exists(log_path):
+        with open(log_path, "r") as f:
+            log_content = f.read()
+    
+    # Generate the main HTML content
+    html_content = generate_html(
+        directory_path, 
+        protein_names, 
+        contact_clusters, 
+        plddt_clusters, 
+        monomer_trajectories,
+        fallback_images,
+        combinations_data,
+        log_content
+    )
+    
+    # Write the HTML content to the output file
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+    if zip_report:
+        create_zip_report(directory_path)
 
 def generate_html(directory_path, protein_names, contact_clusters, plddt_clusters, 
                   monomer_trajectories, fallback_images, combinations_data, log_content):
@@ -649,6 +751,27 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             /* existing styles */
             right: -600px; /* Ensure this matches the initial position */
         }}
+        .custom-logo {{
+            width: 240px; /* Adjust size as needed */
+            height: auto;
+            display: block;
+            margin: 0 auto; /* Center the logo */
+        }}
+        .about-footer {{
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            font-size: 0.9em;
+            color: #555;
+        }}
+        .about-footer a {{
+            color: #007bff;
+            text-decoration: none;
+        }}
+        .about-footer a:hover {{
+            text-decoration: underline;
+        }}
     </style>
 </head>
 <body>
@@ -657,8 +780,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         <div class="sidebar">
             <div class="sidebar-header">
                 <div class="sidebar-logo">
-                    <i class="fas fa-dna"></i>
-                    <h3>MultimerMapper</h3>
+                    <img src="./multimermapper_logo.png" alt="MultimerMapper Logo" class="custom-logo">
                 </div>
             </div>
             
@@ -1268,11 +1390,11 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
                     
                     <h2 class="mt-20">Key Features:</h2>
                     <ul>
-                        <li>Interactive 2D and 3D graph visualizations of protein complexes</li>
+                        <li>Interactive 2D and 3D graph visualizations of protein interactions</li>
                         <li>Domain analysis and visualization</li>
                         <li>Contact cluster analysis between protein pairs</li>
-                        <li>pLDDT cluster analysis for model quality assessment</li>
-                        <li>RMSD trajectory analysis for conformational changes</li>
+                        <li>pLDDT cluster analysis to associate partners with model quality</li>
+                        <li>RMSD trajectory analysis for conformational changes associated with partners</li>
                         <li>Fallback analysis for problematic structures</li>
                         <li>Suggestions for optimal protein combinations</li>
                     </ul>
@@ -1280,14 +1402,20 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
                     <h2 class="mt-20">How to Use This Report:</h2>
                     <p>Navigate using the sidebar menu to explore different aspects of your protein complex analysis. Each section provides specific insights:</p>
                     <ul>
-                        <li><strong>2D/3D Graphs:</strong> Overall structure of the protein complex</li>
-                        <li><strong>Domains:</strong> Structural domains within each protein</li>
-                        <li><strong>Contact Clusters:</strong> Interaction interfaces between protein pairs</li>
-                        <li><strong>pLDDT Clusters:</strong> Model quality assessment</li>
-                        <li><strong>RMSD Trajectories:</strong> Conformational dynamics</li>
+                        <li><strong>2D/3D Graphs:</strong> PPIs and RRCs graphs of the protein complex</li>
+                        <li><strong>Domains:</strong> PAE domains within each protein</li>
+                        <li><strong>Contact Clusters:</strong> Clustered contact maps between protein pairs</li>
+                        <li><strong>pLDDT Clusters:</strong> Model quality clustering</li>
+                        <li><strong>RMSD Trajectories:</strong> Conformational dynamics analysis using pseudo-trajectories</li>
                         <li><strong>Fallback Analysis:</strong> Alternative analyses for problematic structures</li>
-                        <li><strong>Combinations Suggestions:</strong> Recommended protein combinations</li>
+                        <li><strong>Combinations Suggestions:</strong> Recommended protein combinations to extend analysis</li>
+                        <li><strong>Run Loggings:</strong> Log file generated during MultimerMapper run</li>
                     </ul>
+                    <footer class="about-footer">
+                        <p>Created by Elvio Rodriguez Araya</p>
+                        <p>Contact: <a href="mailto:rodriguezaraya@conicet.gov.ar">rodriguezaraya@ibr-conicet.gov.ar</a></p>
+                        <p>GitHub: <a href="https://github.com/elviorodriguez/MultimerMapper" target="_blank">elviorodriguez/MultimerMapper</a></p>
+                    </footer>
                 </div>
             `);
         }}
