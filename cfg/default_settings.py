@@ -204,6 +204,9 @@ contacts_clustering_method = ["contact_similarity_matrix",
 mc_threshold = 10
 use_median = True
 
+# Refine using contact similarity (experimental)
+refine_contact_cluster = False
+
 # For Agglomerative Hierarchical Clustering + Silhouette (experimental) ------
 # Silhouette threshold to surpass in order to consider multivalent interaction
 multivalency_silhouette_threshold: float = 0.3

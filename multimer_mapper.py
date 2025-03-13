@@ -92,6 +92,7 @@ def parse_AF2_and_sequences(
     contact_fraction_threshold                = contact_fraction_threshold,
     mc_threshold                              = mc_threshold,
     use_median                                = use_median,
+    refine_contact_cluster                    = refine_contact_cluster,
     refinement_contact_similarity_threshold   = refinement_contact_similarity_threshold,
     refinement_cf_threshold                   = refinement_cf_threshold,
 
@@ -267,6 +268,7 @@ def parse_AF2_and_sequences(
                                           contact_fraction_threshold                = contact_fraction_threshold,
                                           mc_threshold                              = mc_threshold,
                                           use_median                                = use_median,
+                                          refine_contact_cluster                    = refine_contact_cluster,
                                           refinement_contact_similarity_threshold   = refinement_contact_similarity_threshold,
                                           refinement_cf_threshold                   = refinement_cf_threshold,
                                           show_plot = display_contact_clusters,

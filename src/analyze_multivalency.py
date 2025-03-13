@@ -284,6 +284,7 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
                    contact_fraction_threshold = 0.1,
                    mc_threshold = 2.0,
                    use_median = True,
+                   refine_contact_clusters = False,
                    refinement_contact_similarity_threshold = 0.5,
                    refinement_cf_threshold = 0.1,
                    logger: Logger | None = None):
@@ -714,8 +715,7 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
         best_silhouette = None
 
         # Conduct refinement? -----------------------------------------------------------------------
-        refine_clusters = True
-        if refine_clusters:
+        if refine_contact_clusters:
             logger.info("   Testing clusters for refinement...")
             clusters_to_refine = identify_clusters_for_refinement(all_pair_matrices, pair, valid_models_keys, best_labels, max_freq_threshold=0.75, logger=logger)
             
@@ -1344,6 +1344,7 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
                           contact_fraction_threshold                = 0.1,
                           mc_threshold                              = 2.0,
                           use_median                                = True,
+                          refine_contact_clusters                   = False,
                           refinement_contact_similarity_threshold   = 0.5,
                           refinement_cf_threshold                   = 0.1,
                           show_plot = False, save_plot = True, 
@@ -1372,6 +1373,7 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
         contact_fraction_threshold              = contact_fraction_threshold,
         mc_threshold                            = mc_threshold,
         use_median                              = use_median,
+        refine_contact_clusters                 = refine_contact_clusters,
         refinement_contact_similarity_threshold = refinement_contact_similarity_threshold,
         refinement_cf_threshold                 = refinement_cf_threshold,
         logger               = logger)
@@ -1450,6 +1452,7 @@ def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5,
                       contact_fraction_threshold                = 0.1,
                       mc_threshold                              = 2.0,
                       use_median                                = True,
+                      refine_contact_cluster                    = False,
                       refinement_contact_similarity_threshold   = 0.5,
                       refinement_cf_threshold                   = 0.1,
                       show_plot = False, save_plot = True, log_level = 'info'):
@@ -1483,6 +1486,7 @@ def cluster_all_pairs(mm_contacts, mm_output, max_clusters=5,
                                              contact_fraction_threshold   = contact_fraction_threshold,
                                              mc_threshold                 = mc_threshold,
                                              use_median                   = use_median,
+                                             refine_contact_cluster       = refine_contact_cluster,
                                              refinement_contact_similarity_threshold = refinement_contact_similarity_threshold,
                                              refinement_cf_threshold = refinement_cf_threshold,
                                              show_plot = show_plot,
