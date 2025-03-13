@@ -205,7 +205,7 @@ mc_threshold = 10
 use_median = True
 
 # Refine using contact similarity (experimental)
-refine_contact_cluster = False
+refine_contact_clusters = False
 
 # For Agglomerative Hierarchical Clustering + Silhouette (experimental) ------
 # Silhouette threshold to surpass in order to consider multivalent interaction
