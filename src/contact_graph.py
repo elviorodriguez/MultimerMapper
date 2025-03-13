@@ -489,7 +489,7 @@ def apply_layout(proteins, ppis, network, iterations=10000, logger=None):
     
     return positions
 
-def optimize_layout(network):
+def optimize_layout(network, iterations):
     """
     Optimize the layout of proteins in the network.
     
@@ -499,7 +499,7 @@ def optimize_layout(network):
     proteins = network.get_proteins()
     ppis = network.get_ppis()
     
-    optimized_positions = apply_layout(proteins, ppis, network, logger=network.logger)
+    optimized_positions = apply_layout(proteins, ppis, network, iterations = iterations, logger=network.logger)
     
     for i, protein in enumerate(proteins):
         protein.translate(optimized_positions[i] - protein.get_CM())
@@ -1233,14 +1233,16 @@ class Network(object):
 
     def generate_layout(self,
                         algorithm      = ["optimized", "drl", "fr", "kk", "circle", "grid", "random"][0],
-                        scaling_factor = [None       , 300  , 200 , 100 , 100     , 120   , 100     ][0]):
+                        scaling_factor = [None       , 300  , 200 , 100 , 100     , 120   , 100     ][0],
+                        iterations     = 10000):
         """
         Generates a 3D layout for the network using different algorithms.
 
         Parameters:
             algorithm (str): Layout algorithm to use. Default is "optimized" (recommended).
             scaling_factor (int): Scaling factor for the layout (default is 300).
-        """
+            iterations (int): Steps for the force-field directed "optimized" algorithm (default 1000).
+         """
 
         self.logger.info(f"INITIALIZING: 3D layout generation using {algorithm} method...")
         
@@ -1251,7 +1253,7 @@ class Network(object):
             scaling_factor = 250
 
         if algorithm == "optimized":
-            optimize_layout(self)
+            optimize_layout(self, iterations=iterations)
 
         else:
 

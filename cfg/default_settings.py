@@ -232,6 +232,8 @@ save_contact_clusters    = True
 # ------------- For Residue-Residue Contact (RRC) visualizations -------------
 # ----------------------------------------------------------------------------
 
+layout_3d_iterations = 10000
+
 # # Darker colors for domains
 # DOMAIN_COLORS_RRC = [
 #     '#8B0000',  # Dark Red

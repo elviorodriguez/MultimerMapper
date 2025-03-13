@@ -450,7 +450,7 @@ def interactive_igraph_to_py3dmol(combined_graph, logger, automatic_true = False
     # Generate 3D network visualization
     while True:
 
-        nw.generate_layout()
+        nw.generate_layout(iterations = layout_3d_iterations)
         nw.generate_py3dmol_plot(save_path = graphs_dir + '/3D_graph_py3Dmol.html', show_plot = show_plots)
         nw.generate_plotly_3d_plot(save_path = graphs_dir + '/3D_graph_Plotly.html', show_plot = show_plots)
 

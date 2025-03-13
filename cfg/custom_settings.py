@@ -57,4 +57,7 @@ contact_pLDDT_cutoff   : float | int = 50
 
 # 
 available_layout = ['fr', 'kk', 'circle', 'drl', 'lgl', 'random', 'rt', 'rt_circular', ]
-ppi_graph_layout_algorithm = available_layout[1]
+ppi_graph_layout_algorithm = available_layout[0]
+
+# For 3D visualization
+layout_3d_iterations = 1000
