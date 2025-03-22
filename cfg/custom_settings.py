@@ -60,14 +60,14 @@ available_layout = ['fr', 'kk', 'circle', 'drl', 'lgl', 'random', 'rt', 'rt_circ
 ppi_graph_layout_algorithm = available_layout[0]
 
 # For 3D visualization
-layout_3d_iterations = 1000
+# layout_3d_iterations = 1000
 
 
 
 ##########################################
 # Starting graph_resolution value for PAE clustering
-graph_resolution: float | int = 0.3
+# graph_resolution: float | int = 0.5
 
 # If True, uses same graph_resolution value for all proteins
 # If False, you can select interactively 
-auto_domain_detection: bool = True
+# auto_domain_detection: bool = True
