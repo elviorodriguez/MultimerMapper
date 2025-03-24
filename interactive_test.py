@@ -38,16 +38,16 @@ pd.set_option( 'display.max_columns' , None )
 
 # ################################# Test 3 ######################################
 
-fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/NuA4_proteins.fasta"
-AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/2-mers"
-AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4"
-use_names = True 
-overwrite = True
-graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/graph_resolution_preset.json"
-auto_domain_detection = False
-# graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/NuA4_proteins.fasta"
+# AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4"
+# use_names = True 
+# overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/graph_resolution_preset.json"
+# auto_domain_detection = True
+# # graph_resolution_preset = None
 
 # ###################### Test 4 (indirect interactions) #########################
 
@@ -136,6 +136,21 @@ auto_domain_detection = False
 
 ###############################################################################
 
+##################### Test 8 (Format multivalency states) #####################
+
+fasta_file = "/home/elvio/Desktop/test_mult/EAF6-DNTL-INGL-YEA2-EPL1_proteins.fasta"
+AF2_2mers = "/home/elvio/Desktop/test_mult/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/test_mult/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/test_mult/mm_out"
+use_names = True 
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/graph_resolution_preset.json"
+auto_domain_detection = True
+graph_resolution_preset = None
+
+###############################################################################
+
 ###############################################################################
 ############################### MM main run ###################################
 ###############################################################################
@@ -157,33 +172,8 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
                                        auto_domain_detection = auto_domain_detection,
                                        graph_resolution_preset = graph_resolution_preset)
 
-# from src.ppi_graphs import generate_combined_graph
-# combined_graph, _, _, _ = generate_combined_graph(
-        
-#         # Input
-#         mm_output = mm_output,
-        
-#         # 2-mers cutoffs
-#         min_PAE_cutoff_2mers = mm.min_PAE_cutoff_2mers, ipTM_cutoff_2mers = mm.ipTM_cutoff_2mers,
-        
-#         # N-mers cutoffs
-#         min_PAE_cutoff_Nmers = mm.min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers = mm.pDockQ_cutoff_Nmers,
-        
-#         # General cutoffs
-#         N_models_cutoff = mm.N_models_cutoff,
-
-#         # For RMSD calculations
-#         domain_RMSD_plddt_cutoff = mm.domain_RMSD_plddt_cutoff,
-#         trimming_RMSD_plddt_cutoff = mm.trimming_RMSD_plddt_cutoff,
-
-#         # Style options (see cfg/default_settings module for their meaning)
-#         vertex_color1=mm.vertex_color1, vertex_color2=mm.vertex_color2,
-#         vertex_color3=mm.vertex_color3, vertex_color_both=mm.vertex_color_both
-#         )
-
-
 # Generate interactive graph
-# import multimer_mapper as mm
+import multimer_mapper as mm
 # combined_graph, dynamic_proteins, homooligomerization_states, multivalency_states = mm.generate_combined_graph(mm_output)
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
     mm_output["combined_graph"], out_path = out_path,

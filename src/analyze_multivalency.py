@@ -1701,7 +1701,7 @@ def find_multivalency_states(combined_graph, mm_output,
                                                         N_models_cutoff)
             
             # Add if it surpass cutoff to N_states
-            multivalency_states[pair][model] = all_have_at_least_one_interactor
+            multivalency_states[pair][tuple(sorted(model))] = all_have_at_least_one_interactor
 
     return multivalency_states
 
