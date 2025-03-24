@@ -320,6 +320,7 @@ def generate_multivalent_pair_suggestions(pair, pair_multivalency_states):
     max_continuous_size = get_max_continuous_mer_size(pair_multivalency_states)
 
     for state in pair_multivalency_states.keys():
+
         if pair_multivalency_states[state] and len(state) <= max_continuous_size:
 
             # Generate two children (one +P and the other +Q)
@@ -331,6 +332,9 @@ def generate_multivalent_pair_suggestions(pair, pair_multivalency_states):
                 suggestions.append(sug_p)
             if sug_q not in pair_multivalency_states.keys() and sug_q not in suggestions:
                 suggestions.append(sug_q)
+
+    # Remove potential repetitions
+    suggestions = [ s for s in suggestions if s not in [ tuple(sorted(k)) for k in pair_multivalency_states.keys() ] ] 
 
     return list(set(suggestions))
 
