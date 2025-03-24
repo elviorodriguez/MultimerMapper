@@ -231,7 +231,6 @@ def create_report(directory_path, zip_report = True):
 
     # Copy the logo file to the directory_path
     logo_source_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "multimermapper_logo.png")
-    print(logo_source_path)
     logo_destination_path = os.path.join(directory_path, "multimermapper_logo.png")
     
     # Check if the source logo file exists and copy it
