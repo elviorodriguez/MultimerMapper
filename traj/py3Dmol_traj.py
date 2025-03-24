@@ -256,7 +256,7 @@ def create_trajectory_viewer(pdb_file, output_html):
                 <option value="chain">Chain</option>
                 <option value="residue">Residue</option>
                 <option value="secondary">Secondary Structure</option>
-                <option value="plddt">pLDDT</option>
+                <option value="plddt" selected>pLDDT</option>
             </select>
         </div>
         <div class="controls">
@@ -271,7 +271,7 @@ def create_trajectory_viewer(pdb_file, output_html):
                     <option value="2000">Slow</option>
                     <option value="1000" selected>Normal</option>
                     <option value="500">Fast</option>
-                    <option value="250">Very Fast</option>
+                    <option value="250" selected>Very Fast</option>
                 </select>
             </div>
         </div>
@@ -423,7 +423,8 @@ def create_trajectory_viewer(pdb_file, output_html):
                     applyCurrentStyle();
                     
                     // Adjust view
-                    viewer.zoomTo();
+                    viewer.addModel(modelData[index], 'pdb');
+                    applyCurrentStyle();                    
                     viewer.render();
                     
                     // Update UI
