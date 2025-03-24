@@ -396,6 +396,7 @@ def add_edges_data(graph,
                 
                 # Extract interaction data
                 filtered_data = data.filter(["pTM", "ipTM", "min_PAE", "pDockQ", "N_models"])
+                filtered_data["min_PAE"] = [ round(number, 2) for number in filtered_data["min_PAE"] ]
 
                 # Add checkmark to models that are part of the contact cluster
                 occurrences = count_proteins(tuple(df_pair), edge["valency"], is_2mer=True)
