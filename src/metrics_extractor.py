@@ -124,7 +124,7 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
                     
                     # Extraction
                     pLDDT_by_res = PAE_matrix['plddt']
-                    PAE_matrix = np.array(PAE_matrix['pae'])
+                    PAE_matrix = np.array(PAE_matrix['pae'], dtype=np.float16)
                     
                 # Isolate PAE matrix for each protein in the input fasta file
                 for i, chain in enumerate(chain_IDs):
@@ -138,7 +138,7 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
                     sub_pLDDT = pLDDT_by_res[start_aa:end_aa]
                     
                     # Add PAE and pLDDT to lists
-                    chain_PAE_matrix[i].append(sub_PAE)
+                    chain_PAE_matrix[i].append(sub_PAE.astype(np.float16))
                     chain_pLDDT_by_res[i].append(sub_pLDDT)
                     
                     # Find the matching PDB and save Chain ID and PDB (for later use)
@@ -211,8 +211,8 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
         max_mean_pLDDT_index = pLDDTs_means.index(max(pLDDTs_means)) # Best pLDDT
         
         # Compute the average PAE
-        array_2d = np.array(sliced_PAE_and_pLDDTs[protein_ID]['PAE_matrices'])
-        average_array = np.mean(array_2d, axis=0)
+        array_2d = np.array(sliced_PAE_and_pLDDTs[protein_ID]['PAE_matrices'], dtype=np.float16)
+        average_array = np.mean(array_2d, axis=0).astype(np.float16)
         
         # Save indexes
         sliced_PAE_and_pLDDTs[protein_ID]["min_PAE_index"] = min_PAE_index
@@ -268,7 +268,7 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
         plt.close(fig)
         
         # Best PAE: MAX average pLDDT (we save it in necessary format for downstream analysis)
-        sliced_PAE_and_pLDDTs[protein_ID]["best_PAE_matrix"] = np.array(max_pLDDT_array, dtype=np.float64)
+        sliced_PAE_and_pLDDTs[protein_ID]["best_PAE_matrix"] = np.array(max_pLDDT_array, dtype=np.float16)
     
     # # Turn interactive mode back on to display plots later
     # plt.ion()
@@ -342,14 +342,13 @@ def generate_pairwise_2mers_df(all_pdb_data: dict, out_path: str = ".", save_pai
                     with open(json_file_path, 'r') as f:
                         
                         # Load the JSON file with AF2 scores
-                        PAE_matrix = json.load(f)
-                        
+                        PAE_matrix = json.load(f)                       
                         
                         # Extraction
                         rank = int((search(r'_rank_(\d{3})_', filename)).group(1))
                         pTM = PAE_matrix['ptm']
                         ipTM = PAE_matrix['iptm']
-                        PAE_matrix = np.array(PAE_matrix['pae'])
+                        PAE_matrix = np.array(PAE_matrix['pae'], dtype=np.float16)
     
                     # Extract diagonal sub-PAE matrices using protein lengths
                     sub_PAE_1 = PAE_matrix[len_A:len_AB, 0:len_A]
