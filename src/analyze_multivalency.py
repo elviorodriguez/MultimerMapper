@@ -756,9 +756,8 @@ def cluster_models(all_pair_matrices, pair, max_clusters=5,
     return list(valid_models.keys()), best_labels, reduced_features, explained_variance
 
 
-def generate_cluster_dict(all_pair_matrices, pair, model_keys, labels, mm_output,
+def generate_cluster_dict(all_pair_matrices, pair, model_keys, labels, mm_output, reduced_features,
                           logger: Logger | None = None):
-
     if logger is None:
         logger = configure_logger()(__name__)
 
@@ -785,6 +784,19 @@ def generate_cluster_dict(all_pair_matrices, pair, model_keys, labels, mm_output
     # --------------------------------- Contact Map Plots ---------------------------------
     for cluster in range(n_clusters):
         cluster_models = [model for model, label in zip(model_keys, labels) if label == cluster]
+        # Get indices of models in this cluster
+        cluster_indices = [i for i, lbl in enumerate(labels) if lbl == cluster]
+        # Extract PCA features for this cluster
+        cluster_features = reduced_features[cluster_indices]
+        
+        # Calculate centroid of the cluster in PCA space
+        centroid = np.mean(cluster_features, axis=0)
+        # Calculate distances from each point to the centroid
+        distances = np.linalg.norm(cluster_features - centroid, axis=1)
+        # Find the index of the model closest to the centroid
+        closest_idx = np.argmin(distances)
+        representative_model = cluster_models[closest_idx]
+
         avg_contact_matrix = np.mean([all_pair_matrices[pair][model]['is_contact'] for model in cluster_models], axis=0)
 
         # Determine the correct orientation based on matrix shape and protein lengths
@@ -798,12 +810,13 @@ def generate_cluster_dict(all_pair_matrices, pair, model_keys, labels, mm_output
             raise ValueError("Matrix dimensions do not match protein lengths.")
 
         cluster_dict[cluster] = {
-            'models'        : cluster_models,
+            'models': cluster_models,
+            'representative': representative_model,  # Added representative model
             'average_matrix': avg_contact_matrix,
-            'x_lab'         : x_label,
-            'y_lab'         : y_label,
-            'x_dom'         : x_domains,
-            'y_dom'         : y_domains
+            'x_lab': x_label,
+            'y_lab': y_label,
+            'x_dom': x_domains,
+            'y_dom': y_domains
         }
 
     return cluster_dict
@@ -1383,6 +1396,7 @@ def cluster_and_visualize(all_pair_matrices, pair, mm_output, max_clusters=5,
         # Merge contact matrices by cluster to extract contact frequency (mean contact probability)
         cluster_dict = generate_cluster_dict(all_pair_matrices,
                                              pair, model_keys, labels, mm_output,
+                                             reduced_features,
                                              logger = logger)
         
         try:
