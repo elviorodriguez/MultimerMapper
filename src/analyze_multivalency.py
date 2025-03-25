@@ -1039,16 +1039,18 @@ def create_contact_maps_with_buttons(cluster_dict, pair):
     
     # Add all contact maps as traces, but make only the first one visible
     for cluster, data in cluster_dict.items():
+        # Create residue indices starting at 1
+        x_indices = np.arange(1, data['average_matrix'].shape[1]+1)
+        y_indices = np.arange(1, data['average_matrix'].shape[0]+1)
+        
         fig.add_trace(
             go.Heatmap(
                 z=data['average_matrix'],
+                x=x_indices,
+                y=y_indices,
                 colorscale='Viridis',
                 zmin=0, zmax=1,
-                colorbar=dict(
-                    title=f'Contact Frequency (max={round(data["average_matrix"].max(), ndigits=2)})',
-                    titleside='right'
-                ),
-                visible=(cluster == 0),  # Only first cluster visible by default
+                visible=(cluster == 0), # Only first cluster visible by default
                 name=f'Cluster {cluster}'
             )
         )
@@ -1086,8 +1088,8 @@ def create_contact_maps_with_buttons(cluster_dict, pair):
 
     fig.update_layout(
         title=dict(text="Contact Maps", x=0.5),
-        xaxis_title=f"{pair[1]}",
-        yaxis_title=f"{pair[0]}",
+        xaxis_title=f"{data['x_lab']} (Residue)",
+        yaxis_title=f"{data['y_lab']} (Residue)",
         yaxis=dict(scaleanchor="x", scaleratio=1),
         margin=dict(l=50, r=50, t=50, b=50),
         xaxis_showgrid=False,
@@ -1286,14 +1288,14 @@ def create_domain_shapes(x_domains, y_domains, matrix_shape):
         shapes.append(dict(
             type="line",
             x0=-0.5, x1=matrix_shape[1]-0.5,
-            y0=row['Start'] - 1.5, y1=row['Start'] - 1.5,
+            y0=row['Start'] - 0.5, y1=row['Start'] - 0.5,
             line=dict(color="red", width=1, dash="dash")
         ))
         # Domain end
         shapes.append(dict(
             type="line",
-            x0=-0.5, x1=matrix_shape[1]-0.5,
-            y0=row['End'] - 0.5, y1=row['End'] - 0.5,
+            x0=+0.5, x1=matrix_shape[1]+0.5,
+            y0=row['End'] + 0.5, y1=row['End'] + 0.5,
             line=dict(color="red", width=1, dash="dash")
         ))
     
@@ -1302,15 +1304,15 @@ def create_domain_shapes(x_domains, y_domains, matrix_shape):
         # Domain start
         shapes.append(dict(
             type="line",
-            x0=row['Start'] - 1.5, x1=row['Start'] - 1.5,
+            x0=row['Start'] - 0.5, x1=row['Start'] - 0.5,
             y0=-0.5, y1=matrix_shape[0]-0.5,
             line=dict(color="red", width=1, dash="dash")
         ))
         # Domain end
         shapes.append(dict(
             type="line",
-            x0=row['End'] - 0.5, x1=row['End'] - 0.5,
-            y0=-0.5, y1=matrix_shape[0]-0.5,
+            x0=row['End'] + 0.5, x1=row['End'] + 0.5,
+            y0=+0.5, y1=matrix_shape[0]+0.5,
             line=dict(color="red", width=1, dash="dash")
         ))
     
