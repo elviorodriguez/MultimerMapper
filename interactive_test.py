@@ -93,16 +93,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ################### Test 6' (multivalency detection RuvBL) ####################
 
-# fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
-# AF2_2mers = "tests/multivalency_test/2-mers"
-# AF2_Nmers = "tests/multivalency_test/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/RuvBL_test"
-# use_names = True
-# overwrite = True
-# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# auto_domain_detection = True
-# graph_resolution_preset = None
+fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
+AF2_2mers = "tests/multivalency_test/2-mers"
+AF2_Nmers = "tests/multivalency_test/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/RuvBL_test"
+use_names = True
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+auto_domain_detection = True
+graph_resolution_preset = None
 
 ###############################################################################
 
@@ -138,16 +138,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ##################### Test 8 (Format multivalency states) #####################
 
-fasta_file = "/home/elvio/Desktop/test_mult/EAF6-DNTL-INGL-YEA2-EPL1_proteins.fasta"
-AF2_2mers = "/home/elvio/Desktop/test_mult/2-mers"
-AF2_Nmers = "/home/elvio/Desktop/test_mult/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/test_mult/mm_out"
-use_names = True 
-overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/graph_resolution_preset.json"
-auto_domain_detection = True
-graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/test_mult/EAF6-DNTL-INGL-YEA2-EPL1_proteins.fasta"
+# AF2_2mers = "/home/elvio/Desktop/test_mult/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/test_mult/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/test_mult/mm_out"
+# use_names = True 
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
@@ -187,6 +187,28 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     
     # Answer y automatically
     automatic_true = True)
+
+
+
+mm_output['contacts_clusters'][list(mm_output['contacts_clusters'].keys())[1]][0].keys()
+['models', 'representative', 'average_matrix', 'x_lab', 'y_lab', 'x_dom', 'y_dom', 'was_tested_in_2mers', 'was_tested_in_Nmers', 'average_2mers_matrix', 'average_Nmers_matrix', 'cluster_n']
+
+mm_output['contacts_clusters'][list(mm_output['contacts_clusters'].keys())[1]][0]['representative']
+mm_output['contacts_clusters'][list(mm_output['contacts_clusters'].keys())[1]][1]['representative']
+
+mm_output['pairwise_2mers_df'].head()
+mm_output['pairwise_Nmers_df'].head()["model"][134]
+
+
+
+
+
+
+
+
+
+
+
 
 # # Explore the stoichiometric space
 # import multimer_mapper as mm
@@ -424,3 +446,214 @@ for e in combined_graph.es:
     print(e['valency']['cluster_n'], e['name'])
     print(f'   - Dynamics: {e["dynamics"]}')
     print(f'   - Weight: {get_edge_weight(e, read_classification_df())}')
+
+
+
+
+
+
+
+###############################################################################
+####################### To find a better stability check ######################
+###############################################################################
+
+from src.analyze_multivalency import get_expanded_Nmers_df_for_pair, add_chain_information_to_df
+
+def get_set_of_chains_in_model(model_pairwise_df: pd.DataFrame) -> set:
+    
+    chains_set = set()
+    
+    for i, row in model_pairwise_df.iterrows():
+        model_chains = list(row['model'].get_chains())
+        chain_ID1 = model_chains[0].get_id()
+        chain_ID2 = model_chains[1].get_id()
+        
+        chains_set.add(chain_ID1)
+        chains_set.add(chain_ID2)
+    
+    return chains_set
+
+def does_all_have_at_least_one_interactor(model_pairwise_df: pd.DataFrame,
+                                          min_PAE_cutoff_Nmers: int | float,
+                                          pDockQ_cutoff_Nmers: int | float,
+                                          N_models_cutoff: int) -> bool:
+    
+
+    for i, row in model_pairwise_df.iterrows():
+        
+        for chain_ID in get_set_of_chains_in_model(model_pairwise_df):
+            
+            # Variable to count the number of times the chains surpass the cutoffs
+            models_in_which_chain_surpass_cutoff = 0
+            
+            # Count one by one
+            for rank in range(1, 6):
+                chain_df = (model_pairwise_df
+                                 .query('rank == @rank')
+                                 .query('chain_ID1 == @chain_ID | chain_ID2 == @chain_ID')
+                            )
+                for c, chain_pair in chain_df.iterrows():
+                    if chain_pair["min_PAE"] <= min_PAE_cutoff_Nmers and chain_pair["pDockQ"] >= pDockQ_cutoff_Nmers:
+                        models_in_which_chain_surpass_cutoff += 1
+                        break
+                
+            if not models_in_which_chain_surpass_cutoff >= N_models_cutoff:
+                return False
+    return True
+
+# Multivalent pair to test and its data
+pair = ("RuvBL1", "RuvBL2")
+expanded_Nmers_for_pair_df: pd.DataFrame        = get_expanded_Nmers_df_for_pair(pair, mm_output)
+expanded_Nmers_for_pair_models: set[tuple[str]] = set(expanded_Nmers_for_pair_df['proteins_in_model'])
+
+# I want to use the contacts stored in here instead
+mm_output['pairwise_contact_matrices'][pair].keys()
+# For example, the couple of chains B and C for the rank 3 model of the prediction of the 2(RuvBL1)/1(RuvBL2)
+mm_output['pairwise_contact_matrices'][pair][(('RuvBL1', 'RuvBL1', 'RuvBL2'), ('B', 'C'), 3)]
+# This is how the number of contacts for this particular prediction, couple of chains and rank can be counted
+mm_output['pairwise_contact_matrices'][pair][(('RuvBL1', 'RuvBL1', 'RuvBL2'), ('B', 'C'), 3)]['is_contact'].sum()
+
+# Create empty variable to store which states are stable
+multivalent_pairs: list[tuple[str]] = [pair]
+multivalency_states: dict = {pair: {} for pair in multivalent_pairs}
+
+# For each expanded Nmer
+for model in list(expanded_Nmers_for_pair_models):
+    
+    # Separate only data for the current expanded heteromeric state and add chain info
+    model_pairwise_df: pd.DataFrame = expanded_Nmers_for_pair_df.query('proteins_in_model == @model')
+    add_chain_information_to_df(model_pairwise_df)
+    
+    # Make the verification
+    all_have_at_least_one_interactor: bool = does_all_have_at_least_one_interactor(
+                                                model_pairwise_df,
+                                                mm.min_PAE_cutoff_Nmers,
+                                                mm.pDockQ_cutoff_Nmers,
+                                                mm.N_models_cutoff)
+    
+    # Add if it surpass cutoff to N_states
+    multivalency_states[pair][tuple(sorted(model))] = all_have_at_least_one_interactor
+
+
+
+
+
+
+
+
+import pandas as pd
+import networkx as nx
+from typing import Dict, Set, Tuple, List, Union, Any
+
+def does_nmer_is_fully_connected_network(
+        model_pairwise_df: pd.DataFrame,
+        mm_output: Dict,
+        pair: Tuple[str, str],
+        Nmers_contacts_cutoff: int = 3,
+        N_models_cutoff: int = 1) -> bool:
+    """
+    Check if all subunits form a fully connected network using contacts.
+    
+    Args:
+        model_pairwise_df (pd.DataFrame): DataFrame containing pairwise interactions.
+        mm_output (Dict): Dictionary containing contact matrices.
+        pair (Tuple[str, str]): The protein pair being analyzed.
+        Nmers_contacts_cutoff (int, optional): Minimum number of contacts to consider interaction. Defaults to 3.
+        N_models_cutoff (int, optional): Minimum number of ranks that need to be fully connected. Defaults to 1.
+    
+    Returns:
+        bool: True if network is fully connected in at least N_models_cutoff ranks, False otherwise.
+    """
+    # Get all unique chains in this model
+    all_chains = get_set_of_chains_in_model(model_pairwise_df)
+    
+    # Get the proteins_in_model from the first row (should be the same for all rows)
+    if model_pairwise_df.empty:
+        return False
+    proteins_in_model = model_pairwise_df.iloc[0]['proteins_in_model']
+    
+    # Track how many ranks have fully connected networks
+    ranks_with_fully_connected_network = 0
+    
+    # For each rank (1-5)
+    for rank in range(1, 6):
+        # Create a graph for this rank
+        G = nx.Graph()
+        # Add all chains as nodes
+        G.add_nodes_from(all_chains)
+        
+        # For each pair of chains
+        for chain1 in all_chains:
+            for chain2 in all_chains:
+                if chain1 >= chain2:  # Skip self-connections and avoid double counting
+                    continue
+                
+                # Try to find contact data for this chain pair in this rank
+                chain_pair = (chain1, chain2)
+                try:
+                    contacts = mm_output['pairwise_contact_matrices'][pair][(proteins_in_model, chain_pair, rank)]
+                    num_contacts = contacts['is_contact'].sum()
+                    
+                    # If contacts exceed threshold, add edge to graph
+                    if num_contacts >= Nmers_contacts_cutoff:
+                        G.add_edge(chain1, chain2)
+                except KeyError:
+                    # This chain pair might not exist in the contact matrices
+                    pass
+        
+        # Check if graph is connected (all nodes can reach all other nodes)
+        if len(all_chains) > 0 and nx.is_connected(G):
+            ranks_with_fully_connected_network += 1
+    
+    # Return True if enough ranks have fully connected networks
+    return ranks_with_fully_connected_network >= N_models_cutoff
+
+def get_set_of_chains_in_model(model_pairwise_df: pd.DataFrame) -> set:
+    """
+    Extract all unique chain IDs from the model_pairwise_df.
+    
+    Args:
+        model_pairwise_df (pd.DataFrame): DataFrame containing pairwise interactions.
+    
+    Returns:
+        set: Set of all unique chain IDs.
+    """
+    chains_set = set()
+    
+    for i, row in model_pairwise_df.iterrows():
+        model_chains = list(row['model'].get_chains())
+        chain_ID1 = model_chains[0].get_id()
+        chain_ID2 = model_chains[1].get_id()
+        
+        chains_set.add(chain_ID1)
+        chains_set.add(chain_ID2)
+    
+    return chains_set
+
+# Example usage (similar to your current implementation):
+# Multivalent pair to test and its data
+pair = ("RuvBL1", "RuvBL2")
+expanded_Nmers_for_pair_df = get_expanded_Nmers_df_for_pair(pair, mm_output)
+expanded_Nmers_for_pair_models = set(expanded_Nmers_for_pair_df['proteins_in_model'])
+
+# Create empty variable to store which states are stable
+multivalent_pairs = [pair]
+multivalency_states = {pair: {} for pair in multivalent_pairs}
+
+# For each expanded Nmer
+for model in list(expanded_Nmers_for_pair_models):
+    
+    # Separate only data for the current expanded heteromeric state and add chain info
+    model_pairwise_df = expanded_Nmers_for_pair_df.query('proteins_in_model == @model')
+    add_chain_information_to_df(model_pairwise_df)
+    
+    # Make the verification using the new function
+    fully_connected_network = is_fully_connected_network(
+                                model_pairwise_df,
+                                mm_output,
+                                pair,
+                                Nmers_contacts_cutoff=3,
+                                N_models_cutoff=mm.N_models_cutoff-1)
+    
+    # Add if it surpass cutoff to N_states
+    multivalency_states[pair][tuple(sorted(model))] = fully_connected_network

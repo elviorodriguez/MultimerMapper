@@ -2,8 +2,9 @@
 
 import pandas as pd
 
+from src.convergency import does_nmer_is_fully_connected_network
 from src.interpret_dynamics import classify_edge_dynamics, classification_df
-from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff
+from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff, Nmer_stability_method, N_models_cutoff_convergency, Nmers_contacts_cutoff_convergency
 
 def does_2mer_homodimerize(query_protein: str, pairwise_2mers_df: pd.DataFrame, pairwise_2mers_df_F3: pd.DataFrame):
     '''Returns True if homo-2-mer forms, False if not, and None if it was not tested'''
@@ -132,7 +133,15 @@ def check_if_skipped_homo_N_mers(homo_Nmers_models: set,
 
 
 def get_set_of_chains_in_model(model_pairwise_df: pd.DataFrame) -> set:
+    """
+    Extract all unique chain IDs from the model_pairwise_df.
     
+    Args:
+        model_pairwise_df (pd.DataFrame): DataFrame containing pairwise interactions.
+    
+    Returns:
+        set: Set of all unique chain IDs.
+    """
     chains_set = set()
     
     for i, row in model_pairwise_df.iterrows():
@@ -194,11 +203,13 @@ def does_all_have_at_least_one_interactor(model_pairwise_df: pd.DataFrame,
 #                                           N_models_cutoff)
 
 
-def find_homooligomerization_breaks(pairwise_2mers_df, pairwise_Nmers_df, pairwise_2mers_df_F3, pairwise_Nmers_df_F3,
+def find_homooligomerization_breaks(pairwise_2mers_df, pairwise_Nmers_df, pairwise_2mers_df_F3, pairwise_Nmers_df_F3, mm_output,
                                     logger,
                                     min_PAE_cutoff_Nmers,
                                     pDockQ_cutoff_Nmers,
-                                    N_models_cutoff):
+                                    N_models_cutoff,
+                                    Nmer_stability_method = Nmer_stability_method,
+                                    N_models_cutoff_convergency = N_models_cutoff_convergency):
     
     # Proteins that homodimerize
     homodim_prots: set = get_proteins_that_homodimerize(pairwise_2mers_df_F3, pairwise_Nmers_df_F3)
@@ -278,15 +289,48 @@ def find_homooligomerization_breaks(pairwise_2mers_df, pairwise_Nmers_df, pairwi
             model_pairwise_df = protein_homo_N_mers_pairwise_df.query('proteins_in_model == @model')
             add_chain_information_to_df(model_pairwise_df)
             
-            # Make the verification
-            all_have_at_least_one_interactor: bool = does_all_have_at_least_one_interactor(
-                                                        model_pairwise_df = model_pairwise_df,
-                                                        min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
-                                                        pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
-                                                        N_models_cutoff = N_models_cutoff)
+            # Select which method to use: PAE
+            if Nmer_stability_method == "pae":
+                # Make the verification
+                all_have_at_least_one_interactor: bool = does_all_have_at_least_one_interactor(
+                                                            model_pairwise_df = model_pairwise_df,
+                                                            min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
+                                                            pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
+                                                            N_models_cutoff = N_models_cutoff)
+                
+                Nmer_is_stable = all_have_at_least_one_interactor
+                
+            # Select which method to use: Contact Network (recommended)
+            elif Nmer_stability_method == "contact_network":
+                # logger.info("--------------------- USING CONTACT NETWORK METHOD ---------------------")
+
+                # Make the verification using the new function
+                is_fully_connected_network = does_nmer_is_fully_connected_network(
+                                            model_pairwise_df = model_pairwise_df,
+                                            mm_output         = mm_output,
+                                            pair              = (protein, protein),
+                                            Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
+                                            N_models_cutoff = N_models_cutoff_convergency)
+                
+                Nmer_is_stable = is_fully_connected_network
+
+            # Select which method to use: Falls back to default method (Contact Network)
+            else:
+                logger.error(f"   - Something went wrong! Provided Nmer_stability_method is unknown: {Nmer_stability_method}")
+                logger.error(f"      - Using default method: contact_network")
+
+                # Make the verification using the new function
+                is_fully_connected_network = does_nmer_is_fully_connected_network(
+                                            model_pairwise_df = model_pairwise_df,
+                                            mm_output         = mm_output,
+                                            pair              = (protein, protein),
+                                            Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
+                                            N_models_cutoff = N_models_cutoff_convergency)
+                
+                Nmer_is_stable = is_fully_connected_network
             
             # Add if it surpass cutoff to N_states
-            homooligomerization_states[protein]["N_states"].append(all_have_at_least_one_interactor)
+            homooligomerization_states[protein]["N_states"].append(Nmer_is_stable)
         
         # For proteins that the last state computed (N) is positive, add the suggestion to compute N+1
         if all(ok for ok in is_ok) and (homooligomerization_states[protein]["N_states"][-1] == True):
@@ -300,9 +344,13 @@ def find_homooligomerization_breaks(pairwise_2mers_df, pairwise_Nmers_df, pairwi
 def add_homooligomerization_state(graph, pairwise_2mers_df, pairwise_Nmers_df, pairwise_2mers_df_F3, pairwise_Nmers_df_F3,
                                   edges_g1_sort, edges_g2_sort, untested_edges_tuples, tested_Nmers_edges_sorted,
                                   logger,
+                                  mm_output,
                                   min_PAE_cutoff_Nmers  = min_PAE_cutoff_Nmers,
                                   pDockQ_cutoff_Nmers   = pDockQ_cutoff_Nmers,
-                                  N_models_cutoff       = N_models_cutoff):
+                                  N_models_cutoff       = N_models_cutoff,
+                                  Nmer_stability_method = Nmer_stability_method,
+                                  N_models_cutoff_convergency = N_models_cutoff_convergency
+                                  ):
 
     # Compute homooligomerization data
     homooligomerization_states = find_homooligomerization_breaks(
@@ -310,10 +358,13 @@ def add_homooligomerization_state(graph, pairwise_2mers_df, pairwise_Nmers_df, p
                                         pairwise_Nmers_df = pairwise_Nmers_df,
                                         pairwise_2mers_df_F3 = pairwise_2mers_df_F3,
                                         pairwise_Nmers_df_F3 = pairwise_Nmers_df_F3,
+                                        mm_output = mm_output,
                                         logger = logger,
                                         min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
                                         pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
-                                        N_models_cutoff = N_models_cutoff)
+                                        N_models_cutoff = N_models_cutoff,
+                                        Nmer_stability_method = Nmer_stability_method,
+                                        N_models_cutoff_convergency = N_models_cutoff_convergency)
 
     # Initialize edge attribute
     graph.es["homooligomerization_states"] = None

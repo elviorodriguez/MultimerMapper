@@ -188,12 +188,8 @@ save_ref_structures = True
 # ----------------------------------------------------------------------------
 
 contact_distance_cutoff: float | int = 8.0
-contact_PAE_cutoff     : float | int = 15
-contact_pLDDT_cutoff   : float | int = 45
-
-# ----------------------------------------------------------------------------
-# -------------------------- For contact detection ---------------------------
-# ----------------------------------------------------------------------------
+contact_PAE_cutoff     : float | int = 13
+contact_pLDDT_cutoff   : float | int = 0
 
 # Contact Clustering Matrix Method -------------------------------------------
 # default is "contact_fraction_comparison" (MCFT), the rest are experimental
@@ -230,6 +226,19 @@ refinement_cf_threshold: float                  = 0.5
 # Save/display the contact clusters with PCA plots?
 display_contact_clusters = False
 save_contact_clusters    = True
+
+# ----------------------------------------------------------------------------
+# ------------------------- For convergency detection ------------------------
+# ----------------------------------------------------------------------------
+
+# Recommended: contact_network
+Nmer_stability_method = ["pae", "contact_network"][1]
+
+# Soften the N_models cutoff? (default - 1)
+N_models_cutoff_convergency = N_models_cutoff - 1
+
+# Use the same cutoff as for other Nmers?
+Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff
 
 # ----------------------------------------------------------------------------
 # ------------- For Residue-Residue Contact (RRC) visualizations -------------

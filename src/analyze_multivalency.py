@@ -21,7 +21,8 @@ from scipy.spatial.distance import cdist
 from utils.logger_setup import configure_logger, default_error_msgs
 from utils.combinations import get_untested_2mer_pairs, get_tested_Nmer_pairs
 from src.analyze_homooligomers import add_chain_information_to_df, does_all_have_at_least_one_interactor
-from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff
+from src.convergency import does_nmer_is_fully_connected_network
+from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff, Nmer_stability_method, N_models_cutoff_convergency, Nmers_contacts_cutoff_convergency
 
 #########################################################################################
 ################################# Helper functions ######################################
@@ -1660,6 +1661,8 @@ def find_multivalency_states(combined_graph, mm_output,
                              min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
                              pDockQ_cutoff_Nmers  = pDockQ_cutoff_Nmers,
                              N_models_cutoff      = N_models_cutoff,
+                             Nmer_stability_method = Nmer_stability_method,
+                             N_models_cutoff_convergency = N_models_cutoff_convergency,
                              logger: Logger | None = None):
 
 
@@ -1709,15 +1712,43 @@ def find_multivalency_states(combined_graph, mm_output,
             model_pairwise_df: pd.DataFrame = expanded_Nmers_for_pair_df.query('proteins_in_model == @model')
             add_chain_information_to_df(model_pairwise_df)
             
-            # Make the verification
-            all_have_at_least_one_interactor: bool = does_all_have_at_least_one_interactor(
-                                                        model_pairwise_df,
-                                                        min_PAE_cutoff_Nmers,
-                                                        pDockQ_cutoff_Nmers,
-                                                        N_models_cutoff)
+            if Nmer_stability_method == "pae":
+                # Make the verification
+                all_have_at_least_one_interactor: bool = does_all_have_at_least_one_interactor(
+                                                            model_pairwise_df,
+                                                            min_PAE_cutoff_Nmers,
+                                                            pDockQ_cutoff_Nmers,
+                                                            N_models_cutoff)
+                
+                Nmer_is_stable = all_have_at_least_one_interactor
+
+            elif Nmer_stability_method == "contact_network":
+                # Make the verification using the new function
+                is_fully_connected_network = does_nmer_is_fully_connected_network(
+                                            model_pairwise_df,
+                                            mm_output,
+                                            pair,
+                                            Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
+                                            N_models_cutoff = N_models_cutoff_convergency)
+                
+                Nmer_is_stable = is_fully_connected_network
+
+            else:
+                logger.error(f"   - Something went wrong! Provided Nmer_stability_method is unknown: {Nmer_stability_method}")
+                logger.error(f"      - Using default method: contact_network")
+
+                # Make the verification using the new function
+                is_fully_connected_network = does_nmer_is_fully_connected_network(
+                                            model_pairwise_df,
+                                            mm_output,
+                                            pair,
+                                            Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
+                                            N_models_cutoff = N_models_cutoff_convergency)
+                
+                Nmer_is_stable = is_fully_connected_network
             
             # Add if it surpass cutoff to N_states
-            multivalency_states[pair][tuple(sorted(model))] = all_have_at_least_one_interactor
+            multivalency_states[pair][tuple(sorted(model))] = Nmer_is_stable
 
     return multivalency_states
 
@@ -1750,6 +1781,8 @@ def add_multivalency_state(combined_graph, mm_output, logger,
                                     min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
                                     pDockQ_cutoff_Nmers  = pDockQ_cutoff_Nmers,
                                     N_models_cutoff      = N_models_cutoff,
+                                    Nmer_stability_method = Nmer_stability_method,
+                                    N_models_cutoff_convergency = N_models_cutoff_convergency,
                                     logger = logger)
 
     # Initialize edge attribute

@@ -21,8 +21,8 @@ again the pipeline from the command line after saving).
 # show_PAE_along_backbone = False
 
 # remove_interactions_from_ppi_graph
-# remove_interactions_from_ppi_graph = ("Indirect", "No 2-mers Data")
-remove_interactions_from_ppi_graph = ("Indirect", )
+remove_interactions_from_ppi_graph = ("Indirect", "No 2-mers Data")
+# remove_interactions_from_ppi_graph = ("Indirect", )
 
 # auto_domain_detection
 # auto_domain_detection = True
@@ -44,7 +44,7 @@ remove_interactions_from_ppi_graph = ("Indirect", )
 Nmers_contacts_cutoff = 5
 contact_distance_cutoff: float | int = 8.0
 contact_PAE_cutoff     : float | int = 13
-contact_pLDDT_cutoff   : float | int = 50
+contact_pLDDT_cutoff   : float | int = 0
 
 # # This adds more spurious interactions?
 # Nmers_contacts_cutoff = 3
@@ -70,4 +70,4 @@ ppi_graph_layout_algorithm = available_layout[0]
 
 # If True, uses same graph_resolution value for all proteins
 # If False, you can select interactively 
-# auto_domain_detection: bool = True
+auto_domain_detection: bool = True
