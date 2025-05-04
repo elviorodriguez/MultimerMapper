@@ -1,21 +1,28 @@
 
-from asyncio import subprocess
 from logging import Logger
 import pandas as pd
 import numpy as np
-from Bio.PDB import Chain, Superimposer
-from Bio.PDB.Polypeptide import protein_letters_3to1
+import os
+import logging
+from Bio import PDB
 import seaborn as sns
 import plotly.graph_objects as go
 import plotly.express as px
 # from plotly.subplots import make_subplots
 import base64
 from collections import Counter
-import os
+from typing import Literal
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+import matplotlib.pyplot as plt
+from collections import Counter
+from wordcloud import WordCloud
 
 from traj.partners_density import analyze_protein_distribution, save_results_to_csv, plot_distributions, html_interactive_metadata
 from traj.py3Dmol_traj import create_trajectory_viewer
 from utils.logger_setup import configure_logger
+from utils.logger_setup import configure_logger
+from utils.pdb_utils import get_domain_atoms, ChainSelect, DomainSelect
 
 
 def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
@@ -37,7 +44,7 @@ def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
     def create_model_chain_from_residues(residue_list, model_id=0, chain_id='A'):
 
         # Create a Biopython Chain
-        chain = Chain.Chain(chain_id)
+        chain = PDB.Chain.Chain(chain_id)
 
         # Add atoms to the chain
         for residue in residue_list:
@@ -51,7 +58,7 @@ def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
             raise ValueError("Both chains must have the same number of atoms.")
 
         # Initialize the Superimposer
-        superimposer = Superimposer()
+        superimposer = PDB.Superimposer()
 
         # Extract atom objects from the chains (remove H atoms)
         atoms1 = [atom for atom in list(chain1.get_atoms()) if atom.id not in hydrogens]
@@ -145,7 +152,7 @@ def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
                 # Work chain by chain in the model
                 for query_chain in model["model"].get_chains():
                     query_chain_ID = query_chain.id
-                    query_chain_seq = "".join([protein_letters_3to1[res.get_resname()] for res in query_chain.get_residues()])
+                    query_chain_seq = "".join([PDB.Polypeptide.protein_letters_3to1[res.get_resname()] for res in query_chain.get_residues()])
                     
                     # Compute RMSD only if sequence match
                     if query_chain_seq == sliced_PAE_and_pLDDTs[protein_ID]["sequence"]:
@@ -181,7 +188,7 @@ def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
                 # Work chain by chain in the model
                 for query_chain in model["model"].get_chains():
                     query_chain_ID = query_chain.id
-                    query_chain_seq = "".join([protein_letters_3to1[res.get_resname()] for res in query_chain.get_residues()])
+                    query_chain_seq = "".join([PDB.Polypeptide.protein_letters_3to1[res.get_resname()] for res in query_chain.get_residues()])
                     
                     # Compute RMSD only if sequence match
                     if query_chain_seq == sliced_PAE_and_pLDDTs[protein_ID]["sequence"]:
@@ -211,20 +218,6 @@ def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
 # -----------------------------------------------------------------------------
 # --------------------------- RMSD trajectories -------------------------------
 # -----------------------------------------------------------------------------
-
-import os
-import logging
-from Bio import PDB
-from typing import Literal
-import numpy as np
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
-import matplotlib.pyplot as plt
-from collections import Counter
-from wordcloud import WordCloud
-
-from utils.logger_setup import configure_logger
-from utils.pdb_utils import get_domain_atoms, ChainSelect, DomainSelect
 
 
 def get_monomers_models_from_pairwise_2mers(protein_ID: str, protein_seq: str,
@@ -722,19 +715,113 @@ def plot_traj_heatmap(metadata_list, sorted_indices: list[int], metadata_type_y:
     plt.close()
   
 
+# # Helper fx to save trajectory file and metadata
+# def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_trajectory_folder,
+                    
+#                     RMSDs: list, pLDDTs: np.array, mean_pLDDTs: list, ROGs: np.array,
+
+#                     rot_matrixes: list, tran_vectors: list,
+
+#                     all_chains, all_chain_types, all_chain_info, domain_start=None, domain_end=None):
+    
+#     trajectory_file = os.path.join(protein_trajectory_folder, f'{protein_ID}_{filename_suffix}_traj.pdb')
+    
+#     df_cols = ['Traj_N', 'Type', 'Is_chain', 'Rank', 'Model', 'RMSD', 'pLDDT', 'ROG']
+#     trajectory_df = pd.DataFrame(columns=df_cols)
+    
+#     io = PDB.PDBIO()
+#     with open(trajectory_file, 'w') as f1:
+#         for i, idx in enumerate(sorted_indices):
+#             chain = all_chains[idx]
+#             chain_type = all_chain_types[idx]
+#             chain_info = all_chain_info[idx]
+#             model_name = f"MODEL_{i+1}_{chain_type}_{chain_info[0]}_{'-'.join(map(str, chain_info[1]))}_{chain_info[2]}"
+            
+#             model_data = pd.DataFrame({
+#                 "Traj_N"  : [i+1], 
+#                 "Type"    : [chain_type],
+#                 "Is_chain": [chain_info[0]],
+#                 "Rank"    : [chain_info[2]],
+#                 "Model"   : ['__vs__'.join(map(str, chain_info[1]))],
+#                 "RMSD"    : [RMSDs[idx]],
+#                 "pLDDT"   : [mean_pLDDTs[idx]],
+#                 "ROG"     : [ROGs[idx]]
+#                 })
+#             trajectory_df = pd.concat([trajectory_df, model_data], ignore_index=True)
+
+#             ### APPLY ROTATION AND TRANSLATION TO ALL ATOMS ###
+#             rotation_matrix = rot_matrixes[idx]
+#             translation_vector = tran_vectors[idx]
+            
+#             # Apply transformation at the chain level
+#             chain.transform(rotation_matrix, translation_vector)
+
+#             # Save transformed chain            
+#             io.set_structure(chain.parent)
+#             if domain_start is not None and domain_end is not None:
+#                 io.save(f1, select=DomainSelect(chain, domain_start, domain_end), write_end=False)
+#             else:
+#                 io.save(f1, select=ChainSelect(chain), write_end=False)
+#             f1.write(f"ENDMDL\nTITLE     {model_name}\n")
+
+#             ### REVERT BACK TO ORIGINAL POSITIONS ###
+#             inverse_rotation = rotation_matrix.T
+#             inverse_translation = -np.dot(inverse_rotation, translation_vector)
+#             chain.transform(inverse_rotation, inverse_translation)
+    
+#     # Generate some plots
+#     plot_traj_metadata(metadata_list = trajectory_df['RMSD'],
+#                        metadata_type = "RMSD",
+#                        protein_trajectory_folder = protein_trajectory_folder,
+#                        protein_ID = protein_ID, filename_suffix = filename_suffix)
+#     plot_traj_metadata(metadata_list = trajectory_df['pLDDT'],
+#                        metadata_type = "Mean pLDDT",
+#                        protein_trajectory_folder = protein_trajectory_folder,
+#                        protein_ID = protein_ID, filename_suffix = filename_suffix)
+#     plot_traj_metadata(metadata_list = trajectory_df['ROG'],
+#                        metadata_type = "ROG",
+#                        protein_trajectory_folder = protein_trajectory_folder,
+#                        protein_ID = protein_ID, filename_suffix = filename_suffix)
+#     plot_traj_heatmap(metadata_list = pLDDTs, sorted_indices = sorted_indices,
+#                       metadata_type_y = "Residue",
+#                       metadata_type_color = "pLDDT",
+#                       domain_start = domain_start, domain_end = domain_start,
+#                       protein_trajectory_folder = protein_trajectory_folder,
+#                       protein_ID = protein_ID, filename_suffix = filename_suffix)
+    
+#     trajectory_df_file = os.path.join(protein_trajectory_folder, f'{protein_ID}_{filename_suffix}_traj.tsv')
+#     trajectory_df.to_csv(trajectory_df_file, sep="\t", index=False)
+    
+#     return trajectory_file
+
+
 # Helper fx to save trajectory file and metadata
 def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_trajectory_folder,
                     
                     RMSDs: list, pLDDTs: np.array, mean_pLDDTs: list, ROGs: np.array,
-
                     rot_matrixes: list, tran_vectors: list,
-
-                    all_chains, all_chain_types, all_chain_info, domain_start=None, domain_end=None):
+                    all_chains, all_chain_types, all_chain_info, domain_start=None, domain_end=None,
+                    translate_to_origin=True):
     
     trajectory_file = os.path.join(protein_trajectory_folder, f'{protein_ID}_{filename_suffix}_traj.pdb')
     
     df_cols = ['Traj_N', 'Type', 'Is_chain', 'Rank', 'Model', 'RMSD', 'pLDDT', 'ROG']
     trajectory_df = pd.DataFrame(columns=df_cols)
+    
+    # Calculate translation vector to origin if requested
+    origin_translation = np.array([0.0, 0.0, 0.0])
+    if translate_to_origin and len(sorted_indices) > 0:
+        # Get the reference structure (first in the trajectory)
+        ref_idx = sorted_indices[0]
+        ref_chain = all_chains[ref_idx]
+        
+        # Calculate its center of mass
+        coords = np.array([atom.coord for atom in ref_chain.get_atoms() 
+                           if atom.get_name() == 'CA'])  # Using CA atoms for simplicity
+        if len(coords) > 0:
+            center = np.mean(coords, axis=0)
+            # Translation vector needed to move to origin
+            origin_translation = -center
     
     io = PDB.PDBIO()
     with open(trajectory_file, 'w') as f1:
@@ -755,14 +842,21 @@ def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_traject
                 "ROG"     : [ROGs[idx]]
                 })
             trajectory_df = pd.concat([trajectory_df, model_data], ignore_index=True)
-
+            
             ### APPLY ROTATION AND TRANSLATION TO ALL ATOMS ###
             rotation_matrix = rot_matrixes[idx]
             translation_vector = tran_vectors[idx]
             
             # Apply transformation at the chain level
             chain.transform(rotation_matrix, translation_vector)
-
+            
+            # Apply additional translation to origin if requested
+            if translate_to_origin:
+                # Create identity rotation matrix
+                identity_rotation = np.identity(3)
+                # Apply origin translation
+                chain.transform(identity_rotation, origin_translation)
+            
             # Save transformed chain            
             io.set_structure(chain.parent)
             if domain_start is not None and domain_end is not None:
@@ -770,8 +864,13 @@ def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_traject
             else:
                 io.save(f1, select=ChainSelect(chain), write_end=False)
             f1.write(f"ENDMDL\nTITLE     {model_name}\n")
-
+            
             ### REVERT BACK TO ORIGINAL POSITIONS ###
+            # First undo origin translation if it was applied
+            if translate_to_origin:
+                chain.transform(identity_rotation, -origin_translation)
+                
+            # Then undo the initial rotation and translation
             inverse_rotation = rotation_matrix.T
             inverse_translation = -np.dot(inverse_rotation, translation_vector)
             chain.transform(inverse_rotation, inverse_translation)
@@ -1316,7 +1415,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     
     # Get alpha carbon atoms and coordinates for reference
     ref_atoms = [atom for atom in ref_model.get_atoms() if atom.name == 'CA']
-    ref_L = len(ref_atoms)
+    # ref_L = len(ref_atoms)
     
     # Superimpose chains to the reference
     for chain in all_chains:
@@ -1325,14 +1424,14 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
         chain_atoms = [atom for atom in chain.get_atoms() if atom.name == 'CA']
     
         # Ensure both have the same number of atoms
-        chain_L = len(chain_atoms)
-        if chain_L != ref_L:
-            logger.error(f"   - Found chain with different length than the reference during trajectories construction of {protein_ID}")
-            logger.error( "   - Trimming the longer chain to avoid program crashing during RMSD calculations.")
-            logger.error( "   - Results may be unreliable under these circumstances.")
-        min_length = min(ref_L, chain_L)
-        ref_atoms = ref_atoms[:min_length]
-        chain_atoms = chain_atoms[:min_length]
+        # chain_L = len(chain_atoms)
+        # if chain_L != ref_L:
+        #     logger.error(f"   - Found chain with different length than the reference during trajectories construction of {protein_ID}")
+        #     logger.error( "   - Trimming the longer chain to avoid program crashing during RMSD calculations.")
+        #     logger.error( "   - Results may be unreliable under these circumstances.")
+        # min_length = min(ref_L, chain_L)
+        # ref_atoms = ref_atoms[:min_length]
+        # chain_atoms = chain_atoms[:min_length]
     
         # Calculate standard RMSD
         super_imposer.set_atoms(ref_atoms, chain_atoms)
@@ -1434,6 +1533,108 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     trajectory_folder = os.path.join(out_path, 'monomer_trajectories')
     protein_trajectory_folder = os.path.join(trajectory_folder, protein_ID)
     os.makedirs(protein_trajectory_folder, exist_ok=True)
+
+    # -------------------------------------------------------------------------
+    # ------------------- Compute whole protein trajectory --------------------
+    # -------------------------------------------------------------------------
+    
+    # Output path
+    monomer_trajectory_folder = os.path.join(protein_trajectory_folder, f"{protein_ID}_monomer")
+    os.makedirs(monomer_trajectory_folder, exist_ok=True)
+ 
+    # Sort models by RMSD (RMSD trajectories)
+    monomer_RMSD_traj_indices = np.argsort(rmsd_values)
+
+    # Compute some extra data (ROG and mean pLDDT per model)
+    monomer_mean_pLDDTs = [np.mean(model_per_res_plddt) for model_per_res_plddt in b_factors]
+    monomer_ROGs = compute_rog_for_all_chains(all_coords)
+
+    # Calculate RMSF for full length and save it -----------------
+    rmsf_values = calculate_rmsf(all_coords)
+    rmsf_plot_filename = os.path.join(monomer_trajectory_folder, protein_ID + "_monomer_RMSF.png")
+    plot_rmsf(rmsf_values, domains_df = domains_df,
+              protein_ID = protein_ID,
+              filename = rmsf_plot_filename)
+    # Save RMSF to CSV file
+    RMSF_filename = os.path.join(monomer_trajectory_folder, f'{protein_ID}_monomer_RMSF.csv')
+    with open(RMSF_filename, 'w') as f:
+        f.write(f'{protein_ID}: {str(list(rmsf_values))}\n')
+    # ------------------------------------------------------------
+    
+    # Save RMSD traj and metadata
+    logger.info(f"   - Generating RMSD trajectory files for whole {protein_ID}...")
+    rmsd_traj_file = save_trajectory(sorted_indices = monomer_RMSD_traj_indices,
+                                     protein_ID = protein_ID,
+                                     filename_suffix = "monomer_RMSD",
+                                     protein_trajectory_folder = monomer_trajectory_folder,
+
+                                     RMSDs        = rmsd_values,
+                                     pLDDTs       = b_factors,
+                                     mean_pLDDTs  = monomer_mean_pLDDTs,
+                                     ROGs         = monomer_ROGs,
+
+                                     rot_matrixes = monomer_rot_matrixes,
+                                     tran_vectors = monomer_tran_vectors,
+
+                                     all_chains      = all_chains,
+                                     all_chain_types = all_chain_types,
+                                     all_chain_info  = all_chain_info)
+
+    # Run distribution analysis if monomer trajectory folder exists
+    if os.path.exists(monomer_trajectory_folder):
+        
+        # Find all RMSD trajectory TSV files (ends with RMSD_traj.tsv)
+        rmsd_traj_files = [f for f in os.listdir(monomer_trajectory_folder) 
+                            if f.endswith('RMSD_traj.tsv')]
+        # Parse each RMSD file                                
+        for rmsd_traj_file in rmsd_traj_files:
+
+            # Get the prefix (everything before _RMSD_traj.tsv)
+            tsv_prefix = rmsd_traj_file.replace('_RMSD_traj.tsv', '')
+            
+            # Full path to the TSV file
+            tsv_path = os.path.join(monomer_trajectory_folder, rmsd_traj_file)
+            
+            # Read the trajectory file
+            monomer_rmsd_traj_df = pd.read_csv(tsv_path, sep='\t')
+            
+            # Run the analysis functions directly
+            windows = [5, 10, 15, 20]
+            monomer_distribution_results, rolling_data = analyze_protein_distribution(
+                monomer_rmsd_traj_df,
+                target_protein = protein_ID,
+                windows = windows)
+            
+            # Save results to CSV using the same prefix
+            output_csv = os.path.join(monomer_trajectory_folder, 
+                                    f'{tsv_prefix}_BPD_results.csv')
+            monomer_distribution_results_df = save_results_to_csv(monomer_distribution_results, output_csv)
+            
+            # Create a subdirectory for plots using the same prefix
+            plots_dir = os.path.join(monomer_trajectory_folder, f'{tsv_prefix}_BPD_plots')
+            os.makedirs(plots_dir, exist_ok=True)
+            
+            # Generate plots
+            plot_distributions(rolling_data, plots_dir, soft=True, noise_scale=0.01, target_protein=protein_ID)
+
+            html_interactive_metadata(
+                        protein_ID=protein_ID, 
+                        protein_trajectory_folder=monomer_trajectory_folder,
+                        sorted_indexes=monomer_RMSD_traj_indices,
+                        traj_df=monomer_rmsd_traj_df,
+
+                        domain_start=1,
+                        rmsd_values=rmsd_values,
+                        rmsf_values=rmsf_values,
+                        mean_plddts=monomer_mean_pLDDTs, 
+                        per_res_plddts = b_factors,
+                        rog_values = monomer_ROGs,
+                        bpd_values = rolling_data
+                    )
+            
+            input_pdb_filename = monomer_trajectory_folder + "/" + os.path.splitext(rmsd_traj_file)[0] + ".pdb"
+            out_html_py3dmol = monomer_trajectory_folder + "/" + os.path.splitext(rmsd_traj_file)[0] + ".html"
+            create_trajectory_viewer(input_pdb_filename, out_html_py3dmol)
 
     # -------------------------------------------------------------------------
     # -------------------- Compute per domain trajectories --------------------
@@ -1603,112 +1804,10 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     else:
         logger.info(f"   - Single domain detected for {protein_ID}, skipping domain analysis...")
     
-    # -------------------------------------------------------------------------
-    # ------------------- Compute whole protein trajectory --------------------
-    # -------------------------------------------------------------------------
-    
-    # Output path
-    monomer_trajectory_folder = os.path.join(protein_trajectory_folder, f"{protein_ID}_monomer")
-    os.makedirs(monomer_trajectory_folder, exist_ok=True)
- 
-    # Sort models by RMSD (RMSD trajectories)
-    monomer_RMSD_traj_indices = np.argsort(rmsd_values)
-
-    # Compute some extra data (ROG and mean pLDDT per model)
-    monomer_mean_pLDDTs = [np.mean(model_per_res_plddt) for model_per_res_plddt in b_factors]
-    monomer_ROGs = compute_rog_for_all_chains(all_coords)
-
-    # Calculate RMSF for full length and save it -----------------
-    rmsf_values = calculate_rmsf(all_coords)
-    rmsf_plot_filename = os.path.join(monomer_trajectory_folder, protein_ID + "_monomer_RMSF.png")
-    plot_rmsf(rmsf_values, domains_df = domains_df,
-              protein_ID = protein_ID,
-              filename = rmsf_plot_filename)
-    # Save RMSF to CSV file
-    RMSF_filename = os.path.join(monomer_trajectory_folder, f'{protein_ID}_monomer_RMSF.csv')
-    with open(RMSF_filename, 'w') as f:
-        f.write(f'{protein_ID}: {str(list(rmsf_values))}\n')
-    # ------------------------------------------------------------
-    
-    # Save RMSD traj and metadata
-    logger.info(f"   - Generating RMSD trajectory files for whole {protein_ID}...")
-    rmsd_traj_file = save_trajectory(sorted_indices = monomer_RMSD_traj_indices,
-                                     protein_ID = protein_ID,
-                                     filename_suffix = "monomer_RMSD",
-                                     protein_trajectory_folder = monomer_trajectory_folder,
-
-                                     RMSDs = rmsd_values,
-                                     pLDDTs = b_factors,
-                                     mean_pLDDTs = monomer_mean_pLDDTs,
-                                     ROGs = monomer_ROGs,
-
-                                     rot_matrixes = monomer_rot_matrixes,
-                                     tran_vectors = monomer_tran_vectors,
-
-                                     all_chains = all_chains,
-                                     all_chain_types = all_chain_types,
-                                     all_chain_info = all_chain_info)
-
-    # Run distribution analysis if monomer trajectory folder exists
-    if os.path.exists(monomer_trajectory_folder):
-        
-        # Find all RMSD trajectory TSV files (ends with RMSD_traj.tsv)
-        rmsd_traj_files = [f for f in os.listdir(monomer_trajectory_folder) 
-                            if f.endswith('RMSD_traj.tsv')]
-        # Parse each RMSD file                                
-        for rmsd_traj_file in rmsd_traj_files:
-
-            # Get the prefix (everything before _RMSD_traj.tsv)
-            tsv_prefix = rmsd_traj_file.replace('_RMSD_traj.tsv', '')
-            
-            # Full path to the TSV file
-            tsv_path = os.path.join(monomer_trajectory_folder, rmsd_traj_file)
-            
-            # Read the trajectory file
-            monomer_rmsd_traj_df = pd.read_csv(tsv_path, sep='\t')
-            
-            # Run the analysis functions directly
-            windows = [5, 10, 15, 20]
-            monomer_distribution_results, rolling_data = analyze_protein_distribution(
-                monomer_rmsd_traj_df,
-                target_protein = protein_ID,
-                windows = windows)
-            
-            # Save results to CSV using the same prefix
-            output_csv = os.path.join(monomer_trajectory_folder, 
-                                    f'{tsv_prefix}_BPD_results.csv')
-            monomer_distribution_results_df = save_results_to_csv(monomer_distribution_results, output_csv)
-            
-            # Create a subdirectory for plots using the same prefix
-            plots_dir = os.path.join(monomer_trajectory_folder, f'{tsv_prefix}_BPD_plots')
-            os.makedirs(plots_dir, exist_ok=True)
-            
-            # Generate plots
-            plot_distributions(rolling_data, plots_dir, soft=True, noise_scale=0.01, target_protein=protein_ID)
-
-            html_interactive_metadata(
-                        protein_ID=protein_ID, 
-                        protein_trajectory_folder=monomer_trajectory_folder,
-                        sorted_indexes=monomer_RMSD_traj_indices,
-                        traj_df=monomer_rmsd_traj_df,
-
-                        domain_start=1,
-                        rmsd_values=rmsd_values,
-                        rmsf_values=rmsf_values,
-                        mean_plddts=monomer_mean_pLDDTs, 
-                        per_res_plddts = b_factors,
-                        rog_values = monomer_ROGs,
-                        bpd_values = rolling_data
-                    )
-            
-            input_pdb_filename = monomer_trajectory_folder + "/" + os.path.splitext(rmsd_traj_file)[0] + ".pdb"
-            out_html_py3dmol = monomer_trajectory_folder + "/" + os.path.splitext(rmsd_traj_file)[0] + ".html"
-            create_trajectory_viewer(input_pdb_filename, out_html_py3dmol)
-    
     # Fill per domain rmsf_values with whole protein
     if not perform_domain_analysis:
         rmsf_values_per_domain = rmsf_values
-        
+
     # Prepare the results
     results = {
         'rmsd_values': rmsd_values,
