@@ -21,8 +21,8 @@ again the pipeline from the command line after saving).
 # show_PAE_along_backbone = False
 
 # remove_interactions_from_ppi_graph
-remove_interactions_from_ppi_graph = ("Indirect", "No 2-mers Data")
-# remove_interactions_from_ppi_graph = ("Indirect", )
+# remove_interactions_from_ppi_graph = ("Indirect", "No 2-mers Data")
+remove_interactions_from_ppi_graph = ("Indirect", )
 
 # auto_domain_detection
 # auto_domain_detection = True
@@ -57,7 +57,7 @@ contact_pLDDT_cutoff   : float | int = 0
 
 # 
 available_layout = ['fr', 'kk', 'circle', 'drl', 'lgl', 'random', 'rt', 'rt_circular', ]
-ppi_graph_layout_algorithm = available_layout[0]
+ppi_graph_layout_algorithm = available_layout[1]
 
 # For 3D visualization
 # layout_3d_iterations = 1000

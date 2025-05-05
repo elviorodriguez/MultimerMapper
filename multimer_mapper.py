@@ -513,6 +513,9 @@ if __name__ == "__main__":
     parser.add_argument('--use_IDs', action='store_true',
         help='Use protein IDs instead of names')
     
+    parser.add_argument('--first_plot', action='store_true',
+        help='Automatically accepts the first generated interactive plots')
+    
     parser.add_argument('--overwrite', action='store_true',
         help='If exists, overwrites the existent folder')
     
@@ -538,7 +541,8 @@ if __name__ == "__main__":
     overwrite       = args.overwrite
     manual_domains  = args.manual_domains
     N_value         = args.N_value
-    skip_traj        = args.skip_traj
+    skip_traj       = args.skip_traj
+    first_plot      = args.first_plot
 
     # Verbosity level
     if args.reduce_verbosity:
@@ -584,7 +588,8 @@ if __name__ == "__main__":
     # Generate interactive 2D PPI graph
     combined_graph_interactive = interactive_igraph_to_plotly(mm_output["combined_graph"],
                                                               out_path = out_path,
-                                                              log_level = log_level)
+                                                              log_level = log_level,
+                                                              automatic_true = True if first_plot else igraph_to_plotly_automatic_true)
     
     # Generate RMSF, pLDDT clusters and RMSD trajectories
     if not skip_traj:
@@ -599,7 +604,7 @@ if __name__ == "__main__":
                                      max_N = N_value + 1)
     
     # Create 3D network
-    nw = interactive_igraph_to_py3dmol(mm_output['combined_graph'], logger = logger)
+    nw = interactive_igraph_to_py3dmol(mm_output['combined_graph'], logger = logger, automatic_true = first_plot)
 
     # Integrate everything into an HTML report
     create_report(out_path)
