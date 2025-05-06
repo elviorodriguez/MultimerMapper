@@ -458,11 +458,12 @@ def interactive_igraph_to_py3dmol(combined_graph, logger, automatic_true = False
 
         logger.info("Some 3D layout generation algorithms are stochastic:")
         logger.info("   - Do you like the plot? (y/n): ")
-        user_input = input().strip().lower()
 
         if automatic_true:
             logger.info("   - Automatic True: Enjoy your interactive 3D plot!")
             break
+        
+        user_input = input().strip().lower()
 
         if user_input == "y":
             logger.info(f"   - User response: {user_input} -> Great! Enjoy your interactive 3D plot!")
