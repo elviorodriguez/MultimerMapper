@@ -1007,8 +1007,9 @@ def format_multivalency_states(edge, logger = None):
     # Initialize result variable and size tracker
     formatted_multivalency_states: list = []
     current_size: int = 0
-    
-    for model in sorted(multivalency_states.keys(), key=len):
+
+    # Sort the models: first by m+n (N-mer size) and then by m (Stoichiometric coefficient of P)
+    for model in sorted(multivalency_states.keys(), key=lambda x: (len(x), x.count(p_ID))):
         # Count how many of each protein in the model
         p_count = model.count(p_ID)
         q_count = model.count(q_ID)
