@@ -342,13 +342,13 @@ def generate_pairwise_2mers_df(all_pdb_data: dict, out_path: str = ".", save_pai
                     with open(json_file_path, 'r') as f:
                         
                         # Load the JSON file with AF2 scores
-                        PAE_matrix = json.load(f)                       
+                        json_data = json.load(f)                       
                         
                         # Extraction
                         rank = int((search(r'_rank_(\d{3})_', filename)).group(1))
-                        pTM = PAE_matrix['ptm']
-                        ipTM = PAE_matrix['iptm']
-                        PAE_matrix = np.array(PAE_matrix['pae'], dtype=np.float16)
+                        pTM = json_data['ptm']
+                        ipTM = json_data['iptm']
+                        PAE_matrix = np.array(json_data['pae'], dtype=np.float16)
     
                     # Extract diagonal sub-PAE matrices using protein lengths
                     sub_PAE_1 = PAE_matrix[len_A:len_AB, 0:len_A]
