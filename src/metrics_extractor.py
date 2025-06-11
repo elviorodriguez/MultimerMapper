@@ -120,11 +120,11 @@ def extract_AF2_metrics_from_JSON(all_pdb_data: dict, fasta_file_path: str, out_
                 # Extract PAE matrix and pLDDT
                 with open(json_file_path, 'r') as f:
                     # Load the JSON file with AF2 scores
-                    PAE_matrix = json.load(f)
+                    json_data = json.load(f)
                     
                     # Extraction
-                    pLDDT_by_res = PAE_matrix['plddt']
-                    PAE_matrix = np.array(PAE_matrix['pae'], dtype=np.float16)
+                    pLDDT_by_res = json_data['plddt']
+                    PAE_matrix = np.array(json_data['pae'], dtype=np.float16)
                     
                 # Isolate PAE matrix for each protein in the input fasta file
                 for i, chain in enumerate(chain_IDs):
