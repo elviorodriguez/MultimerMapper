@@ -135,6 +135,31 @@ def get_combinations_data(directory_path):
     
     return combinations_data
 
+def get_stability_plots(directory_path):
+    """Extract stability plot information."""
+    stability_dir = os.path.join(directory_path, "stability_plots")
+    if not os.path.exists(stability_dir):
+        return []
+    
+    plots = []
+    pattern = re.compile(r"(.+)_(.+)-(.+)\.html")
+    for file in glob.glob(os.path.join(stability_dir, "*.html")):
+        basename = os.path.basename(file)
+        match = pattern.match(basename)
+        if match:
+            metric = match.group(1)
+            statistic = match.group(2)
+            proteins = match.group(3)
+            protein1, protein2 = proteins.split('_', 1) if '_' in proteins else (proteins, proteins)
+            plots.append({
+                "metric": metric,
+                "statistic": statistic,
+                "protein1": protein1,
+                "protein2": protein2,
+                "path": os.path.relpath(file, directory_path)
+            })
+    
+    return plots
 
 #########################################################################################
 ######################################## Reports ########################################
@@ -216,6 +241,15 @@ def create_zip_report(directory_path):
         for graph_file in graph_files:
             rel_path = os.path.relpath(graph_file, directory_path)
             zipf.write(graph_file, rel_path)
+
+        # Add stability_plots directory
+        stability_dir = os.path.join(directory_path, "stability_plots")
+        if os.path.exists(stability_dir):
+            for root, dirs, files in os.walk(stability_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(file_path, directory_path)
+                    zipf.write(file_path, rel_path)
     
     # print(f"Zip report created at: {zip_path}")
 
@@ -257,6 +291,9 @@ def create_report(directory_path, zip_report = True):
     # Collect combination suggestion files with content
     combinations_data = get_combinations_data(directory_path)
 
+    # Collect the stability plots html files
+    stability_plots = get_stability_plots(directory_path)
+
     # Read log content if exists
     log_content = None
     log_path = os.path.join(directory_path, "multimer_mapper.log")
@@ -272,6 +309,7 @@ def create_report(directory_path, zip_report = True):
         plddt_clusters, 
         monomer_trajectories,
         fallback_images,
+        stability_plots,
         combinations_data,
         log_content
     )
@@ -284,7 +322,7 @@ def create_report(directory_path, zip_report = True):
         create_zip_report(directory_path)
 
 def generate_html(directory_path, protein_names, contact_clusters, plddt_clusters, 
-                  monomer_trajectories, fallback_images, combinations_data, log_content):
+                  monomer_trajectories, fallback_images, stability_plots, combinations_data, log_content):
     """Generate the main HTML content."""
     
     # Convert data to JSON for JavaScript use
@@ -293,6 +331,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
     monomer_trajectories_json = json.dumps(monomer_trajectories)
     protein_names_json = json.dumps(protein_names)
     fallback_images_json = json.dumps(fallback_images)
+    stability_plots_json = json.dumps(stability_plots)
     combinations_data_json = json.dumps(combinations_data)
     log_content_json = json.dumps(log_content)
     
@@ -833,6 +872,11 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
                 <i class="fas fa-images"></i>
                 <span>Fallback Analysis</span>
             </div>
+
+            <div class="menu-item" id="stability-plots-button">
+                <i class="fas fa-chart-area"></i>
+                <span>Stability Plots</span>
+            </div>
             
             <div class="menu-item" id="combinations-suggestions-button">
                 <i class="fas fa-lightbulb"></i>
@@ -915,6 +959,45 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             </div>
         </div>
 
+        <!-- Stability Plots panel -->
+        <div class="slide-panel" id="stability-plots-panel">
+            <div class="slide-panel-header">
+                <h3>Stability Plots</h3>
+                <button class="close-panel" id="close-stability-panel">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="protein-selector">
+                <div class="protein-column">
+                    <h4>Select First Protein</h4>
+                    <div id="stability-protein1-buttons"></div>
+                </div>
+                <div class="protein-column">
+                    <h4>Select Second Protein</h4>
+                    <div id="stability-protein2-buttons"></div>
+                </div>
+            </div>
+            <div style="margin: 20px 0;">
+                <h4>Select Metric (optional)</h4>
+                <select id="stability-metric-select" style="width: 100%; padding: 10px; margin-bottom: 15px;">
+                    <option value="all">All Metrics</option>
+                    <option value="aiPAE">aiPAE</option>
+                    <option value="miPAE">miPAE</option>
+                    <option value="pLDDT">pLDDT</option>
+                </select>
+                
+                <h4>Select Statistic (optional)</h4>
+                <select id="stability-statistic-select" style="width: 100%; padding: 10px;">
+                    <option value="all">All Statistics</option>
+                    <option value="mean">Mean</option>
+                    <option value="median">Median</option>
+                </select>
+            </div>
+            <button class="view-button" id="view-stability-plots" disabled>
+                <i class="fas fa-eye"></i> View Stability Plots
+            </button>
+        </div>
+
     </div>
     
     <script>
@@ -926,6 +1009,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         const fallbackImages = {fallback_images_json};
         const combinationsData = {combinations_data_json};
         const logContent = {log_content_json};
+        const stabilityPlots = {stability_plots_json};
         
         // DOM Elements
         const mainContent = document.getElementById('main-content');
@@ -981,6 +1065,9 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             // Fallback Analysis button
             document.getElementById('fallback-analysis-button').addEventListener('click', showFallbackAnalysis);
             
+            // Stability Plots button
+            document.getElementById('stability-plots-button').addEventListener('click', openStabilityPlotsPanel);
+
             // Combinations Suggestions button
             document.getElementById('combinations-suggestions-button').addEventListener('click', showCombinationsSuggestions);
             
@@ -1312,7 +1399,115 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
                 </div>
             `);
         }}
+
+        // Open Stability Plots Panel
+        function openStabilityPlotsPanel() {{
+            const panel = document.getElementById('stability-plots-panel');
+            panel.style.right = '0';
+            populateStabilityProteinButtons();
+            
+            document.getElementById('close-stability-panel').addEventListener('click', () => {{
+                panel.style.right = '-600px';
+            }});
+        }}
         
+        // Populate protein buttons
+        function populateStabilityProteinButtons() {{
+            const protein1Buttons = document.getElementById('stability-protein1-buttons');
+            const protein2Buttons = document.getElementById('stability-protein2-buttons');
+            
+            protein1Buttons.innerHTML = '';
+            protein2Buttons.innerHTML = '';
+            
+            proteinNames.forEach(protein => {{
+                const button1 = document.createElement('button');
+                button1.className = 'protein-button';
+                button1.textContent = protein;
+                button1.setAttribute('data-protein', protein);
+                button1.addEventListener('click', selectStabilityProtein1);
+                protein1Buttons.appendChild(button1);
+                
+                const button2 = document.createElement('button');
+                button2.className = 'protein-button';
+                button2.textContent = protein;
+                button2.setAttribute('data-protein', protein);
+                button2.addEventListener('click', selectStabilityProtein2);
+                protein2Buttons.appendChild(button2);
+            }});
+            
+            // Initialize view button
+            document.getElementById('view-stability-plots').addEventListener('click', viewStabilityPlots);
+        }}
+        
+        let selectedStabilityProtein1 = null;
+        let selectedStabilityProtein2 = null;
+        
+        function selectStabilityProtein1() {{
+            document.querySelectorAll('#stability-protein1-buttons .protein-button').forEach(btn => {{
+                btn.classList.remove('selected');
+            }});
+            this.classList.add('selected');
+            selectedStabilityProtein1 = this.getAttribute('data-protein');
+            checkStabilitySelection();
+        }}
+        
+        function selectStabilityProtein2() {{
+            document.querySelectorAll('#stability-protein2-buttons .protein-button').forEach(btn => {{
+                btn.classList.remove('selected');
+            }});
+            this.classList.add('selected');
+            selectedStabilityProtein2 = this.getAttribute('data-protein');
+            checkStabilitySelection();
+        }}
+        
+        function checkStabilitySelection() {{
+            const viewButton = document.getElementById('view-stability-plots');
+            viewButton.disabled = !(selectedStabilityProtein1 && selectedStabilityProtein2);
+        }}
+        
+        // View stability plots with selected options
+        function viewStabilityPlots() {{
+            const metric = document.getElementById('stability-metric-select').value;
+            const statistic = document.getElementById('stability-statistic-select').value;
+            
+            // Filter plots by selected proteins
+            let plots = stabilityPlots.filter(plot => 
+                (plot.protein1 === selectedStabilityProtein1 && plot.protein2 === selectedStabilityProtein2) ||
+                (plot.protein1 === selectedStabilityProtein2 && plot.protein2 === selectedStabilityProtein1)
+            );
+            
+            // Apply metric filter if specified
+            if (metric !== 'all') {{
+                plots = plots.filter(plot => plot.metric === metric);
+            }}
+            
+            // Apply statistic filter if specified
+            if (statistic !== 'all') {{
+                plots = plots.filter(plot => plot.statistic === statistic);
+            }}
+            
+            if (plots.length === 0) {{
+                alert('No stability plots found matching the selected criteria');
+                return;
+            }}
+            
+            // Close panel
+            document.getElementById('stability-plots-panel').style.right = '-600px';
+            
+            // Generate HTML for plots
+            let html = `<div style="padding: 20px;">
+                <h2>Stability Plots for ${{selectedStabilityProtein1}} and ${{selectedStabilityProtein2}}</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(500px, 1fr)); gap: 20px;">`;
+            
+            plots.forEach(plot => {{
+                html += `<iframe src="${{plot.path}}" style="width: 100%; height: 500px; border: none;"></iframe>`;
+            }});
+            
+            html += `</div></div>`;
+            
+            setMainContent(html);
+        }}
+
         // Show Combinations Suggestions
         function showCombinationsSuggestions() {{
             if (combinationsData.length === 0) {{
