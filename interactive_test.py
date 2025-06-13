@@ -78,31 +78,31 @@ pd.set_option( 'display.max_columns' , None )
 
 ######################## Test 6 (multivalency detection) ######################
 
-# fasta_file = "/home/elvio/Desktop/heteromultimers_benchmark/proteins_mm.fasta"
-# AF2_2mers = "/home/elvio/Desktop/heteromultimers_benchmark/AF2_2mers"
-# AF2_Nmers = "/home/elvio/Desktop/heteromultimers_benchmark/AF2_Nmers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/heteromultimers_benchmark/MM_out_Nmers"
-# use_names = False
-# overwrite = True
-# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# auto_domain_detection = True
-# graph_resolution_preset = None
-
-###############################################################################
-
-################### Test 6' (multivalency detection RuvBL) ####################
-
-fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
-AF2_2mers = "tests/multivalency_test/2-mers"
-AF2_Nmers = "tests/multivalency_test/N-mers"
+fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/proteins_mm.fasta"
+AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/N-mers"
 # AF2_Nmers = None
-out_path = "/home/elvio/Desktop/RuvBL_test"
+out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/MM_metrics_profiles_test"
 use_names = True
 overwrite = True
 # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 auto_domain_detection = True
 graph_resolution_preset = None
+
+###############################################################################
+
+################### Test 6' (multivalency detection RuvBL) ####################
+
+# fasta_file = "tests/multivalency_test/RuvBL_proteins.fasta"
+# AF2_2mers = "tests/multivalency_test/2-mers"
+# AF2_Nmers = "tests/multivalency_test/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/RuvBL_test"
+# use_names = True
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
@@ -173,7 +173,7 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
                                        graph_resolution_preset = graph_resolution_preset)
 
 # Generate interactive graph
-import multimer_mapper as mm
+# import multimer_mapper as mm
 # combined_graph, dynamic_proteins, homooligomerization_states, multivalency_states = mm.generate_combined_graph(mm_output)
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
     mm_output["combined_graph"], out_path = out_path,
@@ -396,11 +396,84 @@ mm_output['contacts_clusters'][tuple_pair][0]
 
 
 ###############################################################################
+###################### TESTS: To generate metrics plots #######################
+###############################################################################
+
+# Create a dataframe to store data
+stability_df = pd.DataFrame()
+
+# For each model
+mm_output.keys()
+
+# Extract msiPAE, miPAE, pDockQ, pTM, ipTM
+mm_output['pairwise_2mers_df'].columns
+mm_output['pairwise_Nmers_df'].columns
+mm_output['pairwise_2mers_df_F3'].columns
+mm_output['pairwise_Nmers_df_F3'].columns
+
+# ----------------- Extract aiPAE, miPAE
+
+# Protein pairs that interact (e.g: {('RuvBL1', 'RuvBL1'), ('RuvBL1', 'RuvBL2'), ('RuvBL2', 'RuvBL2')})
+int_pairs = {tuple(sorted(e["name"])) for e in mm_output['combined_graph'].es}
+
+# These keys are the pairs of proteins that have matrixes. Example: dict_keys([('RuvBL1', 'RuvBL1'), ('RuvBL1', 'RuvBL2'), ('RuvBL2', 'RuvBL2')])
+pairs = list(mm_output['pairwise_contact_matrices'].keys())
+
+# These keys represent the decomposed sub-models in a pairwise fashion of bigger (or equally, eg 2 proteins) models
+# Example: dict_keys([(('RuvBL1', 'RuvBL2'), ('A', 'B'), 1), (('RuvBL1', 'RuvBL2'), ('A', 'B'), 2), (('RuvBL1', 'RuvBL2'), ('A', 'B'), 3), (('RuvBL1', 'RuvBL2'), ('A', 'B'), 4), (('RuvBL1', 'RuvBL2'), ('A', 'B'), 5), (('RuvBL1', 'RuvBL2', 'RuvBL2'), ('A', 'B'), 1), (('RuvBL1', 'RuvBL2', 'RuvBL2'), ('A', 'B'), 2), ...])
+# Each key is a tuple with the information of each chain pair and its matching model: [(tuple with proteins in the model: combination of proteins, corresponding chain IDs: e.g. ("A","B") or ("B","C") etc., the rank of the model: 1 to 5), ...] The combination of proteins and the rank identifies the model per se
+# I. e., it tells which chains the matixes correspond and which model (proteins in the model + rank)
+sub_models = list(mm_output['pairwise_contact_matrices'][pairs[1]].keys())
+
+# These are the sub-matrixes available for each decomposed pair: dict_keys(['PAE', 'min_pLDDT', 'distance', 'is_contact'])
+mm_output['pairwise_contact_matrices'][pairs[1]][sub_models[5]].keys()
+
+# How to extract the miPAE (e.g: 4.26)
+np.min(mm_output['pairwise_contact_matrices'][pairs[1]][sub_models[5]]['PAE'])
+
+# How to compute aiPAE (eg: 16.011199544046406)
+np.mean(mm_output['pairwise_contact_matrices'][pairs[1]][sub_models[5]]['PAE'])
+
+# How to know if they interact (eg: True)
+np.sum(mm_output['pairwise_contact_matrices'][pairs[1]][sub_models[5]]['is_contact']) >= 3
+
+# To know if the pair of chains is the same of the protein pair under analysis during the iteration,
+# the chain ids (which can be converted to indexes, eg: A=0, B=1, etc.) can be used to match the protein
+# index in the "tuple with proteins in the model: combination of proteins"
+
+# ----------------- Extract pLDDTs
+
+# Protein pairs that interact (e.g: {('RuvBL1', 'RuvBL1'), ('RuvBL1', 'RuvBL2'), ('RuvBL2', 'RuvBL2')})
+int_pairs = {tuple(sorted(e["name"])) for e in mm_output['combined_graph'].es}
+
+# Example: dict_keys(['RuvBL1', 'RuvBL2'])
+prots = list(mm_monomers_traj.keys())
+
+# dict_keys(['rmsd_values', 'rmsf_values', 'rmsf_values_per_domain', 'b_factors', 'b_factor_clusters', 'chain_types', 'model_info', 'rmsd_trajectory_file'])
+variables = list(mm_monomers_traj[prot].keys())
+
+# list of tuples with the information of each chain: [(chain ID: e.g.: "A" or "B" or "C" etc., tuple with proteins in the model: combination of proteins, rank: 1 to 5), ...] The combination of proteins and the rank identifies the model per se
+# I. e., it tells which chain it correspond and which model (proteins in the model + rank)
+mm_monomers_traj[prot][variables[6]]
+
+# list of arrays with per residue pLDDT (each index matches their corresponding model info )
+mm_monomers_traj[prot][variables[3]]
+
+
+
+
+
+# Get pLDDTs
+[[np.mean([a.bfactor for a in ch.get_atoms() if a.id == "CA"]) for ch in mod.get_chains()] for mod in mm_output['pairwise_2mers_df']['model']]
+[[np.mean([a.bfactor for a in ch.get_atoms() if a.id == "CA"]) for ch in mod.get_chains()] for mod in mm_output['pairwise_Nmers_df']['model']]
+
+
+###############################################################################
 ################### TESTS: To find the best stoichiometries ###################
 ###############################################################################
 
 
-            
+
 
 # Weight
 def get_edge_weight(graph_edge, classification_df: pd.DataFrame, default_edge_weight = 0.5):

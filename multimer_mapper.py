@@ -26,6 +26,7 @@ try:
     from src.fallback import analyze_fallback
     from src.contact_graph import Residue, Surface, Protein, PPI, Network
     from src.stoichiometries import stoichiometric_space_exploration_pipeline
+    from src.stability_metrics import compute_and_plot_stability_metrics
     from report.unify import create_report
 
     # These are for interactive usage
@@ -596,7 +597,9 @@ if __name__ == "__main__":
     if not skip_traj:
         mm_traj = generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(mm_output = mm_output,
                                                                     out_path = out_path,
-                                                                    log_level = log_level)    
+                                                                    log_level = log_level)
+        
+        df_plddt_stats, df_pae_stats = compute_and_plot_stability_metrics(mm_output, mm_traj)
     
     # Generate suggested combinations files
     sug_combs = suggest_combinations(mm_output = mm_output,
