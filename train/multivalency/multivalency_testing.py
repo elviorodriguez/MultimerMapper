@@ -236,7 +236,6 @@ class MultivalencyTester:
         all_results.sort(key=lambda x: x[0])
         all_results = [r[1] for r in all_results]
         
-        # Rest of your code remains the same...
         # Organize results
         true_clusters = []
         pred_clusters_by_threshold = [[] for _ in thresholds]
