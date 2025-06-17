@@ -78,16 +78,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ######################## Test 6 (multivalency detection) ######################
 
-fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/proteins_mm.fasta"
-AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/2-mers"
-AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/MM_metrics_profiles_test"
-use_names = True
-overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-auto_domain_detection = True
-graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/proteins_mm.fasta"
+# AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/MM_metrics_profiles_test"
+# use_names = True
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
@@ -118,6 +118,21 @@ graph_resolution_preset = None
 # # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 # auto_domain_detection = True
 # graph_resolution_preset = None
+
+###############################################################################
+
+####################### Test 6'' (multivalency PEX13/31) ######################
+
+fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/proteins_mm.fasta"
+AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/MM_metrics_profiles_test"
+use_names = True
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+auto_domain_detection = True
+graph_resolution_preset = None
 
 ###############################################################################
 
@@ -435,7 +450,7 @@ np.min(mm_output['pairwise_contact_matrices'][pairs[1]][sub_models[5]]['PAE'])
 np.mean(mm_output['pairwise_contact_matrices'][pairs[1]][sub_models[5]]['PAE'])
 
 # How to know if they interact (eg: True)
-np.sum(mm_output['pairwise_contact_matrices'][pairs[1]][sub_models[5]]['is_contact']) >= 3
+np.sum(mm_output['pairwise_contact_matrices'][pairs[1]][sub_models[5]]['is_contact']) >= 5
 
 # To know if the pair of chains is the same of the protein pair under analysis during the iteration,
 # the chain ids (which can be converted to indexes, eg: A=0, B=1, etc.) can be used to match the protein
