@@ -85,33 +85,20 @@ def calculate_jaccard_similarity(matrix1: np.ndarray, matrix2: np.ndarray) -> fl
     return 1.0 if union == 0 else intersection / union
 
 
-# def calculate_mean_closeness(
-#     matrix1: np.ndarray,
-#     matrix2: np.ndarray,
-#     use_median: bool = True
-# ) -> float:
-#     """
-#     Calculate the Mean/Median Closeness (MC) between two boolean contact matrices.
-#     """
-#     contacts1 = np.array(np.where(matrix1 > 0)).T
-#     contacts2 = np.array(np.where(matrix2 > 0)).T
-#     if len(contacts1) == 0 or len(contacts2) == 0:
-#         return np.inf
-#     # ensure smaller set first
-#     if len(contacts1) > len(contacts2):
-#         contacts1, contacts2 = contacts2, contacts1
-#     distances = cdist(contacts1, contacts2, metric='cityblock')
-    
-#     # Find the minimum distance for each contact in the smaller matrix
-#     min_distances = np.min(distances, axis=1)
-    
-#     # Calculate the mean/median of these minimum distances
-#     if use_median:
-#         mean_closeness = np.median(min_distances)
-#     else:
-#         mean_closeness = np.mean(min_distances)
-    
-#     return mean_closeness
+def relabel_clusters_by_size(labels: List[int]) -> Tuple[List[int], Dict[int, int]]:
+    """
+    Relabel clusters by descending size (or ascending cluster label if equal).
+    Returns:
+        - new_labels: list of relabeled cluster ids
+        - mapping: original_label -> new_label
+    """
+    from collections import Counter
+
+    label_counts = Counter(labels)
+    sorted_labels = sorted(label_counts.items(), key=lambda x: (-x[1], x[0]))  # largest to smallest
+    mapping = {old: new for new, (old, _) in enumerate(sorted_labels)}
+    new_labels = [mapping[l] for l in labels]
+    return new_labels, mapping
 
 
 def calculate_mean_closeness(
@@ -160,8 +147,8 @@ def cluster_contact_matrices_similarity_based(
     all_pair_matrices: Dict[Tuple[str, str], Dict],
     pair: Tuple[str, str],
     max_valency: int,
-    similarity_metric: str = 'jaccard',            # 'jaccard' or 'closeness'
-    use_median: bool = True,                       # for mean_closeness
+    similarity_metric: str = 'closeness',           # 'jaccard' or 'closeness'
+    use_median: bool = False,                       # for mean_closeness
     silhouette_improvement: float = 0.05,
     extra_clusters: int = 2,
     logger = None
@@ -247,14 +234,19 @@ def cluster_contact_matrices_similarity_based(
     pca = PCA(n_components=min(0.95, scaled.shape[1], scaled.shape[0] - 1))
     reduced = pca.fit_transform(scaled)
     explained = pca.explained_variance_ratio_ * 100
+    
+    # Relabel clusters by size
+    labels, label_mapping = relabel_clusters_by_size(labels)
 
-    return labels, model_keys, reduced, explained
+    return labels, model_keys, reduced, explained, label_mapping
 
 def generate_cluster_dict(all_pair_matrices: Dict, 
                          pair: Tuple[str, str], 
                          model_keys: List, 
-                         labels: List[int], 
-                         mm_output: Dict) -> Dict:
+                         labels: List[int],
+                         mm_output: Dict,
+                         similarity_metric = "closeness",
+                         use_median = False) -> Dict:
     """
     Generate cluster dictionary with representative models and average matrices.
     
@@ -326,12 +318,19 @@ def generate_cluster_dict(all_pair_matrices: Dict,
         models = [model_keys[i] for i in indices]
         mats = [all_pair_matrices[pair][m]['is_contact'] for m in models]
         avg_mat = np.mean(mats, axis=0)
+        
         # pick representative closest to avg
         rep, best = None, -1
         for m in models:
-            sim = calculate_jaccard_similarity(all_pair_matrices[pair][m]['is_contact'], avg_mat)
+            if similarity_metric == 'closeness':
+                dist = calculate_mean_closeness(all_pair_matrices[pair][m]['is_contact'], avg_mat, use_median)
+                sim = 1 / dist
+            elif similarity_metric == 'jaccard':
+                sim = calculate_jaccard_similarity(all_pair_matrices[pair][m]['is_contact'], avg_mat)
+            
             if sim > best:
                 best, rep = sim, m
+        
         # determine labels/domains
         if avg_mat.shape == (L_a, L_b):
             x_lab, y_lab = protein_b, protein_a
@@ -339,6 +338,8 @@ def generate_cluster_dict(all_pair_matrices: Dict,
         else:
             x_lab, y_lab = protein_a, protein_b
             x_dom, y_dom = domains_a, domains_b
+        
+        # Pack results
         cluster_dict[new_id] = {
             'models': models,
             'representative': rep,
@@ -513,7 +514,7 @@ def analyze_protein_interactions_with_clustering(mm_output: Dict[str, Any],
         
         # Cluster the matrices
         model_keys = list(all_pair_matrices[pair].keys())
-        labels, model_keys, reduced_features, explained_variance = cluster_contact_matrices_similarity_based(
+        labels, model_keys, reduced_features, explained_variance, _ = cluster_contact_matrices_similarity_based(
             all_pair_matrices, pair, max_valency,
             similarity_metric = similarity_metric,
             use_median = use_median,
@@ -532,7 +533,7 @@ def analyze_protein_interactions_with_clustering(mm_output: Dict[str, Any],
             # Visualization (DO NOT REMOVE)
             visualize_clusters_static(cluster_info, pair, model_keys, labels, mm_output,
                               reduced_features = reduced_features,
-                              explained_variance= explained_variance, show_plot = True,
+                              explained_variance= explained_variance, show_plot = False,
                               save_plot = True, plot_by_model = False,
                               logger = logger)
             
@@ -595,7 +596,7 @@ df, clusters = analyze_protein_interactions_with_clustering(
     similarity_metric = 'closeness',
     use_median=False,
     logger = logger)
-# print_clustering_summary(clusters)
+print_clustering_summary(clusters, logger = logger)
 
 # ---------------------- How to get the representative model of the cluster
 
