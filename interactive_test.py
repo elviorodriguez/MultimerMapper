@@ -136,6 +136,21 @@ graph_resolution_preset = None
 
 ###############################################################################
 
+##################### Test 6''' (multivalency ATPase) ######################
+
+# fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_5FIL/proteins_mm.fasta"
+# AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_5FIL/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_5FIL/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_5FIL/MM_metrics_profiles_test"
+# use_names = True
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
+
+###############################################################################
+
 ####################### Test 7 (multivalency homodimers) ######################
 
 # fasta_file = "/home/elvio/Desktop/homomultimers_benchmark/proteins.fasta"
