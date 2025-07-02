@@ -5,8 +5,8 @@ import pandas as pd
 import pickle
 import matplotlib.pyplot as plt
 
-from train.multivalency.parse_raw_data import parse_raw_data
-from train.multivalency.multivalency_testing import run_multivalency_testing
+from train.multivalency_merging_matrixes.parse_raw_data import parse_raw_data
+from train.multivalency_merging_matrixes.multivalency_testing import run_multivalency_testing
 
 ###############################################################################
 ############################## Data Generation ################################
@@ -84,7 +84,7 @@ filepaths = ['/home/elvio/Desktop/multivalency_benchmark/benchmark_results/cf_re
 
 # ---------------------------------- Script 1 ---------------------------------
 
-from train.multivalency.visualize_results import process_files, plot_precision_recall,plot_accuracy_vs_threshold, plot_precision_recall_accuracy_static, plot_precision_recall_accuracy_interactive
+from train.multivalency_merging_matrixes.visualize_results import process_files, plot_precision_recall,plot_accuracy_vs_threshold, plot_precision_recall_accuracy_static, plot_precision_recall_accuracy_interactive
 
 # Process the files and get the results
 results_df = process_files(filepaths)
@@ -102,7 +102,7 @@ plot_precision_recall_accuracy_interactive(results_df, out_dir = benchmark_resul
 
 # ---------------------------------- Script 2 ---------------------------------
 
-from train.multivalency.visualize_results import read_csvs, evaluate_clustering_metrics, plot_accuracy_vs_threshold
+from train.multivalency_merging_matrixes.visualize_results import read_csvs, evaluate_clustering_metrics, plot_accuracy_vs_threshold
 
 # Read the clustering results for each threshold
 raw_df2 = read_csvs(filepaths)
