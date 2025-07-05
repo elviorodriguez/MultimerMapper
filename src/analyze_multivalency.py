@@ -22,6 +22,7 @@ from utils.logger_setup import configure_logger, default_error_msgs
 from utils.combinations import get_untested_2mer_pairs, get_tested_Nmer_pairs
 from src.analyze_homooligomers import add_chain_information_to_df, does_all_have_at_least_one_interactor
 from src.convergency import does_nmer_is_fully_connected_network
+from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff, Nmer_stability_method, N_models_cutoff_convergency, Nmers_contacts_cutoff_convergency
 
 #########################################################################################
@@ -1596,21 +1597,24 @@ def get_multivalent_pairs_dict(mm_output):
     
     return multivalent_pairs
 
-def get_multivalent_pairs_list(combined_graph, drop_homooligomers = False):
+def get_multivalent_pairs_list(mm_output, combined_graph, logger, drop_homooligomers = False):
 
     multivalent_pairs: list = []
 
+    multivalent_pairs_based_on_evidence: list = get_multivalent_tuple_pairs_based_on_evidence(mm_output, logger)
+
     for edge in combined_graph.es:
 
-        sorted_tuple_pair: tuple = tuple(sorted(edge['name']))
-        edge_valency: int        = edge['valency']['cluster_n']
+        sorted_tuple_pair: tuple  = tuple(sorted(edge['name']))
+        edge_valency: int         = edge['valency']['cluster_n']
+        edge_is_multivalent: bool = tuple(sorted(edge['name'])) in multivalent_pairs_based_on_evidence
 
         if drop_homooligomers and len(set(edge['name'])) == 1:
             continue
 
-        if edge_valency > 0 and sorted_tuple_pair not in multivalent_pairs:
+        if (edge_valency > 0 or edge_is_multivalent) and sorted_tuple_pair not in multivalent_pairs:
             multivalent_pairs.append(sorted_tuple_pair)
-    
+
     return multivalent_pairs
 
 def get_expanded_Nmers_df_for_pair(pair, mm_output):
@@ -1666,7 +1670,7 @@ def find_multivalency_states(combined_graph, mm_output,
                              logger: Logger | None = None):
 
 
-    multivalent_pairs: list[tuple[str]] = get_multivalent_pairs_list(combined_graph, drop_homooligomers = True)
+    multivalent_pairs: list[tuple[str]] = get_multivalent_pairs_list(mm_output, combined_graph, logger, drop_homooligomers = True)
 
     multivalency_states: dict = {pair: {} for pair in multivalent_pairs}
     

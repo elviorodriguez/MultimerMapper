@@ -5,8 +5,10 @@ from collections import defaultdict
 from typing import Dict, Tuple
 import logging
 
+from cfg.default_settings import Nmers_contacts_cutoff
+
 def analyze_protein_interactions(pairwise_contact_matrices: Dict, 
-                                 N_contacts_cutoff: int = 3,
+                                 N_contacts_cutoff: int = Nmers_contacts_cutoff,
                                  logger: None | logging.Logger = None) -> Tuple[pd.DataFrame, Dict]:
     """
     Analyze protein-protein interactions.
@@ -177,6 +179,25 @@ def compute_max_valency(interaction_counts_df: pd.DataFrame) -> Dict[Tuple[str, 
     
     return valency_dict
 
+
+# Get multivalent pairs
+def get_multivalent_tuple_pairs_based_on_evidence(mm_output: dict, logger: logging.Logger, N_contacts_cutoff = Nmers_contacts_cutoff):
+
+    pairwise_contact_matrices = mm_output['pairwise_contact_matrices']
+    
+    # Compute interaction counts
+    interaction_counts_df = analyze_protein_interactions(
+        pairwise_contact_matrices = pairwise_contact_matrices, 
+        N_contacts_cutoff = N_contacts_cutoff,
+        logger = logger)
+
+    # Compute maximum valency for each protein pair
+    max_valency_dict = compute_max_valency(interaction_counts_df)
+
+    # Get the multivalent tuple pairs
+    multivalency_tuple_pairs = [tuple(sorted(pair)) for pair in max_valency_dict if (max_valency_dict[pair] > 1 and pair[0] != pair[1])]
+
+    return multivalency_tuple_pairs
 
 
 ###############################################################################

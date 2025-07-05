@@ -18,6 +18,7 @@ from src.coordinate_analyzer import add_domain_RMSD_against_reference
 from src.analyze_multivalency import add_multivalency_state
 from cfg.default_settings import vertex_color1, vertex_color2, vertex_color3, vertex_color_both, Nmer_stability_method, N_models_cutoff_convergency
 from utils.combinations import generate_multivalent_pair_suggestions
+from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 
 # -----------------------------------------------------------------------------
 # PPI graph for 2-mers --------------------------------------------------------
@@ -529,6 +530,7 @@ def add_edges_valency(graph, mm_output, logger: Logger | None = None):
         'was_tested_in_Nmers' : False,
         'average_2mers_matrix' : None,
         'average_Nmers_matrix' : None,
+        'is_multivalent': None
         }
 
     for e, tuple_pair in enumerate(graph.es['name']):
@@ -603,6 +605,22 @@ def add_edges_valency(graph, mm_output, logger: Logger | None = None):
         # Set the attributes for the new edge
         for attr, value in modified_attributes.items():
             new_edge[attr] = value
+
+    # ------ Check multivalency using double interaction (based on evidence) ----------
+
+    # Get multivalent pairs by computing max_valency
+    multivalent_pairs_based_on_evidence: list[tuple] = get_multivalent_tuple_pairs_based_on_evidence(mm_output, logger)
+
+    # Verify one edge at a time
+    for e in graph.es:
+        
+        # Get the consistent edge name
+        sorted_tuple_pair = tuple(sorted(e['name']))
+
+        # Add True if it is multivalent, False if not
+        e['valency']['is_multivalent'] = sorted_tuple_pair in multivalent_pairs_based_on_evidence           
+
+
 
 
 # Combine 2-mers and N-mers graphs
@@ -1294,6 +1312,7 @@ def igraph_to_plotly(
             edge_weight     = get_edge_weight(edge, classification_df)
             edge_oscillates = get_edge_oscillation(edge, classification_df)
             edge_valency    = edge['valency']['cluster_n']
+            edge_is_multivalent = edge['valency']['is_multivalent']
         
         except:
             # Use default values by now
@@ -1473,7 +1492,7 @@ def igraph_to_plotly(
                 # Add traces
                 edge_traces.append(oscillated_edge_trace)
             
-            # Add the edge trace
+            # Compute the edge trace
             edge_trace = go.Scatter(
                 x=intermediate_x.tolist() + [None],
                 y=intermediate_y.tolist() + [None],
@@ -1488,8 +1507,11 @@ def igraph_to_plotly(
                 showlegend  = False
             )
 
-            # Add multivalency state for multivalent pairs only for multivalent state 1
-            if edge_valency == 1:
+            # Add edge trace
+            edge_traces.append(edge_trace)
+
+            # Add multivalency state for multivalent pairs only for valency == 0
+            if edge_valency == 0 and edge_is_multivalent:
 
                 # Locate the text in the middle of both vertex
                 text_position = (end_point + start_point) / 2
@@ -1642,8 +1664,7 @@ def igraph_to_plotly(
                 edge_traces.append(p_trace)
                 edge_traces.append(q_trace)
 
-            # Add traces
-            edge_traces.append(edge_trace)
+            
     
     
     # ----------------------------------------------------------------------------------
