@@ -9,6 +9,7 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
 import logging
 
+from train.multivalency_dicotomic.count_interaction_modes import analyze_protein_interactions, compute_max_valency
 from src.analyze_multivalency import visualize_clusters_static, preprocess_matrices, visualize_clusters_interactive
 
 # Set up logging
@@ -39,40 +40,6 @@ def create_feature_vector(matrices: Dict[str, np.ndarray],
         if matrix_type in matrices:
             features.extend(matrices[matrix_type].flatten())
     return np.array(features)
-
-
-def compute_max_valency(interaction_df: pd.DataFrame) -> Dict[Tuple[str, str], int]:
-    """
-    Compute the maximum valency (number of interaction modes) for each protein pair.
-    
-    Parameters:
-    -----------
-    interaction_df : pd.DataFrame
-        DataFrame from analyze_protein_interactions function
-        
-    Returns:
-    --------
-    dict
-        Dictionary mapping protein pairs to their maximum valency
-    """
-    valency_dict = {}
-    
-    # Group by protein pair and count max interactions
-    contact_columns = [col for col in interaction_df.columns if col.startswith('contacts_with_')]
-    
-    for _, row in interaction_df.iterrows():
-        protein = row['protein']
-        
-        for col in contact_columns:
-            other_protein = col.replace('contacts_with_', '')
-            if row[col] > 0:  # If there are contacts
-                pair = tuple(sorted([protein, other_protein]))
-                if pair not in valency_dict:
-                    valency_dict[pair] = 0
-                valency_dict[pair] = max(valency_dict[pair], row[col])
-    
-    return valency_dict
-
 
 def calculate_jaccard_similarity(matrix1: np.ndarray, matrix2: np.ndarray) -> float:
     """
@@ -382,123 +349,20 @@ def analyze_protein_interactions_with_clustering(mm_output: Dict[str, Any],
         - interaction_dataframe: DataFrame with interaction counts per chain
         - all_clusters_dict: Dictionary with cluster information for each protein pair
     """
+    # Unpack the pairwise contact matrices
+    all_pair_matrices = mm_output['pairwise_contact_matrices']
+    
+    # Compute interaction counts
+    interaction_counts_df = analyze_protein_interactions(
+        pairwise_contact_matrices = all_pair_matrices, 
+        N_contacts_cutoff = N_contacts_cutoff,
+        logger = logger)
+
+    # Compute maximum valency for each protein pair
+    max_valency_dict = compute_max_valency(interaction_counts_df)
     
     # Get all protein pairs that have matrices
-    pairs = list(mm_output['pairwise_contact_matrices'].keys())
-    
-    # Extract all unique protein entities
-    unique_proteins = set()
-    for pair in pairs:
-        unique_proteins.update(pair)
-    unique_proteins = sorted(list(unique_proteins))
-    
-    logger.info(f"Found {len(unique_proteins)} unique protein entities: {unique_proteins}")
-    
-    # Initialize data structures
-    interaction_data = []
-    all_pair_matrices = defaultdict(dict)
-    
-    # Process each protein pair and collect matrices
-    for pair in pairs:
-        logger.info(f"Processing pair: {pair}")
-        
-        if pair not in mm_output['pairwise_contact_matrices']:
-            continue
-            
-        sub_models = list(mm_output['pairwise_contact_matrices'][pair].keys())
-        
-        # Process each sub-model
-        for sub_model_key in sub_models:
-            proteins_in_model, chain_pair, rank = sub_model_key
-            chain_a, chain_b = chain_pair
-            
-            # Get contact data
-            contact_data = mm_output['pairwise_contact_matrices'][pair][sub_model_key]
-            
-            # Check if there's interaction
-            is_interacting = np.sum(contact_data['is_contact']) >= N_contacts_cutoff
-            
-            if not is_interacting:
-                continue
-            
-            # Store matrices for clustering
-            all_pair_matrices[pair][sub_model_key] = contact_data
-            
-            # Convert chain IDs to protein indices
-            chain_to_index = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7}
-            
-            protein_a_idx = chain_to_index.get(chain_a, 0)
-            protein_b_idx = chain_to_index.get(chain_b, 1)
-            
-            # Ensure indices are within bounds
-            if protein_a_idx >= len(proteins_in_model) or protein_b_idx >= len(proteins_in_model):
-                continue
-                
-            protein_a = proteins_in_model[protein_a_idx]
-            protein_b = proteins_in_model[protein_b_idx]
-            
-            proteins_in_model_sorted = tuple(sorted(proteins_in_model))
-            
-            # Create interaction entries
-            interaction_data.append({
-                'protein': protein_a,
-                'proteins_in_model': proteins_in_model_sorted,
-                'rank': rank,
-                'chain': chain_a,
-                'interacting_with_protein': protein_b,
-                'PAE_min': np.min(contact_data['PAE']),
-                'PAE_mean': np.mean(contact_data['PAE']),
-                'contact_count': np.sum(contact_data['is_contact'])
-            })
-            
-            if chain_a != chain_b:
-                interaction_data.append({
-                    'protein': protein_b,
-                    'proteins_in_model': proteins_in_model_sorted,
-                    'rank': rank,
-                    'chain': chain_b,
-                    'interacting_with_protein': protein_a,
-                    'PAE_min': np.min(contact_data['PAE']),
-                    'PAE_mean': np.mean(contact_data['PAE']),
-                    'contact_count': np.sum(contact_data['is_contact'])
-                })
-    
-    if not interaction_data:
-        logger.warning("No interactions found in the data")
-        return pd.DataFrame(), {}
-    
-    # Create interaction DataFrame
-    df_interactions = pd.DataFrame(interaction_data)
-    
-    # Create final aggregated DataFrame
-    final_data = []
-    grouped = df_interactions.groupby(['protein', 'proteins_in_model', 'rank', 'chain'])
-    
-    for (protein, proteins_in_model, rank, chain), group in grouped:
-        contact_counts = {prot: 0 for prot in unique_proteins}
-        
-        for _, row in group.iterrows():
-            interacting_protein = row['interacting_with_protein']
-            contact_counts[interacting_protein] += 1
-        
-        row_data = {
-            'protein': protein,
-            'proteins_in_model': proteins_in_model,
-            'rank': rank,
-            'chain': chain
-        }
-        
-        for prot in unique_proteins:
-            row_data[f'contacts_with_{prot}'] = contact_counts[prot]
-        
-        final_data.append(row_data)
-    
-    result_df = pd.DataFrame(final_data)
-    sort_columns = ['proteins_in_model', 'rank', 'protein', 'chain']
-    result_df = result_df.sort_values(sort_columns).reset_index(drop=True)
-    
-    # Compute maximum valency for each protein pair
-    max_valency_dict = compute_max_valency(result_df)
+    pairs = list(all_pair_matrices.keys())
     
     # Cluster contact matrices for each protein pair
     all_clusters = {}
@@ -545,10 +409,10 @@ def analyze_protein_interactions_with_clustering(mm_output: Dict[str, Any],
                                 show_plot=False, save_plot=True,
                                 logger = logger)
     
-    logger.info(f"Generated interaction table with {len(result_df)} rows")
+    logger.info(f"Generated interaction table with {len(interaction_counts_df)} rows")
     logger.info(f"Generated clusters for {len(all_clusters)} protein pairs")
     
-    return result_df, all_clusters
+    return interaction_counts_df, all_clusters
 
 
 def print_clustering_summary(all_clusters: Dict, logger = None) -> None:
@@ -583,7 +447,7 @@ def print_clustering_summary(all_clusters: Dict, logger = None) -> None:
     multivalent = sum(1 for clusters in all_clusters.values() if len(clusters) > 1)
     monovalent = len(all_clusters) - multivalent
     
-    logger.info(f"\nInteraction types:")
+    logger.info( "\nInteraction types:")
     logger.info(f"  Monovalent (1 mode): {monovalent}")
     logger.info(f"  Multivalent (>1 mode): {multivalent}")
     
@@ -591,7 +455,7 @@ def print_clustering_summary(all_clusters: Dict, logger = None) -> None:
 
 
 # Example usage
-df, clusters = analyze_protein_interactions_with_clustering(
+interaction_counts_df, clusters = analyze_protein_interactions_with_clustering(
     mm_output,
     similarity_metric = 'closeness',
     use_median=False,
