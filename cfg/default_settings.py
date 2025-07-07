@@ -146,11 +146,11 @@ remove_interactions_from_ppi_graph = ("Indirect",)      # (indirect: mediated by
 # ----------------- For edges (PPIs) width -----------------------------------
 
 edge_default_weight = 0.5
-edge_scaling_factor = 7
+edge_scaling_factor = 5
 edge_min_weight = 1
-edge_max_weight = 6
-edge_midpoint_PAE = 4 
-edge_weight_sigmoidal_sharpness = 0.5
+edge_max_weight = 4
+edge_midpoint_PAE = 2
+edge_weight_sigmoidal_sharpness = 0.1
 
 
 # ----- For homooligomerization edges (self-loops) ---------------------------
