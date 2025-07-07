@@ -78,16 +78,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ######################## Test 6 (multivalency detection) ######################
 
-# fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/proteins_mm.fasta"
-# AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/2-mers"
-# AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/MM_metrics_profiles_test"
-# use_names = True
-# overwrite = True
-# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# auto_domain_detection = True
-# graph_resolution_preset = None
+fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/proteins_mm.fasta"
+AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/MM_metrics_profiles_test"
+use_names = True
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+auto_domain_detection = True
+graph_resolution_preset = None
 
 ###############################################################################
 
@@ -123,16 +123,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ####################### Test 6'' (multivalency PEX13/31) ######################
 
-fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/proteins_mm.fasta"
-AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/2-mers"
-AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/MM_metrics_profiles_test"
-use_names = True
-overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-auto_domain_detection = True
-graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/proteins_mm.fasta"
+# AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/MM_metrics_profiles_test"
+# use_names = True
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
