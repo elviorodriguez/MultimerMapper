@@ -19,20 +19,21 @@ def run_with_config(mm_output, config_dict, logger):
 # BEST CONFIGURATION
 # ============================================================================
 
-# from train.multivalency_dicotomic.count_interaction_modes import analyze_protein_interactions, compute_max_valency
 
-# # Unpack the pairwise contact matrices
-# all_pair_matrices = mm_output['pairwise_contact_matrices']
+# Custom analysis
+config_custom = {
+    'distance_metric': 'structural_overlap',
+    'clustering_method': 'hierarchical',
+    'validation_metric': 'silhouette',
+    'handle_sparse_matrices': False,
+    'quality_weight': False,
+    'silhouette_improvement': 0.2,
+    'max_extra_clusters': 3
+}
 
-# # Compute interaction counts
-# interaction_counts_df = analyze_protein_interactions(
-#     pairwise_contact_matrices=all_pair_matrices,
-#     N_contacts_cutoff=3,
-#     logger=logger
-# )
 
-# # Compute maximum valency for each protein pair
-# max_valency_dict = compute_max_valency(interaction_counts_df)
+# Run with conservative configuration
+interaction_counts_df, clusters, _ = run_with_config(mm_output, config_custom, logger)
 
 
 """
@@ -78,20 +79,20 @@ CLUSTER OPTIMIZATION:
 #     'max_extra_clusters': 5
 # }
 
-# Custom analysis
-config_custom = {
-    'distance_metric': 'structural_overlap',
-    'clustering_method': 'hierarchical',
-    'validation_metric': 'silhouette',
-    'handle_sparse_matrices': False,
-    'quality_weight': False,
-    'silhouette_improvement': 0.2,
-    'max_extra_clusters': 5
-}
+# from train.multivalency_dicotomic.count_interaction_modes import analyze_protein_interactions, compute_max_valency
 
+# # Unpack the pairwise contact matrices
+# all_pair_matrices = mm_output['pairwise_contact_matrices']
 
-# Run with conservative configuration
-interaction_counts_df, clusters, _ = run_with_config(mm_output, config_custom, logger)
+# # Compute interaction counts
+# interaction_counts_df = analyze_protein_interactions(
+#     pairwise_contact_matrices=all_pair_matrices,
+#     N_contacts_cutoff=3,
+#     logger=logger
+# )
+
+# # Compute maximum valency for each protein pair
+# max_valency_dict = compute_max_valency(interaction_counts_df)
 
 
 ########################## SIMPLE EXAMPLES ####################################

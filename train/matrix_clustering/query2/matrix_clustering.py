@@ -473,7 +473,10 @@ def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], D
         features = scaler.fit_transform(features)
     
     # Find optimal clusters
-    labels, score = find_optimal_clusters(distance_matrix, max_valency, config, features)
+    if max_valency == 1:
+        labels = [0]*len(distance_matrix)
+    else:    
+        labels, score = find_optimal_clusters(distance_matrix, max_valency, config, features)
     
     # Create reduced features for visualization
     if features is not None:
@@ -485,7 +488,7 @@ def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], D
         from sklearn.manifold import MDS
         mds = MDS(n_components=2, dissimilarity='precomputed', random_state=42)
         reduced_features = mds.fit_transform(distance_matrix)
-        explained_variance = np.array([50, 50])  # Placeholder
+        explained_variance = None
     
     return labels, model_keys, reduced_features, explained_variance
 
@@ -532,6 +535,7 @@ def analyze_protein_interactions_with_enhanced_clustering(
         
         # Get maximum valency for this pair
         max_valency = max_valency_dict.get(tuple(sorted(pair)), 1)
+        logger.info(f"   Maximum observed valency: {max_valency}")
         
         # Cluster the matrices
         result = cluster_contact_matrices_enhanced(
@@ -811,15 +815,15 @@ def print_clustering_summary(clusters: Dict, logger = None):
         logger.info("No clusters generated")
         return
     
-    logger.info(f"\nClustering Summary:")
+    logger.info(f"Clustering Summary:")
     logger.info(f"="*50)
     
     total_pairs = len(clusters)
     multivalent_pairs = sum(1 for cluster_info in clusters.values() if len(cluster_info) > 1)
     
-    logger.info(f"Total protein pairs clustered: {total_pairs}")
-    logger.info(f"Multivalent pairs: {multivalent_pairs} ({multivalent_pairs/total_pairs*100:.1f}%)")
-    logger.info(f"Monovalent pairs: {total_pairs - multivalent_pairs}")
+    logger.info(f"   Total protein pairs clustered: {total_pairs}")
+    logger.info(f"   Multivalent pairs: {multivalent_pairs} ({multivalent_pairs/total_pairs*100:.1f}%)")
+    logger.info(f"   Monovalent pairs: {total_pairs - multivalent_pairs}")
     
     # Distribution of cluster numbers
     cluster_counts = defaultdict(int)
@@ -827,17 +831,17 @@ def print_clustering_summary(clusters: Dict, logger = None):
         n_clusters = len(cluster_info)
         cluster_counts[n_clusters] += 1
     
-    logger.info("\nCluster distribution:")
+    logger.info("   Cluster distribution:")
     for n_clusters in sorted(cluster_counts.keys()):
         count = cluster_counts[n_clusters]
-        logger.info(f"  {n_clusters} clusters: {count} pairs")
+        logger.info(f"      - {n_clusters} clusters: {count} pairs")
     
     # Detailed per-pair information
-    logger.info("\nPer-pair details:")
+    logger.info("   Per-pair details:")
     for pair, cluster_info in clusters.items():
         n_clusters = len(cluster_info)
         total_models = sum(info['n_models'] for info in cluster_info.values())
-        logger.info(f"  {pair}: {n_clusters} clusters, {total_models} models")
+        logger.info(f"   -  {pair}: {n_clusters} clusters, {total_models} models")
 
 
 # Quick test function

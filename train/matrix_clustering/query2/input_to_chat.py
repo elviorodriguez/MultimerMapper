@@ -333,13 +333,13 @@ def analyze_protein_interactions_with_clustering(mm_output: Dict[str, Any],
     return interaction_counts_df, all_clusters
 
 
-# Example usage
-interaction_counts_df, clusters = analyze_protein_interactions_with_clustering(
-    mm_output,
-    similarity_metric = 'closeness',
-    use_median=False,
-    logger = logger)
-print_clustering_summary(clusters, logger = logger)
+# # Example usage
+# interaction_counts_df, clusters = analyze_protein_interactions_with_clustering(
+#     mm_output,
+#     similarity_metric = 'closeness',
+#     use_median=False,
+#     logger = logger)
+# print_clustering_summary(clusters, logger = logger)
 
 # ---------------------- How to get the representative model of the cluster
 

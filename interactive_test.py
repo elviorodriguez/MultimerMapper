@@ -78,16 +78,16 @@ pd.set_option( 'display.max_columns' , None )
 
 ######################## Test 6 (multivalency detection) ######################
 
-fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/proteins_mm.fasta"
-AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/2-mers"
-AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/MM_metrics_profiles_test"
-use_names = True
-overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-auto_domain_detection = True
-graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/proteins_mm.fasta"
+# AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/to_test_9EMC/MM_metrics_profiles_test"
+# use_names = True
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
@@ -148,6 +148,21 @@ graph_resolution_preset = None
 # # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 # auto_domain_detection = True
 # graph_resolution_preset = None
+
+###############################################################################
+
+################ Test 6'''' (multivalency homo-3-mers) #######################
+
+fasta_file = "/home/elvio/Desktop/multivalency_benchmark/input_fasta_files/multivalency_homooligomers.fasta"
+AF2_2mers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_2mers/homo2mers/"
+AF2_Nmers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_Nmers/3mers/homo3mers/"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/multivalency_benchmark/MM_output_homooligomers_test"
+use_names = False
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+auto_domain_detection = True
+graph_resolution_preset = None
 
 ###############################################################################
 
