@@ -904,8 +904,8 @@ def visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
         y_coords = reduced_features[:, 1] / 100
         ax_pca.scatter(x_coords, y_coords, c=colors, s=50, alpha=0.7)
         ax_pca.set_title(f"PCA Plot for {pair}")
-        ax_pca.set_xlabel(f"Principal Component 1 ({explained_variance[0]:.2f}% variance)")
-        ax_pca.set_ylabel(f"Principal Component 2 ({explained_variance[1]:.2f}% variance)")
+        ax_pca.set_xlabel(f"PC1 ({explained_variance[0]:.2f}% variance)" if explained_variance is not None else "PC1")
+        ax_pca.set_ylabel(f"PC2 ({explained_variance[1]:.2f}% variance)" if explained_variance is not None else "PC2")
         ax_pca.grid(True)
         ax_pca.set_aspect('equal', adjustable='box')
 
@@ -992,8 +992,8 @@ def visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
         # Scatter plot
         ax_pca.scatter(x_coords, y_coords, c=colors, s=50, alpha=0.7)
         ax_pca.set_title(f"PCA Plot for {pair}")
-        ax_pca.set_xlabel(f"PC1 ({explained_variance[0]:.2f}% variance)")
-        ax_pca.set_ylabel(f"PC2 ({explained_variance[1]:.2f}% variance)")
+        ax_pca.set_xlabel(f"PC1 ({explained_variance[0]:.2f}% variance)" if explained_variance is not None else "PC1")
+        ax_pca.set_ylabel(f"PC2 ({explained_variance[1]:.2f}% variance)" if explained_variance is not None else "PC2")
         ax_pca.grid(True)
         ax_pca.set_aspect('equal', adjustable='box')
 
@@ -1168,8 +1168,8 @@ def create_pca_plot(reduced_features, labels, model_keys, explained_variance, al
     
     fig.update_layout(
         title=dict(text="PCA Plot", x=0.5),
-        xaxis_title=f"PC1 ({explained_variance[0]:.2f}% variance)",
-        yaxis_title=f"PC2 ({explained_variance[1]:.2f}% variance)",
+        xaxis_title=f"PC1 ({explained_variance[0]:.2f}% variance)" if explained_variance is not None else "PC1",
+        yaxis_title=f"PC2 ({explained_variance[1]:.2f}% variance)" if explained_variance is not None else "PC2",
         updatemenus=[dict(
             type="buttons",
             direction="right",
