@@ -335,7 +335,7 @@ def get_edge_linetype(graph_edge: igraph.Edge, classification_df: pd.DataFrame):
 #     else:
 #         return default_edge_weight
 
-# # Weight using sigmoidal scaling
+# Weight using sigmoidal scaling
 def sigmoid_rescale(x, min_val=1, max_val=6, midpoint=1, sharpness=1):
     """Sigmoid function to scale x between min_val and max_val."""
     return min_val + (max_val - min_val) / (1 + np.exp(-sharpness * (x - midpoint)))
@@ -350,8 +350,11 @@ def get_edge_weight(
     midpoint_PAE = edge_midpoint_PAE,
     sharpness = edge_weight_sigmoidal_sharpness
 ):
+    
+    # Compute the midpoint based on midpoint_PAE
     midpoint = 1 / midpoint_PAE * scaling_factor
 
+    # Get the edge classification
     edge_dynamics = graph_edge["dynamics"]
     edge_width_is_variable = classification_df.query(
         f'Classification == "{edge_dynamics}"'
@@ -360,11 +363,10 @@ def get_edge_weight(
     if edge_width_is_variable:
         
         # Compute raw edge weight
-        # edge_weight_2mer_iptm = np.mean(graph_edge["2_mers_data"]["ipTM"])
-        edge_weight_PAE = 1 / np.mean(
-            graph_edge["2_mers_data"]["min_PAE"] + graph_edge["N_mers_data"]["min_PAE"]
-        )
-        # raw_weight = edge_weight_2mer_iptm * edge_weight_PAE * scaling_factor
+        min_pae_2mers = graph_edge["2_mers_data"]["min_PAE"].to_numpy()
+        min_pae_Nmers = graph_edge["N_mers_data"]["min_PAE"].to_numpy()
+        all_min_pae = np.concatenate([min_pae_2mers, min_pae_Nmers])
+        edge_weight_PAE = 1 / np.mean(all_min_pae)
         raw_weight = edge_weight_PAE * scaling_factor
 
         # Apply sigmoid rescaling
@@ -375,9 +377,25 @@ def get_edge_weight(
             midpoint=midpoint,
             sharpness=sharpness
         )
+
+        # # Debug
+        # print("EDGE:", graph_edge['name'])
+        # print("  - Weight:", edge_weight, "!!!!!!!!!!!!!!!!!!!")
+        # print("  - graph_edge[2_mers_data][min_PAE]:", graph_edge["2_mers_data"]["min_PAE"])
+        # print("  - graph_edge[N_mers_data][min_PAE]:", graph_edge["N_mers_data"]["min_PAE"])
+        # print("  - edge_weight_PAE:", edge_weight_PAE)
+        # print("  - raw_weight:", raw_weight)
+        # print("  - Valency:", graph_edge['valency']['cluster_n'])
+
         return edge_weight
 
     else:
+
+        # # Debug
+        # print("EDGE:", graph_edge['name'])
+        # print("  - Weight:", default_edge_weight)
+        # print("  - Valency:", graph_edge['valency']['cluster_n'])
+
         return default_edge_weight
 
 # Oscillation

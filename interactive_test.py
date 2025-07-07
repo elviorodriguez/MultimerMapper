@@ -8,6 +8,8 @@ import multimer_mapper as mm
 
 pd.set_option( 'display.max_columns' , None )
 
+remove_interactions = ("Indirect",)
+
 ################################# Test 1 ######################################
 
 # fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
@@ -153,13 +155,29 @@ pd.set_option( 'display.max_columns' , None )
 
 ################ Test 6'''' (multivalency homo-3-mers) #######################
 
-fasta_file = "/home/elvio/Desktop/multivalency_benchmark/input_fasta_files/multivalency_homooligomers.fasta"
-AF2_2mers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_2mers/homo2mers/"
-AF2_Nmers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_Nmers/3mers/homo3mers/"
+# fasta_file = "/home/elvio/Desktop/multivalency_benchmark/input_fasta_files/multivalency_homooligomers.fasta"
+# AF2_2mers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_2mers/homo2mers/"
+# AF2_Nmers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_Nmers/3mers/homo3mers/"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/multivalency_benchmark/MM_output_homooligomers_test"
+# use_names = False
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
+
+###############################################################################
+
+################ Test 6''''' (multivalency 3-mers) ############################
+
+fasta_file = "/home/elvio/Desktop/multivalency_benchmark/input_fasta_files/multivalency_3mers.fasta"
+AF2_2mers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_2mers"
+AF2_Nmers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_Nmers/3mers"
 # AF2_Nmers = None
-out_path = "/home/elvio/Desktop/multivalency_benchmark/MM_output_homooligomers_test"
-use_names = False
+out_path = "/home/elvio/Desktop/multivalency_benchmark/MM_output_3mers_test"
+use_names = True
 overwrite = True
+remove_interactions = ("Indirect", "No 2-mers Data")
 # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 auto_domain_detection = True
 graph_resolution_preset = None
@@ -218,7 +236,7 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
                                        graph_resolution_preset = graph_resolution_preset)
 
 # Generate interactive graph
-# import multimer_mapper as mm
+import multimer_mapper as mm
 # combined_graph, dynamic_proteins, homooligomerization_states, multivalency_states = mm.generate_combined_graph(mm_output)
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
     mm_output["combined_graph"], out_path = out_path,
@@ -227,7 +245,7 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     # You can remove specific interaction types from the graph
     # "No 2-mers Data"
     # remove_interactions = ("Indirect", "No 2-mers Data"),
-    remove_interactions = ("Indirect",),
+    remove_interactions = remove_interactions,
     self_loop_size = 4,
     
     # Answer y automatically
