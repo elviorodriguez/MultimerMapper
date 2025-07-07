@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import igraph
 
+from cfg.default_settings import edge_default_weight, edge_scaling_factor, edge_min_weight, edge_max_weight, edge_midpoint_PAE, edge_weight_sigmoidal_sharpness
+
 from utils.logger_setup import configure_logger
 
 # -------------------------------------------------------------------------------------
@@ -301,34 +303,80 @@ def get_edge_linetype(graph_edge: igraph.Edge, classification_df: pd.DataFrame):
     edge_line_type = classification_df.query(f'Classification == "{edge_dynamics}"')["Line_type"].iloc[0]
     return edge_line_type
 
-# Weight
-def get_edge_weight(graph_edge: igraph.Edge, classification_df: pd.DataFrame, default_edge_weight = 0.5, scaling_factor = 7):
+# # Weight using min and max with if-elif-else
+# def get_edge_weight(graph_edge: igraph.Edge, classification_df: pd.DataFrame, default_edge_weight = 0.5, scaling_factor = 7, 
+#                     min_edge_weight = 1, max_edge_weight = 6):
 
-    edge_dynamics = graph_edge["dynamics"]
-    edge_width_is_variable = classification_df.query(f'Classification == "{edge_dynamics}"')["Variable_Edge_width"].iloc[0]
+#     edge_dynamics = graph_edge["dynamics"]
+#     edge_width_is_variable = classification_df.query(f'Classification == "{edge_dynamics}"')["Variable_Edge_width"].iloc[0]
 
-    if edge_width_is_variable:
+#     if edge_width_is_variable:
 
             
-        # Using 1/mean_miPAE and 2mer ipTM
-        if edge_width_is_variable:
-            edge_weight_2mer_iptm = np.mean(list(graph_edge["2_mers_data"]["ipTM"]))
-            edge_weight_PAE = 1/ np.mean(list(graph_edge["2_mers_data"]["min_PAE"]) + list(graph_edge["N_mers_data"]["min_PAE"]))
-            edge_weight = edge_weight_2mer_iptm * edge_weight_PAE * scaling_factor
+#         # Using 1/mean_miPAE and 2mer ipTM
+#         if edge_width_is_variable:
+#             edge_weight_2mer_iptm = np.mean(list(graph_edge["2_mers_data"]["ipTM"]))
+#             edge_weight_PAE = 1/ np.mean(list(graph_edge["2_mers_data"]["min_PAE"]) + list(graph_edge["N_mers_data"]["min_PAE"]))
+#             edge_weight = edge_weight_2mer_iptm * edge_weight_PAE * scaling_factor
         
-        # # Use mean number of models that surpass the cutoff and 1/mean(miPAE) to construct a weight
-        # edge_weight_Nmers = int(np.mean(list(graph_edge["2_mers_data"]["N_models"]) + list(graph_edge["N_mers_data"]["N_models"])))
-        # edge_weight_PAE = int(1/ np.mean(list(graph_edge["2_mers_data"]["min_PAE"]) + list(graph_edge["N_mers_data"]["min_PAE"])))
-        # edge_weight = edge_weight_Nmers * edge_weight_PAE
+#         # # Use mean number of models that surpass the cutoff and 1/mean(miPAE) to construct a weight
+#         # edge_weight_Nmers = int(np.mean(list(graph_edge["2_mers_data"]["N_models"]) + list(graph_edge["N_mers_data"]["N_models"])))
+#         # edge_weight_PAE = int(1/ np.mean(list(graph_edge["2_mers_data"]["min_PAE"]) + list(graph_edge["N_mers_data"]["min_PAE"])))
+#         # edge_weight = edge_weight_Nmers * edge_weight_PAE
 
-        # Limit to reasonable values
-        if edge_weight < 1:
-            return 1
-        elif edge_weight > 8:
-            return 8
-        return edge_weight
+#         # Limit to reasonable values
+#         if edge_weight < min_edge_weight:
+#             return min_edge_weight
+#         elif edge_weight > max_edge_weight:
+#             return max_edge_weight
+#         return edge_weight
     
-    # If it has fixed length
+#     # If it has fixed length
+#     else:
+#         return default_edge_weight
+
+# # Weight using sigmoidal scaling
+def sigmoid_rescale(x, min_val=1, max_val=6, midpoint=1, sharpness=1):
+    """Sigmoid function to scale x between min_val and max_val."""
+    return min_val + (max_val - min_val) / (1 + np.exp(-sharpness * (x - midpoint)))
+
+def get_edge_weight(
+    graph_edge: igraph.Edge,
+    classification_df: pd.DataFrame,
+    default_edge_weight = edge_default_weight,
+    scaling_factor = edge_scaling_factor,
+    min_edge_weight = edge_min_weight,
+    max_edge_weight = edge_max_weight,
+    midpoint_PAE = edge_midpoint_PAE,
+    sharpness = edge_weight_sigmoidal_sharpness
+):
+    midpoint = 1 / midpoint_PAE * scaling_factor
+
+    edge_dynamics = graph_edge["dynamics"]
+    edge_width_is_variable = classification_df.query(
+        f'Classification == "{edge_dynamics}"'
+    )["Variable_Edge_width"].iloc[0]
+
+    if edge_width_is_variable:
+        
+        # Compute raw edge weight
+        # edge_weight_2mer_iptm = np.mean(graph_edge["2_mers_data"]["ipTM"])
+        edge_weight_PAE = 1 / np.mean(
+            graph_edge["2_mers_data"]["min_PAE"] + graph_edge["N_mers_data"]["min_PAE"]
+        )
+        # raw_weight = edge_weight_2mer_iptm * edge_weight_PAE * scaling_factor
+        raw_weight = edge_weight_PAE * scaling_factor
+
+        # Apply sigmoid rescaling
+        edge_weight = sigmoid_rescale(
+            raw_weight,
+            min_val=min_edge_weight,
+            max_val=max_edge_weight,
+            midpoint=midpoint,
+            sharpness=sharpness
+        )
+        return edge_weight
+
     else:
         return default_edge_weight
 

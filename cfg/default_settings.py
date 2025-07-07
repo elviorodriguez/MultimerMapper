@@ -143,6 +143,16 @@ vertex_color_both = PT_palette["gray"]      # Static Protein
 # Which interactions do not take int account in interactive combined graph?
 remove_interactions_from_ppi_graph = ("Indirect",)      # (indirect: mediated by a 3rd protein)
 
+# ----------------- For edges (PPIs) width -----------------------------------
+
+edge_default_weight = 0.5
+edge_scaling_factor = 7
+edge_min_weight = 1
+edge_max_weight = 6
+edge_midpoint_PAE = 4 
+edge_weight_sigmoidal_sharpness = 0.5
+
+
 # ----- For homooligomerization edges (self-loops) ---------------------------
 # 0: up, 0.25: left, 0.5: down, 0.75: right
 self_loop_orientation: float = 0.0
