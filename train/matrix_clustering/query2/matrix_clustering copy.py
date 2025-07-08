@@ -43,8 +43,6 @@ class ClusteringConfig:
     # Noise handling
     handle_sparse_matrices: bool = True
     sparse_threshold: float = 0.1  # Fraction of non-zero elements to consider sparse
-    overlap_structural_contribution: float = 0.01
-    overlap_use_contact_region_only: bool = False
     
     # Ensemble methods
     use_ensemble: bool = False  # Use multiple metrics and vote
@@ -63,14 +61,12 @@ class EnhancedDistanceMetrics:
         quality_score = contact_density
         
         if pae_matrix is not None:
-
             # Lower PAE is better
             avg_pae = np.mean(pae_matrix[matrix > 0]) if np.sum(matrix > 0) > 0 else np.mean(pae_matrix)
             pae_score = max(0, 1 - avg_pae / 30)  # Normalize PAE (assuming max ~30)
             quality_score *= pae_score
             
         if plddt_matrix is not None:
-
             # Higher pLDDT is better
             avg_plddt = np.mean(plddt_matrix[matrix > 0]) if np.sum(matrix > 0) > 0 else np.mean(plddt_matrix)
             plddt_score = avg_plddt / 100  # Normalize pLDDT
@@ -153,9 +149,7 @@ class EnhancedDistanceMetrics:
     @staticmethod
     def structural_overlap_distance(matrix1: np.ndarray, matrix2: np.ndarray, 
                                   distance_mat1: np.ndarray = None, 
-                                  distance_mat2: np.ndarray = None,
-                                  structural_contribution: float = 0.01,
-                                  use_contact_region_only = False) -> float:
+                                  distance_mat2: np.ndarray = None) -> float:
         """Calculate structural overlap distance considering 3D distances"""
         # Basic overlap
         contacts1 = matrix1 > 0
@@ -172,31 +166,120 @@ class EnhancedDistanceMetrics:
         # If distance matrices are provided, weight by structural similarity
         if distance_mat1 is not None and distance_mat2 is not None:
             # Compare distance patterns in contact regions
-            if use_contact_region_only:
-                contact_mask = contacts1 | contacts2
-                if np.sum(contact_mask) > 0:
-                    d1_contacts = distance_mat1[contact_mask]
-                    d2_contacts = distance_mat2[contact_mask]
-                    
-                    # Correlation of distances in contact regions
-                    if len(d1_contacts) > 1:
-                        corr, _ = pearsonr(d1_contacts, d2_contacts)
-                        if not np.isnan(corr):
-                            structural_weight = 1 - abs(corr)
-                            base_contribution = 1 - structural_contribution
-                            base_distance = base_contribution * base_distance + structural_contribution * structural_weight
+            contact_mask = contacts1 | contacts2
+            if np.sum(contact_mask) > 0:
+                d1_contacts = distance_mat1[contact_mask]
+                d2_contacts = distance_mat2[contact_mask]
                 
-            else:
-                # Correlation of distances in the entire structure
-                flattened_matrix1 = matrix1.flatten()
-                flattened_matrix2 = matrix2.flatten()
-                corr, _ = pearsonr(flattened_matrix1, flattened_matrix2)
-                if not np.isnan(corr):
-                    structural_weight = 1 - abs(corr)
-                    base_contribution = 1 - structural_contribution
-                    base_distance = base_contribution * base_distance + structural_contribution * structural_weight
+                # Correlation of distances in contact regions
+                if len(d1_contacts) > 1:
+                    corr, _ = pearsonr(d1_contacts, d2_contacts)
+                    if not np.isnan(corr):
+                        structural_weight = 1 - abs(corr)
+                        base_distance = 0.7 * base_distance + 0.3 * structural_weight
         
         return base_distance
+    
+    @staticmethod
+    def adaptive_structural_overlap_distance(matrix1, matrix2, distance_mat1, distance_mat2,
+                                            contact_threshold=3, 
+                                            sparse_penalty_factor=0.5, overlap_boost=2.0,
+                                            quality_weight=False, pae_matrices=None, 
+                                            idx1=None, idx2=None):
+        """
+        Enhanced structural overlap metric that handles sparse matrices better.
+        
+        Parameters:
+        -----------
+        matrix1, matrix2 : np.ndarray
+            Contact matrices to compare
+        contact_threshold : int
+            Minimum number of contacts to consider a matrix valid
+        sparse_penalty_factor : float
+            Factor to reduce penalty for sparse matrices (0.5 = 50% reduction)
+        overlap_boost : float
+            Multiplier to boost similarity when contacts overlap
+        quality_weight : bool
+            Whether to weight by PAE and pLDDT quality metrics
+        pae_matrices : dict
+            PAE matrices for quality weighting
+        plddt_matrices : dict
+            pLDDT matrices for quality weighting
+        idx1, idx2 : int
+            Indices for quality matrix lookup
+        
+        Returns:
+        --------
+        float : Distance between matrices (0 = identical, 1 = completely different)
+        """
+        
+        # Get contact matrices
+        contacts1 = matrix1['is_contact'] if isinstance(matrix1, dict) else matrix1
+        contacts2 = matrix2['is_contact'] if isinstance(matrix2, dict) else matrix2
+        
+        # Convert to binary if not already
+        contacts1 = (contacts1 > 0).astype(int)
+        contacts2 = (contacts2 > 0).astype(int)
+        
+        # Count contacts
+        n_contacts1 = np.sum(contacts1)
+        n_contacts2 = np.sum(contacts2)
+
+        
+        # Determine if matrices are sparse
+        is_sparse1 = n_contacts1 < contact_threshold * 2
+        is_sparse2 = n_contacts2 < contact_threshold * 2
+        
+        # Calculate overlap metrics
+        intersection = np.sum(contacts1 & contacts2)
+        union = np.sum(contacts1 | contacts2)
+        
+        # Base Jaccard similarity
+        jaccard = intersection / union if union > 0 else 0.0
+        
+        # Calculate containment ratios (how much of smaller matrix is in larger)
+        min_contacts = min(n_contacts1, n_contacts2)
+        containment = intersection / min_contacts if min_contacts > 0 else 0.0
+        
+        # Enhanced overlap calculation
+        if intersection > 0:
+            # Boost similarity when there's actual overlap
+            overlap_score = containment * overlap_boost
+            # Combine with Jaccard for balanced measure
+            similarity = (jaccard + overlap_score) / (1 + overlap_boost)
+        else:
+            similarity = jaccard
+        
+        # Apply sparse matrix adjustment
+        if is_sparse1 or is_sparse2:
+            # Reduce penalty for sparse matrices by using containment more heavily
+            if intersection > 0:
+                # If sparse matrix has overlapping contacts, boost similarity
+                sparse_adjustment = 1 - (1 - containment) * sparse_penalty_factor
+                similarity = max(similarity, sparse_adjustment)
+        
+        # Quality weighting if requested and available
+        if quality_weight and pae_matrices is not None and idx1 is not None and idx2 is not None:
+            try:
+                # Get PAE matrices
+                pae1 = pae_matrices[idx1]['PAE'] if isinstance(pae_matrices[idx1], dict) else pae_matrices[idx1]
+                pae2 = pae_matrices[idx2]['PAE'] if isinstance(pae_matrices[idx2], dict) else pae_matrices[idx2]
+                
+                # Calculate quality scores (lower PAE = higher quality)
+                quality1 = 1.0 / (1.0 + np.mean(pae1))
+                quality2 = 1.0 / (1.0 + np.mean(pae2))
+                
+                # Weight similarity by average quality
+                avg_quality = (quality1 + quality2) / 2
+                similarity = similarity * (0.5 + 0.5 * avg_quality)  # Quality boost up to 50%
+                
+            except (KeyError, IndexError, TypeError):
+                pass  # Skip quality weighting if data not available
+        
+        # Convert similarity to distance
+        distance = 1.0 - similarity
+        
+        return max(0.0, min(1.0, distance))  # Ensure distance is in [0,1]
 
 
 class ClusterValidationMetrics:
@@ -273,15 +356,10 @@ def compute_distance_matrix(matrices: List[np.ndarray],
                           additional_data: Dict = None) -> np.ndarray:
     """Compute distance matrix using specified metric"""
     n = len(matrices)
-
-    # Initialize distance matrix (output)
     distance_matrix = np.zeros((n, n))
-    quality_matrix = np.zeros((n, n))
     
-    # Initialize distance metrics executor
     metrics = EnhancedDistanceMetrics()
     
-    # Iterate over all possible pair of matrices to compute the distance matrix
     for i in range(n):
         for j in range(i, n):
             if i == j:
@@ -294,8 +372,6 @@ def compute_distance_matrix(matrices: List[np.ndarray],
                 dist_mat2 = additional_data.get(f'distance_{j}') if additional_data else None
                 pae_mat1 = additional_data.get(f'pae_{i}') if additional_data else None
                 pae_mat2 = additional_data.get(f'pae_{j}') if additional_data else None
-                plddt_mat1 = additional_data.get(f'min_pLDDT_{i}') if additional_data else None
-                plddt_mat2 = additional_data.get(f'min_pLDDT_{j}') if additional_data else None
                 
                 # Calculate distance based on metric
                 if config.distance_metric == 'jaccard':
@@ -311,25 +387,22 @@ def compute_distance_matrix(matrices: List[np.ndarray],
                 elif config.distance_metric == 'hamming':
                     distance = metrics.hamming_distance(mat1, mat2)
                 elif config.distance_metric == 'structural_overlap':
-                    distance = metrics.structural_overlap_distance(mat1, mat2, dist_mat1, dist_mat2,
-                                                                   structural_contribution = config.overlap_structural_contribution,
-                                                                   use_contact_region_only = config.overlap_use_contact_region_only)
+                    distance = metrics.structural_overlap_distance(mat1, mat2, dist_mat1, dist_mat2)
+                elif config.distance_metric == 'adaptive_structural_overlap':
+                    distance = metrics.adaptive_structural_overlap_distance(mat1, mat2, pae_matrices=[pae_mat1, pae_mat2])
                 else:
-                    logger.error(f"Unknown distance metric: {config.distance_metric}")
-                    logger.error( "   - Falling back to default metric (closeness) and retrying")
-                    config.distance_metric = 'closeness'
-
-                # Apply quality weighting if enabled (decrease the distance if any matrix is low quality)
+                    raise ValueError(f"Unknown distance metric: {config.distance_metric}")
+                
+                # Apply quality weighting if enabled
                 if config.quality_weight and additional_data:
-                    qual1 = metrics.calculate_matrix_quality(mat1, pae_mat1, plddt_mat1)
-                    qual2 = metrics.calculate_matrix_quality(mat2, pae_mat2, plddt_mat2)
+                    qual1 = metrics.calculate_matrix_quality(mat1, pae_mat1)
+                    qual2 = metrics.calculate_matrix_quality(mat2, pae_mat2)
                     quality_factor = min(qual1, qual2)  # Use minimum quality
-                    distance *= quality_factor          # Decrease distance for low quality (quality_factor is between 0 and 1)
-                    quality_matrix[i, j] = quality_matrix[j, i] = quality_factor    # Save the values in a matrix
+                    distance *= (2 - quality_factor)  # Increase distance for low quality
             
             distance_matrix[i, j] = distance_matrix[j, i] = distance
     
-    return distance_matrix, quality_matrix
+    return distance_matrix
 
 
 def perform_clustering(distance_matrix: np.ndarray, 
@@ -465,8 +538,6 @@ def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], D
             additional_data[f'distance_{i}'] = data['distance']
         if 'PAE' in data:
             additional_data[f'pae_{i}'] = data['PAE']
-        if 'min_pLDDT' in data:
-            additional_data[f'min_pLDDT_{i}'] = data['min_pLDDT']
     
     # Handle sparse matrices
     if config.handle_sparse_matrices:
@@ -489,7 +560,7 @@ def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], D
         n = len(matrices)
     
     # Compute distance matrix
-    distance_matrix, quality_matrix = compute_distance_matrix(matrices, config, additional_data)
+    distance_matrix = compute_distance_matrix(matrices, config, additional_data)
     
     # Create features for validation (if needed)
     features = None
@@ -607,133 +678,133 @@ def analyze_protein_interactions_with_enhanced_clustering(
     return interaction_counts_df, all_clusters
 
 
-# def benchmark_clustering_methods(mm_output: Dict[str, Any], 
-#                                ground_truth: Dict = None,
-#                                logger = None) -> pd.DataFrame:
-#     """Benchmark different clustering configurations"""
+def benchmark_clustering_methods(mm_output: Dict[str, Any], 
+                               ground_truth: Dict = None,
+                               logger = None) -> pd.DataFrame:
+    """Benchmark different clustering configurations"""
     
-#     # Define different configurations to test
-#     configs = [
-#         ClusteringConfig(distance_metric='jaccard', validation_metric='silhouette'),
-#         ClusteringConfig(distance_metric='closeness', validation_metric='silhouette'),
-#         ClusteringConfig(distance_metric='cosine', validation_metric='silhouette'),
-#         ClusteringConfig(distance_metric='correlation', validation_metric='silhouette'),
-#         ClusteringConfig(distance_metric='hamming', validation_metric='silhouette'),
-#         ClusteringConfig(distance_metric='structural_overlap', validation_metric='silhouette'),
+    # Define different configurations to test
+    configs = [
+        ClusteringConfig(distance_metric='jaccard', validation_metric='silhouette'),
+        ClusteringConfig(distance_metric='closeness', validation_metric='silhouette'),
+        ClusteringConfig(distance_metric='cosine', validation_metric='silhouette'),
+        ClusteringConfig(distance_metric='correlation', validation_metric='silhouette'),
+        ClusteringConfig(distance_metric='hamming', validation_metric='silhouette'),
+        ClusteringConfig(distance_metric='structural_overlap', validation_metric='silhouette'),
         
-#         # Different validation metrics
-#         ClusteringConfig(distance_metric='jaccard', validation_metric='calinski_harabasz'),
-#         ClusteringConfig(distance_metric='closeness', validation_metric='davies_bouldin'),
+        # Different validation metrics
+        ClusteringConfig(distance_metric='jaccard', validation_metric='calinski_harabasz'),
+        ClusteringConfig(distance_metric='closeness', validation_metric='davies_bouldin'),
         
-#         # Different clustering methods
-#         ClusteringConfig(distance_metric='jaccard', clustering_method='kmeans'),
-#         ClusteringConfig(distance_metric='jaccard', clustering_method='dbscan'),
+        # Different clustering methods
+        ClusteringConfig(distance_metric='jaccard', clustering_method='kmeans'),
+        ClusteringConfig(distance_metric='jaccard', clustering_method='dbscan'),
         
-#         # With quality weighting
-#         ClusteringConfig(distance_metric='jaccard', quality_weight=True),
-#         ClusteringConfig(distance_metric='closeness', quality_weight=True),
+        # With quality weighting
+        ClusteringConfig(distance_metric='jaccard', quality_weight=True),
+        ClusteringConfig(distance_metric='closeness', quality_weight=True),
         
-#         # With sparse matrix handling
-#         ClusteringConfig(distance_metric='jaccard', handle_sparse_matrices=True),
-#     ]
+        # With sparse matrix handling
+        ClusteringConfig(distance_metric='jaccard', handle_sparse_matrices=True),
+    ]
     
-#     results = []
+    results = []
     
-#     for i, config in enumerate(configs):
-#         logger.info(f"Testing configuration {i+1}/{len(configs)}")
+    for i, config in enumerate(configs):
+        logger.info(f"Testing configuration {i+1}/{len(configs)}")
         
-#         try:
-#             _, clusters = analyze_protein_interactions_with_enhanced_clustering(
-#                 mm_output, config, logger
-#             )
+        try:
+            _, clusters = analyze_protein_interactions_with_enhanced_clustering(
+                mm_output, config, logger
+            )
             
-#             # Calculate metrics for this configuration
-#             total_pairs = len(mm_output['pairwise_contact_matrices'])
-#             clustered_pairs = len(clusters)
+            # Calculate metrics for this configuration
+            total_pairs = len(mm_output['pairwise_contact_matrices'])
+            clustered_pairs = len(clusters)
             
-#             # Calculate average number of clusters
-#             avg_clusters = np.mean([len(cluster_info) for cluster_info in clusters.values()]) if clusters else 0
+            # Calculate average number of clusters
+            avg_clusters = np.mean([len(cluster_info) for cluster_info in clusters.values()]) if clusters else 0
             
-#             # Calculate multivalent fraction
-#             multivalent_pairs = sum(1 for cluster_info in clusters.values() if len(cluster_info) > 1)
-#             multivalent_fraction = multivalent_pairs / clustered_pairs if clustered_pairs > 0 else 0
+            # Calculate multivalent fraction
+            multivalent_pairs = sum(1 for cluster_info in clusters.values() if len(cluster_info) > 1)
+            multivalent_fraction = multivalent_pairs / clustered_pairs if clustered_pairs > 0 else 0
             
-#             results.append({
-#                 'config_id': i,
-#                 'distance_metric': config.distance_metric,
-#                 'clustering_method': config.clustering_method,
-#                 'validation_metric': config.validation_metric,
-#                 'quality_weight': config.quality_weight,
-#                 'handle_sparse': config.handle_sparse_matrices,
-#                 'total_pairs': total_pairs,
-#                 'clustered_pairs': clustered_pairs,
-#                 'avg_clusters': avg_clusters,
-#                 'multivalent_fraction': multivalent_fraction,
-#                 'success': True
-#             })
+            results.append({
+                'config_id': i,
+                'distance_metric': config.distance_metric,
+                'clustering_method': config.clustering_method,
+                'validation_metric': config.validation_metric,
+                'quality_weight': config.quality_weight,
+                'handle_sparse': config.handle_sparse_matrices,
+                'total_pairs': total_pairs,
+                'clustered_pairs': clustered_pairs,
+                'avg_clusters': avg_clusters,
+                'multivalent_fraction': multivalent_fraction,
+                'success': True
+            })
             
-#         except Exception as e:
-#             logger.error(f"Configuration {i+1} failed: {str(e)}")
-#             results.append({
-#                 'config_id': i,
-#                 'distance_metric': config.distance_metric,
-#                 'clustering_method': config.clustering_method,
-#                 'validation_metric': config.validation_metric,
-#                 'quality_weight': config.quality_weight,
-#                 'handle_sparse': config.handle_sparse_matrices,
-#                 'total_pairs': 0,
-#                 'clustered_pairs': 0,
-#                 'avg_clusters': 0,
-#                 'multivalent_fraction': 0,
-#                 'success': False
-#             })
+        except Exception as e:
+            logger.error(f"Configuration {i+1} failed: {str(e)}")
+            results.append({
+                'config_id': i,
+                'distance_metric': config.distance_metric,
+                'clustering_method': config.clustering_method,
+                'validation_metric': config.validation_metric,
+                'quality_weight': config.quality_weight,
+                'handle_sparse': config.handle_sparse_matrices,
+                'total_pairs': 0,
+                'clustered_pairs': 0,
+                'avg_clusters': 0,
+                'multivalent_fraction': 0,
+                'success': False
+            })
     
-#     return pd.DataFrame(results)
+    return pd.DataFrame(results)
 
 
 
-#     """Run analysis with specified parameters"""
+    """Run analysis with specified parameters"""
     
-#     config = ClusteringConfig(
-#         distance_metric=distance_metric,
-#         clustering_method=clustering_method,
-#         validation_metric=validation_metric,
-#         quality_weight=quality_weight,
-#         handle_sparse_matrices=handle_sparse
-#     )
+    config = ClusteringConfig(
+        distance_metric=distance_metric,
+        clustering_method=clustering_method,
+        validation_metric=validation_metric,
+        quality_weight=quality_weight,
+        handle_sparse_matrices=handle_sparse
+    )
     
-#     return analyze_protein_interactions_with_enhanced_clustering(
-#         mm_output, config, logger
-#     )
+    return analyze_protein_interactions_with_enhanced_clustering(
+        mm_output, config, logger
+    )
 
 
-# def run_benchmark(mm_output: Dict[str, Any], logger = None):
-#     """Run comprehensive benchmark"""
+def run_benchmark(mm_output: Dict[str, Any], logger = None):
+    """Run comprehensive benchmark"""
     
-#     logger.info("Starting comprehensive benchmark of clustering methods...")
+    logger.info("Starting comprehensive benchmark of clustering methods...")
     
-#     results_df = benchmark_clustering_methods(mm_output, logger=logger)
+    results_df = benchmark_clustering_methods(mm_output, logger=logger)
     
-#     # Display results
-#     logger.info("\nBenchmark Results:")
-#     logger.info("="*50)
+    # Display results
+    logger.info("\nBenchmark Results:")
+    logger.info("="*50)
     
-#     successful_configs = results_df[results_df['success']]
+    successful_configs = results_df[results_df['success']]
     
-#     if len(successful_configs) > 0:
-#         # Best by multivalent detection
-#         best_multivalent = successful_configs.loc[successful_configs['multivalent_fraction'].idxmax()]
-#         logger.info(f"Best for multivalent detection: {best_multivalent['distance_metric']} + {best_multivalent['validation_metric']}")
+    if len(successful_configs) > 0:
+        # Best by multivalent detection
+        best_multivalent = successful_configs.loc[successful_configs['multivalent_fraction'].idxmax()]
+        logger.info(f"Best for multivalent detection: {best_multivalent['distance_metric']} + {best_multivalent['validation_metric']}")
         
-#         # Best by average clusters
-#         best_clusters = successful_configs.loc[successful_configs['avg_clusters'].idxmax()]
-#         logger.info(f"Highest average clusters: {best_clusters['distance_metric']} + {best_clusters['validation_metric']}")
+        # Best by average clusters
+        best_clusters = successful_configs.loc[successful_configs['avg_clusters'].idxmax()]
+        logger.info(f"Highest average clusters: {best_clusters['distance_metric']} + {best_clusters['validation_metric']}")
         
-#         # Most successful
-#         best_coverage = successful_configs.loc[successful_configs['clustered_pairs'].idxmax()]
-#         logger.info(f"Best coverage: {best_coverage['distance_metric']} + {best_coverage['validation_metric']}")
+        # Most successful
+        best_coverage = successful_configs.loc[successful_configs['clustered_pairs'].idxmax()]
+        logger.info(f"Best coverage: {best_coverage['distance_metric']} + {best_coverage['validation_metric']}")
     
-#     return results_df
+    return results_df
 
 
 # Integration functions to work with your existing code
@@ -945,8 +1016,6 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
                                    use_median: bool = True,
                                    silhouette_improvement: float = 0.05,
                                    max_extra_clusters: int = 2,
-                                   overlap_structural_contribution: float = 0.01,
-                                   overlap_use_contact_region_only: bool = False,
                                    # Benchmark options
                                    run_benchmark_analysis: bool = False,
                                    logger = None) -> Tuple[pd.DataFrame, Dict, Optional[pd.DataFrame]]:
@@ -961,24 +1030,24 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
     
     benchmark_results = None
     
-    # # Run benchmark if requested
-    # if run_benchmark_analysis:
-    #     logger.info("Running benchmark analysis...")
-    #     benchmark_results = run_benchmark(mm_output, logger)
+    # Run benchmark if requested
+    if run_benchmark_analysis:
+        logger.info("Running benchmark analysis...")
+        benchmark_results = run_benchmark(mm_output, logger)
         
-    #     # Use best performing configuration
-    #     successful_configs = benchmark_results[benchmark_results['success']]
-    #     if len(successful_configs) > 0:
-    #         best_config = successful_configs.loc[successful_configs['multivalent_fraction'].idxmax()]
-    #         distance_metric = best_config['distance_metric']
-    #         clustering_method = best_config['clustering_method']
-    #         validation_metric = best_config['validation_metric']
-    #         quality_weight = best_config['quality_weight']
-    #         handle_sparse_matrices = best_config['handle_sparse']
+        # Use best performing configuration
+        successful_configs = benchmark_results[benchmark_results['success']]
+        if len(successful_configs) > 0:
+            best_config = successful_configs.loc[successful_configs['multivalent_fraction'].idxmax()]
+            distance_metric = best_config['distance_metric']
+            clustering_method = best_config['clustering_method']
+            validation_metric = best_config['validation_metric']
+            quality_weight = best_config['quality_weight']
+            handle_sparse_matrices = best_config['handle_sparse']
             
-    #         logger.info(f"Using best configuration from benchmark:")
-    #         logger.info(f"  Distance: {distance_metric}, Method: {clustering_method}")
-    #         logger.info(f"  Validation: {validation_metric}, Quality weight: {quality_weight}")
+            logger.info(f"Using best configuration from benchmark:")
+            logger.info(f"  Distance: {distance_metric}, Method: {clustering_method}")
+            logger.info(f"  Validation: {validation_metric}, Quality weight: {quality_weight}")
     
     # Create configuration
     config = ClusteringConfig(
@@ -990,9 +1059,7 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
         use_median=use_median,
         silhouette_improvement=silhouette_improvement,
         max_extra_clusters=max_extra_clusters,
-        min_contacts_threshold=N_contacts_cutoff,        
-        overlap_structural_contribution = overlap_structural_contribution,
-        overlap_use_contact_region_only = overlap_use_contact_region_only
+        min_contacts_threshold=N_contacts_cutoff
     )
     
     # Run the enhanced analysis

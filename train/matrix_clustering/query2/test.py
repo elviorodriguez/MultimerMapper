@@ -22,13 +22,16 @@ def run_with_config(mm_output, config_dict, logger):
 
 # Custom analysis
 config_custom = {
-    'distance_metric': 'structural_overlap',
+    'distance_metric': 'closeness',
     'clustering_method': 'hierarchical',
     'validation_metric': 'silhouette',
     'handle_sparse_matrices': False,
-    'quality_weight': False,
+    'quality_weight': True,
     'silhouette_improvement': 0.2,
-    'max_extra_clusters': 3
+    'max_extra_clusters': 3,
+    'overlap_structural_contribution': 1,
+    'overlap_use_contact_region_only': False,
+    'use_median': False
 }
 
 

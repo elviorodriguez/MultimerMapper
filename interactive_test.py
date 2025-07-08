@@ -168,19 +168,36 @@ remove_interactions = ("Indirect",)
 
 ###############################################################################
 
-################ Test 6''''' (multivalency 3-mers) ############################
+################ Test 6'''' (multivalency hetero-3-mers) ######################
 
-fasta_file = "/home/elvio/Desktop/multivalency_benchmark/input_fasta_files/multivalency_3mers.fasta"
-AF2_2mers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_2mers"
-AF2_Nmers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_Nmers/3mers"
+fasta_file = "/home/elvio/Desktop/multivalency_benchmark/input_fasta_files/multivalency_heterooligomers.fasta"
+AF2_2mers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_2mers/hetero2mers/"
+AF2_Nmers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_Nmers/3mers/hetero3mers/"
 # AF2_Nmers = None
-out_path = "/home/elvio/Desktop/multivalency_benchmark/MM_output_3mers_test"
-use_names = True
+out_path = "/home/elvio/Desktop/multivalency_benchmark/MM_output_heterooligomers_test"
+use_names = False
 overwrite = True
 remove_interactions = ("Indirect", "No 2-mers Data")
 # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 auto_domain_detection = True
 graph_resolution_preset = None
+
+###############################################################################
+
+
+################ Test 6''''' (multivalency 3-mers) ############################
+
+# fasta_file = "/home/elvio/Desktop/multivalency_benchmark/input_fasta_files/multivalency_3mers.fasta"
+# AF2_2mers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_2mers"
+# AF2_Nmers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_Nmers/3mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/multivalency_benchmark/MM_output_3mers_test"
+# use_names = True
+# overwrite = True
+# remove_interactions = ("Indirect", "No 2-mers Data")
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
