@@ -125,16 +125,16 @@ remove_interactions = ("Indirect",)
 
 ####################### Test 6'' (multivalency PEX13/31) ######################
 
-# fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/proteins_mm.fasta"
-# AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/2-mers"
-# AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/MM_metrics_profiles_test"
-# use_names = True
-# overwrite = True
-# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# auto_domain_detection = True
-# graph_resolution_preset = None
+fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/proteins_mm.fasta"
+AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/MM_metrics_profiles_test"
+use_names = True
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+auto_domain_detection = True
+graph_resolution_preset = None
 
 ###############################################################################
 
@@ -170,17 +170,17 @@ remove_interactions = ("Indirect",)
 
 ################ Test 6'''' (multivalency hetero-3-mers) ######################
 
-fasta_file = "/home/elvio/Desktop/multivalency_benchmark/input_fasta_files/multivalency_heterooligomers.fasta"
-AF2_2mers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_2mers/hetero2mers/"
-AF2_Nmers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_Nmers/3mers/hetero3mers/"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/multivalency_benchmark/MM_output_heterooligomers_test"
-use_names = False
-overwrite = True
-remove_interactions = ("Indirect", "No 2-mers Data")
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-auto_domain_detection = True
-graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/multivalency_benchmark/input_fasta_files/multivalency_heterooligomers.fasta"
+# AF2_2mers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_2mers/hetero2mers/"
+# AF2_Nmers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_Nmers/3mers/hetero3mers/"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/multivalency_benchmark/MM_output_heterooligomers_test"
+# use_names = False
+# overwrite = True
+# remove_interactions = ("Indirect", "No 2-mers Data")
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
@@ -243,6 +243,7 @@ logger = mm.configure_logger(out_path = out_path, log_level = log_level, clear_r
 
 
 # Run the main MultimerMapper pipeline
+import multimer_mapper as mm
 mm_output = mm.parse_AF2_and_sequences(fasta_file,
                                        AF2_2mers,
                                        AF2_Nmers,

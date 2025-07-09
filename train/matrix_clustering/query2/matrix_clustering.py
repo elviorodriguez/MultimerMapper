@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import os
 from collections import defaultdict
 from typing import Dict, List, Tuple, Any, Optional
 from scipy.spatial.distance import cdist, pdist, squareform
@@ -11,10 +12,12 @@ from sklearn.metrics import silhouette_score, calinski_harabasz_score, davies_bo
 from sklearn.metrics.pairwise import cosine_similarity
 import logging
 from dataclasses import dataclass
+from Bio.PDB import PDBIO
 import warnings
 warnings.filterwarnings('ignore')
 
 from src.analyze_multivalency import visualize_clusters_static, visualize_clusters_interactive
+from train.matrix_clustering.query2.py3Dmol_representative import create_contact_visualizations_for_clusters
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -266,6 +269,70 @@ class ClusterValidationMetrics:
         gap = np.log(expected_wss) - np.log(observed_wss) if observed_wss > 0 else 0
         
         return gap
+
+
+def save_representative_pdbs_and_metadata(mm_output, clusters, representative_pdbs_dir, logger):
+    
+    # Create a tsv file to store the metadata of the pdbs (like model, chains involved and rank)
+    representative_pdbs_metadata_file = mm_output['out_path'] + '/contact_clusters/representative_pdbs/metadata.tsv'
+    representative_pdbs_metadata_columns = ['Protein1', 'Protein2', 'Cluster', 'Combination', 'Chains', 'Rank']
+    representative_pdbs_metadata_df = pd.DataFrame(columns=representative_pdbs_metadata_columns)
+    
+    # Initialize PDB writer
+    pdb_io = PDBIO()
+    
+    for pair in clusters:
+        print(f'Pair: {pair}')
+        
+        representative_pdb_for_pair_prefix = f'{representative_pdbs_dir}/{pair[0]}__vs__{pair[1]}'
+        
+        for cluster_n in clusters[pair]:
+            representative_model = clusters[pair][cluster_n]["representative"]
+            representative_pdb_for_pair_cluster_file = f'{representative_pdb_for_pair_prefix}-cluster_{cluster_n}.pdb'
+            combo = representative_model[0]
+            chains = representative_model[1]
+            rank_val = representative_model[2]
+            rep_model_row = mm_output['pairwise_Nmers_df'].query(
+                "proteins_in_model == @combo and pair_chains_tuple == @chains and rank == @rank_val"
+            )
+            try:
+                # If row is empty, it will rise an error
+                model = rep_model_row['model'].iloc[0]
+            except:
+                # Get the model from the 2-mers
+                rep_model_row = mm_output['pairwise_2mers_df'].query(
+                    "sorted_tuple_pair == @pair & rank == @rank_val"
+                )
+                model = rep_model_row['model'].iloc[0]
+            contact_matrix = clusters[pair][cluster_n]["representative"]
+            contacts_n = (clusters[pair][cluster_n]['average_matrix'] > 0).sum()
+            
+            # Add metadata to dataframe
+            row = {
+                'Protein1': f'{pair[0]}',
+                'Protein2': f'{pair[1]}',
+                'Cluster': cluster_n,
+                'Combination': combo,
+                'Chains': ','.join(chains),  # assuming chains is a tuple or list
+                'Rank': rank_val
+            }
+            # Save the model as PDB file
+            pdb_io.set_structure(model)
+            pdb_io.save(representative_pdb_for_pair_cluster_file)
+            
+            # Append to the metadata DataFrame
+            representative_pdbs_metadata_df = representative_pdbs_metadata_df.append(row, ignore_index=True)
+            
+            logger.info(f'   Cluster: {cluster_n}')
+            logger.info(f'      - Representative: {representative_model}')
+            logger.info(f'      - Output file: {representative_pdb_for_pair_cluster_file}')
+            logger.info(f'      - Combination: {combo}')
+            logger.info(f'      - Chains: {chains}')
+            logger.info(f'      - Rank: {rank_val}')
+            logger.info(f'      - Model: {[m for m in model.get_chains()]}')
+            logger.info(f'      - Contacts Nº: {contacts_n}')
+    
+    representative_pdbs_metadata_df.to_csv(representative_pdbs_metadata_file, sep='\t', index=False)
 
 
 def compute_distance_matrix(matrices: List[np.ndarray], 
@@ -585,7 +652,7 @@ def analyze_protein_interactions_with_enhanced_clustering(
             
             if cluster_info:
                 all_clusters[pair] = cluster_info
-                
+
                 # Visualization (DO NOT REMOVE)
                 visualize_clusters_static(cluster_info, pair, model_keys, labels, mm_output,
                                   reduced_features = reduced_features,
@@ -999,8 +1066,31 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
     interaction_counts_df, all_clusters = analyze_protein_interactions_with_enhanced_clustering(
         mm_output, config, logger
     )
+
+    # Create folder to store the representative pdbs of each cluster
+    representative_pdbs_dir = mm_output['out_path'] + '/contact_clusters/representative_pdbs'
+    os.makedirs(representative_pdbs_dir, exist_ok=True)
+
+    # Save the representative PDB of each cluster and create HTML visualization
+    save_representative_pdbs_and_metadata(mm_output, all_clusters, representative_pdbs_dir, logger)
+
+    # Create interactive HTML py3Dmol visualizations 
+    html_files = create_contact_visualizations_for_clusters(
+        clusters = all_clusters,
+        mm_output = mm_output,
+        representative_pdbs_dir = representative_pdbs_dir,
+        logger=logger
+    )
     
     # Print summary
     print_clustering_summary(all_clusters, logger)
     
     return interaction_counts_df, all_clusters, benchmark_results
+
+# Usage with predefined configurations
+def run_contacts_clustering_analysis_with_config(mm_output, config_dict, logger):
+    return run_enhanced_clustering_analysis(
+        mm_output,
+        logger=logger,
+        **config_dict
+    )

@@ -1,5 +1,7 @@
 import os
+import re
 import json
+import html
 import numpy as np
 from Bio.PDB import PDBParser
 
@@ -79,7 +81,7 @@ def map_index_to_chain_residue(index, chains_in_model, chain_idx):
 
 
 def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, output_html, 
-                               protein1_name, protein2_name, cluster_id):
+                               protein1_name, protein2_name, cluster_id, logger):
     """
     Create an HTML visualization for protein contacts.
     
@@ -186,7 +188,7 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                 'z2': float(centroid2['z'])
             })
     
-    print(f"Contacts data length: {len(contacts_data)}")
+    # print(f"Contacts data length: {len(contacts_data)}")
     
     # Convert all data to JSON-serializable format
     def convert_to_json_serializable(obj):
@@ -630,11 +632,11 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
     with open(output_html, 'w') as f:
         f.write(html_content)
     
-    print(f"Contact visualization created: {output_html}")
+    logger.info(f"      Contact visualization created: {output_html}")
     return output_html
 
 
-def create_contact_visualizations_for_clusters(clusters, mm_output, representative_pdbs_dir):
+def create_contact_visualizations_for_clusters(clusters, mm_output, representative_pdbs_dir, logger):
     """
     Create HTML visualizations for all protein pair clusters.
     
@@ -650,9 +652,10 @@ def create_contact_visualizations_for_clusters(clusters, mm_output, representati
     representative_htmls_dir = mm_output['out_path'] + '/contact_clusters/representative_htmls'
     os.makedirs(representative_htmls_dir, exist_ok=True)
 
-    
+    logger.info('INITIALIZING: py3Dmol contacts visualizations for clusters...')
+
     for pair in clusters:
-        print(f'Creating visualizations for pair: {pair}')
+        logger.info(f'   Creating visualizations for pair: {pair}')
         
         for cluster_n in clusters[pair]:
             representative_model = clusters[pair][cluster_n]["representative"]
@@ -678,16 +681,17 @@ def create_contact_visualizations_for_clusters(clusters, mm_output, representati
                         output_html=output_html,
                         protein1_name=pair[0],
                         protein2_name=pair[1],
-                        cluster_id=cluster_n
+                        cluster_id=cluster_n,
+                        logger = logger
                     )
                     html_files.append(output_html)
-                    print(f'   ✓ Created visualization for cluster {cluster_n}')
+                    logger.info(f'      ✓ Created visualization for cluster {cluster_n}')
                 except Exception as e:
-                    print(f'   ✗ Error creating visualization for cluster {cluster_n}: {e}')
+                    logger.error(f'      ✗ Error creating visualization for cluster {cluster_n}: {e}')
             else:
-                print(f'   ✗ PDB file not found: {pdb_file}')
+                logger.error(f'      ✗ PDB file not found: {pdb_file}')
     
-    print(f"\\nCreated {len(html_files)} HTML visualizations")
+    logger.info(f"FINISHED: Created {len(html_files)} py3Dmol HTML visualizations.")
     return html_files
 
 
@@ -703,3 +707,362 @@ def create_contact_visualizations_for_clusters(clusters, mm_output, representati
 #     print("HTML visualization files created:")
 #     for html_file in html_files:
 #         print(f"  - {html_file}")
+
+
+def get_py3dmol_paths_for_pair(pair, contact_clusters_dir):
+    """
+    For a given pair (e.g. ('SEC13','SEC31')), 
+    find all representative_htmls/*.html matching that pair,
+    extract their cluster indices, and return a dict mapping
+    cluster_index -> absolute file path.
+    """
+    # Build the directory and search string
+    html_dir     = os.path.join(contact_clusters_dir, 'representative_htmls')
+    search_token = f"{pair[0]}__vs__{pair[1]}"
+
+    # List all .html files matching the pair
+    matching_files = [
+        fname for fname in os.listdir(html_dir)
+        if fname.endswith(".html") and search_token in fname
+    ]
+
+    # Extract cluster numbers and map to full paths
+    cluster_paths = {}
+    pattern = re.compile(r"-cluster_(\d+)\.html$")
+
+    for fname in matching_files:
+        match = pattern.search(fname)
+        if not match:
+            continue  # skip files that don’t conform
+        cluster_id = int(match.group(1))
+        full_path  = os.path.join(html_dir, fname)
+        cluster_paths[cluster_id] = full_path
+
+    return cluster_paths
+
+
+def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, left_panel_width=35):
+    """
+    Create a unified HTML visualization for a pair that combines:
+    - Left panel: PCA and matrices visualization
+    - Right panel: Selectable py3Dmol cluster visualizations
+    
+    Args:
+        mm_output: Dictionary containing output configuration
+        pair: Tuple of protein names (e.g., ('SEC13', 'SEC31'))
+        left_panel_width: Percentage of window width for left panel (default: 35)
+    """
+
+    # Create a directory for saving plots
+    contact_clusters_dir = os.path.join(mm_output['out_path'], 'contact_clusters')
+    os.makedirs(contact_clusters_dir, exist_ok=True)
+
+    # Out file
+    unified_html_path = os.path.join(contact_clusters_dir, f"{pair[0]}__vs__{pair[1]}-interactive_plot.html")
+
+    # PCA + matrixes file
+    pca_and_matrixes_dir = os.path.join(contact_clusters_dir, 'pca_and_matrixes_html')
+    pca_and_matrixes_path = os.path.join(pca_and_matrixes_dir, f'{pair[0]}__vs__{pair[1]}-pca_and_matrixes.html')
+
+    # Get py3Dmol HTML visualizations of contacts
+    py3dmol_htmls_paths_dict = get_py3dmol_paths_for_pair(pair, contact_clusters_dir)
+
+    # # Debug
+    # print("Pair:", pair)
+    # print("   unified_html_path:", unified_html_path)
+    # print("   pca_and_matrixes_dir:", pca_and_matrixes_dir)
+    # print("   pca_and_matrixes_path:", pca_and_matrixes_path)
+    # print("   py3dmol_htmls_paths_dict:", py3dmol_htmls_paths_dict)
+
+    # Check if required files exist
+    if not os.path.exists(pca_and_matrixes_path):
+        print(f"Warning: PCA and matrices file not found: {pca_and_matrixes_path}")
+        return
+    
+    if not py3dmol_htmls_paths_dict:
+        print(f"Warning: No py3Dmol HTML files found for pair {pair}")
+        return
+    
+    # Read the PCA and matrices HTML content
+    with open(pca_and_matrixes_path, 'r', encoding='utf-8') as f:
+        pca_content = f.read()
+    
+    # Read all py3Dmol HTML contents
+    py3dmol_contents = {}
+    for cluster_id, html_path in py3dmol_htmls_paths_dict.items():
+        if os.path.exists(html_path):
+            with open(html_path, 'r', encoding='utf-8') as f:
+                py3dmol_contents[cluster_id] = f.read()
+        else:
+            print(f"Warning: py3Dmol file not found: {html_path}")
+    
+    if not py3dmol_contents:
+        print(f"Warning: No valid py3Dmol content found for pair {pair}")
+        return
+    
+    # Sort cluster IDs for consistent ordering
+    sorted_cluster_ids = sorted(py3dmol_contents.keys())
+    
+    # Create the unified HTML
+    html_content = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Visualization - {pair[0]} vs {pair[1]}</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
+        body {{
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            background-color: #f0f0f0;
+        }}
+        
+        .container {{
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }}
+        
+        .left-panel {{
+            width: {left_panel_width}%;
+            height: 100%;
+            border-right: 2px solid #333;
+            overflow: hidden;
+        }}
+        
+        .right-panel {{
+            width: {100 - left_panel_width}%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background-color: white;
+        }}
+        
+        .controls {{
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            min-height: 50px;
+        }}
+        
+        .controls label {{
+            font-weight: bold;
+            color: #333;
+        }}
+        
+        .cluster-btn {{
+            padding: 8px 16px;
+            margin: 2px;
+            border: 2px solid #007bff;
+            background-color: white;
+            color: #007bff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }}
+        
+        .cluster-btn:hover {{
+            background-color: #e6f3ff;
+            transform: translateY(-1px);
+        }}
+        
+        .cluster-btn.active {{
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }}
+        
+        .py3dmol-container {{
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }}
+        
+        .py3dmol-frame {{
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: none;
+        }}
+        
+        .py3dmol-frame.active {{
+            display: block;
+        }}
+        
+        .pca-frame {{
+            width: 100%;
+            height: 100%;
+            border: none;
+        }}
+        
+        .loading {{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: #666;
+            font-size: 18px;
+        }}
+        
+        .error {{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: #dc3545;
+            font-size: 16px;
+            text-align: center;
+            padding: 20px;
+        }}
+        
+        @media (max-width: 768px) {{
+            .container {{
+                flex-direction: column;
+            }}
+            
+            .left-panel {{
+                width: 100%;
+                height: 50%;
+                border-right: none;
+                border-bottom: 2px solid #333;
+            }}
+            
+            .right-panel {{
+                width: 100%;
+                height: 50%;
+            }}
+            
+            .controls {{
+                padding: 5px;
+                min-height: 40px;
+            }}
+            
+            .cluster-btn {{
+                padding: 6px 12px;
+                font-size: 12px;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="left-panel">
+            <iframe class="pca-frame" srcdoc="{html.escape(pca_content)}" title="PCA and Matrices"></iframe>
+        </div>
+        
+        <div class="right-panel">
+            <div class="controls">
+                <label>Cluster:</label>
+                {' '.join([f'<button class="cluster-btn{" active" if i == 0 else ""}" onclick="showCluster({cluster_id})" data-cluster="{cluster_id}">{cluster_id}</button>' for i, cluster_id in enumerate(sorted_cluster_ids)])}
+            </div>
+            
+            <div class="py3dmol-container">
+                {' '.join([f'<iframe class="py3dmol-frame{" active" if i == 0 else ""}" id="cluster-{cluster_id}" srcdoc="{html.escape(content)}" title="Cluster {cluster_id}"></iframe>' for i, (cluster_id, content) in enumerate(sorted(py3dmol_contents.items()))])}
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showCluster(clusterId) {{
+            // Hide all frames
+            const frames = document.querySelectorAll('.py3dmol-frame');
+            frames.forEach(frame => {{
+                frame.classList.remove('active');
+            }});
+            
+            // Show selected frame
+            const selectedFrame = document.getElementById(`cluster-${{clusterId}}`);
+            if (selectedFrame) {{
+                selectedFrame.classList.add('active');
+            }}
+            
+            // Update button states
+            const buttons = document.querySelectorAll('.cluster-btn');
+            buttons.forEach(btn => {{
+                btn.classList.remove('active');
+            }});
+            
+            // Activate selected button
+            const selectedBtn = document.querySelector(`[data-cluster="${{clusterId}}"]`);
+            if (selectedBtn) {{
+                selectedBtn.classList.add('active');
+            }}
+        }}
+        
+        // Handle window resize
+        window.addEventListener('resize', function() {{
+            // Force iframe refresh on resize for better responsiveness
+            setTimeout(() => {{
+                const frames = document.querySelectorAll('iframe');
+                frames.forEach(frame => {{
+                    frame.style.height = frame.offsetHeight + 'px';
+                }});
+            }}, 100);
+        }});
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {{
+            // Show first cluster by default
+            const firstClusterId = {sorted_cluster_ids[0] if sorted_cluster_ids else 0};
+            showCluster(firstClusterId);
+            
+            // Add keyboard navigation
+            document.addEventListener('keydown', function(e) {{
+                const clusterIds = {sorted_cluster_ids};
+                const activeBtn = document.querySelector('.cluster-btn.active');
+                if (!activeBtn) return;
+                
+                const currentCluster = parseInt(activeBtn.getAttribute('data-cluster'));
+                const currentIndex = clusterIds.indexOf(currentCluster);
+                
+                if (e.key === 'ArrowLeft' && currentIndex > 0) {{
+                    showCluster(clusterIds[currentIndex - 1]);
+                }} else if (e.key === 'ArrowRight' && currentIndex < clusterIds.length - 1) {{
+                    showCluster(clusterIds[currentIndex + 1]);
+                }}
+            }});
+        }});
+    </script>
+</body>
+</html>
+"""
+    
+    # Write the unified HTML file
+    with open(unified_html_path, 'w', encoding='utf-8') as f:
+        f.write(html_content)
+    
+    print(f"Unified HTML visualization created: {unified_html_path}")
+    print(f"Available clusters: {sorted_cluster_ids}")
+    
+    return unified_html_path
+
+
+
+
+def unify_pca_matrixes_and_py3dmol(mm_output, pairs):
+
+    all_pair_matrices = mm_output['pairwise_contact_matrices']
+    
+    for pair in pairs:
+        if pair not in all_pair_matrices:
+            continue
+
+        unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair)
+
+    
+
+
