@@ -106,8 +106,8 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
             centroid = get_residue_centroid(residue)
             if centroid is not None:
                 centroids_data.append({
-                    'chain': chain_id,
-                    'residue': res_id,
+                    'chain': str(chain_id),  # Ensure string
+                    'residue': int(res_id),  # Ensure native int
                     'x': float(centroid[0]),
                     'y': float(centroid[1]),
                     'z': float(centroid[2])
@@ -117,8 +117,8 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
             backbone_coord = get_backbone_atom_coord(residue)
             if backbone_coord is not None:
                 backbone_data.append({
-                    'chain': chain_id,
-                    'residue': res_id,
+                    'chain': str(chain_id),  # Ensure string
+                    'residue': int(res_id),  # Ensure native int
                     'x': float(backbone_coord[0]),
                     'y': float(backbone_coord[1]),
                     'z': float(backbone_coord[2])
@@ -127,29 +127,50 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
     # Parse contact matrix
     contacts = parse_contact_matrix(contact_matrix, chains_in_model)
     
-    # Prepare contacts data for JavaScript
+    # Prepare contacts data for JavaScript with explicit type conversion
     contacts_data = []
     for chain1, res1, chain2, res2, frequency in contacts:
         # Find centroids for both residues
-        centroid1 = next((c for c in centroids_data if c['chain'] == chain1 and c['residue'] == res1), None)
-        centroid2 = next((c for c in centroids_data if c['chain'] == chain2 and c['residue'] == res2), None)
+        centroid1 = next((c for c in centroids_data if c['chain'] == str(chain1) and c['residue'] == int(res1)), None)
+        centroid2 = next((c for c in centroids_data if c['chain'] == str(chain2) and c['residue'] == int(res2)), None)
         
         if centroid1 and centroid2:
             contacts_data.append({
-                'chain1': chain1,
-                'res1': res1,
-                'chain2': chain2,
-                'res2': res2,
-                'frequency': float(frequency),
-                'x1': centroid1['x'],
-                'y1': centroid1['y'],
-                'z1': centroid1['z'],
-                'x2': centroid2['x'],
-                'y2': centroid2['y'],
-                'z2': centroid2['z']
+                'chain1': str(chain1),
+                'res1': int(res1),
+                'chain2': str(chain2),
+                'res2': int(res2),
+                'frequency': float(frequency),  # Convert to native float
+                'x1': float(centroid1['x']),
+                'y1': float(centroid1['y']),
+                'z1': float(centroid1['z']),
+                'x2': float(centroid2['x']),
+                'y2': float(centroid2['y']),
+                'z2': float(centroid2['z'])
             })
     
-    print(contacts_data)
+    print(f"Contacts data length: {len(contacts_data)}")
+    
+    # Convert all data to JSON-serializable format
+    def convert_to_json_serializable(obj):
+        """Convert numpy types to native Python types recursively"""
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, dict):
+            return {key: convert_to_json_serializable(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_to_json_serializable(item) for item in obj]
+        else:
+            return obj
+    
+    # Ensure all data is JSON serializable
+    centroids_data = convert_to_json_serializable(centroids_data)
+    backbone_data = convert_to_json_serializable(backbone_data)
+    contacts_data = convert_to_json_serializable(contacts_data)
     
     # Generate HTML content
     html_content = f"""
@@ -397,7 +418,7 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
         
         function initViewer() {{
             const config = {{
-                backgroundColor: 'black',
+                backgroundColor: 'white',
                 antialias: true
             }};
             
