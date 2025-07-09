@@ -1204,78 +1204,175 @@ def create_pca_plot(reduced_features, labels, model_keys, explained_variance, al
     
     return fig
 
-def create_unified_html(pca_fig, contact_fig, pair):
-    html_content = f"""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>PCA and Contact Maps for {pair[0]} vs {pair[1]}</title>
-        <style>
-            body {{
-                margin: 0;
-                padding: 0;
-                font-family: Arial, sans-serif;
-                display: flex;
-                flex-direction: column;
-                height: 100vh;
-                overflow: hidden;
-            }}
-            h1 {{
-                text-align: center;
-                margin: 10px 0;
-            }}
-            .container {{
-                display: flex;
-                flex: 1;
-                overflow: hidden;
-            }}
-            .plot {{
-                flex: 1;
-                height: 100%;
-                padding: 10px;
-                box-sizing: border-box;
-            }}
-        </style>
-        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    </head>
-    <body>
-        <h1>PCA and Contact Maps for {pair[0]} vs {pair[1]}</h1>
-        <div class="container">
-            <div id="pcaPlot" class="plot">
-                {pca_fig.to_html(include_plotlyjs=False, full_html=False, config={'responsive': True})}
+def create_unified_html(pca_fig, contact_fig, pair, side_by_side = False):
+    
+    # One row, two columns
+    if side_by_side:
+        html_content = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>PCA and Contact Maps for {pair[0]} vs {pair[1]}</title>
+            <style>
+                body {{
+                    margin: 0;
+                    padding: 0;
+                    font-family: Arial, sans-serif;
+                    display: flex;
+                    flex-direction: column;
+                    height: 100vh;
+                    overflow: hidden;
+                }}
+                h1 {{
+                    text-align: center;
+                    margin: 10px 0;
+                }}
+                .container {{
+                    display: flex;
+                    flex: 1;
+                    overflow: hidden;
+                }}
+                .plot {{
+                    flex: 1;
+                    height: 100%;
+                    padding: 10px;
+                    box-sizing: border-box;
+                }}
+            </style>
+            <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+        </head>
+        <body>
+            <h1>PCA and Contact Maps for {pair[0]} vs {pair[1]}</h1>
+            <div class="container">
+                <div id="pcaPlot" class="plot">
+                    {pca_fig.to_html(include_plotlyjs=False, full_html=False, config={'responsive': True})}
+                </div>
+                <div id="contactMaps" class="plot">
+                    {contact_fig.to_html(include_plotlyjs=False, full_html=False, config={'responsive': True})}
+                </div>
             </div>
-            <div id="contactMaps" class="plot">
-                {contact_fig.to_html(include_plotlyjs=False, full_html=False, config={'responsive': True})}
+            <script>
+                function resizePlots() {{
+                    Plotly.Plots.resize(document.getElementById('pcaPlot'));
+                    Plotly.Plots.resize(document.getElementById('contactMaps'));
+                }}
+
+                function triggerFakeResize() {{
+                    window.dispatchEvent(new Event('resize'));
+                }}
+
+                window.addEventListener('resize', resizePlots);
+
+                document.addEventListener('DOMContentLoaded', function() {{
+                    setTimeout(resizePlots, 0);
+                    triggerFakeResize();
+                }});
+
+                window.addEventListener('load', function() {{
+                    resizePlots();
+                    setTimeout(resizePlots, 0);
+                    triggerFakeResize();
+                }});
+            </script>
+        </body>
+        </html>
+        """
+    
+    # Two rows, one column
+    else: 
+        html_content = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>PCA and Contact Maps for {pair[0]} vs {pair[1]}</title>
+            <style>
+                html, body {{
+                    margin: 0;
+                    padding: 0;
+                    height: 100%;
+                    width: 100%;
+                    font-family: Arial, sans-serif;
+                    overflow: hidden;
+                }}
+                body {{
+                    display: flex;
+                    flex-direction: column;
+                    height: 100vh;
+                }}
+                h1 {{
+                    text-align: center;
+                    margin: 10px 0;
+                    flex-shrink: 0;
+                }}
+                .container {{
+                    display: flex;
+                    flex-direction: column;
+                    flex: 1;
+                    overflow: hidden;
+                    min-height: 0;
+                }}
+                .plot {{
+                    flex: 1;
+                    width: 100%;
+                    padding: 5px;
+                    box-sizing: border-box;
+                    display: flex;
+                    flex-direction: column;
+                    min-height: 0;
+                }}
+                .plot > div {{
+                    flex: 1;
+                    width: 100%;
+                    height: 100%;
+                    min-height: 0;
+                }}
+            </style>
+            <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+        </head>
+        <body>
+            <h1>PCA and Contact Maps for {pair[0]} vs {pair[1]}</h1>
+            <div class="container">
+                <div id="pcaPlot" class="plot">
+                    {pca_fig.to_html(include_plotlyjs=False, full_html=False, config={'responsive': True})}
+                </div>
+                <div id="contactMaps" class="plot">
+                    {contact_fig.to_html(include_plotlyjs=False, full_html=False, config={'responsive': True})}
+                </div>
             </div>
-        </div>
-        <script>
-            function resizePlots() {{
-                Plotly.Plots.resize(document.getElementById('pcaPlot'));
-                Plotly.Plots.resize(document.getElementById('contactMaps'));
-            }}
+            <script>
+                function resizePlots() {{
+                    const pcaPlot = document.getElementById('pcaPlot');
+                    const contactMaps = document.getElementById('contactMaps');
+                    
+                    if (pcaPlot && contactMaps) {{
+                        Plotly.Plots.resize(pcaPlot);
+                        Plotly.Plots.resize(contactMaps);
+                    }}
+                }}
 
-            function triggerFakeResize() {{
-                window.dispatchEvent(new Event('resize'));
-            }}
+                function triggerFakeResize() {{
+                    window.dispatchEvent(new Event('resize'));
+                }}
 
-            window.addEventListener('resize', resizePlots);
+                window.addEventListener('resize', resizePlots);
 
-            document.addEventListener('DOMContentLoaded', function() {{
-                setTimeout(resizePlots, 0);
-                triggerFakeResize();
-            }});
+                document.addEventListener('DOMContentLoaded', function() {{
+                    setTimeout(resizePlots, 100);
+                    setTimeout(triggerFakeResize, 150);
+                }});
 
-            window.addEventListener('load', function() {{
-                resizePlots();
-                setTimeout(resizePlots, 0);
-                triggerFakeResize();
-            }});
-        </script>
-    </body>
-    </html>
-    """
+                window.addEventListener('load', function() {{
+                    setTimeout(resizePlots, 100);
+                    setTimeout(triggerFakeResize, 150);
+                }});
+            </script>
+        </body>
+        </html>
+        """
     
     return html_content
 
@@ -1334,15 +1431,18 @@ def visualize_clusters_interactive(
     
 
     if save_plot:
+
         # Create a directory for saving plots
         output_dir = os.path.join(mm_output['out_path'], 'contact_clusters')
         os.makedirs(output_dir, exist_ok=True)
+        output_dir_for_htmls = os.path.join(output_dir, 'pca_and_matrixes_html')
+        os.makedirs(output_dir_for_htmls, exist_ok=True)
 
         # Create the interactive plot
         html_content = create_interactive_plot(reduced_features, labels, model_keys, cluster_dict, pair, explained_variance, all_pair_matrices)
         
         # Save the HTML content to a file
-        unified_html_path = os.path.join(output_dir, f"{pair[0]}__vs__{pair[1]}-interactive_plot.html")
+        unified_html_path = os.path.join(output_dir_for_htmls, f"{pair[0]}__vs__{pair[1]}-pca_and_matrixes.html")
         with open(unified_html_path, 'w') as f:
             f.write(html_content)
         
