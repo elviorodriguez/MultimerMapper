@@ -767,13 +767,6 @@ def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, left_panel_width=35
     # Get py3Dmol HTML visualizations of contacts
     py3dmol_htmls_paths_dict = get_py3dmol_paths_for_pair(pair, contact_clusters_dir)
 
-    # # Debug
-    # print("Pair:", pair)
-    # print("   unified_html_path:", unified_html_path)
-    # print("   pca_and_matrixes_dir:", pca_and_matrixes_dir)
-    # print("   pca_and_matrixes_path:", pca_and_matrixes_path)
-    # print("   py3dmol_htmls_paths_dict:", py3dmol_htmls_paths_dict)
-
     # Check if required files exist
     if not os.path.exists(pca_and_matrixes_path):
         print(f"Warning: PCA and matrices file not found: {pca_and_matrixes_path}")
@@ -803,7 +796,25 @@ def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, left_panel_width=35
     # Sort cluster IDs for consistent ordering
     sorted_cluster_ids = sorted(py3dmol_contents.keys())
     
-    # Create the unified HTML
+    # Create individual HTML files for each cluster
+    cluster_files = {}
+    for cluster_id, content in py3dmol_contents.items():
+        cluster_filename = f"{pair[0]}__vs__{pair[1]}-cluster_{cluster_id}_embed.html"
+        cluster_filepath = os.path.join(contact_clusters_dir, cluster_filename)
+        
+        # Write the cluster content to a separate file
+        with open(cluster_filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        cluster_files[cluster_id] = cluster_filename
+    
+    # Also create a file for PCA content
+    pca_filename = f"{pair[0]}__vs__{pair[1]}-pca_embed.html"
+    pca_filepath = os.path.join(contact_clusters_dir, pca_filename)
+    with open(pca_filepath, 'w', encoding='utf-8') as f:
+        f.write(pca_content)
+    
+    # Create the unified HTML with lazy loading approach
     html_content = f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -896,11 +907,17 @@ def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, left_panel_width=35
             width: 100%;
             height: 100%;
             border: none;
-            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease;
         }}
         
         .py3dmol-frame.active {{
-            display: block;
+            opacity: 1;
+            visibility: visible;
         }}
         
         .pca-frame {{
@@ -961,7 +978,7 @@ def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, left_panel_width=35
 <body>
     <div class="container">
         <div class="left-panel">
-            <iframe class="pca-frame" srcdoc="{html.escape(pca_content)}" title="PCA and Matrices"></iframe>
+            <iframe class="pca-frame" src="{pca_filename}" title="PCA and Matrices"></iframe>
         </div>
         
         <div class="right-panel">
@@ -971,24 +988,53 @@ def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, left_panel_width=35
             </div>
             
             <div class="py3dmol-container">
-                {' '.join([f'<iframe class="py3dmol-frame{" active" if i == 0 else ""}" id="cluster-{cluster_id}" srcdoc="{html.escape(content)}" title="Cluster {cluster_id}"></iframe>' for i, (cluster_id, content) in enumerate(sorted(py3dmol_contents.items()))])}
+                {' '.join([f'<iframe class="py3dmol-frame{" active" if i == 0 else ""}" id="cluster-{cluster_id}" data-src="{cluster_files[cluster_id]}" title="Cluster {cluster_id}"></iframe>' for i, cluster_id in enumerate(sorted_cluster_ids)])}
             </div>
         </div>
     </div>
     
     <script>
+        let loadedClusters = new Set();
+        
+        function loadClusterFrame(clusterId) {{
+            const frame = document.getElementById(`cluster-${{clusterId}}`);
+            if (!frame || loadedClusters.has(clusterId)) {{
+                return;
+            }}
+            
+            const src = frame.getAttribute('data-src');
+            if (src) {{
+                frame.src = src;
+                loadedClusters.add(clusterId);
+            }}
+        }}
+        
         function showCluster(clusterId) {{
+            // Load the cluster frame if not already loaded
+            loadClusterFrame(clusterId);
+            
             // Hide all frames
             const frames = document.querySelectorAll('.py3dmol-frame');
             frames.forEach(frame => {{
                 frame.classList.remove('active');
             }});
             
-            // Show selected frame
-            const selectedFrame = document.getElementById(`cluster-${{clusterId}}`);
-            if (selectedFrame) {{
-                selectedFrame.classList.add('active');
-            }}
+            // Show selected frame with a slight delay to ensure proper rendering
+            setTimeout(() => {{
+                const selectedFrame = document.getElementById(`cluster-${{clusterId}}`);
+                if (selectedFrame) {{
+                    selectedFrame.classList.add('active');
+                    
+                    // Trigger a resize event to help py3Dmol render properly
+                    selectedFrame.onload = function() {{
+                        try {{
+                            selectedFrame.contentWindow.dispatchEvent(new Event('resize'));
+                        }} catch (e) {{
+                            // Cross-origin restrictions might prevent this, but that's OK
+                        }}
+                    }};
+                }}
+            }}, 100);
             
             // Update button states
             const buttons = document.querySelectorAll('.cluster-btn');
@@ -1005,18 +1051,20 @@ def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, left_panel_width=35
         
         // Handle window resize
         window.addEventListener('resize', function() {{
-            // Force iframe refresh on resize for better responsiveness
-            setTimeout(() => {{
-                const frames = document.querySelectorAll('iframe');
-                frames.forEach(frame => {{
-                    frame.style.height = frame.offsetHeight + 'px';
-                }});
-            }}, 100);
+            // Trigger resize events on all loaded iframes
+            const activeFrame = document.querySelector('.py3dmol-frame.active');
+            if (activeFrame && activeFrame.contentWindow) {{
+                try {{
+                    activeFrame.contentWindow.dispatchEvent(new Event('resize'));
+                }} catch (e) {{
+                    // Cross-origin restrictions might prevent this, but that's OK
+                }}
+            }}
         }});
         
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {{
-            // Show first cluster by default
+            // Load and show first cluster by default
             const firstClusterId = {sorted_cluster_ids[0] if sorted_cluster_ids else 0};
             showCluster(firstClusterId);
             
@@ -1047,6 +1095,7 @@ def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, left_panel_width=35
     
     print(f"Unified HTML visualization created: {unified_html_path}")
     print(f"Available clusters: {sorted_cluster_ids}")
+    print(f"Individual cluster files created: {list(cluster_files.values())}")
     
     return unified_html_path
 

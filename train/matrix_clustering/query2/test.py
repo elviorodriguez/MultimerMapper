@@ -32,9 +32,11 @@ clustering_config = {
 # Run with conservative configuration
 interaction_counts_df, clusters, _ = run_contacts_clustering_analysis_with_config(mm_output, clustering_config, logger)
 
+# Unpack the pairwise contact matrices
+all_pair_matrices = mm_output['pairwise_contact_matrices']
+pairs = list(all_pair_matrices.keys())
 
-######################### SAVE THE REPRESENTATIVE MODEL #######################
-
+unify_pca_matrixes_and_py3dmol(mm_output, pairs)
 
 # # Create folder to store the representative pdbs of each cluster
 # representative_pdbs_dir = mm_output['out_path'] + '/contact_clusters/representative_pdbs'
@@ -56,13 +58,6 @@ interaction_counts_df, clusters, _ = run_contacts_clustering_analysis_with_confi
 # output_dir = os.path.join(mm_output['out_path'], 'contact_clusters')
 # os.makedirs(output_dir, exist_ok=True)
 # unified_html_path = os.path.join(output_dir, f"{pair[0]}__vs__{pair[1]}-interactive_plot.html")
-
-
-# Unpack the pairwise contact matrices
-all_pair_matrices = mm_output['pairwise_contact_matrices']
-pairs = list(all_pair_matrices.keys())
-
-unify_pca_matrixes_and_py3dmol(mm_output, pairs)
 
 
 ###############################################################################
