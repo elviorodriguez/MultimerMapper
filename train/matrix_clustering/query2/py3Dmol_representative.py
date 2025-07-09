@@ -23,7 +23,7 @@ def get_backbone_atom_coord(residue):
     return None
 
 
-def parse_contact_matrix(contact_matrix, chains_in_model):
+def parse_contact_matrix(contact_matrix, chains_in_model, L1, L2):
     """
     Parse contact matrix to extract residue pairs and their contact frequencies.
     
@@ -36,6 +36,19 @@ def parse_contact_matrix(contact_matrix, chains_in_model):
     """
     contacts = []
     
+    # Define which chain is which
+    n_rows, n_cols = contact_matrix.shape
+    if n_rows == L1 and n_cols == L2:
+        chain_1_idx = 0
+        chain_2_idx = 1
+    elif n_rows == L2 and n_cols == L1:
+        chain_1_idx = 1
+        chain_2_idx = 0
+    else:
+        print("ERROR!!! Chains Lengths do not match! Assigning indexes 0 to chain 1 and 1 to chain 2")
+        chain_1_idx = 0
+        chain_2_idx = 1
+    
     # Assuming contact_matrix is symmetric and indexed by residue numbers
     # You may need to adjust this based on your specific matrix format
     rows, cols = np.where(contact_matrix > 0)
@@ -43,29 +56,25 @@ def parse_contact_matrix(contact_matrix, chains_in_model):
     for i, j in zip(rows, cols):
         if i < j:  # Only take upper triangle to avoid duplicates
             frequency = contact_matrix[i, j]
-            
-            # Map matrix indices to chain and residue
-            # This mapping depends on how your contact matrix is structured
-            # You'll need to adjust this based on your specific format
-            
-            # For now, assuming sequential residue numbering across chains
-            chain1, res1 = map_index_to_chain_residue(i, chains_in_model)
-            chain2, res2 = map_index_to_chain_residue(j, chains_in_model)
+                        
+            # Select the chains and residues
+            chain1, res1 = map_index_to_chain_residue(i, chains_in_model, chain_1_idx)
+            chain2, res2 = map_index_to_chain_residue(j, chains_in_model, chain_2_idx)
             
             contacts.append((chain1, res1, chain2, res2, frequency))
     
     return contacts
 
 
-def map_index_to_chain_residue(index, chains_in_model):
+def map_index_to_chain_residue(index, chains_in_model, chain_idx):
     """
     Map matrix index to chain and residue number.
     This is a placeholder - you'll need to implement based on your matrix structure.
     """
     # This is a simplified example - adjust based on your actual matrix structure
     # Assuming you have a way to map indices to chain and residue
-    chain = chains_in_model[0]  # Placeholder
-    residue = index + 1  # Placeholder
+    chain = chains_in_model[chain_idx]  # Placeholder
+    residue = index + 1                 # Placeholder
     return chain, residue
 
 
@@ -92,40 +101,68 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
     parser = PDBParser(QUIET=True)
     structure = parser.get_structure('protein', pdb_file)
     model = structure[0]
+
+    # Get chain lengths
+    chain_lengths = {}
+    for chain_idx, chain in enumerate(model):
+        chain_id = chain.get_id()
+        chain_lengths[chain_idx] = len(chain)
+
+    # Parse contact matrix
+    contacts = parse_contact_matrix(contact_matrix, chains_in_model, L1 = chain_lengths[0], L2 = chain_lengths[1])
+
+    # Identify all residues involved in contacts
+    contact_residues = set()
+    for chain1, res1, chain2, res2, _ in contacts:
+        contact_residues.add((str(chain1), int(res1)))
+        contact_residues.add((str(chain2), int(res2)))
     
     # Extract centroid and backbone information
     centroids_data = []
     backbone_data = []
+    hex_palette = [
+        "#4584B6",  # Python Steel Blue
+        "#FFDE57",  # Python Mustard
+        "#646464",  # Python Dove Gray
+        "#8A2BE2",  # Blue Violet
+        "#FF7F50",  # Coral
+        "#20B2AA",  # Light Sea Green
+        "#DA70D6",  # Orchid
+        "#FFD700",  # Gold
+        "#ADFF2F",  # Green Yellow
+        "#FF4500"   # Orange Red
+    ]
     
-    for chain in model:
+    for chain_idx, chain in enumerate(model):
         chain_id = chain.get_id()
         for residue in chain:
             res_id = residue.get_id()[1]
             
-            # Get centroid
-            centroid = get_residue_centroid(residue)
-            if centroid is not None:
-                centroids_data.append({
-                    'chain': str(chain_id),  # Ensure string
-                    'residue': int(res_id),  # Ensure native int
-                    'x': float(centroid[0]),
-                    'y': float(centroid[1]),
-                    'z': float(centroid[2])
-                })
-            
-            # Get backbone atom
-            backbone_coord = get_backbone_atom_coord(residue)
-            if backbone_coord is not None:
-                backbone_data.append({
-                    'chain': str(chain_id),  # Ensure string
-                    'residue': int(res_id),  # Ensure native int
-                    'x': float(backbone_coord[0]),
-                    'y': float(backbone_coord[1]),
-                    'z': float(backbone_coord[2])
-                })
-    
-    # Parse contact matrix
-    contacts = parse_contact_matrix(contact_matrix, chains_in_model)
+            # Add centroids only for contact residues
+            if (chain_id, res_id) in contact_residues:
+                # Get centroid
+                centroid = get_residue_centroid(residue)
+                if centroid is not None:
+                    centroids_data.append({
+                        'chain': str(chain_id),  # Ensure string
+                        'residue': int(res_id),  # Ensure native int
+                        'x': float(centroid[0]),
+                        'y': float(centroid[1]),
+                        'z': float(centroid[2]),
+                        'color': hex_palette[chain_idx]
+                    })
+                
+                # Get backbone atom
+                backbone_coord = get_backbone_atom_coord(residue)
+                if backbone_coord is not None:
+                    backbone_data.append({
+                        'chain': str(chain_id),  # Ensure string
+                        'residue': int(res_id),  # Ensure native int
+                        'x': float(backbone_coord[0]),
+                        'y': float(backbone_coord[1]),
+                        'z': float(backbone_coord[2]),
+                        'color': hex_palette[chain_idx]
+                    })
     
     # Prepare contacts data for JavaScript with explicit type conversion
     contacts_data = []
@@ -463,6 +500,9 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
             
             viewer.setStyle({{}}, styleObj);
             
+            // Clear everything and re-add model with surfaces
+            viewer.removeAllSurfaces(); 
+
             // Apply surface if selected
             if (surfaceType !== 'none') {{
                 viewer.addSurface(surfaceType, {{opacity: 0.8}});
@@ -480,8 +520,8 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                 centroidsData.forEach(centroid => {{
                     viewer.addSphere({{
                         center: {{x: centroid.x, y: centroid.y, z: centroid.z}},
-                        radius: 2.0,
-                        color: 'yellow',
+                        radius: 1.0,
+                        color: centroid.color,
                         alpha: 0.8
                     }});
                 }});
@@ -496,7 +536,7 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                             start: {{x: backbone.x, y: backbone.y, z: backbone.z}},
                             end: {{x: centroid.x, y: centroid.y, z: centroid.z}},
                             radius: 0.3,
-                            color: 'gray',
+                            color: backbone.color,
                             alpha: 0.7
                         }});
                     }}
@@ -544,7 +584,7 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
             
             contactsData.forEach(contact => {{
                 const normalizedFreq = (contact.frequency - minFreq) / (maxFreq - minFreq);
-                const radius = 0.2 + normalizedFreq * 1.0; // Scale thickness
+                const radius = 0.05 + normalizedFreq * 0.20; // Scale thickness
                 const intensity = Math.floor(255 * normalizedFreq);
                 const color = `rgb(${{255 - intensity}}, ${{intensity}}, 0)`; // Red to yellow gradient
                 
@@ -553,7 +593,7 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                     end: {{x: contact.x2, y: contact.y2, z: contact.z2}},
                     radius: radius,
                     color: color,
-                    alpha: 0.8
+                    alpha: 1
                 }});
             }});
         }}
@@ -605,6 +645,11 @@ def create_contact_visualizations_for_clusters(clusters, mm_output, representati
     """
     
     html_files = []
+
+    # Create folder to store the representative visualizations
+    representative_htmls_dir = mm_output['out_path'] + '/contact_clusters/representative_htmls'
+    os.makedirs(representative_htmls_dir, exist_ok=True)
+
     
     for pair in clusters:
         print(f'Creating visualizations for pair: {pair}')
@@ -622,23 +667,23 @@ def create_contact_visualizations_for_clusters(clusters, mm_output, representati
             pdb_file = f'{representative_pdbs_dir}/{pair[0]}__vs__{pair[1]}-cluster_{cluster_n}.pdb'
             
             # Create output HTML file path
-            output_html = f'{representative_pdbs_dir}/{pair[0]}__vs__{pair[1]}-cluster_{cluster_n}_visualization.html'
+            output_html = f'{representative_htmls_dir}/{pair[0]}__vs__{pair[1]}-cluster_{cluster_n}.html'
             
             if os.path.exists(pdb_file):
-                # try:
-                create_contact_visualization(
-                    pdb_file=pdb_file,
-                    contact_matrix=contact_matrix,
-                    chains_in_model=chains,
-                    output_html=output_html,
-                    protein1_name=pair[0],
-                    protein2_name=pair[1],
-                    cluster_id=cluster_n
-                )
-                html_files.append(output_html)
-                #     print(f'   ✓ Created visualization for cluster {cluster_n}')
-                # except Exception as e:
-                #     print(f'   ✗ Error creating visualization for cluster {cluster_n}: {e}')
+                try:
+                    create_contact_visualization(
+                        pdb_file=pdb_file,
+                        contact_matrix=contact_matrix,
+                        chains_in_model=chains,
+                        output_html=output_html,
+                        protein1_name=pair[0],
+                        protein2_name=pair[1],
+                        cluster_id=cluster_n
+                    )
+                    html_files.append(output_html)
+                    print(f'   ✓ Created visualization for cluster {cluster_n}')
+                except Exception as e:
+                    print(f'   ✗ Error creating visualization for cluster {cluster_n}: {e}')
             else:
                 print(f'   ✗ PDB file not found: {pdb_file}')
     
