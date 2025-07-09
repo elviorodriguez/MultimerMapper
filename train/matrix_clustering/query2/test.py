@@ -1,8 +1,12 @@
 
+import os
+import pandas as pd
 from collections import defaultdict
+from Bio.PDB import PDBIO
 
 # Import the enhanced clustering module
 from train.matrix_clustering.query2.matrix_clustering import run_enhanced_clustering_analysis, quick_test_metrics
+from train.matrix_clustering.query2.py3Dmol_representative import create_contact_visualizations_for_clusters
 
 # Import visualization module
 # from src.analyze_multivalency import visualize_clusters_static, preprocess_matrices, visualize_clusters_interactive
@@ -38,6 +42,83 @@ config_custom = {
 # Run with conservative configuration
 interaction_counts_df, clusters, _ = run_with_config(mm_output, config_custom, logger)
 
+
+######################### SAVE THE REPRESENTATIVE MODEL #######################
+
+# Create folder to store the representative pdbs of each cluster
+representative_pdbs_dir = mm_output['out_path'] + '/contact_clusters/representative_pdbs'
+os.makedirs(representative_pdbs_dir, exist_ok=True)
+
+# Create a tsv file to store the metadata of the pdbs (like model, chains involved and rank)
+representative_pdbs_metadata_file = mm_output['out_path'] + '/contact_clusters/representative_pdbs/metadata.tsv'
+representative_pdbs_metadata_columns = ['Protein1', 'Protein2', 'Cluster', 'Combination', 'Chains', 'Rank']
+representative_pdbs_metadata_df = pd.DataFrame(columns=representative_pdbs_metadata_columns)
+
+# Initialize PDB writer
+pdb_io = PDBIO()
+
+for pair in clusters:
+    print(f'Pair: {pair}')
+    
+    representative_pdb_for_pair_prefix = f'{representative_pdbs_dir}/{pair[0]}__vs__{pair[1]}'
+    
+    for cluster_n in clusters[pair]:
+        representative_model = clusters[pair][cluster_n]["representative"]
+        representative_pdb_for_pair_cluster_file = f'{representative_pdb_for_pair_prefix}-cluster_{cluster_n}.pdb'
+        combo = representative_model[0]
+        chains = representative_model[1]
+        rank_val = representative_model[2]
+        rep_model_row = mm_output['pairwise_Nmers_df'].query(
+            "proteins_in_model == @combo and pair_chains_tuple == @chains and rank == @rank_val"
+        )
+        try:
+            # If row is empty, it will rise an error
+            model = rep_model_row['model'].iloc[0]
+        except:
+            # Get the model from the 2-mers
+            rep_model_row = mm_output['pairwise_2mers_df'].query(
+                "sorted_tuple_pair == @pair & rank == @rank_val"
+            )
+            model = rep_model_row['model'].iloc[0]
+        contact_matrix = clusters[pair][cluster_n]["representative"]
+        contacts_n = (clusters[pair][cluster_n]['average_matrix'] > 0).sum()
+        
+        # Add metadata to dataframe
+        row = {
+            'Protein1': f'{pair[0]}',
+            'Protein2': f'{pair[1]}',
+            'Cluster': cluster_n,
+            'Combination': combo,
+            'Chains': ','.join(chains),  # assuming chains is a tuple or list
+            'Rank': rank_val
+        }
+        # Save the model as PDB file
+        pdb_io.set_structure(model)
+        pdb_io.save(representative_pdb_for_pair_cluster_file)
+        
+        # Append to the metadata DataFrame
+        representative_pdbs_metadata_df = representative_pdbs_metadata_df.append(row, ignore_index=True)
+        
+        print(f'   Cluster: {cluster_n}')
+        print(f'      - Representative: {representative_model}')
+        print(f'      - Output file: {representative_pdb_for_pair_cluster_dir}')
+        print(f'      - Combination: {combo}')
+        print(f'      - Chains: {chains}')
+        print(f'      - Rank: {rank_val}')
+        print(f'      - Model: {[m for m in model.get_chains()]}')
+        print(f'      - Contacts Nº: {contacts_n}')
+
+
+from train.matrix_clustering.query2.py3Dmol_representative import create_contact_visualizations_for_clusters
+html_files = create_contact_visualizations_for_clusters(
+    clusters=clusters,
+    mm_output=mm_output,
+    representative_pdbs_dir=representative_pdbs_dir
+)
+
+representative_pdbs_metadata_df.to_csv(representative_pdbs_metadata_file, sep='\t', index=False)
+
+###############################################################################
 
 """
 DISTANCE METRICS:
