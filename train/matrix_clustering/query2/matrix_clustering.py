@@ -17,7 +17,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 from src.analyze_multivalency import visualize_clusters_static, visualize_clusters_interactive
-from train.matrix_clustering.query2.py3Dmol_representative import create_contact_visualizations_for_clusters
+from train.matrix_clustering.query2.py3Dmol_representative import create_contact_visualizations_for_clusters, unify_pca_matrixes_and_py3dmol
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -1089,8 +1089,18 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
 
 # Usage with predefined configurations
 def run_contacts_clustering_analysis_with_config(mm_output, config_dict, logger):
-    return run_enhanced_clustering_analysis(
+    
+    results = run_enhanced_clustering_analysis(
         mm_output,
         logger=logger,
         **config_dict
     )
+
+    # Unpack the pairwise contact matrices
+    all_pair_matrices = mm_output['pairwise_contact_matrices']
+    pairs = list(all_pair_matrices.keys())
+
+    # Create final HTML files
+    unify_pca_matrixes_and_py3dmol(mm_output, pairs)
+
+    return results

@@ -331,7 +331,6 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
 </head>
 <body>
     <div class="container">
-        <h1>Protein Contact Visualization</h1>
         <h2 style="text-align: center; color: #666;">{protein1_name} vs {protein2_name} - Cluster {cluster_id}</h2>
         
         <div class="viewer-container" id="viewer-container"></div>
@@ -380,7 +379,7 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
             <div class="stats">
                 <div class="stat">
                     <div class="stat-value" id="total-residues">-</div>
-                    <div class="stat-label">Total Residues</div>
+                    <div class="stat-label">Total Residues<br>in contact</div>
                 </div>
                 <div class="stat">
                     <div class="stat-value" id="total-contacts">-</div>
@@ -388,7 +387,7 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                 </div>
                 <div class="stat">
                     <div class="stat-value" id="avg-frequency">-</div>
-                    <div class="stat-label">Avg. Frequency</div>
+                    <div class="stat-label">Avg. Contact<br>Frequency</div>
                 </div>
             </div>
         </div>
@@ -764,7 +763,7 @@ def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, left_panel_width=35
     pca_and_matrixes_dir = os.path.join(contact_clusters_dir, 'pca_and_matrixes_html')
     pca_and_matrixes_path = os.path.join(pca_and_matrixes_dir, f'{pair[0]}__vs__{pair[1]}-pca_and_matrixes.html')
 
-    # Get py3Dmol HTML visualizations of contacts
+    # Get py3Dmol HTML visualizations of contacts (existing files)
     py3dmol_htmls_paths_dict = get_py3dmol_paths_for_pair(pair, contact_clusters_dir)
 
     # Check if required files exist
@@ -776,43 +775,17 @@ def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, left_panel_width=35
         print(f"Warning: No py3Dmol HTML files found for pair {pair}")
         return
     
-    # Read the PCA and matrices HTML content
-    with open(pca_and_matrixes_path, 'r', encoding='utf-8') as f:
-        pca_content = f.read()
-    
-    # Read all py3Dmol HTML contents
-    py3dmol_contents = {}
-    for cluster_id, html_path in py3dmol_htmls_paths_dict.items():
-        if os.path.exists(html_path):
-            with open(html_path, 'r', encoding='utf-8') as f:
-                py3dmol_contents[cluster_id] = f.read()
-        else:
-            print(f"Warning: py3Dmol file not found: {html_path}")
-    
-    if not py3dmol_contents:
-        print(f"Warning: No valid py3Dmol content found for pair {pair}")
-        return
-    
     # Sort cluster IDs for consistent ordering
-    sorted_cluster_ids = sorted(py3dmol_contents.keys())
+    sorted_cluster_ids = sorted(py3dmol_htmls_paths_dict.keys())
     
-    # Create individual HTML files for each cluster
-    cluster_files = {}
-    for cluster_id, content in py3dmol_contents.items():
-        cluster_filename = f"{pair[0]}__vs__{pair[1]}-cluster_{cluster_id}_embed.html"
-        cluster_filepath = os.path.join(contact_clusters_dir, cluster_filename)
-        
-        # Write the cluster content to a separate file
-        with open(cluster_filepath, 'w', encoding='utf-8') as f:
-            f.write(content)
-        
-        cluster_files[cluster_id] = cluster_filename
+    # Create relative paths from the unified HTML location to the existing files
+    cluster_relative_paths = {}
+    for cluster_id, full_path in py3dmol_htmls_paths_dict.items():
+        # Get relative path from unified HTML to the existing cluster file
+        cluster_relative_paths[cluster_id] = os.path.relpath(full_path, contact_clusters_dir)
     
-    # Also create a file for PCA content
-    pca_filename = f"{pair[0]}__vs__{pair[1]}-pca_embed.html"
-    pca_filepath = os.path.join(contact_clusters_dir, pca_filename)
-    with open(pca_filepath, 'w', encoding='utf-8') as f:
-        f.write(pca_content)
+    # Get relative path to PCA file
+    pca_relative_path = os.path.relpath(pca_and_matrixes_path, contact_clusters_dir)
     
     # Create the unified HTML with lazy loading approach
     html_content = f"""
@@ -978,17 +951,17 @@ def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, left_panel_width=35
 <body>
     <div class="container">
         <div class="left-panel">
-            <iframe class="pca-frame" src="{pca_filename}" title="PCA and Matrices"></iframe>
+            <iframe class="pca-frame" src="{pca_relative_path}" title="PCA and Matrices"></iframe>
         </div>
         
         <div class="right-panel">
             <div class="controls">
-                <label>Cluster:</label>
+                <label>Protein Contact Visualization - Cluster:</label>
                 {' '.join([f'<button class="cluster-btn{" active" if i == 0 else ""}" onclick="showCluster({cluster_id})" data-cluster="{cluster_id}">{cluster_id}</button>' for i, cluster_id in enumerate(sorted_cluster_ids)])}
             </div>
             
             <div class="py3dmol-container">
-                {' '.join([f'<iframe class="py3dmol-frame{" active" if i == 0 else ""}" id="cluster-{cluster_id}" data-src="{cluster_files[cluster_id]}" title="Cluster {cluster_id}"></iframe>' for i, cluster_id in enumerate(sorted_cluster_ids)])}
+                {' '.join([f'<iframe class="py3dmol-frame{" active" if i == 0 else ""}" id="cluster-{cluster_id}" data-src="{cluster_relative_paths[cluster_id]}" title="Cluster {cluster_id}"></iframe>' for i, cluster_id in enumerate(sorted_cluster_ids)])}
             </div>
         </div>
     </div>
@@ -1095,7 +1068,7 @@ def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, left_panel_width=35
     
     print(f"Unified HTML visualization created: {unified_html_path}")
     print(f"Available clusters: {sorted_cluster_ids}")
-    print(f"Individual cluster files created: {list(cluster_files.values())}")
+    print(f"Using existing cluster files from: representative_htmls/")
     
     return unified_html_path
 

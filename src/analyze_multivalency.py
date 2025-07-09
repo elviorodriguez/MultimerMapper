@@ -1244,7 +1244,7 @@ def create_unified_html(pca_fig, contact_fig, pair, side_by_side = False):
             <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
         </head>
         <body>
-            <h1>PCA and Contact Maps for {pair[0]} vs {pair[1]}</h1>
+            <h3>PCA and Contact Maps for {pair[0]} vs {pair[1]}</h3>
             <div class="container">
                 <div id="pcaPlot" class="plot">
                     {pca_fig.to_html(include_plotlyjs=False, full_html=False, config={'responsive': True})}
@@ -1308,6 +1308,9 @@ def create_unified_html(pca_fig, contact_fig, pair, side_by_side = False):
                     margin: 10px 0;
                     flex-shrink: 0;
                 }}
+                h3 {{
+                    text-align: center;
+                }}
                 .container {{
                     display: flex;
                     flex-direction: column;
@@ -1334,7 +1337,7 @@ def create_unified_html(pca_fig, contact_fig, pair, side_by_side = False):
             <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
         </head>
         <body>
-            <h1>PCA and Contact Maps for {pair[0]} vs {pair[1]}</h1>
+            <h3>PCA and Contact Maps for {pair[0]} vs {pair[1]}</h3>
             <div class="container">
                 <div id="pcaPlot" class="plot">
                     {pca_fig.to_html(include_plotlyjs=False, full_html=False, config={'responsive': True})}
