@@ -238,6 +238,28 @@ display_contact_clusters = False
 save_contact_clusters    = True
 
 # ----------------------------------------------------------------------------
+# -------------- Enhanced Contact Matrix Clustering Config -------------------
+# ----------------------------------------------------------------------------
+
+# Use the enhanced method?
+use_enhanced_matrix_clustering = True
+
+# Custom analysis
+contact_clustering_config = {
+    'distance_metric': 'closeness',
+    'clustering_method': 'hierarchical',
+    'validation_metric': 'silhouette',
+    'handle_sparse_matrices': False,
+    'quality_weight': True,
+    'silhouette_improvement': 0.2,
+    'max_extra_clusters': 3,
+    'overlap_structural_contribution': 1,
+    'overlap_use_contact_region_only': False,
+    'use_median': False
+}
+
+
+# ----------------------------------------------------------------------------
 # ------------------------- For convergency detection ------------------------
 # ----------------------------------------------------------------------------
 

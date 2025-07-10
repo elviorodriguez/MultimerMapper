@@ -28,6 +28,7 @@ try:
     from src.stoichiometries import stoichiometric_space_exploration_pipeline
     from src.stability_metrics import compute_and_plot_stability_metrics
     from report.unify import create_report
+    from src.matrix_clustering.matrix_clustering import run_contacts_clustering_analysis_with_config
 
     # These are for interactive usage
     from traj.pairwise_rmsd_trajectories import generate_pairwise_domain_trajectories, generate_pairwise_domain_trajectory_in_context
@@ -96,6 +97,10 @@ def parse_AF2_and_sequences(
     refine_contact_clusters                   = refine_contact_clusters,
     refinement_contact_similarity_threshold   = refinement_contact_similarity_threshold,
     refinement_cf_threshold                   = refinement_cf_threshold,
+    
+    # New matrix clustering method
+    contact_clustering_config       = contact_clustering_config,
+    use_enhanced_matrix_clustering  = use_enhanced_matrix_clustering,
 
     # For RMSD calculations
     domain_RMSD_plddt_cutoff = domain_RMSD_plddt_cutoff,
@@ -260,21 +265,26 @@ def parse_AF2_and_sequences(
     multimer_mapper_output['pairwise_Nmers_df_F3'] = pairwise_Nmers_df_F3
 
     # Cluster contacts (extract valency) and add it to output
-    contacts_clusters = cluster_all_pairs(pairwise_contact_matrices, 
-                                          multimer_mapper_output,
-                                          contacts_clustering_method                = contacts_clustering_method,
-                                          max_clusters                              = max_contact_clusters,
-                                          silhouette_threshold                      = multivalency_silhouette_threshold,
-                                          contact_similarity_threshold              = multivalency_contact_similarity_threshold,
-                                          contact_fraction_threshold                = contact_fraction_threshold,
-                                          mc_threshold                              = mc_threshold,
-                                          use_median                                = use_median,
-                                          refine_contact_clusters                   = refine_contact_clusters,
-                                          refinement_contact_similarity_threshold   = refinement_contact_similarity_threshold,
-                                          refinement_cf_threshold                   = refinement_cf_threshold,
-                                          show_plot = display_contact_clusters,
-                                          save_plot = save_contact_clusters,
-                                          log_level = log_level)    
+    if use_enhanced_matrix_clustering:
+        interaction_counts_df, contacts_clusters, _ = run_contacts_clustering_analysis_with_config(multimer_mapper_output, contact_clustering_config, log_level)
+        multimer_mapper_output["interaction_counts_df"] = interaction_counts_df
+    else:
+        contacts_clusters = cluster_all_pairs(pairwise_contact_matrices, 
+                                            multimer_mapper_output,
+                                            contacts_clustering_method                = contacts_clustering_method,
+                                            max_clusters                              = max_contact_clusters,
+                                            silhouette_threshold                      = multivalency_silhouette_threshold,
+                                            contact_similarity_threshold              = multivalency_contact_similarity_threshold,
+                                            contact_fraction_threshold                = contact_fraction_threshold,
+                                            mc_threshold                              = mc_threshold,
+                                            use_median                                = use_median,
+                                            refine_contact_clusters                   = refine_contact_clusters,
+                                            refinement_contact_similarity_threshold   = refinement_contact_similarity_threshold,
+                                            refinement_cf_threshold                   = refinement_cf_threshold,
+                                            show_plot = display_contact_clusters,
+                                            save_plot = save_contact_clusters,
+                                            log_level = log_level)
+    
     multimer_mapper_output["contacts_clusters"] = contacts_clusters
 
     # Add cluster contribution by 2/N-mers dataset

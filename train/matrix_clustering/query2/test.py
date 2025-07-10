@@ -1,21 +1,13 @@
 
-import os
-import pandas as pd
-from collections import defaultdict
-from Bio.PDB import PDBIO
-
-# Import the enhanced clustering module
-from train.matrix_clustering.query2.matrix_clustering import run_contacts_clustering_analysis_with_config, run_enhanced_clustering_analysis, quick_test_metrics
-from train.matrix_clustering.query2.py3Dmol_representative import create_contact_visualizations_for_clusters, unify_pca_matrixes_and_py3dmol
-
+# from cfg.defau import contact_clustering_config
+from src.matrix_clustering.matrix_clustering import run_contacts_clustering_analysis_with_config
 
 # ============================================================================
 # BEST CONFIGURATION
 # ============================================================================
 
-
 # Custom analysis
-clustering_config = {
+contact_clustering_config = {
     'distance_metric': 'closeness',
     'clustering_method': 'hierarchical',
     'validation_metric': 'silhouette',
@@ -28,37 +20,8 @@ clustering_config = {
     'use_median': False
 }
 
-
 # Run with conservative configuration
-interaction_counts_df, clusters, _ = run_contacts_clustering_analysis_with_config(mm_output, clustering_config, logger)
-
-# Unpack the pairwise contact matrices
-all_pair_matrices = mm_output['pairwise_contact_matrices']
-pairs = list(all_pair_matrices.keys())
-
-unify_pca_matrixes_and_py3dmol(mm_output, pairs)
-
-# # Create folder to store the representative pdbs of each cluster
-# representative_pdbs_dir = mm_output['out_path'] + '/contact_clusters/representative_pdbs'
-# os.makedirs(representative_pdbs_dir, exist_ok=True)
-
-# save_representative_pdbs_and_metadata(mm_output, clusters, representative_pdbs_dir, logger)
-
-# from train.matrix_clustering.query2.py3Dmol_representative import create_contact_visualizations_for_clusters
-# html_files = create_contact_visualizations_for_clusters(
-#     clusters=clusters,
-#     mm_output=mm_output,
-#     representative_pdbs_dir=representative_pdbs_dir,
-#     logger=logger
-# )
-
-# ---------- Where to save the UNIFIED HTMLs? ------- (which names?) ----------
-
-# # Create a directory for saving plots
-# output_dir = os.path.join(mm_output['out_path'], 'contact_clusters')
-# os.makedirs(output_dir, exist_ok=True)
-# unified_html_path = os.path.join(output_dir, f"{pair[0]}__vs__{pair[1]}-interactive_plot.html")
-
+interaction_counts_df, clusters, _ = run_contacts_clustering_analysis_with_config(mm_output, contact_clustering_config, logger)
 
 ###############################################################################
 
@@ -92,34 +55,6 @@ CLUSTER OPTIMIZATION:
 - silhouette_improvement: Minimum improvement required to add extra clusters
 - max_extra_clusters: Maximum number of clusters beyond max_valency to try
 """
-
-
-# # Custom analysis
-# config_custom = {
-#     'distance_metric': 'structural_overlap',
-#     'clustering_method': 'dbscan',
-#     'validation_metric': 'silhouette',
-#     'handle_sparse_matrices': False,
-#     'quality_weight': False,
-#     'silhouette_improvement': 0.2,
-#     'max_extra_clusters': 5
-# }
-
-# from train.multivalency_dicotomic.count_interaction_modes import analyze_protein_interactions, compute_max_valency
-
-# # Unpack the pairwise contact matrices
-# all_pair_matrices = mm_output['pairwise_contact_matrices']
-
-# # Compute interaction counts
-# interaction_counts_df = analyze_protein_interactions(
-#     pairwise_contact_matrices=all_pair_matrices,
-#     N_contacts_cutoff=3,
-#     logger=logger
-# )
-
-# # Compute maximum valency for each protein pair
-# max_valency_dict = compute_max_valency(interaction_counts_df)
-
 
 ########################## SIMPLE EXAMPLES ####################################
 
@@ -281,6 +216,8 @@ interaction_counts_df, clusters, _ = run_with_config(mm_output, config_conservat
 # ============================================================================
 # INTERPRETING RESULTS
 # ============================================================================
+
+from collections import defaultdict
 
 def analyze_clustering_results(clusters, benchmark_results=None):
     """Helper function to analyze and interpret clustering results"""
