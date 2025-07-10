@@ -266,7 +266,7 @@ def parse_AF2_and_sequences(
 
     # Cluster contacts (extract valency) and add it to output
     if use_enhanced_matrix_clustering:
-        interaction_counts_df, contacts_clusters, _ = run_contacts_clustering_analysis_with_config(multimer_mapper_output, contact_clustering_config, log_level)
+        interaction_counts_df, contacts_clusters, _ = run_contacts_clustering_analysis_with_config(multimer_mapper_output, contact_clustering_config)
         multimer_mapper_output["interaction_counts_df"] = interaction_counts_df
     else:
         contacts_clusters = cluster_all_pairs(pairwise_contact_matrices, 

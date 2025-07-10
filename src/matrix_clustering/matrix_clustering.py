@@ -19,11 +19,6 @@ warnings.filterwarnings('ignore')
 from src.analyze_multivalency import visualize_clusters_static, visualize_clusters_interactive
 from src.matrix_clustering.py3Dmol_representative import create_contact_visualizations_for_clusters, unify_pca_matrixes_and_py3dmol
 from utils.logger_setup import configure_logger
-from cfg.default_settings import log_level
-
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 @dataclass
 class ClusteringConfig:
@@ -339,8 +334,15 @@ def save_representative_pdbs_and_metadata(mm_output, clusters, representative_pd
 
 def compute_distance_matrix(matrices: List[np.ndarray], 
                           config: ClusteringConfig,
-                          additional_data: Dict = None) -> np.ndarray:
+                          additional_data: Dict = None,
+                          logger: logging.Logger | None = None) -> np.ndarray:
     """Compute distance matrix using specified metric"""
+
+    # Set up logging
+    if logger is None:
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+
     n = len(matrices)
 
     # Initialize distance matrix (output)
@@ -439,8 +441,14 @@ def perform_clustering(distance_matrix: np.ndarray,
 def find_optimal_clusters(distance_matrix: np.ndarray, 
                          max_valency: int, 
                          config: ClusteringConfig,
-                         features: np.ndarray = None) -> Tuple[List[int], float]:
+                         features: np.ndarray = None,
+                         logger: logging.Logger | None = None) -> Tuple[List[int], float]:
     """Find optimal number of clusters using validation metrics"""
+
+    # Set up logging
+    if logger is None:
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
     
     n_samples = distance_matrix.shape[0]
     max_clusters = min(max_valency + config.max_extra_clusters, n_samples)
@@ -502,8 +510,13 @@ def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], D
                                     pair: Tuple[str, str],
                                     max_valency: int,
                                     config: ClusteringConfig,
-                                    logger = None) -> Tuple[List[int], List, np.ndarray, np.ndarray]:
+                                    logger: logging.Logger | None = None) -> Tuple[List[int], List, np.ndarray, np.ndarray]:
     """Enhanced clustering with multiple metrics and validation"""
+
+    # Set up logging
+    if logger is None:
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
     
     # Preprocessing
     valid_models = {}
@@ -558,7 +571,7 @@ def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], D
         n = len(matrices)
     
     # Compute distance matrix
-    distance_matrix, quality_matrix = compute_distance_matrix(matrices, config, additional_data)
+    distance_matrix, quality_matrix = compute_distance_matrix(matrices, config, additional_data, logger)
     
     # Create features for validation (if needed)
     features = None
@@ -812,9 +825,15 @@ def generate_cluster_dict(all_pair_matrices: Dict,
                          labels: List[int],
                          mm_output: Dict,
                          similarity_metric: str = "closeness",
-                         use_median: bool = False) -> Dict:
+                         use_median: bool = False,
+                         logger: logging.Logger | None = None) -> Dict:
     """Modified version of your original function to work with enhanced clustering"""
     
+    # Set up logging
+    if logger is None:
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+
     if labels is None:
         return None
     
@@ -1090,9 +1109,9 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
     return interaction_counts_df, all_clusters, benchmark_results
 
 # Usage with predefined configurations
-def run_contacts_clustering_analysis_with_config(mm_output, config_dict, log_level = log_level):
+def run_contacts_clustering_analysis_with_config(mm_output, config_dict):
     
-    logger = configure_logger(mm_output['out_path'], log_level = log_level)(__name__)
+    logger = configure_logger(mm_output['out_path'])(__name__)
 
     results = run_enhanced_clustering_analysis(
         mm_output,

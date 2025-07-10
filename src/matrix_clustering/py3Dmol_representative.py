@@ -223,21 +223,21 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
         body {{
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 5px;
             background-color: #f5f5f5;
         }}
         .container {{
             max-width: 1200px;
             margin: 0 auto;
             background-color: white;
-            padding: 20px;
+            padding: 5px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }}
-        h1 {{
+        h3 {{
             text-align: center;
-            color: #333;
-            margin-bottom: 30px;
+            margin-block-start: 0em;
+            margin-block-end: 0em;
         }}
         .viewer-container {{
             width: 800px;
@@ -331,7 +331,7 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
 </head>
 <body>
     <div class="container">
-        <h2 style="text-align: center; color: #666;">{protein1_name} vs {protein2_name} - Cluster {cluster_id}</h2>
+        <h3>{protein1_name} vs {protein2_name} - Cluster {cluster_id}</h3>
         
         <div class="viewer-container" id="viewer-container"></div>
         
