@@ -1,7 +1,5 @@
 
-import os
 import re
-import py3Dmol
 from IPython.display import HTML
 import json
 
@@ -161,25 +159,36 @@ def create_trajectory_viewer(pdb_file, output_html):
         body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 0px;
+            padding: 5px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
+            min-height: 100vh; 
         }
         .container {
-            width: 650px;
+            width: 100%;
+            max-width: 900px;
             margin: 0 auto;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             padding: 20px;
             border-radius: 8px;
         }
         .viewer-container {
-            width: 600px;
+            width: 100%;
             height: 600px;
             margin: 20px auto;
             border: 1px solid #ddd;
             border-radius: 4px;
             position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* Ensure the 3Dmol viewer takes full width and height of container */
+        .viewer-container canvas {
+            width: 100% !important;
+            height: 100% !important;
         }
         .controls {
             display: flex;
@@ -419,14 +428,10 @@ def create_trajectory_viewer(pdb_file, output_html):
                 
                 // Add new model with simpler options
                 try {
-                    viewer.addModel(modelData[index], 'pdb');
-                    
-                    // Apply current style settings
-                    applyCurrentStyle();
                     
                     // Adjust view
                     viewer.addModel(modelData[index], 'pdb');
-                    applyCurrentStyle();                    
+                    applyCurrentStyle();
                     viewer.render();
                     
                     // Update UI
@@ -461,7 +466,10 @@ def create_trajectory_viewer(pdb_file, output_html):
                 // Create viewer with explicit size
                 let config = {
                     backgroundColor: 'white',
-                    antialias: true
+                    antialias: true,
+                    disableFog: true,
+                    cameraNear: 0.1,
+                    cameraFar: 1000
                 };
                 
                 if ($(viewerContainer).length > 0) {

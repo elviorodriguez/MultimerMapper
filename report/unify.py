@@ -401,6 +401,31 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             display: flex;
             min-height: 100vh;
         }}
+
+        /* Toggle Button Styles */
+        #toggleSidebar {{
+            position: fixed;
+            top: 10px;
+            left: 290px; /* Position it just outside the sidebar */
+            z-index: 200;
+            background: var(--dark-color);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: left 0.3s ease; /* Smooth transition when sidebar moves */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }}
+        
+        #toggleSidebar:hover {{
+            background: var(--secondary-color);
+        }}
+        
+        /* When sidebar is collapsed, move button to the left */
+        .sidebar.collapsed ~ #toggleSidebar {{
+            left: 10px;
+        }}
         
         /* Sidebar/Menu Styles */
         .sidebar {{
@@ -414,13 +439,20 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             z-index: 100;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
         }}
+
+        .sidebar.collapsed {{
+            width: 0;
+            overflow: hidden;
+        }}
         
         .sidebar-header {{
-            padding: 20px;
+            padding: 5px;
             background-color: rgba(0, 0, 0, 0.2);
             display: flex;
+            justify-content: center;
             align-items: center;
-            justify-content: space-between;
+            flex-direction: column;
+            text-align: center;
         }}
         
         .sidebar-header h3 {{
@@ -431,8 +463,9 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         
         .sidebar-logo {{
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 5px;
         }}
         
         .sidebar-logo i {{
@@ -812,6 +845,9 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             .split-view {{
                 flex-direction: column;
             }}
+            #toggleSidebar {{
+                left: 10px;
+            }}
         }}
         /* Add this to the existing slide-panel CSS */
         .slide-panel {{
@@ -839,12 +875,20 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         .about-footer a:hover {{
             text-decoration: underline;
         }}
+        .sidebar.collapsed {{
+            width: 0;
+            overflow: hidden;
+        }}
+
+        .main-content.expanded {{
+            margin-left: 0;
+        }}
     </style>
 </head>
 <body>
     <div class="container">
         <!-- Sidebar/Menu -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="sidebar-logo">
                     <img src="./multimermapper_logo.png" alt="MultimerMapper Logo" class="custom-logo">
@@ -923,6 +967,11 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             </div>
         </div>
         
+        <!-- Toggle Button - positioned outside sidebar -->
+        <button id="toggleSidebar">
+            <i class="fas fa-bars"></i>
+        </button>
+
         <!-- Main Content Area -->
         <div class="main-content" id="main-content">
             <!-- Default content (will be replaced dynamically) -->
@@ -1041,11 +1090,17 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         const stabilityPlots = {stability_plots_json};
         
         // DOM Elements
+        const sidebar = document.getElementById('sidebar');
         const mainContent = document.getElementById('main-content');
         const mainFrame = document.getElementById('main-frame');
-        const sidebar = document.querySelector('.sidebar');
-        const menuItems = document.querySelectorAll('.menu-item');
+        const toggleBtn = document.getElementById('toggleSidebar');
         const contactClustersPanel = document.getElementById('contact-clusters-panel');
+
+        // Toggle sidebar functionality
+        toggleBtn.addEventListener('click', () => {{
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+        }});
         
         // Function to load content into the main frame
         function loadInFrame(path) {{

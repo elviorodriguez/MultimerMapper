@@ -242,7 +242,7 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
         .viewer-container {{
             width: 800px;
             height: 600px;
-            margin: 20px auto;
+            margin: 10px auto;
             border: 2px solid #ddd;
             border-radius: 8px;
             position: relative;
