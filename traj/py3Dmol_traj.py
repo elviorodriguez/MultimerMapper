@@ -153,13 +153,15 @@ def create_trajectory_viewer(pdb_file, output_html):
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
     <style>
-        h2 {
+        h3 {
             text-align: center;
+            margin-block-start: 0em;
+            margin-block-end: 0em;
         }
         body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 0px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -235,7 +237,7 @@ def create_trajectory_viewer(pdb_file, output_html):
 </head>
 <body>
     <div class="container">
-        <h2>PDB Trajectory Viewer</h2>
+        <h3>PDB Trajectory Viewer</h3>
         <div id="status"></div>
         <div class="viewer-container" id="viewer-container"></div>
         <div class="model-info" id="model-info">Loading...</div>
