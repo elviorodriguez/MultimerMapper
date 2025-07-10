@@ -362,6 +362,7 @@ def create_trajectory_viewer(pdb_file, output_html):
         let currentModelIndex = 0;
         let isPlaying = false;
         let playInterval = null;
+        let isInitialLoad = true;
 
         // Get UI elements
         const viewerContainer = document.getElementById('viewer-container');
@@ -432,6 +433,14 @@ def create_trajectory_viewer(pdb_file, output_html):
                     // Adjust view
                     viewer.addModel(modelData[index], 'pdb');
                     applyCurrentStyle();
+
+                    // Adjust view to fit the model properly (only on very first load)
+                    if (isInitialLoad) {
+                        viewer.zoomTo();
+                        isInitialLoad = false;
+                    }
+                    
+                    // Render
                     viewer.render();
                     
                     // Update UI
