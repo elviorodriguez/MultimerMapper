@@ -1279,6 +1279,678 @@ class Network(object):
             
         self.logger.info("FINISHED: 3D layout generation algorithm")
 
+    def generate_interactive_3d_plot(self, save_path: str = './interactive_3D_graph.html',
+                                    classification_colors=rrc_classification_colors,
+                                    domain_colors=DOMAIN_COLORS_RRC,
+                                    res_centroid_colors=SURFACE_COLORS_RRC,
+                                    show_plot=True):
+        """
+        Generates an interactive 3D molecular visualization with side control panel.
+        
+        Parameters:
+            save_path (str): Path to save the HTML visualization file
+            classification_colors (dict): Mapping of contact classification categories to colors
+            domain_colors (dict): Color palette for protein domains
+            res_centroid_colors (dict): Color palette for surface residues
+            show_plot (bool): Whether to automatically display the plot
+        """
+        
+        import json
+        import webbrowser
+        
+        # Progress
+        self.logger.info("INITIALIZING: Generating interactive 3D visualization...")
+        
+        # Collect PDB data from all proteins
+        pdb_content = ""
+        for protein in self.proteins:
+            pdb_string = protein.convert_chain_to_pdb_in_memory()
+            pdb_content += pdb_string.getvalue()
+        
+        # Get the maximum number of domains for color generation
+        max_domain_value = max([max(prot.domains) for prot in self.proteins])
+        domain_colors_list = generate_unique_colors(n=max_domain_value + 1, palette=domain_colors)
+        
+        # Prepare data structures for JavaScript
+        proteins_data = []
+        surface_residues_data = []
+        contacts_data = []
+        
+        # Create PPI color mapping
+        ppi_colors = {}
+        color_index = 0
+        for ppi in self.ppis:
+            ppi_id = (ppi.get_tuple_pair(), ppi.get_cluster_n())
+            if ppi_id not in ppi_colors:
+                ppi_colors[ppi_id] = res_centroid_colors[color_index % len(res_centroid_colors)]
+                color_index += 1
+        
+        # Process proteins data
+        for protein in self.proteins:
+            # Get protein center of mass
+            cm = protein.get_CM()
+            n_term = protein.get_res_CA_xyz([0])[0]
+            c_term = protein.get_res_CA_xyz([-1])[0]
+            
+            protein_info = {
+                'id': protein.get_ID(),
+                'chain': protein.chain_ID,
+                'cm': {'x': float(cm[0]), 'y': float(cm[1]), 'z': float(cm[2])},
+                'n_term': {'x': float(n_term[0]), 'y': float(n_term[1]), 'z': float(n_term[2])},
+                'c_term': {'x': float(c_term[0]), 'y': float(c_term[1]), 'z': float(c_term[2])},
+                'domains': protein.domains
+            }
+            proteins_data.append(protein_info)
+            
+            # Process surface residues
+            residue_groups = protein.surface.get_residues_by_group()
+            centroid_cache = {}
+            ca_cache = {}
+            added_residues = set()
+            
+            for group, residues in residue_groups.items():
+                for residue in residues:
+                    if residue.index in added_residues:
+                        continue
+                    
+                    # Determine color based on group
+                    if group == "A":
+                        tuple_pair, cluster_n = residue.surface_id
+                        color = ppi_colors[(tuple_pair, cluster_n)]
+                    elif group == "B":
+                        color = "gray"
+                    elif group == "C":
+                        color = "black"
+                    else:
+                        continue
+                    
+                    # Get centroid and CA positions
+                    centroid = get_centroid(protein, residue.index, centroid_cache)
+                    ca_pos = get_ca(protein, residue.get_index(), ca_cache)
+                    
+                    surface_residue = {
+                        'protein_id': protein.get_ID(),
+                        'chain': protein.chain_ID,
+                        'residue_index': residue.index,
+                        'group': group,
+                        'color': color,
+                        'centroid': {'x': float(centroid[0]), 'y': float(centroid[1]), 'z': float(centroid[2])},
+                        'ca_position': {'x': float(ca_pos[0]), 'y': float(ca_pos[1]), 'z': float(ca_pos[2])}
+                    }
+                    surface_residues_data.append(surface_residue)
+                    added_residues.add(residue.index)
+        
+        # Process contacts data
+        for ppi in self.ppis:
+            protein_1 = ppi.get_protein_1()
+            protein_2 = ppi.get_protein_2()
+            
+            contact_residues_1 = ppi.get_contacts_res_1()
+            contact_residues_2 = ppi.get_contacts_res_2()
+            centroids_1 = protein_1.get_res_centroids_xyz(contact_residues_1)
+            centroids_2 = protein_2.get_res_centroids_xyz(contact_residues_2)
+            
+            for i, (centroid_1, centroid_2) in enumerate(zip(centroids_1, centroids_2)):
+                contact_classification = ppi.contacts_classification[i]
+                contact_freq = ppi.contact_freq[i]
+                
+                contact = {
+                    'ppi_id': ppi.get_tuple_pair(),
+                    'cluster_n': ppi.get_cluster_n(),
+                    'classification': contact_classification,
+                    'frequency': contact_freq,
+                    'color': classification_colors.get(contact_classification, 'gray'),
+                    'start': {'x': float(centroid_1[0]), 'y': float(centroid_1[1]), 'z': float(centroid_1[2])},
+                    'end': {'x': float(centroid_2[0]), 'y': float(centroid_2[1]), 'z': float(centroid_2[2])}
+                }
+                contacts_data.append(contact)
+        
+        # Create HTML content
+        html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Interactive Protein Network Visualization</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f5f5f5;
+                display: flex;
+                height: 100vh;
+            }}
+            .main-container {{
+                display: flex;
+                width: 100%;
+                height: 100%;
+            }}
+            .viewer-container {{
+                flex: 1;
+                background-color: white;
+                margin: 10px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                position: relative;
+            }}
+            .control-panel {{
+                width: 300px;
+                background-color: white;
+                margin: 10px 10px 10px 0;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                overflow-y: auto;
+            }}
+            .control-section {{
+                margin-bottom: 25px;
+                padding-bottom: 15px;
+                border-bottom: 1px solid #eee;
+            }}
+            .control-section:last-child {{
+                border-bottom: none;
+            }}
+            .control-section h4 {{
+                margin: 0 0 15px 0;
+                color: #333;
+                font-size: 16px;
+            }}
+            .control-group {{
+                margin-bottom: 15px;
+            }}
+            .control-group label {{
+                display: block;
+                margin-bottom: 5px;
+                font-weight: bold;
+                color: #555;
+                font-size: 14px;
+            }}
+            select {{
+                width: 100%;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 14px;
+            }}
+            button {{
+                width: 100%;
+                padding: 10px;
+                margin-bottom: 8px;
+                background-color: #007bff;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+                transition: background-color 0.3s;
+            }}
+            button:hover {{
+                background-color: #0056b3;
+            }}
+            button.active {{
+                background-color: #28a745;
+            }}
+            button.active:hover {{
+                background-color: #218838;
+            }}
+            .contact-buttons {{
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }}
+            .contact-button {{
+                margin-bottom: 5px;
+            }}
+            .contact-button.static {{
+                background-color: #6c757d;
+            }}
+            .contact-button.positive {{
+                background-color: #28a745;
+            }}
+            .contact-button.negative {{
+                background-color: #dc3545;
+            }}
+            .contact-button.static:hover {{
+                background-color: #545b62;
+            }}
+            .contact-button.positive:hover {{
+                background-color: #1e7e34;
+            }}
+            .contact-button.negative:hover {{
+                background-color: #bd2130;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="main-container">
+            <div class="viewer-container" id="viewer-container"></div>
+            
+            <div class="control-panel">
+                <div class="control-section">
+                    <h4>Protein Style</h4>
+                    <div class="control-group">
+                        <label>Representation:</label>
+                        <select id="style-select">
+                            <option value="cartoon">Cartoon</option>
+                            <option value="line">Line</option>
+                            <option value="stick">Stick</option>
+                            <option value="sphere">Sphere</option>
+                            <option value="surface">Surface</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="control-section">
+                    <h4>Color Scheme</h4>
+                    <div class="control-group">
+                        <label>Coloring:</label>
+                        <select id="color-select">
+                            <option value="chain">Chain</option>
+                            <option value="spectrum">Spectrum</option>
+                            <option value="residue">Residue</option>
+                            <option value="secondary">Secondary Structure</option>
+                            <option value="plddt">pLDDT</option>
+                            <option value="domain">Domain</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="control-section">
+                    <h4>Surface Options</h4>
+                    <div class="control-group">
+                        <label>Surface Type:</label>
+                        <select id="surface-select">
+                            <option value="none">None</option>
+                            <option value="VDW">Van der Waals</option>
+                            <option value="SAS">Solvent Accessible</option>
+                            <option value="MS">Molecular Surface</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="control-section">
+                    <h4>Contact Features</h4>
+                    <div class="contact-buttons">
+                        <button id="surface-residues-toggle" class="contact-button">Show Surface Residues</button>
+                        <button id="static-contacts-toggle" class="contact-button static">Show Static Contacts</button>
+                        <button id="positive-contacts-toggle" class="contact-button positive">Show Positive Contacts</button>
+                        <button id="negative-contacts-toggle" class="contact-button negative">Show Negative Contacts</button>
+                    </div>
+                </div>
+                
+                <div class="control-section">
+                    <h4>Labels</h4>
+                    <button id="protein-ids-toggle">Show Protein IDs</button>
+                    <button id="terminals-toggle">Show N/C Terminals</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Data from Python
+            const pdbData = `{pdb_content}`;
+            const proteinsData = {json.dumps(proteins_data)};
+            const surfaceResiduesData = {json.dumps(surface_residues_data)};
+            const contactsData = {json.dumps(contacts_data)};
+            const domainColors = {json.dumps(domain_colors_list)};
+            
+            // Global variables
+            let viewer = null;
+            let surfaceResiduesVisible = false;
+            let staticContactsVisible = false;
+            let positiveContactsVisible = false;
+            let negativeContactsVisible = false;
+            let proteinIdsVisible = false;
+            let terminalsVisible = false;
+            
+            // pLDDT color scale
+            const plddt_colorscale = [
+                [0.0, "#FF0000"],
+                [0.4, "#FFA500"],
+                [0.6, "#FFFF00"],
+                [0.8, "#ADD8E6"],
+                [1.0, "#00008B"]
+            ];
+            
+            function getColorFromScale(value, scale) {{
+                let lowerIndex = 0;
+                for (let i = 0; i < scale.length; i++) {{
+                    if (value <= scale[i][0]) {{
+                        break;
+                    }}
+                    lowerIndex = i;
+                }}
+                
+                if (lowerIndex >= scale.length - 1) {{
+                    return scale[scale.length - 1][1];
+                }}
+                
+                const lowerValue = scale[lowerIndex][0];
+                const upperValue = scale[lowerIndex + 1][0];
+                const valueFraction = (value - lowerValue) / (upperValue - lowerValue);
+                
+                const lowerColor = hexToRgb(scale[lowerIndex][1]);
+                const upperColor = hexToRgb(scale[lowerIndex + 1][1]);
+                
+                const r = Math.round(lowerColor.r + valueFraction * (upperColor.r - lowerColor.r));
+                const g = Math.round(lowerColor.g + valueFraction * (upperColor.g - lowerColor.g));
+                const b = Math.round(lowerColor.b + valueFraction * (upperColor.b - lowerColor.b));
+                
+                return rgbToHex(r, g, b);
+            }}
+            
+            function hexToRgb(hex) {{
+                const result = /^#?([a-f\\d]{{2}})([a-f\\d]{{2}})([a-f\\d]{{2}})$/i.exec(hex);
+                return result ? {{
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                }} : {{r: 0, g: 0, b: 0}};
+            }}
+            
+            function rgbToHex(r, g, b) {{
+                return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+            }}
+            
+            function initViewer() {{
+                const config = {{
+                    backgroundColor: 'white',
+                    antialias: true
+                }};
+                
+                viewer = $3Dmol.createViewer($("#viewer-container"), config);
+                viewer.addModel(pdbData, 'pdb');
+                
+                applyCurrentStyle();
+                viewer.zoomTo();
+                viewer.render();
+            }}
+            
+            function applyCurrentStyle() {{
+                if (!viewer) return;
+                
+                const style = document.getElementById('style-select').value;
+                const colorScheme = document.getElementById('color-select').value;
+                const surfaceType = document.getElementById('surface-select').value;
+                
+                // Clear current styles
+                viewer.setStyle({{}}, {{}});
+                
+                // Apply main style
+                if (colorScheme === 'domain') {{
+                    // Apply domain coloring
+                    proteinsData.forEach(protein => {{
+                        protein.domains.forEach((domain, index) => {{
+                            const styleObj = {{}};
+                            styleObj[style] = {{color: domainColors[domain]}};
+                            viewer.setStyle(
+                                {{chain: protein.chain, resi: [index + 1]}},
+                                styleObj
+                            );
+                        }});
+                    }});
+                }} else {{
+                    // Apply standard coloring
+                    let styleObj = {{}};
+                    
+                    if (colorScheme === 'chain') {{
+                        styleObj[style] = {{colorscheme: 'chainHetatm'}};
+                    }} else if (colorScheme === 'spectrum') {{
+                        styleObj[style] = {{color: 'spectrum'}};
+                    }} else if (colorScheme === 'residue') {{
+                        styleObj[style] = {{colorscheme: 'amino'}};
+                    }} else if (colorScheme === 'secondary') {{
+                        styleObj[style] = {{colorscheme: 'ssPyMOL'}};
+                    }} else if (colorScheme === 'plddt') {{
+                        styleObj[style] = {{colorfunc: function(atom) {{
+                            const bfactor = Math.max(0, Math.min(100, atom.b));
+                            const normalizedValue = bfactor / 100;
+                            return getColorFromScale(normalizedValue, plddt_colorscale);
+                        }}}};
+                    }}
+                    
+                    viewer.setStyle({{}}, styleObj);
+                }}
+                
+                // Apply surface if selected
+                viewer.removeAllSurfaces();
+                if (surfaceType !== 'none') {{
+                    viewer.addSurface(surfaceType, {{opacity: 0.8}});
+                }}
+                
+                viewer.render();
+            }}
+            
+            function toggleSurfaceResidues() {{
+                surfaceResiduesVisible = !surfaceResiduesVisible;
+                const button = document.getElementById('surface-residues-toggle');
+                
+                if (surfaceResiduesVisible) {{
+                    surfaceResiduesData.forEach(residue => {{
+                        // Add centroid sphere
+                        viewer.addSphere({{
+                            center: residue.centroid,
+                            radius: 1.0,
+                            color: residue.color,
+                            alpha: 1.0
+                        }});
+                        
+                        // Add connection to backbone
+                        viewer.addCylinder({{
+                            start: residue.ca_position,
+                            end: residue.centroid,
+                            radius: 0.1,
+                            color: residue.color,
+                            alpha: 1.0
+                        }});
+                    }});
+                    
+                    button.textContent = 'Hide Surface Residues';
+                    button.classList.add('active');
+                }} else {{
+                    refreshShapes();
+                    button.textContent = 'Show Surface Residues';
+                    button.classList.remove('active');
+                }}
+                
+                viewer.render();
+            }}
+            
+            function toggleContacts(contactType) {{
+                const buttonMap = {{
+                    'static': 'static-contacts-toggle',
+                    'positive': 'positive-contacts-toggle',
+                    'negative': 'negative-contacts-toggle'
+                }};
+                
+                const visibilityMap = {{
+                    'static': 'staticContactsVisible',
+                    'positive': 'positiveContactsVisible',
+                    'negative': 'negativeContactsVisible'
+                }};
+                
+                const classificationMap = {{
+                    'static': 1,
+                    'positive': 2,
+                    'negative': 3
+                }};
+                
+                const button = document.getElementById(buttonMap[contactType]);
+                const isVisible = window[visibilityMap[contactType]];
+                
+                window[visibilityMap[contactType]] = !isVisible;
+                
+                if (!isVisible) {{
+                    // Add contacts
+                    const filteredContacts = contactsData.filter(contact => 
+                        contact.classification === classificationMap[contactType]
+                    );
+                    
+                    filteredContacts.forEach(contact => {{
+                        const radius = (0.3 * contact.frequency) * 0.5;
+                        viewer.addCylinder({{
+                            start: contact.start,
+                            end: contact.end,
+                            radius: radius,
+                            color: contact.color,
+                            alpha: 0.9
+                        }});
+                    }});
+                    
+                    button.textContent = `Hide ${{contactType.charAt(0).toUpperCase() + contactType.slice(1)}} Contacts`;
+                    button.classList.add('active');
+                }} else {{
+                    refreshShapes();
+                    button.textContent = `Show ${{contactType.charAt(0).toUpperCase() + contactType.slice(1)}} Contacts`;
+                    button.classList.remove('active');
+                }}
+                
+                viewer.render();
+            }}
+            
+            function toggleProteinIds() {{
+                proteinIdsVisible = !proteinIdsVisible;
+                const button = document.getElementById('protein-ids-toggle');
+                
+                if (proteinIdsVisible) {{
+                    proteinsData.forEach(protein => {{
+                        viewer.addLabel(protein.id, {{
+                            position: {{
+                                x: protein.cm.x,
+                                y: protein.cm.y,
+                                z: protein.cm.z + 5
+                            }},
+                            fontSize: 18,
+                            color: 'black',
+                            backgroundOpacity: 0.6
+                        }});
+                    }});
+                    
+                    button.textContent = 'Hide Protein IDs';
+                    button.classList.add('active');
+                }} else {{
+                    viewer.removeAllLabels();
+                    if (terminalsVisible) {{
+                        addTerminalLabels();
+                    }}
+                    button.textContent = 'Show Protein IDs';
+                    button.classList.remove('active');
+                }}
+                
+                viewer.render();
+            }}
+            
+            function toggleTerminals() {{
+                terminalsVisible = !terminalsVisible;
+                const button = document.getElementById('terminals-toggle');
+                
+                if (terminalsVisible) {{
+                    addTerminalLabels();
+                    button.textContent = 'Hide N/C Terminals';
+                    button.classList.add('active');
+                }} else {{
+                    viewer.removeAllLabels();
+                    if (proteinIdsVisible) {{
+                        addProteinIdLabels();
+                    }}
+                    button.textContent = 'Show N/C Terminals';
+                    button.classList.remove('active');
+                }}
+                
+                viewer.render();
+            }}
+            
+            function addTerminalLabels() {{
+                proteinsData.forEach(protein => {{
+                    viewer.addLabel('N', {{
+                        position: protein.n_term,
+                        fontSize: 14,
+                        fontColor: 'black',
+                        backgroundOpacity: 0.0
+                    }});
+                    
+                    viewer.addLabel('C', {{
+                        position: protein.c_term,
+                        fontSize: 14,
+                        fontColor: 'black',
+                        backgroundOpacity: 0.0
+                    }});
+                }});
+            }}
+            
+            function addProteinIdLabels() {{
+                proteinsData.forEach(protein => {{
+                    viewer.addLabel(protein.id, {{
+                        position: {{
+                            x: protein.cm.x,
+                            y: protein.cm.y,
+                            z: protein.cm.z + 5
+                        }},
+                        fontSize: 18,
+                        color: 'black',
+                        backgroundOpacity: 0.6
+                    }});
+                }});
+            }}
+            
+            function refreshShapes() {{
+                viewer.removeAllShapes();
+                
+                // Re-add visible elements
+                if (surfaceResiduesVisible) {{
+                    toggleSurfaceResidues();
+                    toggleSurfaceResidues();
+                }}
+                
+                if (staticContactsVisible) {{
+                    toggleContacts('static');
+                    toggleContacts('static');
+                }}
+                
+                if (positiveContactsVisible) {{
+                    toggleContacts('positive');
+                    toggleContacts('positive');
+                }}
+                
+                if (negativeContactsVisible) {{
+                    toggleContacts('negative');
+                    toggleContacts('negative');
+                }}
+            }}
+            
+            // Event listeners
+            document.getElementById('style-select').addEventListener('change', applyCurrentStyle);
+            document.getElementById('color-select').addEventListener('change', applyCurrentStyle);
+            document.getElementById('surface-select').addEventListener('change', applyCurrentStyle);
+            document.getElementById('surface-residues-toggle').addEventListener('click', toggleSurfaceResidues);
+            document.getElementById('static-contacts-toggle').addEventListener('click', () => toggleContacts('static'));
+            document.getElementById('positive-contacts-toggle').addEventListener('click', () => toggleContacts('positive'));
+            document.getElementById('negative-contacts-toggle').addEventListener('click', () => toggleContacts('negative'));
+            document.getElementById('protein-ids-toggle').addEventListener('click', toggleProteinIds);
+            document.getElementById('terminals-toggle').addEventListener('click', toggleTerminals);
+            
+            // Initialize when page loads
+            $(document).ready(function() {{
+                initViewer();
+            }});
+        </script>
+    </body>
+    </html>
+        """
+        
+        # Save the HTML file
+        self.logger.info("   Saving HTML file...")
+        with open(save_path, 'w') as f:
+            f.write(html_content)
+        
+        self.logger.info(f"   Visualization saved to {save_path}")
+        self.logger.info("FINISHED: Generating interactive 3D visualization")
+        
+        if show_plot:
+            webbrowser.open(save_path)
+
 
     def generate_py3dmol_plot(self, save_path: str = './3D_graph.html',
                               classification_colors = rrc_classification_colors,
