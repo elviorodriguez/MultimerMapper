@@ -165,6 +165,22 @@ def get_stability_plots(directory_path):
 ######################################## Reports ########################################
 #########################################################################################
 
+def add_folder_to_zip(zipf, base_dir, folder_name):
+    folder_path = os.path.join(base_dir, folder_name)
+    if not os.path.isdir(folder_path):
+        return
+
+    # 1. add the dir entry (so even if it's empty, it appears)
+    zipf.write(folder_path, arcname=folder_name)
+
+    # 2. walk and add every file under it
+    for root, _, files in os.walk(folder_path):
+        for fname in files:
+            full = os.path.join(root, fname)
+            # e.g. "representative_htmls/foo.html"
+            rel = os.path.relpath(full, base_dir)
+            zipf.write(full, arcname=rel)
+
 def create_zip_report(directory_path):
     """
     Creates a zip file containing all necessary files to render the report.html independently.
@@ -189,12 +205,25 @@ def create_zip_report(directory_path):
         if os.path.exists(log_file):
             zipf.write(log_file, os.path.relpath(log_file, directory_path))
         
-        # Add contact cluster files
+        # Add contact cluster files and its dependencies
         contact_clusters = get_contact_clusters(directory_path)
         for cluster in contact_clusters:
             cluster_path = os.path.join(directory_path, cluster['path'])
             if os.path.exists(cluster_path):
                 zipf.write(cluster_path, cluster['path'])
+        
+        # Add the subdirectories under contact_clusters
+        contact_clusters_dir = os.path.join(directory_path, "contact_clusters")
+        if os.path.exists(contact_clusters_dir):
+            # Add representative_htmls directory
+            representative_htmls_dir = os.path.join(contact_clusters_dir, "representative_htmls")
+            if os.path.exists(representative_htmls_dir):
+                add_folder_to_zip(zipf, directory_path, "contact_clusters/representative_htmls")
+            
+            # Add pca_and_matrixes_html directory
+            pca_and_matrixes_dir = os.path.join(contact_clusters_dir, "pca_and_matrixes_html")
+            if os.path.exists(pca_and_matrixes_dir):
+                add_folder_to_zip(zipf, directory_path, "contact_clusters/pca_and_matrixes_html")
         
         # Add pLDDT cluster files
         plddt_clusters = get_plddt_clusters(directory_path)
