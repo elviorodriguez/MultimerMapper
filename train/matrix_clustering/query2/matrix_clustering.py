@@ -1101,6 +1101,8 @@ def run_contacts_clustering_analysis_with_config(mm_output, config_dict, logger)
     pairs = list(all_pair_matrices.keys())
 
     # Create final HTML files
-    unify_pca_matrixes_and_py3dmol(mm_output, pairs)
+    logger.info("INITIALIZING: Creating unified HTML representations (PCA+Matrixes+py3Dmol)...")
+    unify_pca_matrixes_and_py3dmol(mm_output, pairs, logger)
+    logger.info("FINISHED: Creating unified HTML representations (PCA+Matrixes+py3Dmol)")
 
     return results

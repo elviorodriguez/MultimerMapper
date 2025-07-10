@@ -523,7 +523,7 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                         center: {{x: centroid.x, y: centroid.y, z: centroid.z}},
                         radius: 1.0,
                         color: centroid.color,
-                        alpha: 0.8
+                        alpha: 1.0
                     }});
                 }});
                 
@@ -538,7 +538,7 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                             end: {{x: centroid.x, y: centroid.y, z: centroid.z}},
                             radius: 0.3,
                             color: backbone.color,
-                            alpha: 0.7
+                            alpha: 1.0
                         }});
                     }}
                 }});
@@ -740,7 +740,7 @@ def get_py3dmol_paths_for_pair(pair, contact_clusters_dir):
     return cluster_paths
 
 
-def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, left_panel_width=35):
+def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, logger, left_panel_width=35):
     """
     Create a unified HTML visualization for a pair that combines:
     - Left panel: PCA and matrices visualization
@@ -768,11 +768,11 @@ def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, left_panel_width=35
 
     # Check if required files exist
     if not os.path.exists(pca_and_matrixes_path):
-        print(f"Warning: PCA and matrices file not found: {pca_and_matrixes_path}")
+        logger.error(f"   PCA and matrices file not found: {pca_and_matrixes_path}")
         return
     
     if not py3dmol_htmls_paths_dict:
-        print(f"Warning: No py3Dmol HTML files found for pair {pair}")
+        logger.error(f"   No py3Dmol HTML files found for pair {pair}")
         return
     
     # Sort cluster IDs for consistent ordering
@@ -1066,16 +1066,15 @@ def unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, left_panel_width=35
     with open(unified_html_path, 'w', encoding='utf-8') as f:
         f.write(html_content)
     
-    print(f"Unified HTML visualization created: {unified_html_path}")
-    print(f"Available clusters: {sorted_cluster_ids}")
-    print(f"Using existing cluster files from: representative_htmls/")
+    logger.info(f"   Unified HTML visualization created: {unified_html_path}")
+    logger.info(f"      - Available clusters: {sorted_cluster_ids}")
     
     return unified_html_path
 
 
 
 
-def unify_pca_matrixes_and_py3dmol(mm_output, pairs):
+def unify_pca_matrixes_and_py3dmol(mm_output, pairs, logger):
 
     all_pair_matrices = mm_output['pairwise_contact_matrices']
     
@@ -1083,7 +1082,7 @@ def unify_pca_matrixes_and_py3dmol(mm_output, pairs):
         if pair not in all_pair_matrices:
             continue
 
-        unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair)
+        unify_pca_matrixes_and_py3dmol_for_pair(mm_output, pair, logger)
 
     
 
