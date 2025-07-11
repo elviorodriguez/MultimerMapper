@@ -4,10 +4,12 @@ import itertools
 import numpy as np
 import pandas as pd
 import igraph
+import json
 from logging import Logger
 from typing import Set, Tuple
 from copy import deepcopy
 from collections import Counter
+from typing import List, Tuple, Dict, Any
 
 from utils.logger_setup import configure_logger, default_error_msgs
 
@@ -343,6 +345,121 @@ def generate_multivalent_pair_suggestions(pair, pair_multivalency_states):
 # ------------------- To generate files with suggestions ----------------------
 # -----------------------------------------------------------------------------
 
+
+def generate_af3_json_jobs(suggested_combinations: List[Tuple[str]], 
+                          prot_IDs: List[str], 
+                          prot_names: List[str], 
+                          prot_seqs: List[str], 
+                          use_names: bool = False,
+                          base_job_name: str = "Multimer_Job") -> List[Dict[str, Any]]:
+    """
+    Generate AlphaFold Server compatible JSON job descriptions for protein combinations.
+    
+    Args:
+        suggested_combinations: List of protein ID/name combinations
+        prot_IDs: List of protein IDs
+        prot_names: List of protein names  
+        prot_seqs: List of protein sequences
+        use_names: Whether to use protein names instead of IDs in job names
+        base_job_name: Base name for the jobs
+        
+    Returns:
+        List of job dictionaries compatible with AlphaFold Server
+    """
+    
+    af3_jobs = []
+    
+    for i, combination in enumerate(suggested_combinations):
+        # Create job name
+        if use_names:
+            # Convert IDs to names for job naming
+            combo_names = [prot_names[prot_IDs.index(prot_id)] for prot_id in combination]
+            job_name = f"{'_vs_'.join(combo_names)}"
+        else:
+            job_name = f"{'_vs_'.join(combination)}"
+        
+        # Build sequences list for this job
+        sequences = []
+        
+        # Count occurrences of each protein in the combination
+        from collections import Counter
+        protein_counts = Counter(combination)
+        
+        # Add each unique protein with its count
+        for protein_id in protein_counts:
+            protein_index = prot_IDs.index(protein_id)
+            protein_sequence = prot_seqs[protein_index]
+            count = protein_counts[protein_id]
+            
+            sequences.append({
+                "proteinChain": {
+                    "sequence": protein_sequence,
+                    "count": count
+                }
+            })
+        
+        # Create job dictionary
+        job = {
+            "name": job_name,
+            "modelSeeds": [],  # Empty list for automated random seed assignment
+            "sequences": sequences,
+            "dialect": "alphafoldserver",
+            "version": 1
+        }
+        
+        af3_jobs.append(job)
+    
+    return af3_jobs
+
+def save_af3_json_files(af3_jobs: List[Dict[str, Any]], 
+                       combination_suggestions_path: str,
+                       single_file: bool = True,
+                       max_jobs_per_file: int = 100,
+                       use_names: bool = False) -> None:
+    """
+    Save AlphaFold Server compatible JSON files.
+    
+    Args:
+        af3_jobs: List of job dictionaries
+        combination_suggestions_path: Path to save the JSON files
+        single_file: If True, save all jobs in one file. If False, create separate files.
+        max_jobs_per_file: Maximum number of jobs per file when single_file=False
+    """
+    
+    os.makedirs(combination_suggestions_path, exist_ok=True)
+    
+    prefix = "ids"
+    if use_names:
+        prefix = "names"
+
+    if single_file:
+        # Save all jobs in a single file
+        json_file_path = os.path.join(combination_suggestions_path, f"{prefix}_af3_jobs_all.json")
+        with open(json_file_path, 'w') as f:
+            json.dump(af3_jobs, f, indent=2)
+        print(f"Saved {len(af3_jobs)} jobs to {json_file_path}")
+    
+    else:
+        # Save jobs in separate files or batches
+        if max_jobs_per_file >= len(af3_jobs):
+            # Create individual files for each job
+            for i, job in enumerate(af3_jobs):
+                json_file_path = os.path.join(combination_suggestions_path, f"{prefix}_af3_job_{i+1:03d}.json")
+                with open(json_file_path, 'w') as f:
+                    json.dump([job], f, indent=2)  # AF3 expects a list even for single jobs
+            print(f"Saved {len(af3_jobs)} individual job files")
+        
+        else:
+            # Create batch files
+            for i in range(0, len(af3_jobs), max_jobs_per_file):
+                batch = af3_jobs[i:i + max_jobs_per_file]
+                batch_num = i // max_jobs_per_file + 1
+                json_file_path = os.path.join(combination_suggestions_path, f"{prefix}_af3_jobs_batch_{batch_num:03d}.json")
+                with open(json_file_path, 'w') as f:
+                    json.dump(batch, f, indent=2)
+            print(f"Saved {len(af3_jobs)} jobs in {(len(af3_jobs) + max_jobs_per_file - 1) // max_jobs_per_file} batch files")
+
+
 # When no 2-mers and no N-mers are passed
 def initialize_multimer_mapper(fasta_file, out_path, use_names, logger):
 
@@ -393,6 +510,24 @@ def initialize_multimer_mapper(fasta_file, out_path, use_names, logger):
         with open(csv_save_path, 'w') as csv_file:
             csv_file.write(str(suggested_combinations))
 
+        # Generate and save AF3 JSON files
+        for b in [True, False]:
+            af3_jobs = generate_af3_json_jobs(
+                suggested_combinations=suggested_combinations,
+                prot_IDs=prot_IDs,
+                prot_names=prot_names,
+                prot_seqs=prot_seqs,
+                use_names=b,
+                base_job_name=""
+            )
+            
+            save_af3_json_files(
+                af3_jobs=af3_jobs,
+                combination_suggestions_path=combination_suggestions_path,
+                single_file=True,  # Change to False if you want individual files
+                use_names=b
+            )
+
     return suggested_combinations
     
 # When at least 2-mers or N-mers where passed
@@ -414,7 +549,6 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
     list_of_untested_2mers = list(list_of_untested_2mers)
 
     # List homooligomeric edges
-    # homo_oligomeric_edges: list[igraph.Edge] = [ e for e in combined_graph.es if e['homooligomerization_states'] is not None]
     homo_oligomeric_edges: list[igraph.Edge] = [
         e for e in combined_graph.es
         if e['homooligomerization_states'] is not None
@@ -503,5 +637,22 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
 
         with open(csv_save_path, 'w') as csv_file:
             csv_file.write(str(suggested_combinations))
+
+        for b in [True, False]:
+            af3_jobs = generate_af3_json_jobs(
+                suggested_combinations=suggested_combinations,
+                prot_IDs=prot_IDs,
+                prot_names=prot_names,
+                prot_seqs=prot_seqs,
+                use_names=b,  # Set to True if you want to use names in job titles
+                base_job_name=""
+            )
+            
+            save_af3_json_files(
+                af3_jobs=af3_jobs,
+                combination_suggestions_path=combination_suggestions_path,
+                single_file=True,  # Change to False if you want individual files
+                use_names = b
+            )
 
     return suggested_combinations
