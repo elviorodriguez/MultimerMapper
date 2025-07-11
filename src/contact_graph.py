@@ -1301,11 +1301,11 @@ class Network(object):
         # Progress
         self.logger.info("INITIALIZING: Generating interactive 3D visualization...")
         
-        # Collect PDB data from all proteins
-        pdb_content = ""
+        # Collect PDB data from all proteins - store separately for each protein
+        proteins_pdb_data = {}
         for protein in self.proteins:
             pdb_string = protein.convert_chain_to_pdb_in_memory()
-            pdb_content += pdb_string.getvalue()
+            proteins_pdb_data[protein.get_ID()] = pdb_string.getvalue()
         
         # Get the maximum number of domains for color generation
         max_domain_value = max([max(prot.domains) for prot in self.proteins])
@@ -1590,7 +1590,7 @@ class Network(object):
 
         <script>
             // Data from Python
-            const pdbData = `{pdb_content}`;
+            const proteinsPdbData = {json.dumps(proteins_pdb_data)};
             const proteinsData = {json.dumps(proteins_data)};
             const surfaceResiduesData = {json.dumps(surface_residues_data)};
             const contactsData = {json.dumps(contacts_data)};
@@ -1661,7 +1661,11 @@ class Network(object):
                 }};
                 
                 viewer = $3Dmol.createViewer($("#viewer-container"), config);
-                viewer.addModel(pdbData, 'pdb');
+                
+                // Add each protein as a separate model
+                Object.keys(proteinsPdbData).forEach(proteinId => {{
+                    viewer.addModel(proteinsPdbData[proteinId], 'pdb');
+                }});
                 
                 applyCurrentStyle();
                 viewer.zoomTo();
@@ -1728,34 +1732,45 @@ class Network(object):
                 const button = document.getElementById('surface-residues-toggle');
                 
                 if (surfaceResiduesVisible) {{
-                    surfaceResiduesData.forEach(residue => {{
-                        // Add centroid sphere
-                        viewer.addSphere({{
-                            center: residue.centroid,
-                            radius: 1.0,
-                            color: residue.color,
-                            alpha: 1.0
-                        }});
-                        
-                        // Add connection to backbone
-                        viewer.addCylinder({{
-                            start: residue.ca_position,
-                            end: residue.centroid,
-                            radius: 0.1,
-                            color: residue.color,
-                            alpha: 1.0
-                        }});
-                    }});
-                    
+                    addSurfaceResidues();
                     button.textContent = 'Hide Surface Residues';
                     button.classList.add('active');
                 }} else {{
-                    refreshShapes();
+                    removeSurfaceResidues();
                     button.textContent = 'Show Surface Residues';
                     button.classList.remove('active');
                 }}
                 
                 viewer.render();
+            }}
+            
+            function addSurfaceResidues() {{
+                surfaceResiduesData.forEach(residue => {{
+                    // Add centroid sphere
+                    viewer.addSphere({{
+                        center: residue.centroid,
+                        radius: 1.0,
+                        color: residue.color,
+                        alpha: 1.0
+                    }});
+                    
+                    // Add connection to backbone
+                    viewer.addCylinder({{
+                        start: residue.ca_position,
+                        end: residue.centroid,
+                        radius: 0.1,
+                        color: residue.color,
+                        alpha: 1.0
+                    }});
+                }});
+            }}
+            
+            function removeSurfaceResidues() {{
+                // Remove all shapes and re-add only the visible contacts
+                viewer.removeAllShapes();
+                if (staticContactsVisible) addStaticContacts();
+                if (positiveContactsVisible) addPositiveContacts();
+                if (negativeContactsVisible) addNegativeContacts();
             }}
             
             function toggleContacts(contactType) {{
@@ -1765,49 +1780,107 @@ class Network(object):
                     'negative': 'negative-contacts-toggle'
                 }};
                 
-                const visibilityMap = {{
-                    'static': 'staticContactsVisible',
-                    'positive': 'positiveContactsVisible',
-                    'negative': 'negativeContactsVisible'
-                }};
-                
-                const classificationMap = {{
-                    'static': 1,
-                    'positive': 2,
-                    'negative': 3
-                }};
-                
                 const button = document.getElementById(buttonMap[contactType]);
-                const isVisible = window[visibilityMap[contactType]];
                 
-                window[visibilityMap[contactType]] = !isVisible;
-                
-                if (!isVisible) {{
-                    // Add contacts
-                    const filteredContacts = contactsData.filter(contact => 
-                        contact.classification === classificationMap[contactType]
-                    );
-                    
-                    filteredContacts.forEach(contact => {{
-                        const radius = (0.3 * contact.frequency) * 0.5;
-                        viewer.addCylinder({{
-                            start: contact.start,
-                            end: contact.end,
-                            radius: radius,
-                            color: contact.color,
-                            alpha: 0.9
-                        }});
-                    }});
-                    
-                    button.textContent = `Hide ${{contactType.charAt(0).toUpperCase() + contactType.slice(1)}} Contacts`;
-                    button.classList.add('active');
-                }} else {{
-                    refreshShapes();
-                    button.textContent = `Show ${{contactType.charAt(0).toUpperCase() + contactType.slice(1)}} Contacts`;
-                    button.classList.remove('active');
+                if (contactType === 'static') {{
+                    staticContactsVisible = !staticContactsVisible;
+                    if (staticContactsVisible) {{
+                        addStaticContacts();
+                        button.textContent = 'Hide Static Contacts';
+                        button.classList.add('active');
+                    }} else {{
+                        removeStaticContacts();
+                        button.textContent = 'Show Static Contacts';
+                        button.classList.remove('active');
+                    }}
+                }} else if (contactType === 'positive') {{
+                    positiveContactsVisible = !positiveContactsVisible;
+                    if (positiveContactsVisible) {{
+                        addPositiveContacts();
+                        button.textContent = 'Hide Positive Contacts';
+                        button.classList.add('active');
+                    }} else {{
+                        removePositiveContacts();
+                        button.textContent = 'Show Positive Contacts';
+                        button.classList.remove('active');
+                    }}
+                }} else if (contactType === 'negative') {{
+                    negativeContactsVisible = !negativeContactsVisible;
+                    if (negativeContactsVisible) {{
+                        addNegativeContacts();
+                        button.textContent = 'Hide Negative Contacts';
+                        button.classList.add('active');
+                    }} else {{
+                        removeNegativeContacts();
+                        button.textContent = 'Show Negative Contacts';
+                        button.classList.remove('active');
+                    }}
                 }}
                 
                 viewer.render();
+            }}
+            
+            function addStaticContacts() {{
+                const filteredContacts = contactsData.filter(contact => contact.classification === 1);
+                filteredContacts.forEach(contact => {{
+                    const radius = (0.3 * contact.frequency) * 0.5;
+                    viewer.addCylinder({{
+                        start: contact.start,
+                        end: contact.end,
+                        radius: radius,
+                        color: contact.color,
+                        alpha: 0.9
+                    }});
+                }});
+            }}
+            
+            function removeStaticContacts() {{
+                viewer.removeAllShapes();
+                if (surfaceResiduesVisible) addSurfaceResidues();
+                if (positiveContactsVisible) addPositiveContacts();
+                if (negativeContactsVisible) addNegativeContacts();
+            }}
+            
+            function addPositiveContacts() {{
+                const filteredContacts = contactsData.filter(contact => contact.classification === 2);
+                filteredContacts.forEach(contact => {{
+                    const radius = (0.3 * contact.frequency) * 0.5;
+                    viewer.addCylinder({{
+                        start: contact.start,
+                        end: contact.end,
+                        radius: radius,
+                        color: contact.color,
+                        alpha: 0.9
+                    }});
+                }});
+            }}
+            
+            function removePositiveContacts() {{
+                viewer.removeAllShapes();
+                if (surfaceResiduesVisible) addSurfaceResidues();
+                if (staticContactsVisible) addStaticContacts();
+                if (negativeContactsVisible) addNegativeContacts();
+            }}
+            
+            function addNegativeContacts() {{
+                const filteredContacts = contactsData.filter(contact => contact.classification === 3);
+                filteredContacts.forEach(contact => {{
+                    const radius = (0.3 * contact.frequency) * 0.5;
+                    viewer.addCylinder({{
+                        start: contact.start,
+                        end: contact.end,
+                        radius: radius,
+                        color: contact.color,
+                        alpha: 0.9
+                    }});
+                }});
+            }}
+            
+            function removeNegativeContacts() {{
+                viewer.removeAllShapes();
+                if (surfaceResiduesVisible) addSurfaceResidues();
+                if (staticContactsVisible) addStaticContacts();
+                if (positiveContactsVisible) addPositiveContacts();
             }}
             
             function toggleProteinIds() {{
@@ -1815,19 +1888,7 @@ class Network(object):
                 const button = document.getElementById('protein-ids-toggle');
                 
                 if (proteinIdsVisible) {{
-                    proteinsData.forEach(protein => {{
-                        viewer.addLabel(protein.id, {{
-                            position: {{
-                                x: protein.cm.x,
-                                y: protein.cm.y,
-                                z: protein.cm.z + 5
-                            }},
-                            fontSize: 18,
-                            color: 'black',
-                            backgroundOpacity: 0.6
-                        }});
-                    }});
-                    
+                    addProteinIdLabels();
                     button.textContent = 'Hide Protein IDs';
                     button.classList.add('active');
                 }} else {{
@@ -1893,31 +1954,6 @@ class Network(object):
                         backgroundOpacity: 0.6
                     }});
                 }});
-            }}
-            
-            function refreshShapes() {{
-                viewer.removeAllShapes();
-                
-                // Re-add visible elements
-                if (surfaceResiduesVisible) {{
-                    toggleSurfaceResidues();
-                    toggleSurfaceResidues();
-                }}
-                
-                if (staticContactsVisible) {{
-                    toggleContacts('static');
-                    toggleContacts('static');
-                }}
-                
-                if (positiveContactsVisible) {{
-                    toggleContacts('positive');
-                    toggleContacts('positive');
-                }}
-                
-                if (negativeContactsVisible) {{
-                    toggleContacts('negative');
-                    toggleContacts('negative');
-                }}
             }}
             
             // Event listeners
