@@ -1436,7 +1436,7 @@ class Network(object):
                 position: relative;
             }}
             .control-panel {{
-                width: 300px;
+                width: 210px;
                 background-color: white;
                 margin: 10px 10px 10px 0;
                 padding: 20px;
@@ -1529,46 +1529,43 @@ class Network(object):
             
             <div class="control-panel">
                 <div class="control-section">
-                    <h4>Protein Style</h4>
-                    <div class="control-group">
-                        <label>Representation:</label>
-                        <select id="style-select">
-                            <option value="cartoon">Cartoon</option>
-                            <option value="line">Line</option>
-                            <option value="stick">Stick</option>
-                            <option value="sphere">Sphere</option>
-                            <option value="surface">Surface</option>
-                        </select>
-                    </div>
+                <h4>Protein Style</h4>
+                <div class="control-group">
+                    <select id="style-select">
+                        <option value="cartoon">Cartoon</option>
+                        <option value="line">Line</option>
+                        <option value="stick">Stick</option>
+                        <option value="sphere">Sphere</option>
+                        <option value="surface">Surface</option>
+                    </select>
                 </div>
-                
-                <div class="control-section">
-                    <h4>Color Scheme</h4>
-                    <div class="control-group">
-                        <label>Coloring:</label>
-                        <select id="color-select">
-                            <option value="chain">Chain</option>
-                            <option value="spectrum">Spectrum</option>
-                            <option value="residue">Residue</option>
-                            <option value="secondary">Secondary Structure</option>
-                            <option value="plddt">pLDDT</option>
-                            <option value="domain">Domain</option>
-                        </select>
-                    </div>
+            </div>
+
+            <div class="control-section">
+                <h4>Color Scheme</h4>
+                <div class="control-group">
+                    <select id="color-select">
+                        <option value="chain">Chain</option>
+                        <option value="spectrum">Spectrum</option>
+                        <option value="residue">Residue</option>
+                        <option value="secondary">Secondary Structure</option>
+                        <option value="plddt">pLDDT</option>
+                        <option value="domain">Domain</option>
+                    </select>
                 </div>
-                
-                <div class="control-section">
-                    <h4>Surface Options</h4>
-                    <div class="control-group">
-                        <label>Surface Type:</label>
-                        <select id="surface-select">
-                            <option value="none">None</option>
-                            <option value="VDW">Van der Waals</option>
-                            <option value="SAS">Solvent Accessible</option>
-                            <option value="MS">Molecular Surface</option>
-                        </select>
-                    </div>
+            </div>
+
+            <div class="control-section">
+                <h4>Surface Options</h4>
+                <div class="control-group">
+                    <select id="surface-select">
+                        <option value="none">None</option>
+                        <option value="VDW">Van der Waals</option>
+                        <option value="SAS">Solvent Accessible</option>
+                        <option value="MS">Molecular Surface</option>
+                    </select>
                 </div>
+            </div>
                 
                 <div class="control-section">
                     <h4>Contact Features</h4>
@@ -1829,7 +1826,7 @@ class Network(object):
                         end: contact.end,
                         radius: radius,
                         color: contact.color,
-                        alpha: 0.9
+                        alpha: 1.0
                     }});
                 }});
             }}
@@ -1850,7 +1847,7 @@ class Network(object):
                         end: contact.end,
                         radius: radius,
                         color: contact.color,
-                        alpha: 0.9
+                        alpha: 1.0
                     }});
                 }});
             }}
@@ -1871,7 +1868,7 @@ class Network(object):
                         end: contact.end,
                         radius: radius,
                         color: contact.color,
-                        alpha: 0.9
+                        alpha: 1.0
                     }});
                 }});
             }}
