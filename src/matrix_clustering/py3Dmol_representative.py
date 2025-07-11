@@ -32,6 +32,8 @@ def parse_contact_matrix(contact_matrix, chains_in_model, L1, L2):
     Args:
         contact_matrix: 2D numpy array with contact frequencies
         chains_in_model: List of chain IDs in the model
+        L1: Length of first chain
+        L2: Length of second chain
     
     Returns:
         List of tuples: (chain1, res1, chain2, res2, frequency)
@@ -51,19 +53,26 @@ def parse_contact_matrix(contact_matrix, chains_in_model, L1, L2):
         chain_1_idx = 0
         chain_2_idx = 1
     
-    # Assuming contact_matrix is symmetric and indexed by residue numbers
-    # You may need to adjust this based on your specific matrix format
+    # Check if this is a homodimer (same chain IDs) or heterodimer
+    is_homodimer = (len(set(chains_in_model)) == 1) or (chains_in_model[0] == chains_in_model[1])
+    
+    # Find all non-zero contacts
     rows, cols = np.where(contact_matrix > 0)
     
     for i, j in zip(rows, cols):
-        if i < j:  # Only take upper triangle to avoid duplicates
-            frequency = contact_matrix[i, j]
-                        
-            # Select the chains and residues
-            chain1, res1 = map_index_to_chain_residue(i, chains_in_model, chain_1_idx)
-            chain2, res2 = map_index_to_chain_residue(j, chains_in_model, chain_2_idx)
-            
-            contacts.append((chain1, res1, chain2, res2, frequency))
+        frequency = contact_matrix[i, j]
+        
+        # For homodimers, only take upper triangle to avoid duplicates
+        # For heterodimers, take all contacts since matrix is not symmetric
+        if is_homodimer and i >= j:
+            continue
+        
+        # Map matrix indices to chain and residue numbers
+        # Row index corresponds to chain_1_idx, column index to chain_2_idx
+        chain1, res1 = map_index_to_chain_residue(i, chains_in_model, chain_1_idx)
+        chain2, res2 = map_index_to_chain_residue(j, chains_in_model, chain_2_idx)
+        
+        contacts.append((chain1, res1, chain2, res2, frequency))
     
     return contacts
 
@@ -71,12 +80,9 @@ def parse_contact_matrix(contact_matrix, chains_in_model, L1, L2):
 def map_index_to_chain_residue(index, chains_in_model, chain_idx):
     """
     Map matrix index to chain and residue number.
-    This is a placeholder - you'll need to implement based on your matrix structure.
     """
-    # This is a simplified example - adjust based on your actual matrix structure
-    # Assuming you have a way to map indices to chain and residue
-    chain = chains_in_model[chain_idx]  # Placeholder
-    residue = index + 1                 # Placeholder
+    chain = chains_in_model[chain_idx]
+    residue = index + 1
     return chain, residue
 
 
@@ -123,15 +129,15 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
     centroids_data = []
     backbone_data = []
     hex_palette = [
+        "#DA70D6",  # Orchid
+        "#ADFF2F",  # Green Yellow
+        "#646464",  # Python Dove Gray
         "#4584B6",  # Python Steel Blue
         "#FFDE57",  # Python Mustard
-        "#646464",  # Python Dove Gray
         "#8A2BE2",  # Blue Violet
         "#FF7F50",  # Coral
         "#20B2AA",  # Light Sea Green
-        "#DA70D6",  # Orchid
         "#FFD700",  # Gold
-        "#ADFF2F",  # Green Yellow
         "#FF4500"   # Orange Red
     ]
     
@@ -587,7 +593,33 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                 const normalizedFreq = (contact.frequency - minFreq) / (maxFreq - minFreq);
                 const radius = 0.05 + normalizedFreq * 0.20; // Scale thickness
                 const intensity = Math.floor(255 * normalizedFreq);
-                const color = `rgb(${{255 - intensity}}, ${{intensity}}, 0)`; // Red to yellow gradient
+                const color = `rgb(${{255 - intensity}}, ${{intensity}}, 0)`; // Red to Green gradient
+
+                // OTHER CONTACT COLOR SCHEMES OPTIONS
+                // OPTION 1: Black to White gradient
+                // const color = `rgb(${{intensity}}, ${{intensity}}, ${{intensity}})`;
+                // OPTION 2: Blue to Orange gradient (complementary colors)
+                // const color = `rgb(${{Math.floor(intensity)}}, ${{Math.floor(intensity * 0.5)}}, ${{Math.floor(255 - intensity)}})`;
+                // OPTION 3: Purple to Yellow gradient (complementary colors)
+                // const color = `rgb(${{Math.floor(128 + intensity * 0.5)}}, ${{Math.floor(intensity)}}, ${{Math.floor(255 - intensity)}})`;
+                // OPTION 4: Red to Cyan gradient (complementary colors)
+                // const color = `rgb(${{Math.floor(255 - intensity)}}, ${{Math.floor(intensity)}}, ${{Math.floor(intensity)}})`;
+                // OPTION 5: Green to Magenta gradient (complementary colors)
+                // const color = `rgb(${{Math.floor(intensity)}}, ${{Math.floor(255 - intensity)}}, ${{Math.floor(intensity)}})`;
+                // OPTION 6: Dark Blue to Bright Yellow gradient
+                // const color = `rgb(${{Math.floor(intensity)}}, ${{Math.floor(intensity)}}, ${{Math.floor(255 - intensity)}})`;
+                // OPTION 7: Dark Purple to Bright Green gradient
+                // const color = `rgb(${{Math.floor(255 - intensity)}}, ${{Math.floor(intensity)}}, ${{Math.floor(128 - intensity * 0.5)}})`;
+                // OPTION 8: Brown to Cyan gradient
+                // const color = `rgb(${{Math.floor(165 - intensity * 0.6)}}, ${{Math.floor(42 + intensity * 0.8)}}, ${{Math.floor(42 + intensity * 0.8)}})`;
+                // OPTION 9: Navy to Gold gradient
+                // const color = `rgb(${{Math.floor(intensity)}}, ${{Math.floor(intensity * 0.8)}}, ${{Math.floor(128 - intensity * 0.5)}})`;
+                // OPTION 10: Teal to Coral gradient
+                // const color = `rgb(${{Math.floor(64 + intensity * 0.7)}}, ${{Math.floor(224 - intensity * 0.6)}}, ${{Math.floor(208 - intensity * 0.6)}})`;
+
+                // DEBUGGING: To see what intensity values you're actually getting, add this line:
+                console.log('Intensity range:', Math.min(...contactsData.map(c => c.frequency)), 'to', Math.max(...contactsData.map(c => c.frequency)));
+                console.log('Current intensity:', intensity);
                 
                 viewer.addCylinder({{
                     start: {{x: contact.x1, y: contact.y1, z: contact.z1}},
@@ -640,8 +672,8 @@ def create_contact_visualizations_for_clusters(clusters, mm_output, representati
     Create HTML visualizations for all protein pair clusters.
     
     Args:
-        clusters: The clusters dictionary from your original code
-        mm_output: The mm_output dictionary from your original code
+        clusters: Clusters dictionary
+        mm_output: mm_output dictionary
         representative_pdbs_dir: Directory containing the representative PDB files
     """
     
@@ -694,9 +726,9 @@ def create_contact_visualizations_for_clusters(clusters, mm_output, representati
     return html_files
 
 
-# # Example usage (add this to your main code after creating the PDB files):
+# # Example usage
 # if __name__ == "__main__":
-#     # This would be called after your existing code that creates the PDB files
+#     # This goes after code that creates the PDB files
 #     html_files = create_contact_visualizations_for_clusters(
 #         clusters=clusters,
 #         mm_output=mm_output,

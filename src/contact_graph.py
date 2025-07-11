@@ -1521,6 +1521,18 @@ class Network(object):
             .contact-button.negative:hover {{
                 background-color: #bd2130;
             }}
+            .contact-button.no-nmers {{
+                background-color: #fd7e14;
+            }}
+            .contact-button.no-2mers {{
+                background-color: #ffc107;
+            }}
+            .contact-button.no-nmers:hover {{
+                background-color: #e8680e;
+            }}
+            .contact-button.no-2mers:hover {{
+                background-color: #e0a800;
+            }}
         </style>
     </head>
     <body>
@@ -1576,9 +1588,11 @@ class Network(object):
                 <div class="control-section">
                     <h4>Contact Features</h4>
                     <div class="contact-buttons">
-                        <button id="static-contacts-toggle" class="contact-button static">Show Static Contacts</button>
-                        <button id="positive-contacts-toggle" class="contact-button positive">Show Positive Contacts</button>
-                        <button id="negative-contacts-toggle" class="contact-button negative">Show Negative Contacts</button>
+                        <button id="static-contacts-toggle" class="contact-button static" style="display: none;">Show Static Contacts</button>
+                        <button id="positive-contacts-toggle" class="contact-button positive" style="display: none;">Show Positive Contacts</button>
+                        <button id="negative-contacts-toggle" class="contact-button negative" style="display: none;">Show Negative Contacts</button>
+                        <button id="no-nmers-contacts-toggle" class="contact-button no-nmers" style="display: none;">Show No Nmers Data</button>
+                        <button id="no-2mers-contacts-toggle" class="contact-button no-2mers" style="display: none;">Show No 2mers Data</button>
                     </div>
                 </div>
                 
@@ -1604,6 +1618,8 @@ class Network(object):
             let staticContactsVisible = true;
             let positiveContactsVisible = true;
             let negativeContactsVisible = true;
+            let noNmersContactsVisible = true;
+            let no2mersContactsVisible = true;
             let proteinIdsVisible = true;
             let terminalsVisible = true;
             
@@ -1669,6 +1685,45 @@ class Network(object):
                     viewer.addModel(proteinsPdbData[proteinId], 'pdb');
                 }});
                 
+                // Check which contact types exist in the dataset
+                const hasStaticData = contactsData.some(contact => contact.classification === 1);
+                const hasPositiveData = contactsData.some(contact => contact.classification === 2);
+                const hasNegativeData = contactsData.some(contact => contact.classification === 3);
+                const hasNoNmersData = contactsData.some(contact => contact.classification === 4);
+                const hasNo2mersData = contactsData.some(contact => contact.classification === 5);
+
+                
+                // Show buttons only if data exists
+                if (hasStaticData) {{
+                    document.getElementById('static-contacts-toggle').style.display = 'block';
+                }} else {{
+                    document.getElementById('static-contacts-toggle').style.display = 'none';
+                }}
+
+                if (hasPositiveData) {{
+                    document.getElementById('positive-contacts-toggle').style.display = 'block';
+                }} else {{
+                    document.getElementById('positive-contacts-toggle').style.display = 'none';
+                }}
+
+                if (hasNegativeData) {{
+                    document.getElementById('negative-contacts-toggle').style.display = 'block';
+                }} else {{
+                    document.getElementById('negative-contacts-toggle').style.display = 'none';
+                }}
+
+                if (hasNoNmersData) {{
+                    document.getElementById('no-nmers-contacts-toggle').style.display = 'block';
+                }} else {{
+                    document.getElementById('no-nmers-contacts-toggle').style.display = 'none';
+                }}
+
+                if (hasNo2mersData) {{
+                    document.getElementById('no-2mers-contacts-toggle').style.display = 'block';
+                }} else {{
+                    document.getElementById('no-2mers-contacts-toggle').style.display = 'none';
+                }}
+                
                 applyCurrentStyle();
                 viewer.zoomTo();
                 
@@ -1685,6 +1740,8 @@ class Network(object):
                 const staticButton = document.getElementById('static-contacts-toggle');
                 const positiveButton = document.getElementById('positive-contacts-toggle');
                 const negativeButton = document.getElementById('negative-contacts-toggle');
+                const noNmersButton = document.getElementById('no-nmers-contacts-toggle');
+                const no2mersButton = document.getElementById('no-2mers-contacts-toggle');
                 const proteinIdsButton = document.getElementById('protein-ids-toggle');
                 const terminalsButton = document.getElementById('terminals-toggle');
                 
@@ -1693,19 +1750,29 @@ class Network(object):
                     surfaceButton.classList.add('active');
                 }}
                 
-                if (staticContactsVisible) {{
+                if (staticContactsVisible && staticButton.style.display !== 'none') {{
                     staticButton.textContent = 'Hide Static Contacts';
                     staticButton.classList.add('active');
                 }}
-                
-                if (positiveContactsVisible) {{
+
+                if (positiveContactsVisible && positiveButton.style.display !== 'none') {{
                     positiveButton.textContent = 'Hide Positive Contacts';
                     positiveButton.classList.add('active');
                 }}
-                
-                if (negativeContactsVisible) {{
+
+                if (negativeContactsVisible && negativeButton.style.display !== 'none') {{
                     negativeButton.textContent = 'Hide Negative Contacts';
                     negativeButton.classList.add('active');
+                }}
+                
+                if (noNmersContactsVisible && noNmersButton.style.display !== 'none') {{
+                    noNmersButton.textContent = 'Hide No Nmers Data';
+                    noNmersButton.classList.add('active');
+                }}
+                
+                if (no2mersContactsVisible && no2mersButton.style.display !== 'none') {{
+                    no2mersButton.textContent = 'Hide No 2mers Data';
+                    no2mersButton.classList.add('active');
                 }}
                 
                 if (proteinIdsVisible) {{
@@ -1725,16 +1792,24 @@ class Network(object):
                     addSurfaceResidues();
                 }}
                 
-                if (staticContactsVisible) {{
+                if (staticContactsVisible && document.getElementById('static-contacts-toggle').style.display !== 'none') {{
                     addStaticContacts();
                 }}
-                
-                if (positiveContactsVisible) {{
+
+                if (positiveContactsVisible && document.getElementById('positive-contacts-toggle').style.display !== 'none') {{
                     addPositiveContacts();
                 }}
-                
-                if (negativeContactsVisible) {{
+
+                if (negativeContactsVisible && document.getElementById('negative-contacts-toggle').style.display !== 'none') {{
                     addNegativeContacts();
+                }}
+                
+                if (noNmersContactsVisible) {{
+                    addNoNmersContacts();
+                }}
+                
+                if (no2mersContactsVisible) {{
+                    addNo2mersContacts();
                 }}
                 
                 if (proteinIdsVisible) {{
@@ -1851,7 +1926,9 @@ class Network(object):
                 const buttonMap = {{
                     'static': 'static-contacts-toggle',
                     'positive': 'positive-contacts-toggle',
-                    'negative': 'negative-contacts-toggle'
+                    'negative': 'negative-contacts-toggle',
+                    'no-nmers': 'no-nmers-contacts-toggle',
+                    'no-2mers': 'no-2mers-contacts-toggle'
                 }};
                 
                 const button = document.getElementById(buttonMap[contactType]);
@@ -1889,9 +1966,77 @@ class Network(object):
                         button.textContent = 'Show Negative Contacts';
                         button.classList.remove('active');
                     }}
+                }} else if (contactType === 'no-nmers') {{
+                    noNmersContactsVisible = !noNmersContactsVisible;
+                    if (noNmersContactsVisible) {{
+                        addNoNmersContacts();
+                        button.textContent = 'Hide No Nmers Data';
+                        button.classList.add('active');
+                    }} else {{
+                        removeNoNmersContacts();
+                        button.textContent = 'Show No Nmers Data';
+                        button.classList.remove('active');
+                    }}
+                }} else if (contactType === 'no-2mers') {{
+                    no2mersContactsVisible = !no2mersContactsVisible;
+                    if (no2mersContactsVisible) {{
+                        addNo2mersContacts();
+                        button.textContent = 'Hide No 2mers Data';
+                        button.classList.add('active');
+                    }} else {{
+                        removeNo2mersContacts();
+                        button.textContent = 'Show No 2mers Data';
+                        button.classList.remove('active');
+                    }}
                 }}
                 
                 viewer.render();
+            }}
+
+            function addNoNmersContacts() {{
+                const filteredContacts = contactsData.filter(contact => contact.classification === 4);
+                filteredContacts.forEach(contact => {{
+                    const radius = (0.3 * contact.frequency) * 0.5;
+                    viewer.addCylinder({{
+                        start: contact.start,
+                        end: contact.end,
+                        radius: radius,
+                        color: contact.color,
+                        alpha: 1.0
+                    }});
+                }});
+            }}
+
+            function removeNoNmersContacts() {{
+                viewer.removeAllShapes();
+                if (surfaceResiduesVisible) addSurfaceResidues();
+                if (staticContactsVisible) addStaticContacts();
+                if (positiveContactsVisible) addPositiveContacts();
+                if (negativeContactsVisible) addNegativeContacts();
+                if (no2mersContactsVisible) addNo2mersContacts();
+            }}
+
+            function addNo2mersContacts() {{
+                const filteredContacts = contactsData.filter(contact => contact.classification === 5);
+                filteredContacts.forEach(contact => {{
+                    const radius = (0.3 * contact.frequency) * 0.5;
+                    viewer.addCylinder({{
+                        start: contact.start,
+                        end: contact.end,
+                        radius: radius,
+                        color: contact.color,
+                        alpha: 1.0
+                    }});
+                }});
+            }}
+
+            function removeNo2mersContacts() {{
+                viewer.removeAllShapes();
+                if (surfaceResiduesVisible) addSurfaceResidues();
+                if (staticContactsVisible) addStaticContacts();
+                if (positiveContactsVisible) addPositiveContacts();
+                if (negativeContactsVisible) addNegativeContacts();
+                if (noNmersContactsVisible) addNoNmersContacts();
             }}
             
             function addStaticContacts() {{
@@ -1908,11 +2053,38 @@ class Network(object):
                 }});
             }}
             
-            function removeStaticContacts() {{
+            function rebuildAllShapes() {{
                 viewer.removeAllShapes();
                 if (surfaceResiduesVisible) addSurfaceResidues();
+                if (staticContactsVisible) addStaticContacts();
                 if (positiveContactsVisible) addPositiveContacts();
                 if (negativeContactsVisible) addNegativeContacts();
+                if (noNmersContactsVisible) addNoNmersContacts();
+                if (no2mersContactsVisible) addNo2mersContacts();
+            }}
+
+            function removeStaticContacts() {{
+                rebuildAllShapes();
+            }}
+
+            function removePositiveContacts() {{
+                rebuildAllShapes();
+            }}
+
+            function removeNegativeContacts() {{
+                rebuildAllShapes();
+            }}
+
+            function removeNoNmersContacts() {{
+                rebuildAllShapes();
+            }}
+
+            function removeNo2mersContacts() {{
+                rebuildAllShapes();
+            }}
+
+            function removeSurfaceResidues() {{
+                rebuildAllShapes();
             }}
             
             function addPositiveContacts() {{
@@ -2001,16 +2173,18 @@ class Network(object):
                 proteinsData.forEach(protein => {{
                     viewer.addLabel('N', {{
                         position: protein.n_term,
-                        fontSize: 14,
+                        fontSize: 20,
                         fontColor: 'black',
-                        backgroundOpacity: 0.0
+                        backgroundOpacity: 0.0,
+                        font: 'bold Arial'
                     }});
                     
                     viewer.addLabel('C', {{
                         position: protein.c_term,
-                        fontSize: 14,
+                        fontSize: 20,
                         fontColor: 'black',
-                        backgroundOpacity: 0.0
+                        backgroundOpacity: 0.0,
+                        font: 'bold Arial'
                     }});
                 }});
             }}
@@ -2038,6 +2212,8 @@ class Network(object):
             document.getElementById('static-contacts-toggle').addEventListener('click', () => toggleContacts('static'));
             document.getElementById('positive-contacts-toggle').addEventListener('click', () => toggleContacts('positive'));
             document.getElementById('negative-contacts-toggle').addEventListener('click', () => toggleContacts('negative'));
+            document.getElementById('no-nmers-contacts-toggle').addEventListener('click', () => toggleContacts('no-nmers'));
+            document.getElementById('no-2mers-contacts-toggle').addEventListener('click', () => toggleContacts('no-2mers'));
             document.getElementById('protein-ids-toggle').addEventListener('click', toggleProteinIds);
             document.getElementById('terminals-toggle').addEventListener('click', toggleTerminals);
             
