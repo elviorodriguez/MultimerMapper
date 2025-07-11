@@ -7,7 +7,7 @@ The manuscript of the methodology is being written and the software is still und
 
 Here's how it works:
  - **Start with protein sequences**: Input a list of protein sequences you want to study. Typically, they will come from an interactomic experiment.
- - **Generate predictions**: MultimerMapper guides you to create the most informative set of protein structure predictions using AF2-multimer (AF3 soon!).
+ - **Generate predictions**: MultimerMapper guides you to create the most informative set of protein structure predictions using AF2-multimer (and now AF3 too!).
  - **Analyze interactions**: The tool examines how proteins interact in different combinations (2-mers, 3-mers, etc.) and compares these interactions.
  - **Classify interactions**: MultimerMapper categorizes protein-protein interactions as: *static* (always present), *dynamic positive* (only activated in certain modeling contexts), *dynamic negative* (inhibited in different modeling context).
  - **Visualize results**: The tool creates 2D and 3D visualizations to help you answer:
@@ -42,9 +42,9 @@ By combining predictions and smart analysis, MultimerMapper helps bridge the gap
 The software can perform several tasks by analyzing AF2-multimer (AF3 comming soon) predictions ensembles of different combinations of proteins separated in two different directories:
 
     2-mers: contains all possible pairwise interaction predictions of the set of proteins (homo-2-mers and hetero-2-mers)
-    N-mers: contains diifferent combinations (3-mers, 4-mers, etc.) interaction predictions of the set of proteins that 
+    N-mers: contains different combinations (3-mers, 4-mers, etc.) interaction predictions of the set of proteins that 
     
-It maps all PPIs and RRCs present in the predictions by decomposing the models into their pairwise sub-components and captures how they change depending on the modelling context (which other proteins were present in the models and in which quantity). This information is converted into PPI and RRC graph representations inside MultimerMapper that you can visually explore in interactive HTML plots. The graphs are also used to simulate thousands of times the assembly paths of the complex(es) using random walks and explore the "stoichiomeric space". Each stoichiometry is scored depending on the Nº and classification of their contacts and interaction between proteins, keeping track of the frequency of walked paths and stoichiometries. In general, the most frequent and best scored stichiometries will represent the most likely stoichiometry(ies) of the complex(es). You can visualize this information in 2D and 3D Stoichimoeric Space Exploration Plots and use it to assemble the complex(es) you want by generating CombFold input with MultimerMapper's interface.
+It maps all PPIs and RRCs present in the predictions by decomposing the models into their pairwise sub-components and captures how they change depending on the modelling context (which other proteins were present in the models and in which quantity). This information is converted into PPI and RRC graph representations inside MultimerMapper that you can visually explore in interactive HTML plots. The graphs are also used to simulate thousands of times the assembly paths of the complex(es) using random walks and explore the "stoichiometric space". Each stoichiometry is scored depending on the Nº and classification of their contacts and interaction between proteins, keeping track of the frequency of walked paths and stoichiometries. In general, the most frequent and best scored stoichiometries will represent the most likely stoichiometry(ies) of the complex(es). You can visualize this information in 2D and 3D Stoichiometric Space Exploration Plots and use it to assemble the complex(es) you want by generating CombFold input with MultimerMapper's interface.
 
 # Installation
 MultimerMapper requires Anaconda/Miniconda (Miniconda installation guide: https://docs.anaconda.com/miniconda/miniconda-install) to create an isolated environment for the software.
@@ -98,7 +98,7 @@ python multimer_mapper.py --AF_2mers tests/EAF6_EPL1_PHD1/2-mers --AF_Nmers test
 ```
 
 ## Using manual_domains.tsv
-We highly recommend to use the semi-automatic domain detection algorithm inside MultimerMapper to get the best results, as the pipeline relies on proper definition of compact domains to prerform RMSD trajectories and capture conformational changes. However, if you know the exact start and end positions of the globular domains of your proteins, you can use a ```manuals_domains.tsv``` file to define them:
+We highly recommend to use the semi-automatic domain detection algorithm inside MultimerMapper to get the best results, as the pipeline relies on proper definition of compact domains to perform RMSD trajectories and capture conformational changes. However, if you know the exact start and end positions of the globular domains of your proteins, you can use a ```manuals_domains.tsv``` file to define them:
 ```sh
 # Only 2-mers
 python multimer_mapper.py --AF_2mers tests/EAF6_EPL1_PHD1/2-mers --manual_domains tests/EAF6_EPL1_PHD1/manual_domains.tsv --out_path tests/output_2mers tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta 
@@ -109,11 +109,11 @@ python multimer_mapper.py --AF_2mers tests/EAF6_EPL1_PHD1/2-mers --AF_Nmers test
 Note that you need to define the span of both disordered loops and globular domains. Have a look at the example file to know its format.
 
 ## Visualization of Interactive 2D PPI graphs
-One of the main outputs of MultimerMapper is the interactive 2D PPI graph. You can find it inside the output folder (tests/expected_output/2D_graph.html). It represents proteins as nodes and disctinct interaction modes between proteins as edges:
+One of the main outputs of MultimerMapper is the interactive 2D PPI graph. You can find it inside the output folder (tests/expected_output/2D_graph.html). It represents proteins as nodes and distinct interaction modes between proteins as edges:
 
 ![image](https://github.com/user-attachments/assets/4629b19c-ad78-4d20-9e73-e9803650ce1a)
 
-The color of the nodes stands for the dynamic clasification of the protein (Static, Dynamic Negative, Dynamic Positive). Edge colors represents the classification of the interactions (Static, Dynamic Negative, Dynamic Positive) and the shape of the edge represents the intensity of the classification (solid, dash, dot). In cases in which there is no N-mers or 2-mers data, edges and proteins will be colored in an orange tone.
+The color of the nodes stands for the dynamic classification of the protein (Static, Dynamic Negative, Dynamic Positive). Edge colors represents the classification of the interactions (Static, Dynamic Negative, Dynamic Positive) and the shape of the edge represents the intensity of the classification (solid, dash, dot). In cases in which there is no N-mers or 2-mers data, edges and proteins will be colored in an orange tone.
 
 You can display more information about the proteins in different modelling contexts by clicking above nodes. The hovertext gives you information about detected domain spans and metrics variation (RMSD against reference and mean pLDDT) depending on the modelling context.
 
@@ -154,5 +154,19 @@ You can play/stop the slider, slow/accelerate it down using the buttons on the b
 
 https://github.com/user-attachments/assets/064b9c0c-820a-49c7-94f6-560877e95440
 
-# Do you want to combine MultimerMapper with your own pipelines programatically?
-Have a look at devs secction (for developers). There you will find explanaitions of MultimerMapper's main functionalities output data structures and their meaning.
+# How to use AF3 predictions
+Now AF3 predictions can be converted into a format compatible with MultimerMapper. You need to use the utility script ```utils/af3_compatibility.py``` to convert a single prediction or an entire directory containing multiple AF3 zipped predictions:
+
+```bash
+# Process a single ZIP file
+python utils/af3_compatibility.py af3_prediction.zip
+
+# Process a directory containing multiple ZIP files
+python utils/af3_compatibility.py /path/to/zip_files/ --out_dir /path/to/output/
+```
+
+If a tree of prediction sets is present in the directory (subdirectories), each prediction set gets its own subdirectory in the output folder, making it easy to organize results from multiple AF3 runs (e.g., those from each N-mer iteration of a system).
+
+
+# Do you want to combine MultimerMapper with your own pipelines programmatically?
+Have a look at devs section (for developers). There you will find explanations of MultimerMapper's main functionalities output data structures and their meaning.
