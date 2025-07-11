@@ -1045,7 +1045,7 @@ def apply_residue_level_layout_optimized(proteins, ppis, network,
     
     network.logger.info('Optimized residue-level layout completed')
 
-def optimize_residue_layout_fast(network, iterations=100, **kwargs):
+def optimize_residue_layout_fast(network, **kwargs):
     """
     Fast version of residue layout optimization.
     """
@@ -1057,7 +1057,7 @@ def optimize_residue_layout_fast(network, iterations=100, **kwargs):
     initialize_positions(proteins, ppis, components)
     
     # Apply optimized residue-level layout
-    apply_residue_level_layout_optimized(proteins, ppis, network, iterations=iterations, **kwargs)
+    apply_residue_level_layout_optimized(proteins, ppis, network, **kwargs)
 
 ##############################################################################################################
 ########################################### Contact classification ###########################################

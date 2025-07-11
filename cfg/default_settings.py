@@ -286,7 +286,7 @@ layout_3d_iterations = 10000
 # DEFAULT FINE GRAIN CONFIG
 fine_grain_layout_cfg = {
     "algorithm": "residue_optimized",
-    "iterations": 150,
+    "iterations": 200,
     "min_contact_distance": 50,
     "max_contact_distance": 60,
     "contact_force_strength": 2.0,
@@ -294,7 +294,7 @@ fine_grain_layout_cfg = {
     "torque_strength": 1.0,
     "initial_step_size": 0.5,
     "final_step_size": 0.005,
-    "min_interprotein_distance": 120.0,  # Minimum distance between protein centers
+    "min_interprotein_distance": 200.0,  # Minimum distance between protein centers
     "surface_alignment_strength": 8.0,   # Strength of surface face-to-face alignment
     "line_separation_strength": 25.0,     # Strength of contact line separation
     "n_contacts_sample": 20
