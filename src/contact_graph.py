@@ -356,7 +356,8 @@ def generate_layout_fine(self,
                    # New
                    min_interprotein_distance=150.0,  # Minimum distance between protein centers
                    surface_alignment_strength=8.0,   # Strength of surface face-to-face alignment
-                   line_separation_strength=25.0):
+                   line_separation_strength=25.0,
+                   n_contacts_sample=20):
     """
     Generate 3D layout with residue-level force field optimization.
     
@@ -375,10 +376,10 @@ def generate_layout_fine(self,
 
     self.logger.info(f"INITIALIZING: 3D layout generation using {algorithm} method...")
     
-    if len(self.proteins) < 3:
-        self.logger.warning('   - Less than 3 proteins in the network. Using legacy drl method...')
-        algorithm = "drl"
-        scaling_factor = 250
+    # if len(self.proteins) < 3:
+    #     self.logger.warning('   - Less than 3 proteins in the network. Using legacy drl method...')
+    #     algorithm = "drl"
+    #     scaling_factor = 250
 
     if algorithm == "residue_optimized":
         optimize_residue_layout_fast(self, 
@@ -392,7 +393,11 @@ def generate_layout_fine(self,
                                initial_step_size=initial_step_size,
                                final_step_size=final_step_size,
                                initial_max_rotation=initial_max_rotation,
-                               final_max_rotation=final_max_rotation)
+                               final_max_rotation=final_max_rotation,
+                               min_interprotein_distance=min_interprotein_distance,  # Minimum distance between protein centers
+                               surface_alignment_strength=surface_alignment_strength,   # Strength of surface face-to-face alignment
+                               line_separation_strength=line_separation_strength,
+                               n_contacts_sample=n_contacts_sample)
     
     elif algorithm == "optimized":
         optimize_layout(self, iterations=iterations)
@@ -419,6 +424,7 @@ def generate_layout_fine(self,
 
 ############################# Vectorized Methods #############################
 
+# OLD METHOD
 # def compute_residue_forces_vectorized(proteins, ppis, 
 #                                      min_contact_distance=5.0, 
 #                                      max_contact_distance=15.0,
@@ -637,7 +643,8 @@ def compute_residue_forces_vectorized(proteins, ppis,
                                      # NEW PARAMETERS
                                      min_interprotein_distance=50.0,
                                      surface_alignment_strength=5.0,
-                                     line_separation_strength=20.0):
+                                     line_separation_strength=20.0,
+                                     n_contacts_sample=15):
     forces = {}
     torques = {}
     
@@ -657,6 +664,13 @@ def compute_residue_forces_vectorized(proteins, ppis,
         
         if len(contacts_1) == 0:
             continue
+
+        # Sample contacts if n_contacts_sample is specified
+        if n_contacts_sample is not None and len(contacts_1) > n_contacts_sample:
+            sample_indices = np.random.choice(len(contacts_1), size=n_contacts_sample, replace=False)
+            contacts_1 = contacts_1[sample_indices]
+            contacts_2 = contacts_2[sample_indices]
+            contact_freqs = contact_freqs[sample_indices]
             
         p1_centroids = np.array(p1.get_res_centroids_xyz())
         p2_centroids = np.array(p2.get_res_centroids_xyz())
@@ -796,6 +810,12 @@ def compute_residue_forces_vectorized(proteins, ppis,
         
         if len(contacts_1) == 0:
             continue
+
+        # Sample contacts if n_contacts_sample is specified
+        if n_contacts_sample is not None and len(contacts_1) > n_contacts_sample:
+            sample_indices = np.random.choice(len(contacts_1), size=n_contacts_sample, replace=False)
+            contacts_1 = contacts_1[sample_indices]
+            contacts_2 = contacts_2[sample_indices]
         
         p1_centroids = np.array(p1.get_res_centroids_xyz())
         p2_centroids = np.array(p2.get_res_centroids_xyz())
@@ -927,7 +947,9 @@ def apply_residue_level_layout_optimized(proteins, ppis, network,
                                         final_max_rotation=0.01,
                                         min_interprotein_distance=150.0,
                                         surface_alignment_strength=8.0,
-                                        line_separation_strength=25.0):
+                                        line_separation_strength=25.0,
+                                        n_contacts_sample=20
+                                        ):
     """
     Optimized residue-level force field layout with vectorized operations.
     """
@@ -956,7 +978,8 @@ def apply_residue_level_layout_optimized(proteins, ppis, network,
             torque_strength=torque_strength * 2.0,
             min_interprotein_distance=min_interprotein_distance,
             surface_alignment_strength=surface_alignment_strength,
-            line_separation_strength=line_separation_strength
+            line_separation_strength=line_separation_strength,
+            n_contacts_sample=n_contacts_sample
         )
         
         progress = i / phase1_iterations
@@ -984,7 +1007,8 @@ def apply_residue_level_layout_optimized(proteins, ppis, network,
             torque_strength=torque_strength,
             min_interprotein_distance=min_interprotein_distance,
             surface_alignment_strength=surface_alignment_strength,
-            line_separation_strength=line_separation_strength
+            line_separation_strength=line_separation_strength,
+            n_contacts_sample=n_contacts_sample
         )
         
         progress = i / phase2_iterations
@@ -1012,7 +1036,8 @@ def apply_residue_level_layout_optimized(proteins, ppis, network,
             torque_strength=torque_strength * 0.3,
             min_interprotein_distance=min_interprotein_distance,
             surface_alignment_strength=surface_alignment_strength,
-            line_separation_strength=line_separation_strength
+            line_separation_strength=line_separation_strength,
+            n_contacts_sample=n_contacts_sample
         )
         
         apply_forces_and_torques(proteins, forces, torques,
@@ -1020,7 +1045,7 @@ def apply_residue_level_layout_optimized(proteins, ppis, network,
     
     network.logger.info('Optimized residue-level layout completed')
 
-def optimize_residue_layout_fast(network, iterations=5000, **kwargs):
+def optimize_residue_layout_fast(network, iterations=100, **kwargs):
     """
     Fast version of residue layout optimization.
     """
@@ -2292,9 +2317,9 @@ class Network(object):
             
         self.logger.info("FINISHED: 3D layout generation algorithm")
 
-    def generate_layout_fine_grain(self, algorithm="residue_optimized", iterations=5000, **kwargs):
+    def generate_layout_fine_grain(self, **kwargs):
 
-        return generate_layout_fine(self, algorithm=algorithm, iterations=iterations, **kwargs)
+        return generate_layout_fine(self, **kwargs)
 
     def generate_interactive_3d_plot(self, save_path: str = './interactive_3D_graph.html',
                                     classification_colors=rrc_classification_colors,
