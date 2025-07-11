@@ -202,24 +202,56 @@ def compare_sequences(prot_seqs: list, PDB_sequences: list, logger: Logger | Non
     if logger is None:
         logger = configure_logger()(__name__)
 
+    n_prot_seqs     = len(prot_seqs)
+    n_PDB_sequences = len(PDB_sequences)
+    n_unique_prot_seqs     = len(set(prot_seqs))
+    n_unique_PDB_sequences = len(set(PDB_sequences))
+
     # Progress
     logger.info("Detected proteins:")
-    logger.info(f"    - FASTA file    : {len(prot_seqs)}")
-    logger.info(f"    - PDB files     : {len(PDB_sequences)}")
+    logger.info(f"    - FASTA file    : {n_prot_seqs}")
+    logger.info(f"    - PDB files     : {n_PDB_sequences}")
+    logger.info("Detected UNIQUE proteins:")
+    logger.info(f"    - FASTA file    : {n_unique_prot_seqs}")
+    logger.info(f"    - PDB files     : {n_unique_PDB_sequences}")
 
     # Check if Nº of sequences are not equal
-    if len(prot_seqs) != len(PDB_sequences):
+    if n_unique_prot_seqs != n_unique_PDB_sequences:
+
+        seqs_in_fasta_but_not_in_pdbs = [seq for seq in prot_seqs if seq not in PDB_sequences]
+        seqs_in_pdbs_but_not_in_fasta = [seq for seq in PDB_sequences if seq not in prot_seqs]
 
         logger.error("Unique Nº of sequences in prot_seqs: %d", len(prot_seqs))
         logger.error("Unique Nº of sequences in PDB_sequences: %d", len(PDB_sequences))
-        
-        logger.error("Unique sequences in FASTA: %s", prot_seqs)
+        logger.error("")
+        logger.error("Unique Sequences in FASTA: %s", set(prot_seqs))
         logger.error("Unique sequences in PDBs: %s", PDB_sequences)
+        logger.error("")
+        logger.error("Sequences in FASTA but not in PDBs:\n %s", seqs_in_fasta_but_not_in_pdbs)
+        logger.error("Sequences in PDBS but not in FASTA:\n %s", seqs_in_pdbs_but_not_in_fasta)
 
         raise ValueError("Number of detected unique sequences in PDB files are not equal than those on FASTA file")
+    
+        # Check if Nº of sequences are not equal
+    if n_prot_seqs != n_PDB_sequences:
+
+        seqs_in_fasta_but_not_in_pdbs = [seq for seq in prot_seqs if seq not in PDB_sequences]
+        seqs_in_pdbs_but_not_in_fasta = [seq for seq in PDB_sequences if seq not in prot_seqs]
+
+        logger.error("Nº of sequences in prot_seqs: %d", len(prot_seqs))
+        logger.error("Unique Nº of sequences in PDB_sequences: %d", len(PDB_sequences))
+        logger.error("")
+        logger.error("Sequences in FASTA: %s", prot_seqs)
+        logger.error("Unique sequences in PDBs: %s", PDB_sequences)
+        logger.error("")
+        logger.error("Sequences in FASTA but not in PDBs:\n %s", seqs_in_fasta_but_not_in_pdbs)
+        logger.error("Sequences in PDBS but not in FASTA:\n %s", seqs_in_pdbs_but_not_in_fasta)
+        logger.error("")
+        logger.error("MultimerMapper will continue anyways, but results may be inconsistent")
+
 
     # Check the correspondence between sequences in FASTA and PDBs
-    if sorted(prot_seqs) != sorted(PDB_sequences):
+    if sorted(set(prot_seqs)) != sorted(set(PDB_sequences)):
 
         logger.error("Sorted unique sequences in FASTA: %s", sorted(prot_seqs))
         logger.error("Sorted unique sequences in PDBs: %s", sorted(PDB_sequences))

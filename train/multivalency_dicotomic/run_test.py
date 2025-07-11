@@ -36,8 +36,8 @@ N_contacts_cutoff = 3
 # }
 
 use_saved_matrices = False
-save_pickle_dict = False
-pickle_file_path = "train/multivalency_dicotomic/raw_matrices_dict.pkl"
+save_pickle_dict = True
+pickle_file_path = "/home/elvio/Desktop/multivalency_benchmark/raw_matrices_dict.pkl"
 
 if use_saved_matrices:
     with open(pickle_file_path, 'rb') as pickle_file:
