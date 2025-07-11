@@ -35,8 +35,8 @@ N_contacts_cutoff = 3
 #     }
 # }
 
-use_saved_matrices = False
-save_pickle_dict = True
+use_saved_matrices = True
+save_pickle_dict = False
 pickle_file_path = "/home/elvio/Desktop/multivalency_benchmark/raw_matrices_dict.pkl"
 
 if use_saved_matrices:

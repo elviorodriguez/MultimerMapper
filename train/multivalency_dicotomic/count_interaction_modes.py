@@ -1,9 +1,13 @@
 
+import os
 import pandas as pd
 import numpy as np
 from collections import defaultdict
 from typing import Dict, Tuple
 import logging
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+
 
 from cfg.default_settings import Nmers_contacts_cutoff
 
@@ -338,8 +342,11 @@ def compute_multivalency_metrics(interaction_counts_df: pd.DataFrame) -> Dict[Tu
         # Metric 7: Valency variance (indicates consistency)
         valency_variance = non_2mer_data['contact_count'].var() if len(non_2mer_data) > 0 else 0.0
         
-        # Metric 8: 75th percentile valency
-        valency_75th = non_2mer_data['contact_count'].quantile(0.75) if len(non_2mer_data) > 0 else 0.0
+        # Metrics 8-10: percentiles valency
+        # valency_75th = non_2mer_data['contact_count'].quantile(0.75) if len(non_2mer_data) > 0 else 0.0
+        Q1 = non_2mer_data['contact_count'].quantile(0.25) if len(non_2mer_data) > 0 else 0.0
+        Q2 = non_2mer_data['contact_count'].quantile(0.50) if len(non_2mer_data) > 0 else 0.0
+        Q3 = non_2mer_data['contact_count'].quantile(0.75) if len(non_2mer_data) > 0 else 0.0
         
         # Store all metrics
         metrics_dict[pair] = {
@@ -351,7 +358,9 @@ def compute_multivalency_metrics(interaction_counts_df: pd.DataFrame) -> Dict[Tu
             'model_consistency': model_consistency,
             'mean_valency': mean_valency,
             'valency_variance': valency_variance,
-            'valency_75th': valency_75th,
+            'valency_Q1': Q1,
+            'valency_Q2': Q2,
+            'valency_Q3': Q3,
             'total_observations': len(pair_df),
             'non_2mer_observations': len(non_2mer_data)
         }
@@ -427,7 +436,9 @@ def prepare_benchmark_data(metrics_dict: Dict[Tuple[str, str], Dict[str, float]]
                 'model_consistency': 0.0,
                 'mean_valency': 0.0,
                 'valency_variance': 0.0,
-                'valency_75th': 0.0,
+                'valency_Q1': 0.0,
+                'valency_Q2': 0.0,
+                'valency_Q3': 0.0,
                 'total_observations': 0,
                 'non_2mer_observations': 0
             }
@@ -461,7 +472,7 @@ def evaluate_metrics_roc(benchmark_df: pd.DataFrame,
         metric_columns = [
             'max_valency', 'fraction_multivalent_chains', 'weighted_multivalent',
             'fraction_stoich_multivalent', 'mean_stoich_score', 'model_consistency',
-            'mean_valency', 'valency_variance', 'valency_75th'
+            'mean_valency', 'valency_variance', 'valency_Q1', 'valency_Q2', 'valency_Q3'
         ]
     
     # Convert true labels to binary (True -> 1, False -> 0)
@@ -523,41 +534,39 @@ def evaluate_metrics_roc(benchmark_df: pd.DataFrame,
     
     return results
 
-def plot_roc_curves(roc_results: Dict[str, Dict[str, float]], 
-                   save_path: str = None,
-                   figsize: Tuple[int, int] = (10, 8)) -> None:
+def plot_roc_curves(
+    roc_results: Dict[str, Dict[str, float]], 
+    save_png_path: str = None,
+    save_html_path: str = None,
+    figsize: Tuple[int, int] = (10, 8)
+) -> None:
     """
-    Plot ROC curves for all metrics.
+    Plot ROC curves for all metrics using matplotlib and optionally Plotly.
     
     Parameters:
     -----------
     roc_results : dict
         Dictionary with ROC results from evaluate_metrics_roc
     save_path : str
-        Path to save the plot
+        Path to save the matplotlib plot (e.g., .png)
+    save_html_path : str
+        Path to save the interactive Plotly plot (e.g., .html)
     figsize : tuple
-        Figure size
+        Matplotlib figure size
     """
-    
+    # --- Matplotlib Plot ---
     plt.figure(figsize=figsize)
-    
-    # Sort metrics by AUC for consistent coloring
     sorted_metrics = sorted(roc_results.items(), key=lambda x: x[1]['auc'], reverse=True)
-    
     colors = plt.cm.Set2(np.linspace(0, 1, len(sorted_metrics)))
     
     for i, (metric, results) in enumerate(sorted_metrics):
         plt.plot(results['fpr'], results['tpr'], 
-                color=colors[i], linewidth=2,
-                label=f'{metric} (AUC = {results["auc"]:.3f})')
-        
+                 color=colors[i], linewidth=2,
+                 label=f'{metric} (AUC = {results["auc"]:.3f})')
         plt.scatter(results['fpr'], results['tpr'], 
-                color=colors[i], s=15, alpha=0.6)
-
+                    color=colors[i], s=15, alpha=0.6)
     
-    # Plot diagonal line
     plt.plot([0, 1], [0, 1], 'k--', alpha=0.5)
-    
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.title('ROC Curves - Multivalency Detection Metrics')
@@ -566,10 +575,55 @@ def plot_roc_curves(roc_results: Dict[str, Dict[str, float]],
     plt.gca().set_aspect('equal', adjustable='box')
     plt.tight_layout()
     
-    if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    if save_png_path:
+        plt.savefig(save_png_path, dpi=300, bbox_inches='tight')
     
     plt.show()
+
+    # --- Plotly Interactive Plot ---
+    if save_html_path:
+        fig = go.Figure()
+        
+        for metric, results in sorted_metrics:
+            fpr = results['fpr']
+            tpr = results['tpr']
+            cutoffs = results.get('thresholds', [None] * len(fpr))  # fallback if not present
+            
+            hover_text = [
+                f"Metric: {metric}<br>FPR: {f:.3f}<br>TPR: {t:.3f}<br>Cutoff: {c:.3f}" if c is not None
+                else f"Metric: {metric}<br>FPR: {f:.3f}<br>TPR: {t:.3f}<br>Cutoff: N/A"
+                for f, t, c in zip(fpr, tpr, cutoffs)
+            ]
+            
+            fig.add_trace(go.Scatter(
+                x=fpr, y=tpr,
+                mode='lines+markers',
+                name=f"{metric} (AUC = {results['auc']:.3f})",
+                text=hover_text,
+                hoverinfo='text'
+            ))
+        
+        fig.add_trace(go.Scatter(
+            x=[0, 1], y=[0, 1],
+            mode='lines',
+            name='Random Guess',
+            line=dict(dash='dash', color='gray'),
+            showlegend=True
+        ))
+
+        fig.update_layout(
+            title="Interactive ROC Curves - Multivalency Detection Metrics",
+            title_x=0.5,
+            xaxis_title="False Positive Rate",
+            yaxis_title="True Positive Rate",
+            legend_title="Metrics",
+            template="plotly_white"
+        )
+
+        fig.update_xaxes(range=[-0.01, 1.01], constrain='domain', autorange=False)
+        fig.update_yaxes(range=[-0.01, 1.01], constrain='domain', autorange=False, scaleanchor="x", scaleratio=1)
+
+        fig.write_html(save_html_path)
 
 def create_metrics_comparison_table(roc_results: Dict[str, Dict[str, float]]) -> pd.DataFrame:
     """
@@ -655,10 +709,11 @@ def run_multivalency_analysis(interaction_counts_df: pd.DataFrame,
     
     # Plot ROC curves
     plot_path = None
-    if output_dir:
-        plot_path = os.path.join(output_dir, 'roc_curves.png')
+    if output_dir is not None:
+        png_plot_path = os.path.join(output_dir, 'roc_curves.png')
+        html_plot_path = os.path.join(output_dir, 'roc_curves.html')
     
-    plot_roc_curves(roc_results, save_path=plot_path)
+    plot_roc_curves(roc_results, save_png_path=png_plot_path, save_html_path=html_plot_path)
     
     # Save results
     if output_dir:
