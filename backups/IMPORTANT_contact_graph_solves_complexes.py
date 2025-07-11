@@ -352,11 +352,7 @@ def generate_layout_fine(self,
                    initial_max_rotation=0.2,
                    final_max_rotation=0.01,
                    # Legacy parameters
-                   scaling_factor=None,
-                   # New
-                   min_interprotein_distance=150.0,  # Minimum distance between protein centers
-                   surface_alignment_strength=8.0,   # Strength of surface face-to-face alignment
-                   line_separation_strength=25.0):
+                   scaling_factor=None):
     """
     Generate 3D layout with residue-level force field optimization.
     
@@ -419,225 +415,18 @@ def generate_layout_fine(self,
 
 ############################# Vectorized Methods #############################
 
-# def compute_residue_forces_vectorized(proteins, ppis, 
-#                                      min_contact_distance=5.0, 
-#                                      max_contact_distance=15.0,
-#                                      contact_force_strength=1.0,
-#                                      repulsion_strength=10.0,
-#                                      global_repulsion_strength=1.0,
-#                                      torque_strength=0.5):
-#     """
-#     Vectorized computation of forces and torques on all residues.
-#     """
-    
-#     # Initialize forces and torques
-#     forces = {}
-#     torques = {}
-    
-#     for protein in proteins:
-#         protein_id = protein.get_ID()
-#         forces[protein_id] = np.zeros(3)
-#         torques[protein_id] = np.zeros(3)
-    
-#     # 1. VECTORIZED Contact-based forces
-#     for ppi in ppis:
-#         p1, p2 = ppi.get_protein_1(), ppi.get_protein_2()
-#         p1_id, p2_id = p1.get_ID(), p2.get_ID()
-        
-#         contacts_1 = np.array(ppi.get_contacts_res_1())
-#         contacts_2 = np.array(ppi.get_contacts_res_2())
-#         contact_freqs = np.array(ppi.contact_freq)
-        
-#         if len(contacts_1) == 0:
-#             continue
-            
-#         # Get all relevant centroids at once
-#         p1_centroids = np.array(p1.get_res_centroids_xyz())
-#         p2_centroids = np.array(p2.get_res_centroids_xyz())
-        
-#         # Vectorized contact positions
-#         pos1_contacts = p1_centroids[contacts_1]  # Shape: (n_contacts, 3)
-#         pos2_contacts = p2_centroids[contacts_2]  # Shape: (n_contacts, 3)
-        
-#         # Vectorized distance calculations
-#         directions = pos2_contacts - pos1_contacts  # Shape: (n_contacts, 3)
-#         distances = np.linalg.norm(directions, axis=1)  # Shape: (n_contacts,)
-        
-#         # Avoid division by zero
-#         valid_contacts = distances > 1e-6
-#         if not np.any(valid_contacts):
-#             continue
-            
-#         # Filter valid contacts
-#         distances = distances[valid_contacts]
-#         directions = directions[valid_contacts]
-#         contact_freqs = contact_freqs[valid_contacts]
-#         pos1_contacts = pos1_contacts[valid_contacts]
-#         pos2_contacts = pos2_contacts[valid_contacts]
-        
-#         # Normalize directions
-#         directions_normalized = directions / distances[:, np.newaxis]
-        
-#         # Vectorized force calculations
-#         weights = contact_freqs / np.max(contact_freqs) if len(contact_freqs) > 0 else np.ones_like(contact_freqs)
-        
-#         # Determine force magnitudes based on distance ranges
-#         repulsive_mask = distances < min_contact_distance
-#         attractive_mask = distances > max_contact_distance
-#         optimal_mask = ~(repulsive_mask | attractive_mask)
-        
-#         force_magnitudes = np.zeros_like(distances)
-        
-#         # Repulsive forces
-#         if np.any(repulsive_mask):
-#             force_magnitudes[repulsive_mask] = (
-#                 repulsion_strength * weights[repulsive_mask] * 
-#                 (min_contact_distance - distances[repulsive_mask]) / min_contact_distance
-#             )
-#             directions_normalized[repulsive_mask] *= -1  # Repulsive direction
-        
-#         # Attractive forces
-#         if np.any(attractive_mask):
-#             force_magnitudes[attractive_mask] = (
-#                 contact_force_strength * weights[attractive_mask] * 
-#                 (distances[attractive_mask] - max_contact_distance) / max_contact_distance
-#             )
-        
-#         # Optimal range forces
-#         if np.any(optimal_mask):
-#             force_magnitudes[optimal_mask] = contact_force_strength * weights[optimal_mask] * 0.1
-        
-#         # Vectorized force vectors
-#         force_vectors = force_magnitudes[:, np.newaxis] * directions_normalized
-        
-#         # Sum all forces for each protein
-#         total_force_p1 = np.sum(force_vectors, axis=0)
-#         total_force_p2 = -np.sum(force_vectors, axis=0)
-        
-#         forces[p1_id] += total_force_p1
-#         forces[p2_id] += total_force_p2
-        
-#         # Vectorized torque calculations
-#         p1_cm = p1.get_CM()
-#         p2_cm = p2.get_CM()
-        
-#         # Torque vectors
-#         r1_vectors = pos1_contacts - p1_cm  # Shape: (n_contacts, 3)
-#         r2_vectors = pos2_contacts - p2_cm  # Shape: (n_contacts, 3)
-        
-#         # Vectorized cross products
-#         torque1_vectors = np.cross(r1_vectors, force_vectors) * torque_strength * weights[:, np.newaxis]
-#         torque2_vectors = np.cross(r2_vectors, -force_vectors) * torque_strength * weights[:, np.newaxis]
-        
-#         # Sum torques
-#         total_torque_p1 = np.sum(torque1_vectors, axis=0)
-#         total_torque_p2 = np.sum(torque2_vectors, axis=0)
-        
-#         torques[p1_id] += total_torque_p1
-#         torques[p2_id] += total_torque_p2
-    
-#     # 2. VECTORIZED Global protein repulsion
-#     n_proteins = len(proteins)
-#     if n_proteins > 1:
-#         # Get all protein centers at once
-#         protein_cms = np.array([protein.get_CM() for protein in proteins])
-#         protein_ids = [protein.get_ID() for protein in proteins]
-        
-#         # Vectorized distance matrix
-#         cm_distances = squareform(pdist(protein_cms))
-        
-#         # Get protein radii
-#         protein_radii = np.array([get_protein_radius(protein) for protein in proteins])
-        
-#         # Vectorized repulsion calculations
-#         for i in range(n_proteins):
-#             for j in range(i + 1, n_proteins):
-#                 distance = cm_distances[i, j]
-#                 if distance < 1e-6:
-#                     continue
-                
-#                 direction = protein_cms[j] - protein_cms[i]
-#                 direction_normalized = direction / distance
-                
-#                 min_separation = protein_radii[i] + protein_radii[j] + 10  # 10Å buffer
-                
-#                 if distance < min_separation:
-#                     force_magnitude = global_repulsion_strength * (min_separation - distance) / min_separation
-#                     force_vector = force_magnitude * direction_normalized
-                    
-#                     forces[protein_ids[i]] -= force_vector
-#                     forces[protein_ids[j]] += force_vector
-    
-#     # 3. OPTIMIZED Non-contact residue repulsion (only for close proteins)
-#     clash_distance = 8.0
-    
-#     for i in range(len(proteins)):
-#         for j in range(i + 1, len(proteins)):
-#             p1, p2 = proteins[i], proteins[j]
-#             p1_id, p2_id = p1.get_ID(), p2.get_ID()
-            
-#             # Skip if these proteins have contacts (already handled)
-#             has_contacts = any(ppi for ppi in ppis if 
-#                               set([p1_id, p2_id]) == set([ppi.get_prot_ID_1(), ppi.get_prot_ID_2()]))
-            
-#             if has_contacts:
-#                 continue
-            
-#             # Quick distance check - only process if proteins are close
-#             p1_cm, p2_cm = p1.get_CM(), p2.get_CM()
-#             protein_distance = np.linalg.norm(p2_cm - p1_cm)
-#             p1_radius = get_protein_radius(p1)
-#             p2_radius = get_protein_radius(p2)
-            
-#             # Only process if proteins are close enough to potentially clash
-#             if protein_distance > (p1_radius + p2_radius + clash_distance * 2):
-#                 continue
-            
-#             # Vectorized residue-residue repulsion
-#             p1_centroids = np.array(p1.get_res_centroids_xyz())
-#             p2_centroids = np.array(p2.get_res_centroids_xyz())
-            
-#             # Compute all pairwise distances at once
-#             # This creates a (n_res1, n_res2, 3) array of difference vectors
-#             diff_vectors = p2_centroids[np.newaxis, :, :] - p1_centroids[:, np.newaxis, :]  # Broadcasting
-#             distances_matrix = np.linalg.norm(diff_vectors, axis=2)  # Shape: (n_res1, n_res2)
-            
-#             # Find clashing residue pairs
-#             clash_mask = distances_matrix < clash_distance
-            
-#             if not np.any(clash_mask):
-#                 continue
-            
-#             # Get indices of clashing pairs
-#             clash_indices = np.where(clash_mask)
-#             clash_distances = distances_matrix[clash_indices]
-#             clash_directions = diff_vectors[clash_indices]
-            
-#             # Vectorized force calculations for clashing residues
-#             clash_directions_normalized = clash_directions / clash_distances[:, np.newaxis]
-#             force_magnitudes = repulsion_strength * 0.5 * (clash_distance - clash_distances) / clash_distance
-#             clash_forces = force_magnitudes[:, np.newaxis] * clash_directions_normalized
-            
-#             # Sum forces for each protein
-#             total_clash_force_p1 = -np.sum(clash_forces, axis=0)
-#             total_clash_force_p2 = np.sum(clash_forces, axis=0)
-            
-#             forces[p1_id] += total_clash_force_p1
-#             forces[p2_id] += total_clash_force_p2
-    
-#     return forces, torques
-
 def compute_residue_forces_vectorized(proteins, ppis, 
                                      min_contact_distance=5.0, 
                                      max_contact_distance=15.0,
                                      contact_force_strength=1.0,
                                      repulsion_strength=10.0,
                                      global_repulsion_strength=1.0,
-                                     torque_strength=0.5,
-                                     # NEW PARAMETERS
-                                     min_interprotein_distance=50.0,
-                                     surface_alignment_strength=5.0,
-                                     line_separation_strength=20.0):
+                                     torque_strength=0.5):
+    """
+    Vectorized computation of forces and torques on all residues.
+    """
+    
+    # Initialize forces and torques
     forces = {}
     torques = {}
     
@@ -646,7 +435,7 @@ def compute_residue_forces_vectorized(proteins, ppis,
         forces[protein_id] = np.zeros(3)
         torques[protein_id] = np.zeros(3)
     
-    # 1. ENHANCED Contact-based forces with surface alignment
+    # 1. VECTORIZED Contact-based forces
     for ppi in ppis:
         p1, p2 = ppi.get_protein_1(), ppi.get_protein_2()
         p1_id, p2_id = p1.get_ID(), p2.get_ID()
@@ -658,112 +447,105 @@ def compute_residue_forces_vectorized(proteins, ppis,
         if len(contacts_1) == 0:
             continue
             
+        # Get all relevant centroids at once
         p1_centroids = np.array(p1.get_res_centroids_xyz())
         p2_centroids = np.array(p2.get_res_centroids_xyz())
         
-        pos1_contacts = p1_centroids[contacts_1]
-        pos2_contacts = p2_centroids[contacts_2]
+        # Vectorized contact positions
+        pos1_contacts = p1_centroids[contacts_1]  # Shape: (n_contacts, 3)
+        pos2_contacts = p2_centroids[contacts_2]  # Shape: (n_contacts, 3)
         
-        # Calculate surface centers
-        surface1_center = np.mean(pos1_contacts, axis=0)
-        surface2_center = np.mean(pos2_contacts, axis=0)
+        # Vectorized distance calculations
+        directions = pos2_contacts - pos1_contacts  # Shape: (n_contacts, 3)
+        distances = np.linalg.norm(directions, axis=1)  # Shape: (n_contacts,)
         
-        directions = pos2_contacts - pos1_contacts
-        distances = np.linalg.norm(directions, axis=1)
-        
+        # Avoid division by zero
         valid_contacts = distances > 1e-6
         if not np.any(valid_contacts):
             continue
-        
+            
+        # Filter valid contacts
         distances = distances[valid_contacts]
         directions = directions[valid_contacts]
         contact_freqs = contact_freqs[valid_contacts]
         pos1_contacts = pos1_contacts[valid_contacts]
         pos2_contacts = pos2_contacts[valid_contacts]
         
+        # Normalize directions
         directions_normalized = directions / distances[:, np.newaxis]
+        
+        # Vectorized force calculations
         weights = contact_freqs / np.max(contact_freqs) if len(contact_freqs) > 0 else np.ones_like(contact_freqs)
         
-        # Standard contact forces
+        # Determine force magnitudes based on distance ranges
         repulsive_mask = distances < min_contact_distance
         attractive_mask = distances > max_contact_distance
         optimal_mask = ~(repulsive_mask | attractive_mask)
         
         force_magnitudes = np.zeros_like(distances)
         
+        # Repulsive forces
         if np.any(repulsive_mask):
             force_magnitudes[repulsive_mask] = (
                 repulsion_strength * weights[repulsive_mask] * 
                 (min_contact_distance - distances[repulsive_mask]) / min_contact_distance
             )
-            directions_normalized[repulsive_mask] *= -1
+            directions_normalized[repulsive_mask] *= -1  # Repulsive direction
         
+        # Attractive forces
         if np.any(attractive_mask):
             force_magnitudes[attractive_mask] = (
                 contact_force_strength * weights[attractive_mask] * 
                 (distances[attractive_mask] - max_contact_distance) / max_contact_distance
             )
         
+        # Optimal range forces
         if np.any(optimal_mask):
             force_magnitudes[optimal_mask] = contact_force_strength * weights[optimal_mask] * 0.1
         
+        # Vectorized force vectors
         force_vectors = force_magnitudes[:, np.newaxis] * directions_normalized
         
+        # Sum all forces for each protein
         total_force_p1 = np.sum(force_vectors, axis=0)
         total_force_p2 = -np.sum(force_vectors, axis=0)
         
         forces[p1_id] += total_force_p1
         forces[p2_id] += total_force_p2
         
-        # Enhanced torque calculation with surface alignment
+        # Vectorized torque calculations
         p1_cm = p1.get_CM()
         p2_cm = p2.get_CM()
         
-        # Standard torques
-        r1_vectors = pos1_contacts - p1_cm
-        r2_vectors = pos2_contacts - p2_cm
+        # Torque vectors
+        r1_vectors = pos1_contacts - p1_cm  # Shape: (n_contacts, 3)
+        r2_vectors = pos2_contacts - p2_cm  # Shape: (n_contacts, 3)
         
+        # Vectorized cross products
         torque1_vectors = np.cross(r1_vectors, force_vectors) * torque_strength * weights[:, np.newaxis]
         torque2_vectors = np.cross(r2_vectors, -force_vectors) * torque_strength * weights[:, np.newaxis]
         
+        # Sum torques
         total_torque_p1 = np.sum(torque1_vectors, axis=0)
         total_torque_p2 = np.sum(torque2_vectors, axis=0)
-        
-        # NEW: Surface alignment torques (magnetic-like force)
-        # Create vectors from protein centers to surface centers
-        p1_to_surface1 = surface1_center - p1_cm
-        p2_to_surface2 = surface2_center - p2_cm
-        
-        # Vector between protein centers
-        protein_axis = p2_cm - p1_cm
-        protein_axis_normalized = protein_axis / (np.linalg.norm(protein_axis) + 1e-8)
-        
-        # Calculate alignment torques to orient surfaces face-to-face
-        # For p1: align surface1 to point toward p2
-        desired_p1_surface_dir = protein_axis_normalized
-        current_p1_surface_dir = p1_to_surface1 / (np.linalg.norm(p1_to_surface1) + 1e-8)
-        alignment_torque_p1 = np.cross(current_p1_surface_dir, desired_p1_surface_dir) * surface_alignment_strength
-        
-        # For p2: align surface2 to point toward p1
-        desired_p2_surface_dir = -protein_axis_normalized
-        current_p2_surface_dir = p2_to_surface2 / (np.linalg.norm(p2_to_surface2) + 1e-8)
-        alignment_torque_p2 = np.cross(current_p2_surface_dir, desired_p2_surface_dir) * surface_alignment_strength
-        
-        total_torque_p1 += alignment_torque_p1
-        total_torque_p2 += alignment_torque_p2
         
         torques[p1_id] += total_torque_p1
         torques[p2_id] += total_torque_p2
     
-    # 2. ENHANCED Global protein repulsion with minimum distance
+    # 2. VECTORIZED Global protein repulsion
     n_proteins = len(proteins)
     if n_proteins > 1:
+        # Get all protein centers at once
         protein_cms = np.array([protein.get_CM() for protein in proteins])
         protein_ids = [protein.get_ID() for protein in proteins]
         
+        # Vectorized distance matrix
         cm_distances = squareform(pdist(protein_cms))
+        
+        # Get protein radii
         protein_radii = np.array([get_protein_radius(protein) for protein in proteins])
         
+        # Vectorized repulsion calculations
         for i in range(n_proteins):
             for j in range(i + 1, n_proteins):
                 distance = cm_distances[i, j]
@@ -773,95 +555,16 @@ def compute_residue_forces_vectorized(proteins, ppis,
                 direction = protein_cms[j] - protein_cms[i]
                 direction_normalized = direction / distance
                 
-                # Use the larger of: radius-based separation or minimum distance parameter
-                radius_based_separation = protein_radii[i] + protein_radii[j] + 10
-                min_separation = max(radius_based_separation, min_interprotein_distance)
+                min_separation = protein_radii[i] + protein_radii[j] + 10  # 10Å buffer
                 
                 if distance < min_separation:
-                    # Stronger repulsion force
-                    force_magnitude = global_repulsion_strength * 2.0 * (min_separation - distance) / min_separation
+                    force_magnitude = global_repulsion_strength * (min_separation - distance) / min_separation
                     force_vector = force_magnitude * direction_normalized
                     
                     forces[protein_ids[i]] -= force_vector
                     forces[protein_ids[j]] += force_vector
     
-    # 3. NEW: Line separation forces to prevent contact lines from crossing
-    ppi_contact_lines = []
-    for ppi in ppis:
-        p1, p2 = ppi.get_protein_1(), ppi.get_protein_2()
-        p1_id, p2_id = p1.get_ID(), p2.get_ID()
-        
-        contacts_1 = np.array(ppi.get_contacts_res_1())
-        contacts_2 = np.array(ppi.get_contacts_res_2())
-        
-        if len(contacts_1) == 0:
-            continue
-        
-        p1_centroids = np.array(p1.get_res_centroids_xyz())
-        p2_centroids = np.array(p2.get_res_centroids_xyz())
-        
-        pos1_contacts = p1_centroids[contacts_1]
-        pos2_contacts = p2_centroids[contacts_2]
-        
-        # Store line segments for each contact
-        for i in range(len(contacts_1)):
-            ppi_contact_lines.append({
-                'start': pos1_contacts[i],
-                'end': pos2_contacts[i],
-                'p1_id': p1_id,
-                'p2_id': p2_id,
-                'p1_res_idx': contacts_1[i],
-                'p2_res_idx': contacts_2[i]
-            })
-    
-    # Apply line separation forces
-    for i, line1 in enumerate(ppi_contact_lines):
-        for j, line2 in enumerate(ppi_contact_lines[i+1:], start=i+1):
-            # Skip if lines are from the same PPI
-            if (line1['p1_id'] == line2['p1_id'] and line1['p2_id'] == line2['p2_id']) or \
-               (line1['p1_id'] == line2['p2_id'] and line1['p2_id'] == line2['p1_id']):
-                continue
-            
-            # Calculate minimum distance between line segments
-            line1_vec = line1['end'] - line1['start']
-            line2_vec = line2['end'] - line2['start']
-            w0 = line1['start'] - line2['start']
-            
-            a = np.dot(line1_vec, line1_vec)
-            b = np.dot(line1_vec, line2_vec)
-            c = np.dot(line2_vec, line2_vec)
-            d = np.dot(line1_vec, w0)
-            e = np.dot(line2_vec, w0)
-            
-            denominator = a*c - b*b
-            if abs(denominator) < 1e-6:
-                sc = 0.0
-                tc = 0.0
-            else:
-                sc = (b*e - c*d) / denominator
-                tc = (a*e - b*d) / denominator
-            
-            sc = np.clip(sc, 0, 1)
-            tc = np.clip(tc, 0, 1)
-            
-            closest_p1 = line1['start'] + sc * line1_vec
-            closest_p2 = line2['start'] + tc * line2_vec
-            
-            separation_vec = closest_p2 - closest_p1
-            separation_distance = np.linalg.norm(separation_vec)
-            
-            min_line_separation = 15.0  # Minimum distance between contact lines
-            if separation_distance < min_line_separation and separation_distance > 1e-6:
-                force_magnitude = line_separation_strength * (min_line_separation - separation_distance) / min_line_separation
-                force_direction = separation_vec / separation_distance
-                
-                # Apply forces to the proteins involved in both lines
-                forces[line1['p1_id']] -= force_direction * force_magnitude * (1 - sc)
-                forces[line1['p2_id']] -= force_direction * force_magnitude * sc
-                forces[line2['p1_id']] += force_direction * force_magnitude * (1 - tc)
-                forces[line2['p2_id']] += force_direction * force_magnitude * tc
-    
-    # 4. OPTIMIZED Non-contact residue repulsion (only for close proteins)
+    # 3. OPTIMIZED Non-contact residue repulsion (only for close proteins)
     clash_distance = 8.0
     
     for i in range(len(proteins)):
@@ -876,12 +579,13 @@ def compute_residue_forces_vectorized(proteins, ppis,
             if has_contacts:
                 continue
             
-            # Quick distance check
+            # Quick distance check - only process if proteins are close
             p1_cm, p2_cm = p1.get_CM(), p2.get_CM()
             protein_distance = np.linalg.norm(p2_cm - p1_cm)
             p1_radius = get_protein_radius(p1)
             p2_radius = get_protein_radius(p2)
             
+            # Only process if proteins are close enough to potentially clash
             if protein_distance > (p1_radius + p2_radius + clash_distance * 2):
                 continue
             
@@ -889,22 +593,28 @@ def compute_residue_forces_vectorized(proteins, ppis,
             p1_centroids = np.array(p1.get_res_centroids_xyz())
             p2_centroids = np.array(p2.get_res_centroids_xyz())
             
-            diff_vectors = p2_centroids[np.newaxis, :, :] - p1_centroids[:, np.newaxis, :]
-            distances_matrix = np.linalg.norm(diff_vectors, axis=2)
+            # Compute all pairwise distances at once
+            # This creates a (n_res1, n_res2, 3) array of difference vectors
+            diff_vectors = p2_centroids[np.newaxis, :, :] - p1_centroids[:, np.newaxis, :]  # Broadcasting
+            distances_matrix = np.linalg.norm(diff_vectors, axis=2)  # Shape: (n_res1, n_res2)
             
+            # Find clashing residue pairs
             clash_mask = distances_matrix < clash_distance
             
             if not np.any(clash_mask):
                 continue
             
+            # Get indices of clashing pairs
             clash_indices = np.where(clash_mask)
             clash_distances = distances_matrix[clash_indices]
             clash_directions = diff_vectors[clash_indices]
             
+            # Vectorized force calculations for clashing residues
             clash_directions_normalized = clash_directions / clash_distances[:, np.newaxis]
             force_magnitudes = repulsion_strength * 0.5 * (clash_distance - clash_distances) / clash_distance
             clash_forces = force_magnitudes[:, np.newaxis] * clash_directions_normalized
             
+            # Sum forces for each protein
             total_clash_force_p1 = -np.sum(clash_forces, axis=0)
             total_clash_force_p2 = np.sum(clash_forces, axis=0)
             
@@ -924,10 +634,7 @@ def apply_residue_level_layout_optimized(proteins, ppis, network,
                                         initial_step_size=0.5,
                                         final_step_size=0.01,
                                         initial_max_rotation=0.2,
-                                        final_max_rotation=0.01,
-                                        min_interprotein_distance=150.0,
-                                        surface_alignment_strength=8.0,
-                                        line_separation_strength=25.0):
+                                        final_max_rotation=0.01):
     """
     Optimized residue-level force field layout with vectorized operations.
     """
@@ -953,10 +660,7 @@ def apply_residue_level_layout_optimized(proteins, ppis, network,
             contact_force_strength=contact_force_strength * 2.0,
             repulsion_strength=repulsion_strength * 2.0,
             global_repulsion_strength=global_repulsion_strength * 2.0,
-            torque_strength=torque_strength * 2.0,
-            min_interprotein_distance=min_interprotein_distance,
-            surface_alignment_strength=surface_alignment_strength,
-            line_separation_strength=line_separation_strength
+            torque_strength=torque_strength * 2.0
         )
         
         progress = i / phase1_iterations
@@ -981,10 +685,7 @@ def apply_residue_level_layout_optimized(proteins, ppis, network,
             contact_force_strength=contact_force_strength,
             repulsion_strength=repulsion_strength,
             global_repulsion_strength=global_repulsion_strength,
-            torque_strength=torque_strength,
-            min_interprotein_distance=min_interprotein_distance,
-            surface_alignment_strength=surface_alignment_strength,
-            line_separation_strength=line_separation_strength
+            torque_strength=torque_strength
         )
         
         progress = i / phase2_iterations
@@ -1009,10 +710,7 @@ def apply_residue_level_layout_optimized(proteins, ppis, network,
             contact_force_strength=contact_force_strength * 0.3,
             repulsion_strength=repulsion_strength * 0.3,
             global_repulsion_strength=global_repulsion_strength * 0.3,
-            torque_strength=torque_strength * 0.3,
-            min_interprotein_distance=min_interprotein_distance,
-            surface_alignment_strength=surface_alignment_strength,
-            line_separation_strength=line_separation_strength
+            torque_strength=torque_strength * 0.3
         )
         
         apply_forces_and_torques(proteins, forces, torques,

@@ -451,7 +451,8 @@ def interactive_igraph_to_plotly(combined_graph,
             else:
                 logger.info("   Invalid input. Please enter 'y' or 'n'.")
 
-def interactive_igraph_to_py3dmol(combined_graph, logger, automatic_true = False, show_plots = True, use_web_method = True):
+def interactive_igraph_to_py3dmol(combined_graph, logger, automatic_true = False, show_plots = True,
+                                  use_web_method = True, use_coarse_grain_method = use_coarse_grain_method):
 
     # Create 3D network
     nw = Network(combined_graph, logger = logger)
@@ -463,7 +464,27 @@ def interactive_igraph_to_py3dmol(combined_graph, logger, automatic_true = False
     # Generate 3D network visualization
     while True:
 
-        nw.generate_layout(iterations = layout_3d_iterations)
+        # Chose layout method
+        if use_coarse_grain_method:
+            nw.generate_layout_coarse_grain(iterations = layout_3d_iterations)
+        else:
+            nw.generate_layout_fine_grain(**fine_grain_layout_cfg)
+            
+            # THIS END UP ASSEMBLING THE COMPLEX! INCREDIBLE! USING backups/IMPORTANT_contact_graph_solves_complexes.py code
+            # nw.generate_layout_fine_grain(
+            #     algorithm="residue_optimized",
+            #     iterations=100,
+            #     min_contact_distance=4.0,
+            #     max_contact_distance=12.0,
+            #     contact_force_strength=2.0,
+            #     repulsion_strength=15.0,
+            #     torque_strength=1.0,
+            #     initial_step_size=0.3,
+            #     final_step_size=0.005
+            # )
+
+
+        # Chose plotting method
         if use_web_method:
             nw.generate_interactive_3d_plot(save_path = graphs_dir + '/3D_graph_py3Dmol.html', show_plot = show_plots)
         else:

@@ -276,7 +276,28 @@ Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff
 # ------------- For Residue-Residue Contact (RRC) visualizations -------------
 # ----------------------------------------------------------------------------
 
+use_coarse_grain_method = False
+
+# --------------------------- Coarse grain method ----------------------------
 layout_3d_iterations = 10000
+
+# ---------------------------- Fine grain method -----------------------------
+
+# DEFAULT FINE GRAIN CONFIG
+fine_grain_layout_cfg = {
+    "algorithm": "residue_optimized",
+    "iterations": 50,
+    "min_contact_distance": 50,
+    "max_contact_distance": 80,
+    "contact_force_strength": 2.0,
+    "repulsion_strength": 12.0,
+    "torque_strength": 1.0,
+    "initial_step_size": 0.5,
+    "final_step_size": 0.005,
+    "min_interprotein_distance": 50.0,  # Minimum distance between protein centers
+    "surface_alignment_strength": 8.0,   # Strength of surface face-to-face alignment
+    "line_separation_strength": 25.0     # Strength of contact line separation
+}
 
 # # Darker colors for domains
 # DOMAIN_COLORS_RRC = [
