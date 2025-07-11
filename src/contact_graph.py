@@ -1550,7 +1550,7 @@ class Network(object):
                         <option value="residue">Residue</option>
                         <option value="secondary">Secondary Structure</option>
                         <option value="plddt">pLDDT</option>
-                        <option value="domain">Domain</option>
+                        <option value="domain" selected>Domain</option>
                     </select>
                 </div>
             </div>
@@ -1568,9 +1568,14 @@ class Network(object):
             </div>
                 
                 <div class="control-section">
-                    <h4>Contact Features</h4>
+                    <h4>Interface Features</h4>
                     <div class="contact-buttons">
                         <button id="surface-residues-toggle" class="contact-button">Show Surface Residues</button>
+                    </div>
+                </div>
+                <div class="control-section">
+                    <h4>Contact Features</h4>
+                    <div class="contact-buttons">
                         <button id="static-contacts-toggle" class="contact-button static">Show Static Contacts</button>
                         <button id="positive-contacts-toggle" class="contact-button positive">Show Positive Contacts</button>
                         <button id="negative-contacts-toggle" class="contact-button negative">Show Negative Contacts</button>
@@ -1595,12 +1600,12 @@ class Network(object):
             
             // Global variables
             let viewer = null;
-            let surfaceResiduesVisible = false;
-            let staticContactsVisible = false;
-            let positiveContactsVisible = false;
-            let negativeContactsVisible = false;
-            let proteinIdsVisible = false;
-            let terminalsVisible = false;
+            let surfaceResiduesVisible = true;
+            let staticContactsVisible = true;
+            let positiveContactsVisible = true;
+            let negativeContactsVisible = true;
+            let proteinIdsVisible = true;
+            let terminalsVisible = true;
             
             // pLDDT color scale
             const plddt_colorscale = [
@@ -1666,7 +1671,79 @@ class Network(object):
                 
                 applyCurrentStyle();
                 viewer.zoomTo();
+                
+                // Initialize all features as visible
+                updateButtonStates();
+                initializeFeatures();
+                
                 viewer.render();
+            }}
+
+            function updateButtonStates() {{
+                // Update button states to reflect initial visibility
+                const surfaceButton = document.getElementById('surface-residues-toggle');
+                const staticButton = document.getElementById('static-contacts-toggle');
+                const positiveButton = document.getElementById('positive-contacts-toggle');
+                const negativeButton = document.getElementById('negative-contacts-toggle');
+                const proteinIdsButton = document.getElementById('protein-ids-toggle');
+                const terminalsButton = document.getElementById('terminals-toggle');
+                
+                if (surfaceResiduesVisible) {{
+                    surfaceButton.textContent = 'Hide Surface Residues';
+                    surfaceButton.classList.add('active');
+                }}
+                
+                if (staticContactsVisible) {{
+                    staticButton.textContent = 'Hide Static Contacts';
+                    staticButton.classList.add('active');
+                }}
+                
+                if (positiveContactsVisible) {{
+                    positiveButton.textContent = 'Hide Positive Contacts';
+                    positiveButton.classList.add('active');
+                }}
+                
+                if (negativeContactsVisible) {{
+                    negativeButton.textContent = 'Hide Negative Contacts';
+                    negativeButton.classList.add('active');
+                }}
+                
+                if (proteinIdsVisible) {{
+                    proteinIdsButton.textContent = 'Hide Protein IDs';
+                    proteinIdsButton.classList.add('active');
+                }}
+                
+                if (terminalsVisible) {{
+                    terminalsButton.textContent = 'Hide N/C Terminals';
+                    terminalsButton.classList.add('active');
+                }}
+            }}
+
+            function initializeFeatures() {{
+                // Initialize all features that should be visible
+                if (surfaceResiduesVisible) {{
+                    addSurfaceResidues();
+                }}
+                
+                if (staticContactsVisible) {{
+                    addStaticContacts();
+                }}
+                
+                if (positiveContactsVisible) {{
+                    addPositiveContacts();
+                }}
+                
+                if (negativeContactsVisible) {{
+                    addNegativeContacts();
+                }}
+                
+                if (proteinIdsVisible) {{
+                    addProteinIdLabels();
+                }}
+                
+                if (terminalsVisible) {{
+                    addTerminalLabels();
+                }}
             }}
             
             function applyCurrentStyle() {{
