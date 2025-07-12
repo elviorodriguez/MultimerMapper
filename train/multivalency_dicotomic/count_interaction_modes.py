@@ -183,7 +183,7 @@ def compute_max_valency(interaction_counts_df: pd.DataFrame) -> Dict[Tuple[str, 
     
     return valency_dict
 
-def compute_faction_of_multivalent_chains(interaction_counts_df: pd.DataFrame, 
+def compute_fraction_of_multivalent_chains(interaction_counts_df: pd.DataFrame, 
                                           threshold: float = multivalency_metric_threshold,
                                           _model_size_filter: int = 3,
                                           _recursion_done: bool = False) -> Dict[Tuple[str, str], float]:
@@ -266,7 +266,7 @@ def compute_faction_of_multivalent_chains(interaction_counts_df: pd.DataFrame,
         
         if needs_fallback:
             # Recursive call with all N-mers
-            all_nmers_dict = compute_faction_of_multivalent_chains(
+            all_nmers_dict = compute_fraction_of_multivalent_chains(
                 interaction_counts_df, 
                 threshold=threshold,
                 _model_size_filter=None,  # Use all N-mers
@@ -287,7 +287,7 @@ def compute_faction_of_multivalent_chains(interaction_counts_df: pd.DataFrame,
 
 # Get multivalent pairs
 def get_multivalent_tuple_pairs_based_on_evidence(mm_output: dict, logger: logging.Logger, N_contacts_cutoff = Nmers_contacts_cutoff,
-                                                  multivalency_detection_metric = ["faction_of_multivalent_chains", "max_valency"][0],
+                                                  multivalency_detection_metric = ["fraction_of_multivalent_chains", "max_valency"][0],
                                                   metric_threshold = [0.167, 2][0]):
 
     pairwise_contact_matrices = mm_output['pairwise_contact_matrices']
@@ -301,8 +301,8 @@ def get_multivalent_tuple_pairs_based_on_evidence(mm_output: dict, logger: loggi
     # Compute maximum valency for each protein pair
     if multivalency_detection_metric == "max_valency":
         valency_dict = compute_max_valency(interaction_counts_df)
-    elif multivalency_detection_metric == "faction_of_multivalent_chains":
-        valency_dict = compute_faction_of_multivalent_chains(interaction_counts_df, threshold = metric_threshold)
+    elif multivalency_detection_metric == "fraction_of_multivalent_chains":
+        valency_dict = compute_fraction_of_multivalent_chains(interaction_counts_df, threshold = metric_threshold)
     else:
         logger.error(f"Unknown multivalency detection metric: {multivalency_detection_metric}")
         logger.error("   - Falling back to max valency method...")

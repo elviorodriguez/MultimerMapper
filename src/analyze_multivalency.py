@@ -23,7 +23,7 @@ from utils.combinations import get_untested_2mer_pairs, get_tested_Nmer_pairs
 from src.analyze_homooligomers import add_chain_information_to_df, does_all_have_at_least_one_interactor
 from src.convergency import does_nmer_is_fully_connected_network
 from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
-from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff, Nmer_stability_method, N_models_cutoff_convergency, Nmers_contacts_cutoff_convergency
+from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff, Nmer_stability_method, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft, Nmers_contacts_cutoff_convergency
 
 #########################################################################################
 ################################# Helper functions ######################################
@@ -1769,7 +1769,8 @@ def find_multivalency_states(combined_graph, mm_output,
                              pDockQ_cutoff_Nmers  = pDockQ_cutoff_Nmers,
                              N_models_cutoff      = N_models_cutoff,
                              Nmer_stability_method = Nmer_stability_method,
-                             N_models_cutoff_convergency = N_models_cutoff_convergency,
+                             N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
+                             miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
                              logger: Logger | None = None):
 
 
@@ -1836,10 +1837,12 @@ def find_multivalency_states(combined_graph, mm_output,
                                             mm_output,
                                             pair,
                                             Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
-                                            N_models_cutoff = N_models_cutoff_convergency)
+                                            N_models_cutoff = N_models_cutoff,
+                                            N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
+                                            miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft)
                 
                 Nmer_is_stable = is_fully_connected_network
-
+                
             else:
                 logger.error(f"   - Something went wrong! Provided Nmer_stability_method is unknown: {Nmer_stability_method}")
                 logger.error(f"      - Using default method: contact_network")
@@ -1850,7 +1853,9 @@ def find_multivalency_states(combined_graph, mm_output,
                                             mm_output,
                                             pair,
                                             Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
-                                            N_models_cutoff = N_models_cutoff_convergency)
+                                            N_models_cutoff = N_models_cutoff,
+                                            N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
+                                            miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft)
                 
                 Nmer_is_stable = is_fully_connected_network
             
@@ -1879,7 +1884,10 @@ def inform_multivalency_states(multivalency_states, logger: Logger | None = None
 def add_multivalency_state(combined_graph, mm_output, logger,
                            min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
                            pDockQ_cutoff_Nmers  = pDockQ_cutoff_Nmers,
-                           N_models_cutoff      = N_models_cutoff):
+                           N_models_cutoff      = N_models_cutoff,
+                           Nmer_stability_method = Nmer_stability_method,
+                           N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
+                           miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft):
     
     logger.info(f'INITIALIZING: Multivalency states detection algorithm...')
 
@@ -1889,7 +1897,8 @@ def add_multivalency_state(combined_graph, mm_output, logger,
                                     pDockQ_cutoff_Nmers  = pDockQ_cutoff_Nmers,
                                     N_models_cutoff      = N_models_cutoff,
                                     Nmer_stability_method = Nmer_stability_method,
-                                    N_models_cutoff_convergency = N_models_cutoff_convergency,
+                                    N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
+                                    miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
                                     logger = logger)
 
     # Initialize edge attribute

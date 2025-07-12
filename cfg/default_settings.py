@@ -245,7 +245,7 @@ save_contact_clusters    = True
 method_index = 0
 
 # Detection method
-multivalency_detection_metric = ["faction_of_multivalent_chains", "max_valency"][method_index]
+multivalency_detection_metric = ["fraction_of_multivalent_chains", "max_valency"][method_index]
 
 # Detection threshold (Best values)
 multivalency_metric_threshold = [0.167, 2][method_index]
@@ -279,10 +279,12 @@ contact_clustering_config = {
 # Recommended: contact_network
 Nmer_stability_method = ["pae", "contact_network"][1]
 
-# Soften the N_models cutoff? (default - 1)
-N_models_cutoff_convergency = N_models_cutoff - 1
+# Soften the N_models cutoff?
+softening_index = 3             # <--- Change this (higher is more soft)
+N_models_cutoff_conv_soft   = [5   , 4   , 3   , 2   , 1   ][softening_index]
+miPAE_cutoff_conv_soft      = [13.0, 10.5, 7.20, 4.50, 3.00][softening_index]
 
-# Use the same cutoff as for other Nmers?
+# Use the same cutoff as for other Nmers? 
 Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff
 
 # ----------------------------------------------------------------------------

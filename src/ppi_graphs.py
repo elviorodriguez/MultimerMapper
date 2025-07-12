@@ -16,7 +16,7 @@ from utils.combinations import find_untested_2mers, get_untested_2mer_pairs, get
 from src.interpret_dynamics import read_classification_df, classify_edge_dynamics, classification_df, get_edge_color_hex, get_edge_linetype, get_edge_weight, get_edge_oscillation
 from src.coordinate_analyzer import add_domain_RMSD_against_reference
 from src.analyze_multivalency import add_multivalency_state
-from cfg.default_settings import vertex_color1, vertex_color2, vertex_color3, vertex_color_both, Nmer_stability_method, N_models_cutoff_convergency, multivalency_detection_metric, multivalency_metric_threshold
+from cfg.default_settings import vertex_color1, vertex_color2, vertex_color3, vertex_color_both, Nmer_stability_method, multivalency_detection_metric, multivalency_metric_threshold, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft
 from utils.combinations import generate_multivalent_pair_suggestions
 from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 
@@ -804,22 +804,23 @@ def generate_combined_graph(
                    pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers)
 
     homooligomerization_states = add_homooligomerization_state(
-        graph                       = graphC,
-        pairwise_2mers_df           = pairwise_2mers_df,
-        pairwise_Nmers_df           = pairwise_Nmers_df,
-        pairwise_2mers_df_F3        = pairwise_2mers_df_F3,
-        pairwise_Nmers_df_F3        = pairwise_Nmers_df_F3,
-        edges_g1_sort               = edges_g1_sort,
-        edges_g2_sort               = edges_g2_sort,
-        untested_edges_tuples       = untested_edges_tuples,
-        tested_Nmers_edges_sorted   = tested_Nmers_edges_sorted,
-        mm_output                   = mm_output,
-        logger                      = logger,
-        min_PAE_cutoff_Nmers        = min_PAE_cutoff_Nmers,
-        pDockQ_cutoff_Nmers         = pDockQ_cutoff_Nmers,
-        N_models_cutoff             = N_models_cutoff,
-        Nmer_stability_method       = Nmer_stability_method,
-        N_models_cutoff_convergency = N_models_cutoff_convergency
+        graph                     = graphC,
+        pairwise_2mers_df         = pairwise_2mers_df,
+        pairwise_Nmers_df         = pairwise_Nmers_df,
+        pairwise_2mers_df_F3      = pairwise_2mers_df_F3,
+        pairwise_Nmers_df_F3      = pairwise_Nmers_df_F3,
+        edges_g1_sort             = edges_g1_sort,
+        edges_g2_sort             = edges_g2_sort,
+        untested_edges_tuples     = untested_edges_tuples,
+        tested_Nmers_edges_sorted = tested_Nmers_edges_sorted,
+        mm_output                 = mm_output,
+        logger                    = logger,
+        min_PAE_cutoff_Nmers      = min_PAE_cutoff_Nmers,
+        pDockQ_cutoff_Nmers       = pDockQ_cutoff_Nmers,
+        N_models_cutoff           = N_models_cutoff,
+        Nmer_stability_method     = Nmer_stability_method,
+        N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
+        miPAE_cutoff_conv_soft    = miPAE_cutoff_conv_soft
         )
     
     multivalency_states = add_multivalency_state(graphC, mm_output, logger)
