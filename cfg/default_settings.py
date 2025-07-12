@@ -288,14 +288,14 @@ use_dynamic_conv_soft_func = True
 # ------------------------------ Dynamic method ------------------------------
 
 # With FPR = 0.01
-miPAE_cutoff_conv_soft_list = [10.22, 5.61, 3.98, 2.04, 1.86]
+# miPAE_cutoff_conv_soft_list = [10.22, 5.61, 3.98, 2.04, 1.86]
 
 # With FPR = 0.05
-#miPAE_cutoff_conv_soft_list = [13.0, 10.5, 7.20, 4.50, 3.00]
+miPAE_cutoff_conv_soft_list = [13.0, 10.5, 7.20, 4.50, 3.00]
 
 # Start and end
 dynamic_conv_start = 5
-dynamic_conv_end   = 1
+dynamic_conv_end   = 2
 
 
 # ------------------------------ Static method -------------------------------
