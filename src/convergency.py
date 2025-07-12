@@ -87,10 +87,10 @@ def does_nmer_is_fully_connected_network(
     # Dynamic method: test different N-mer cutoffs
     if use_dynamic_conv_soft_func:
         
-        # DEBUG
-        print("USING DYNAMIC METHOD!")
-        print("   - PAIR:", pair)
-        print("   - proteins_in_model:", proteins_in_model)
+        # # DEBUG
+        # print("USING DYNAMIC METHOD!")
+        # print("   - PAIR:", pair)
+        # print("   - proteins_in_model:", proteins_in_model)
 
         if miPAE_cutoff_conv_soft_list is None:
             miPAE_cutoff_conv_soft_list = [13.0, 10.5, 7.20, 4.50, 3.00]  # Default from config
@@ -120,8 +120,8 @@ def does_nmer_is_fully_connected_network(
             current_miPAE_cutoff = miPAE_cutoff_conv_soft_list[i]
             current_N_models_cutoff = N_models_cutoff_list[i]
             
-            # DEBUG
-            print(f"   - Testing: miPAE_cutoff={current_miPAE_cutoff}, N_models_cutoff={current_N_models_cutoff}")
+            # # DEBUG
+            # print(f"   - Testing: miPAE_cutoff={current_miPAE_cutoff}, N_models_cutoff={current_N_models_cutoff}")
 
             # Track how many ranks have fully connected networks for this cutoff
             ranks_with_fully_connected_network = 0
@@ -142,8 +142,8 @@ def does_nmer_is_fully_connected_network(
                         # Try to find contact data for this chain pair in this rank
                         chain_pair = (chain1, chain2)
 
-                        # DEBUG
-                        print("      - chain_pair:", chain_pair)
+                        # # DEBUG
+                        # print("      - chain_pair:", chain_pair)
 
                         try:
                             # Always recompute when using dynamic method
@@ -159,20 +159,20 @@ def does_nmer_is_fully_connected_network(
                             
                             num_contacts = contacts.sum()
 
-                            # DEBUG
-                            print("      - num_contacts:", num_contacts)
+                            # # DEBUG
+                            # print("      - num_contacts:", num_contacts)
                             
                             # If contacts exceed threshold, add edge to graph
                             if num_contacts >= Nmers_contacts_cutoff:
                                 G.add_edge(chain1, chain2)
 
-                                # DEBUG
-                                print("      - SURPASSED CUTOFF!")
+                                # # DEBUG
+                                # print("      - SURPASSED CUTOFF!")
 
                         except KeyError:
                             
-                            # DEBUG
-                            print("      - This chain pair might not exist in the contact matrices")
+                            # # DEBUG
+                            # print("      - This chain pair might not exist in the contact matrices")
 
                             # This chain pair might not exist in the contact matrices
                             pass
@@ -184,15 +184,15 @@ def does_nmer_is_fully_connected_network(
             # Check if this cutoff gives a fully connected network using the current N_models cutoff
             if ranks_with_fully_connected_network >= current_N_models_cutoff:
 
-                # DEBUG
-                print(f"      - ranks_with_fully_connected_network: {ranks_with_fully_connected_network}")
-                print(f"      - current_N_models_cutoff: {current_N_models_cutoff}")
-                print(f"      - proteins_in_model {proteins_in_model} is stable!")
+                # # DEBUG
+                # print(f"      - ranks_with_fully_connected_network: {ranks_with_fully_connected_network}")
+                # print(f"      - current_N_models_cutoff: {current_N_models_cutoff}")
+                # print(f"      - proteins_in_model {proteins_in_model} is stable!")
 
                 return True
         
-        # DEBUG
-        print(f"      - proteins_in_model {proteins_in_model} is UNSTABLE!")
+        # # DEBUG
+        # print(f"      - proteins_in_model {proteins_in_model} is UNSTABLE!")
 
         # If no cutoff worked, return False
         return False
