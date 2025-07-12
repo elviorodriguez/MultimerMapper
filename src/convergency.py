@@ -4,6 +4,7 @@ import networkx as nx
 from typing import Dict, Tuple, Any
 
 from cfg.default_settings import contact_distance_cutoff, contact_pLDDT_cutoff, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft, Nmers_contacts_cutoff_convergency
+from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list
 
 def recompute_contact_matrix(min_diagonal_PAE_matrix, min_pLDDT_matrix, distance_matrix,
                              PAE_cutoff , pLDDT_cutoff, contact_distance):
@@ -24,19 +25,54 @@ def does_nmer_is_fully_connected_network(
         contact_distance_cutoff: float = contact_distance_cutoff,
         N_models_cutoff: int = 4,
         N_models_cutoff_conv_soft: int = N_models_cutoff_conv_soft,
-        miPAE_cutoff_conv_soft: float = miPAE_cutoff_conv_soft) -> bool:
+        miPAE_cutoff_conv_soft: float = miPAE_cutoff_conv_soft,
+        use_dynamic_conv_soft_func: bool = False,
+        miPAE_cutoff_conv_soft_list: list = None,
+        dynamic_conv_start: int = 5,
+        dynamic_conv_end: int = 1) -> bool:
     """
     Check if all subunits form a fully connected network using contacts.
+    
+    This function can operate in two modes:
+    1. Static mode: Uses fixed cutoffs to evaluate network connectivity
+    2. Dynamic mode: Tests multiple miPAE cutoffs (from strictest to most lenient)
+                     and returns True as soon as a fully connected network is found
     
     Args:
         model_pairwise_df (pd.DataFrame): DataFrame containing pairwise interactions.
         mm_output (Dict): Dictionary containing contact matrices.
         pair (Tuple[str, str]): The protein pair being analyzed.
-        Nmers_contacts_cutoff (int, optional): Minimum number of contacts to consider interaction. Defaults to 3.
-        N_models_cutoff (int, optional): Minimum number of ranks that need to be fully connected. Defaults to 1.
+        Nmers_contacts_cutoff (int, optional): Minimum number of contacts to consider 
+            interaction. Defaults to Nmers_contacts_cutoff_convergency.
+        contact_distance_cutoff (float, optional): Distance cutoff for contacts. 
+            Defaults to contact_distance_cutoff.
+        N_models_cutoff (int, optional): Original models cutoff. Defaults to 4.
+        N_models_cutoff_conv_soft (int, optional): Minimum number of ranks that need 
+            to be fully connected. Defaults to N_models_cutoff_conv_soft.
+        miPAE_cutoff_conv_soft (float, optional): miPAE cutoff for static mode. 
+            Defaults to miPAE_cutoff_conv_soft.
+        use_dynamic_conv_soft_func (bool, optional): If True, uses dynamic mode with 
+            multiple miPAE cutoffs. If False, uses static mode. Defaults to False.
+        miPAE_cutoff_conv_soft_list (list, optional): List of miPAE cutoffs to test 
+            in dynamic mode (from strictest to most lenient). If None, uses default 
+            [13.0, 10.5, 7.20, 4.50, 3.00]. Defaults to None.
+        dynamic_conv_start (int, optional): Starting N_models cutoff value for dynamic 
+            testing (inclusive). Defaults to 5.
+        dynamic_conv_end (int, optional): Ending N_models cutoff value for dynamic 
+            testing (inclusive). Defaults to 1.
     
     Returns:
-        bool: True if network is fully connected in at least N_models_cutoff ranks, False otherwise.
+        bool: True if network is fully connected according to the specified criteria, 
+              False otherwise. In dynamic mode, returns True as soon as any tested 
+              cutoff produces a fully connected network.
+    
+    Notes:
+        - In static mode, contact matrices are recomputed only if 
+          N_models_cutoff_conv_soft != N_models_cutoff
+        - In dynamic mode, contact matrices are always recomputed for each tested 
+          miPAE cutoff
+        - Dynamic mode tests cutoffs from strictest (lowest miPAE) to most lenient 
+          (highest miPAE) and stops at the first successful one
     """
     # Get all unique chains in this model
     all_chains = get_set_of_chains_in_model(model_pairwise_df)
@@ -46,8 +82,127 @@ def does_nmer_is_fully_connected_network(
         return False
     proteins_in_model = model_pairwise_df.iloc[0]['proteins_in_model']
     
-    # Track how many ranks have fully connected networks
-    ranks_with_fully_connected_network = 0
+    # ------------------------------------ DYNAMIC METHOD ------------------------------------
+
+    # Dynamic method: test different N-mer cutoffs
+    if use_dynamic_conv_soft_func:
+        
+        # DEBUG
+        print("USING DYNAMIC METHOD!")
+        print("   - PAIR:", pair)
+        print("   - proteins_in_model:", proteins_in_model)
+
+        if miPAE_cutoff_conv_soft_list is None:
+            miPAE_cutoff_conv_soft_list = [13.0, 10.5, 7.20, 4.50, 3.00]  # Default from config
+        
+        # Corresponding N_models cutoffs for each miPAE cutoff
+        N_models_cutoff_list = [5, 4, 3, 2, 1]
+        
+        # Determine which indices to test based on dynamic_conv_start and dynamic_conv_end
+        # Find the indices that correspond to the requested N_models cutoffs
+        start_idx = None
+        end_idx = None
+        
+        for i, n_models in enumerate(N_models_cutoff_list):
+            if n_models == dynamic_conv_start:
+                start_idx = i
+            if n_models == dynamic_conv_end:
+                end_idx = i
+        
+        # If indices not found, use default behavior
+        if start_idx is None:
+            start_idx = 0
+        if end_idx is None:
+            end_idx = len(N_models_cutoff_list) - 1
+        
+        # Test from start_idx to end_idx (inclusive)
+        for i in range(start_idx, end_idx + 1):
+            current_miPAE_cutoff = miPAE_cutoff_conv_soft_list[i]
+            current_N_models_cutoff = N_models_cutoff_list[i]
+            
+            # DEBUG
+            print(f"   - Testing: miPAE_cutoff={current_miPAE_cutoff}, N_models_cutoff={current_N_models_cutoff}")
+
+            # Track how many ranks have fully connected networks for this cutoff
+            ranks_with_fully_connected_network = 0
+            
+            # For each rank (1-5)
+            for rank in range(1, 6):
+                # Create a graph for this rank
+                G = nx.Graph()
+                # Add all chains as nodes
+                G.add_nodes_from(all_chains)
+                
+                # For each pair of chains
+                for chain1 in all_chains:
+                    for chain2 in all_chains:
+                        if chain1 >= chain2:  # Skip self-connections and avoid double counting
+                            continue
+                        
+                        # Try to find contact data for this chain pair in this rank
+                        chain_pair = (chain1, chain2)
+
+                        # DEBUG
+                        print("      - chain_pair:", chain_pair)
+
+                        try:
+                            # Always recompute when using dynamic method
+                            pairwise_contact_matrices = mm_output['pairwise_contact_matrices'][pair][(proteins_in_model, chain_pair, rank)]
+                            min_diagonal_PAE_matrix   = pairwise_contact_matrices['PAE']
+                            min_pLDDT_matrix          = pairwise_contact_matrices['min_pLDDT']
+                            distance_matrix           = pairwise_contact_matrices['distance']
+
+                            contacts = recompute_contact_matrix(min_diagonal_PAE_matrix, min_pLDDT_matrix, distance_matrix,
+                                                                PAE_cutoff      = current_miPAE_cutoff,
+                                                                pLDDT_cutoff    = contact_pLDDT_cutoff,
+                                                                contact_distance= contact_distance_cutoff)
+                            
+                            num_contacts = contacts.sum()
+
+                            # DEBUG
+                            print("      - num_contacts:", num_contacts)
+                            
+                            # If contacts exceed threshold, add edge to graph
+                            if num_contacts >= Nmers_contacts_cutoff:
+                                G.add_edge(chain1, chain2)
+
+                                # DEBUG
+                                print("      - SURPASSED CUTOFF!")
+
+                        except KeyError:
+                            
+                            # DEBUG
+                            print("      - This chain pair might not exist in the contact matrices")
+
+                            # This chain pair might not exist in the contact matrices
+                            pass
+                
+                # Check if graph is connected (all nodes can reach all other nodes)
+                if len(all_chains) > 0 and nx.is_connected(G):
+                    ranks_with_fully_connected_network += 1
+            
+            # Check if this cutoff gives a fully connected network using the current N_models cutoff
+            if ranks_with_fully_connected_network >= current_N_models_cutoff:
+
+                # DEBUG
+                print(f"      - ranks_with_fully_connected_network: {ranks_with_fully_connected_network}")
+                print(f"      - current_N_models_cutoff: {current_N_models_cutoff}")
+                print(f"      - proteins_in_model {proteins_in_model} is stable!")
+
+                return True
+        
+        # DEBUG
+        print(f"      - proteins_in_model {proteins_in_model} is UNSTABLE!")
+
+        # If no cutoff worked, return False
+        return False
+    
+    # ------------------------------------ STATIC METHOD ------------------------------------
+
+    # Static method (original logic)
+    else:
+        # Track how many ranks have fully connected networks
+        ranks_with_fully_connected_network = 0
     
     # For each rank (1-5)
     for rank in range(1, 6):

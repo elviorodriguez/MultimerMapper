@@ -3218,7 +3218,8 @@ class Network(object):
                         fontSize: 20,
                         fontColor: 'black',
                         backgroundOpacity: 0.0,
-                        font: 'bold Arial'
+                        fontWeight: 'bold',
+                        fontFamily: 'Arial'
                     }});
                     
                     viewer.addLabel('C', {{
@@ -3226,7 +3227,8 @@ class Network(object):
                         fontSize: 20,
                         fontColor: 'black',
                         backgroundOpacity: 0.0,
-                        font: 'bold Arial'
+                        fontWeight: 'bold',
+                        fontFamily: 'Arial'
                     }});
                 }});
             }}

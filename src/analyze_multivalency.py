@@ -24,6 +24,8 @@ from src.analyze_homooligomers import add_chain_information_to_df, does_all_have
 from src.convergency import does_nmer_is_fully_connected_network
 from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff, Nmer_stability_method, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft, Nmers_contacts_cutoff_convergency
+from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, dynamic_conv_start, dynamic_conv_end
+
 
 #########################################################################################
 ################################# Helper functions ######################################
@@ -1771,6 +1773,10 @@ def find_multivalency_states(combined_graph, mm_output,
                              Nmer_stability_method = Nmer_stability_method,
                              N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
                              miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
+                             use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+                             miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+                             dynamic_conv_start = dynamic_conv_start,
+                             dynamic_conv_end = dynamic_conv_end,
                              logger: Logger | None = None):
 
 
@@ -1839,7 +1845,11 @@ def find_multivalency_states(combined_graph, mm_output,
                                             Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
                                             N_models_cutoff = N_models_cutoff,
                                             N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
-                                            miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft)
+                                            miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
+                                            use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+                                            miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+                                            dynamic_conv_start = dynamic_conv_start,
+                                            dynamic_conv_end = dynamic_conv_end)
                 
                 Nmer_is_stable = is_fully_connected_network
                 
@@ -1855,7 +1865,11 @@ def find_multivalency_states(combined_graph, mm_output,
                                             Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
                                             N_models_cutoff = N_models_cutoff,
                                             N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
-                                            miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft)
+                                            miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
+                                            use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+                                            miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+                                            dynamic_conv_start = dynamic_conv_start,
+                                            dynamic_conv_end = dynamic_conv_end)
                 
                 Nmer_is_stable = is_fully_connected_network
             
@@ -1887,7 +1901,11 @@ def add_multivalency_state(combined_graph, mm_output, logger,
                            N_models_cutoff      = N_models_cutoff,
                            Nmer_stability_method = Nmer_stability_method,
                            N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
-                           miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft):
+                           miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
+                           use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+                           miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+                           dynamic_conv_start = dynamic_conv_start,
+                           dynamic_conv_end = dynamic_conv_end):
     
     logger.info(f'INITIALIZING: Multivalency states detection algorithm...')
 
@@ -1899,6 +1917,10 @@ def add_multivalency_state(combined_graph, mm_output, logger,
                                     Nmer_stability_method = Nmer_stability_method,
                                     N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
                                     miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
+                                    use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+                                    miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+                                    dynamic_conv_start = dynamic_conv_start,
+                                    dynamic_conv_end = dynamic_conv_end,
                                     logger = logger)
 
     # Initialize edge attribute

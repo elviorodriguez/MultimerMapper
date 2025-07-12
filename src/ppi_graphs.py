@@ -17,6 +17,7 @@ from src.interpret_dynamics import read_classification_df, classify_edge_dynamic
 from src.coordinate_analyzer import add_domain_RMSD_against_reference
 from src.analyze_multivalency import add_multivalency_state
 from cfg.default_settings import vertex_color1, vertex_color2, vertex_color3, vertex_color_both, Nmer_stability_method, multivalency_detection_metric, multivalency_metric_threshold, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft
+from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, dynamic_conv_start, dynamic_conv_end
 from utils.combinations import generate_multivalent_pair_suggestions
 from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 
@@ -820,7 +821,11 @@ def generate_combined_graph(
         N_models_cutoff           = N_models_cutoff,
         Nmer_stability_method     = Nmer_stability_method,
         N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
-        miPAE_cutoff_conv_soft    = miPAE_cutoff_conv_soft
+        miPAE_cutoff_conv_soft    = miPAE_cutoff_conv_soft,
+        use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+        miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+        dynamic_conv_start = dynamic_conv_start,
+        dynamic_conv_end = dynamic_conv_end,
         )
     
     multivalency_states = add_multivalency_state(graphC, mm_output, logger)
@@ -983,7 +988,11 @@ def format_homooligomerization_states(homooligomerization_states, symmetry_fallb
     elif homooligomerization_states['2mer_interact'] is None:
         formatted_N_states = '<b style="color:orange;">2</b>|'
     else:
-        formatted_N_states = '<b style="color:red;">2</b>|'
+        # If 2-mer is not stable and no higher-order states were computed, return just the red 2
+        if all(state is None for state in homooligomerization_states["N_states"]):
+            return '<b style="color:red;">2</b>'
+        else:
+            formatted_N_states = '<b style="color:red;">2</b>|'
 
 
     for N, (is_ok, N_state) in enumerate(zip(homooligomerization_states["is_ok"], homooligomerization_states["N_states"]), start = 3):

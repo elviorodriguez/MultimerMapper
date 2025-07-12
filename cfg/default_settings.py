@@ -279,13 +279,31 @@ contact_clustering_config = {
 # Recommended: contact_network
 Nmer_stability_method = ["pae", "contact_network"][1]
 
+# Use the same cutoff as for other Nmers? 
+Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff
+
+# Dynamic softening function
+use_dynamic_conv_soft_func = True
+
+# ------------------------------ Dynamic method ------------------------------
+
+# With FPR = 0.01
+miPAE_cutoff_conv_soft_list = [10.22, 5.61, 3.98, 2.04, 1.86]
+
+# With FPR = 0.05
+#miPAE_cutoff_conv_soft_list = [13.0, 10.5, 7.20, 4.50, 3.00]
+
+# Start and end
+dynamic_conv_start = 5
+dynamic_conv_end   = 1
+
+
+# ------------------------------ Static method -------------------------------
+
 # Soften the N_models cutoff?
 softening_index = 3             # <--- Change this (higher is more soft)
 N_models_cutoff_conv_soft   = [5   , 4   , 3   , 2   , 1   ][softening_index]
 miPAE_cutoff_conv_soft      = [13.0, 10.5, 7.20, 4.50, 3.00][softening_index]
-
-# Use the same cutoff as for other Nmers? 
-Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff
 
 # ----------------------------------------------------------------------------
 # ------------- For Residue-Residue Contact (RRC) visualizations -------------

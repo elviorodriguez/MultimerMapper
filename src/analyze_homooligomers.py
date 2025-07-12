@@ -5,6 +5,7 @@ import pandas as pd
 from src.convergency import does_nmer_is_fully_connected_network
 from src.interpret_dynamics import classify_edge_dynamics, classification_df
 from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff, Nmer_stability_method, Nmers_contacts_cutoff_convergency, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft
+from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, dynamic_conv_start, dynamic_conv_end
 
 def does_2mer_homodimerize(query_protein: str, pairwise_2mers_df: pd.DataFrame, pairwise_2mers_df_F3: pd.DataFrame):
     '''Returns True if homo-2-mer forms, False if not, and None if it was not tested'''
@@ -210,7 +211,11 @@ def find_homooligomerization_breaks(pairwise_2mers_df, pairwise_Nmers_df, pairwi
                                     N_models_cutoff,
                                     Nmer_stability_method = Nmer_stability_method,
                                     N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
-                                    miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft):
+                                    miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
+                                    use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+                                    miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+                                    dynamic_conv_start = dynamic_conv_start,
+                                    dynamic_conv_end = dynamic_conv_end,):
     
     # Proteins that homodimerize
     homodim_prots: set = get_proteins_that_homodimerize(pairwise_2mers_df_F3, pairwise_Nmers_df_F3)
@@ -313,7 +318,11 @@ def find_homooligomerization_breaks(pairwise_2mers_df, pairwise_Nmers_df, pairwi
                                             Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
                                             N_models_cutoff = N_models_cutoff,
                                             N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
-                                            miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft)
+                                            miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
+                                            use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+                                            miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+                                            dynamic_conv_start = dynamic_conv_start,
+                                            dynamic_conv_end = dynamic_conv_end)
                 
                 Nmer_is_stable = is_fully_connected_network
 
@@ -330,7 +339,11 @@ def find_homooligomerization_breaks(pairwise_2mers_df, pairwise_Nmers_df, pairwi
                                             Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
                                             N_models_cutoff = N_models_cutoff,
                                             N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
-                                            miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft)
+                                            miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
+                                            use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+                                            miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+                                            dynamic_conv_start = dynamic_conv_start,
+                                            dynamic_conv_end = dynamic_conv_end)
                 
                 Nmer_is_stable = is_fully_connected_network
             
@@ -355,7 +368,11 @@ def add_homooligomerization_state(graph, pairwise_2mers_df, pairwise_Nmers_df, p
                                   N_models_cutoff       = N_models_cutoff,
                                   Nmer_stability_method = Nmer_stability_method,
                                   N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
-                                  miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft):
+                                  miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
+                                  use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+                                  miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+                                  dynamic_conv_start = dynamic_conv_start,
+                                  dynamic_conv_end = dynamic_conv_end,):
 
     # Compute homooligomerization data
     homooligomerization_states = find_homooligomerization_breaks(
@@ -370,7 +387,12 @@ def add_homooligomerization_state(graph, pairwise_2mers_df, pairwise_Nmers_df, p
                                         N_models_cutoff = N_models_cutoff,
                                         Nmer_stability_method = Nmer_stability_method,
                                         N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
-                                        miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft)
+                                        miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
+                                        use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+                                        miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+                                        dynamic_conv_start = dynamic_conv_start,
+                                        dynamic_conv_end = dynamic_conv_end
+                                        )
 
     # Initialize edge attribute
     graph.es["homooligomerization_states"] = None
