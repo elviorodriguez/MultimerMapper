@@ -783,8 +783,8 @@ def run_multivalency_analysis(interaction_counts_df: pd.DataFrame,
     # Plot ROC curves
     plot_path = None
     if output_dir is not None:
-        png_plot_path = os.path.join(output_dir, 'roc_curves.png')
-        html_plot_path = os.path.join(output_dir, 'roc_curves.html')
+        png_plot_path = os.path.join(output_dir, 'benchmark_roc_curves.png')
+        html_plot_path = os.path.join(output_dir, 'benchmark_roc_curves.html')
     
     plot_roc_curves(roc_results, save_png_path=png_plot_path, save_html_path=html_plot_path)
     
@@ -793,10 +793,10 @@ def run_multivalency_analysis(interaction_counts_df: pd.DataFrame,
         os.makedirs(output_dir, exist_ok=True)
         
         # Save comparison table
-        comparison_table.to_csv(os.path.join(output_dir, 'metrics_comparison.csv'), index=False)
+        comparison_table.to_csv(os.path.join(output_dir, 'benchmark_metrics_comparison.tsv'), sep='\t', index=False)
         
         # Save benchmark data
-        benchmark_df.to_csv(os.path.join(output_dir, 'benchmark_data.csv'), index=False)
+        benchmark_df.to_csv(os.path.join(output_dir, 'benchmark_data.tsv'), sep='\t', index=False)
         
         # # Save detailed results
         # import json
