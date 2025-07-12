@@ -611,6 +611,8 @@ def plot_roc_curves(
             showlegend=True
         ))
 
+        fig.data = fig.data[::-1]
+
         fig.update_layout(
             title="Interactive ROC Curves - Multivalency Detection Metrics",
             title_x=0.5,
@@ -619,6 +621,7 @@ def plot_roc_curves(
             legend_title="Metrics",
             template="plotly_white"
         )
+
 
         fig.update_xaxes(range=[-0.01, 1.01], constrain='domain', autorange=False)
         fig.update_yaxes(range=[-0.01, 1.01], constrain='domain', autorange=False, scaleanchor="x", scaleratio=1)
