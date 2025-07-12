@@ -4,7 +4,9 @@ import json
 import html
 import numpy as np
 from Bio.PDB import PDBParser
+from Bio.PDB.Polypeptide import protein_letters_3to1
 
+from cfg.default_settings import DOMAIN_COLORS_RRC
 
 def get_residue_centroid(residue):
     """Calculate the centroid of a residue's atoms."""
@@ -87,7 +89,8 @@ def map_index_to_chain_residue(index, chains_in_model, chain_idx):
 
 
 def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, output_html, 
-                               protein1_name, protein2_name, cluster_id, logger):
+                               protein1_name, protein2_name, cluster_id, logger, 
+                               domain_colors=None, mm_output = None):
     """
     Create an HTML visualization for protein contacts.
     
@@ -110,11 +113,95 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
     structure = parser.get_structure('protein', pdb_file)
     model = structure[0]
 
-    # Get chain lengths
+    # Get chain lengths and sequences
     chain_lengths = {}
+    chain_sequences = {}
+    chain_to_protein_id = {}  # Map chain to protein ID
+
     for chain_idx, chain in enumerate(model):
         chain_id = chain.get_id()
         chain_lengths[chain_idx] = len(chain)
+        
+        # Extract sequence from chain residues
+        chain_seq = ""
+        for residue in chain:
+            if residue.get_id()[0] == ' ':  # Only standard amino acids
+                try:
+                    # Convert 3-letter code to 1-letter code
+                    aa_code = protein_letters_3to1[residue.get_resname()]
+                    chain_seq += aa_code
+                except KeyError:
+                    logger.error(f"Non-standard residues: {residue.get_resname()}")
+                    # Skip non-standard residues
+                    continue
+        
+        chain_sequences[chain_idx] = chain_seq
+        
+        # Match chain sequence to protein ID from mm_output
+        if mm_output and 'sliced_PAE_and_pLDDTs' in mm_output:
+            for protein_id, protein_data in mm_output['sliced_PAE_and_pLDDTs'].items():
+                mm_sequence = protein_data['sequence']
+                # Check if sequences match (allowing for some flexibility)
+                if chain_seq == mm_sequence or chain_seq in mm_sequence or mm_sequence in chain_seq:
+                    chain_to_protein_id[chain_idx] = protein_id
+                    break
+
+    # Generate domain colors if provided
+    domain_colors_list = []
+    if domain_colors and mm_output and 'domains_df' in mm_output:
+        # Get the maximum domain number from domains_df
+        max_domain_value = mm_output['domains_df']['Domain'].max()
+        from src.contact_graph import generate_unique_colors  # Import your color generation function
+        domain_colors_list = generate_unique_colors(n=max_domain_value + 1, palette=domain_colors)
+
+    # Extract protein center of mass and terminal information
+    proteins_info = []
+    if mm_output and 'sliced_PAE_and_pLDDTs' in mm_output:
+        for chain_idx, chain in enumerate(model):
+            chain_id = chain.get_id()
+            
+            # Get protein ID for this chain
+            protein_id = chain_to_protein_id.get(chain_idx)
+            if not protein_id:
+                continue
+                
+            # Calculate center of mass from CA atoms
+            ca_coords = []
+            residue_coords = []
+            
+            for residue in chain:
+                if residue.get_id()[0] == ' ':  # Only standard residues
+                    try:
+                        ca_atom = residue['CA']
+                        ca_coords.append(ca_atom.get_coord())
+                        residue_coords.append(ca_atom.get_coord())
+                    except KeyError:
+                        continue
+            
+            if ca_coords:
+                # Calculate center of mass (simple average of CA coordinates)
+                ca_coords = np.array(ca_coords)
+                cm = np.mean(ca_coords, axis=0)
+                
+                # Get N-terminal and C-terminal coordinates
+                n_term = ca_coords[0]  # First CA
+                c_term = ca_coords[-1]  # Last CA
+                
+                # Get domains for this protein from domains_df
+                domains = []
+                if 'domains_df' in mm_output:
+                    protein_domains = mm_output['domains_df'][mm_output['domains_df']['Protein_ID'] == protein_id]
+                    domains = protein_domains['Domain'].tolist()
+                
+                protein_info = {
+                    'id': protein_id,
+                    'chain': chain_id,
+                    'cm': {'x': float(cm[0]), 'y': float(cm[1]), 'z': float(cm[2])},
+                    'n_term': {'x': float(n_term[0]), 'y': float(n_term[1]), 'z': float(n_term[2])},
+                    'c_term': {'x': float(c_term[0]), 'y': float(c_term[1]), 'z': float(c_term[2])},
+                    'domains': domains
+                }
+                proteins_info.append(protein_info)
 
     # Parse contact matrix
     contacts = parse_contact_matrix(contact_matrix, chains_in_model, L1 = chain_lengths[0], L2 = chain_lengths[1])
@@ -361,6 +448,7 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                     <option value="residue">Residue</option>
                     <option value="secondary">Secondary Structure</option>
                     <option value="plddt">pLDDT</option>
+                    <option value="domain">Domain</option>
                 </select>
             </div>
             
@@ -379,6 +467,18 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                 <button id="centroids-toggle" class="toggle-button">Show Centroids</button>
                 <button id="contacts-toggle" class="toggle-button">Show Contacts</button>
             </div>
+
+            <div class="control-group">
+                <label>Labels:</label>
+                <button id="protein-ids-toggle" class="toggle-button">Show Protein IDs</button>
+                <button id="terminals-toggle" class="toggle-button">Show N/C Terminals</button>
+            </div>
+
+            <div class="control-group">
+                <label>View:</label>
+                <button id="zoom-reset">Reset Zoom</button>
+            </div>
+
         </div>
         
         <div class="info-panel">
@@ -405,11 +505,15 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
         const centroidsData = {json.dumps(centroids_data)};
         const backboneData = {json.dumps(backbone_data)};
         const contactsData = {json.dumps(contacts_data)};
+        const domainColors = {json.dumps(domain_colors_list)};
+        const proteinsData = {json.dumps(proteins_info)};
         
         // Global variables
         let viewer = null;
         let centroidsVisible = false;
         let contactsVisible = false;
+        let proteinIdsVisible = false;
+        let terminalsVisible = false;
         
         // pLDDT color scale
         const plddt_colorscale = [
@@ -487,25 +591,45 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
             viewer.setStyle({{}}, {{}});
             
             // Apply main style
-            let styleObj = {{}};
-            
-            if (colorScheme === 'chain') {{
-                styleObj[style] = {{colorscheme: 'chainHetatm'}};
-            }} else if (colorScheme === 'spectrum') {{
-                styleObj[style] = {{color: 'spectrum'}};
-            }} else if (colorScheme === 'residue') {{
-                styleObj[style] = {{colorscheme: 'amino'}};
-            }} else if (colorScheme === 'secondary') {{
-                styleObj[style] = {{colorscheme: 'ssPyMOL'}};
-            }} else if (colorScheme === 'plddt') {{
-                styleObj[style] = {{colorfunc: function(atom) {{
-                    const bfactor = Math.max(0, Math.min(100, atom.b));
-                    const normalizedValue = bfactor / 100;
-                    return getColorFromScale(normalizedValue, plddt_colorscale);
-                }}}};
+            if (colorScheme === 'domain' && domainColors.length > 0) {{
+                // Apply domain coloring
+                proteinsData.forEach(protein => {{
+                    protein.domains.forEach((domain, index) => {{
+                        const styleObj = {{}};
+                        styleObj[style] = {{color: domainColors[domain]}};
+                        
+                        // If you have domain start/end residue information, use it here
+                        // For now, color the entire chain with the first domain color
+                        if (index === 0) {{
+                            viewer.setStyle(
+                                {{chain: protein.chain}},
+                                styleObj
+                            );
+                        }}
+                    }});
+                }});
+            }} else {{
+                // Apply standard coloring
+                let styleObj = {{}};
+                
+                if (colorScheme === 'chain') {{
+                    styleObj[style] = {{colorscheme: 'chainHetatm'}};
+                }} else if (colorScheme === 'spectrum') {{
+                    styleObj[style] = {{color: 'spectrum'}};
+                }} else if (colorScheme === 'residue') {{
+                    styleObj[style] = {{colorscheme: 'amino'}};
+                }} else if (colorScheme === 'secondary') {{
+                    styleObj[style] = {{colorscheme: 'ssPyMOL'}};
+                }} else if (colorScheme === 'plddt') {{
+                    styleObj[style] = {{colorfunc: function(atom) {{
+                        const bfactor = Math.max(0, Math.min(100, atom.b));
+                        const normalizedValue = bfactor / 100;
+                        return getColorFromScale(normalizedValue, plddt_colorscale);
+                    }}}};
+                }}
+                
+                viewer.setStyle({{}}, styleObj);
             }}
-            
-            viewer.setStyle({{}}, styleObj);
             
             // Clear everything and re-add model with surfaces
             viewer.removeAllSurfaces(); 
@@ -643,12 +767,101 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
             }}
         }}
         
+        function toggleProteinIds() {{
+            proteinIdsVisible = !proteinIdsVisible;
+            const button = document.getElementById('protein-ids-toggle');
+            
+            if (proteinIdsVisible) {{
+                addProteinIdLabels();
+                button.textContent = 'Hide Protein IDs';
+                button.classList.add('active');
+            }} else {{
+                viewer.removeAllLabels();
+                if (terminalsVisible) {{
+                    addTerminalLabels();
+                }}
+                button.textContent = 'Show Protein IDs';
+                button.classList.remove('active');
+            }}
+            
+            viewer.render();
+        }}
+
+        function toggleTerminals() {{
+            terminalsVisible = !terminalsVisible;
+            const button = document.getElementById('terminals-toggle');
+            
+            if (terminalsVisible) {{
+                addTerminalLabels();
+                button.textContent = 'Hide N/C Terminals';
+                button.classList.add('active');
+            }} else {{
+                viewer.removeAllLabels();
+                if (proteinIdsVisible) {{
+                    addProteinIdLabels();
+                }}
+                button.textContent = 'Show N/C Terminals';
+                button.classList.remove('active');
+            }}
+            
+            viewer.render();
+        }}
+
+        function addTerminalLabels() {{
+            if (proteinsData.length === 0) return;
+            
+            proteinsData.forEach(protein => {{
+                viewer.addLabel('N', {{
+                    position: protein.n_term,
+                    fontSize: 20,
+                    fontColor: 'black',
+                    backgroundOpacity: 0.0,
+                    fontWeight: 'bold',
+                    fontFamily: 'Arial'
+                }});
+                
+                viewer.addLabel('C', {{
+                    position: protein.c_term,
+                    fontSize: 20,
+                    fontColor: 'black',
+                    backgroundOpacity: 0.0,
+                    fontWeight: 'bold',
+                    fontFamily: 'Arial'
+                }});
+            }});
+        }}
+
+        function addProteinIdLabels() {{
+            if (proteinsData.length === 0) return;
+            
+            proteinsData.forEach(protein => {{
+                viewer.addLabel(protein.id, {{
+                    position: {{
+                        x: protein.cm.x,
+                        y: protein.cm.y,
+                        z: protein.cm.z + 5
+                    }},
+                    fontSize: 18,
+                    color: 'black',
+                    backgroundOpacity: 0.6
+                }});
+            }});
+        }}
+
+        function resetZoom() {{
+            viewer.zoomTo();
+            viewer.render();
+        }}
+
         // Event listeners
         document.getElementById('style-select').addEventListener('change', applyCurrentStyle);
         document.getElementById('color-select').addEventListener('change', applyCurrentStyle);
         document.getElementById('surface-select').addEventListener('change', applyCurrentStyle);
         document.getElementById('centroids-toggle').addEventListener('click', toggleCentroids);
         document.getElementById('contacts-toggle').addEventListener('click', toggleContacts);
+        document.getElementById('protein-ids-toggle').addEventListener('click', toggleProteinIds);
+        document.getElementById('terminals-toggle').addEventListener('click', toggleTerminals);
+        document.getElementById('zoom-reset').addEventListener('click', resetZoom);
         
         // Initialize when page loads
         $(document).ready(function() {{
@@ -713,6 +926,8 @@ def create_contact_visualizations_for_clusters(clusters, mm_output, representati
                         protein1_name=pair[0],
                         protein2_name=pair[1],
                         cluster_id=cluster_n,
+                        domain_colors=DOMAIN_COLORS_RRC,
+                        mm_output=mm_output,
                         logger = logger
                     )
                     html_files.append(output_html)
