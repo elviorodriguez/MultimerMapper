@@ -7,6 +7,7 @@ from typing import Dict, Tuple
 import logging
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+from cfg.default_settings import multivalency_detection_metric, multivalency_metric_threshold
 
 from cfg.default_settings import Nmers_contacts_cutoff
 
@@ -182,14 +183,24 @@ def compute_max_valency(interaction_counts_df: pd.DataFrame) -> Dict[Tuple[str, 
     
     return valency_dict
 
-def compute_faction_of_multivalent_chains(interaction_counts_df: pd.DataFrame) -> Dict[Tuple[str, str], float]:
+def compute_faction_of_multivalent_chains(interaction_counts_df: pd.DataFrame, 
+                                          threshold: float = multivalency_metric_threshold,
+                                          _model_size_filter: int = 3,
+                                          _recursion_done: bool = False) -> Dict[Tuple[str, str], float]:
     """
     Compute the fraction of chains with multivalent interactions for each protein pair.
+    Uses recursion to first try with 3-mers only, then falls back to all N-mers if threshold not met.
     
     Parameters:
     -----------
     interaction_counts_df : pd.DataFrame
         DataFrame from analyze_protein_interactions function
+    threshold : float
+        Threshold value to determine if 3-mer result is sufficient
+    _model_size_filter : int
+        Internal parameter for model size filtering (3 for first call, None for second)
+    _recursion_done : bool
+        Internal parameter to prevent infinite recursion
         
     Returns:
     --------
@@ -228,10 +239,17 @@ def compute_faction_of_multivalent_chains(interaction_counts_df: pd.DataFrame) -
                 contact_col = f'contacts_with_{other_protein}'
                 
                 if contact_col in row and row[contact_col] > 0:
-                    # Exclude 2-mer models (model_size = 2)
                     model_size = len(row['proteins_in_model'])
-                    if model_size > 2:
-                        chain_observations.append(row[contact_col])
+                    
+                    # Apply model size filter based on recursion state
+                    if _model_size_filter is not None:
+                        # First call: only use 3-mers
+                        if model_size == _model_size_filter:
+                            chain_observations.append(row[contact_col])
+                    else:
+                        # Second call: use all N-mers (excluding 2-mers)
+                        if model_size > 2:
+                            chain_observations.append(row[contact_col])
         
         if chain_observations:
             # Count chains with valency > 1 (multivalent)
@@ -240,6 +258,29 @@ def compute_faction_of_multivalent_chains(interaction_counts_df: pd.DataFrame) -
             fraction_dict[pair] = multivalent_chains / total_chains
         else:
             fraction_dict[pair] = 0.0
+    
+    # Recursive logic: if first call and any value is below threshold, recurse with all N-mers
+    if not _recursion_done and _model_size_filter == 3:
+        # Check if any fraction is below threshold
+        needs_fallback = any(fraction < threshold for fraction in fraction_dict.values())
+        
+        if needs_fallback:
+            # Recursive call with all N-mers
+            all_nmers_dict = compute_faction_of_multivalent_chains(
+                interaction_counts_df, 
+                threshold=threshold,
+                _model_size_filter=None,  # Use all N-mers
+                _recursion_done=True     # Prevent further recursion
+            )
+            
+            # Return the maximum value between 3-mers and all N-mers for each pair
+            final_dict = {}
+            for pair in protein_pairs:
+                threemer_value = fraction_dict.get(pair, 0.0)
+                allmers_value = all_nmers_dict.get(pair, 0.0)
+                final_dict[pair] = max(threemer_value, allmers_value)
+            
+            return final_dict
     
     return fraction_dict
 
@@ -261,7 +302,7 @@ def get_multivalent_tuple_pairs_based_on_evidence(mm_output: dict, logger: loggi
     if multivalency_detection_metric == "max_valency":
         valency_dict = compute_max_valency(interaction_counts_df)
     elif multivalency_detection_metric == "faction_of_multivalent_chains":
-        valency_dict = compute_faction_of_multivalent_chains(interaction_counts_df)
+        valency_dict = compute_faction_of_multivalent_chains(interaction_counts_df, threshold = metric_threshold)
     else:
         logger.error(f"Unknown multivalency detection metric: {multivalency_detection_metric}")
         logger.error("   - Falling back to max valency method...")
