@@ -16,7 +16,7 @@ from utils.combinations import find_untested_2mers, get_untested_2mer_pairs, get
 from src.interpret_dynamics import read_classification_df, classify_edge_dynamics, classification_df, get_edge_color_hex, get_edge_linetype, get_edge_weight, get_edge_oscillation
 from src.coordinate_analyzer import add_domain_RMSD_against_reference
 from src.analyze_multivalency import add_multivalency_state
-from cfg.default_settings import vertex_color1, vertex_color2, vertex_color3, vertex_color_both, Nmer_stability_method, N_models_cutoff_convergency
+from cfg.default_settings import vertex_color1, vertex_color2, vertex_color3, vertex_color_both, Nmer_stability_method, N_models_cutoff_convergency, multivalency_detection_metric, multivalency_metric_threshold
 from utils.combinations import generate_multivalent_pair_suggestions
 from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 
@@ -609,7 +609,9 @@ def add_edges_valency(graph, mm_output, logger: Logger | None = None):
     # ------ Check multivalency using double interaction (based on evidence) ----------
 
     # Get multivalent pairs by computing max_valency
-    multivalent_pairs_based_on_evidence: list[tuple] = get_multivalent_tuple_pairs_based_on_evidence(mm_output, logger)
+    multivalent_pairs_based_on_evidence: list[tuple] = get_multivalent_tuple_pairs_based_on_evidence(mm_output, logger,
+                                                                                                     multivalency_detection_metric = multivalency_detection_metric,
+                                                                                                     metric_threshold = multivalency_metric_threshold)
 
     # Verify one edge at a time
     for e in graph.es:

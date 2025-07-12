@@ -238,6 +238,20 @@ display_contact_clusters = False
 save_contact_clusters    = True
 
 # ----------------------------------------------------------------------------
+# ------------------ Enhanced Multivalency Detection Method ------------------
+# ----------------------------------------------------------------------------
+
+# Select method using index
+method_index = 0
+
+# Detection method
+multivalency_detection_metric = ["faction_of_multivalent_chains", "max_valency"][method_index]
+
+# Detection threshold (Best values)
+multivalency_metric_threshold = [0.167, 2][method_index]
+
+
+# ----------------------------------------------------------------------------
 # -------------- Enhanced Contact Matrix Clustering Config -------------------
 # ----------------------------------------------------------------------------
 
@@ -257,7 +271,6 @@ contact_clustering_config = {
     'overlap_use_contact_region_only': False,
     'use_median': False
 }
-
 
 # ----------------------------------------------------------------------------
 # ------------------------- For convergency detection ------------------------

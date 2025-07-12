@@ -8,7 +8,6 @@ import logging
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
-
 from cfg.default_settings import Nmers_contacts_cutoff
 
 def analyze_protein_interactions(pairwise_contact_matrices: Dict, 
@@ -183,9 +182,72 @@ def compute_max_valency(interaction_counts_df: pd.DataFrame) -> Dict[Tuple[str, 
     
     return valency_dict
 
+def compute_faction_of_multivalent_chains(interaction_counts_df: pd.DataFrame) -> Dict[Tuple[str, str], float]:
+    """
+    Compute the fraction of chains with multivalent interactions for each protein pair.
+    
+    Parameters:
+    -----------
+    interaction_counts_df : pd.DataFrame
+        DataFrame from analyze_protein_interactions function
+        
+    Returns:
+    --------
+    dict
+        Dictionary mapping protein pairs to their fraction of multivalent chains
+    """
+    fraction_dict = {}
+    
+    # Get all contact columns
+    contact_columns = [col for col in interaction_counts_df.columns if col.startswith('contacts_with_')]
+    
+    # Get unique protein pairs from the data
+    protein_pairs = set()
+    for _, row in interaction_counts_df.iterrows():
+        protein = row['protein']
+        for col in contact_columns:
+            other_protein = col.replace('contacts_with_', '')
+            if row[col] > 0:  # If there are contacts
+                pair = tuple(sorted([protein, other_protein]))
+                protein_pairs.add(pair)
+    
+    # Compute fraction of multivalent chains for each protein pair
+    for pair in protein_pairs:
+        protein1, protein2 = pair
+        
+        # Collect all chain observations for this pair
+        chain_observations = []
+        
+        for _, row in interaction_counts_df.iterrows():
+            protein = row['protein']
+            
+            # Check if this row is relevant for the current pair
+            if protein in [protein1, protein2]:
+                # Get contact count with the other protein in the pair
+                other_protein = protein2 if protein == protein1 else protein1
+                contact_col = f'contacts_with_{other_protein}'
+                
+                if contact_col in row and row[contact_col] > 0:
+                    # Exclude 2-mer models (model_size = 2)
+                    model_size = len(row['proteins_in_model'])
+                    if model_size > 2:
+                        chain_observations.append(row[contact_col])
+        
+        if chain_observations:
+            # Count chains with valency > 1 (multivalent)
+            multivalent_chains = sum(1 for count in chain_observations if count > 1)
+            total_chains = len(chain_observations)
+            fraction_dict[pair] = multivalent_chains / total_chains
+        else:
+            fraction_dict[pair] = 0.0
+    
+    return fraction_dict
+
 
 # Get multivalent pairs
-def get_multivalent_tuple_pairs_based_on_evidence(mm_output: dict, logger: logging.Logger, N_contacts_cutoff = Nmers_contacts_cutoff):
+def get_multivalent_tuple_pairs_based_on_evidence(mm_output: dict, logger: logging.Logger, N_contacts_cutoff = Nmers_contacts_cutoff,
+                                                  multivalency_detection_metric = ["faction_of_multivalent_chains", "max_valency"][0],
+                                                  metric_threshold = [0.167, 2][0]):
 
     pairwise_contact_matrices = mm_output['pairwise_contact_matrices']
     
@@ -196,10 +258,18 @@ def get_multivalent_tuple_pairs_based_on_evidence(mm_output: dict, logger: loggi
         logger = logger)
 
     # Compute maximum valency for each protein pair
-    max_valency_dict = compute_max_valency(interaction_counts_df)
+    if multivalency_detection_metric == "max_valency":
+        valency_dict = compute_max_valency(interaction_counts_df)
+    elif multivalency_detection_metric == "faction_of_multivalent_chains":
+        valency_dict = compute_faction_of_multivalent_chains(interaction_counts_df)
+    else:
+        logger.error(f"Unknown multivalency detection metric: {multivalency_detection_metric}")
+        logger.error("   - Falling back to max valency method...")
+        valency_dict = compute_max_valency(interaction_counts_df)
+        metric_threshold = 2
 
     # Get the multivalent tuple pairs
-    multivalency_tuple_pairs = [tuple(sorted(pair)) for pair in max_valency_dict if (max_valency_dict[pair] > 1 and pair[0] != pair[1])]
+    multivalency_tuple_pairs = [tuple(sorted(pair)) for pair in valency_dict if (valency_dict[pair] >= metric_threshold and pair[0] != pair[1])]
 
     return multivalency_tuple_pairs
 
