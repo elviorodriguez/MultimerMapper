@@ -85,9 +85,10 @@ def does_nmer_is_fully_connected_network(
                         
                         num_contacts = contacts.sum()
 
-                        print("SOFTENING ON!")
-                        print(f"   - chain_pair: {chain_pair}")
-                        print(f"   - num_contacts: {num_contacts}")
+                        # # Debugging
+                        # print("SOFTENING ON!")
+                        # print(f"   - chain_pair: {chain_pair}")
+                        # print(f"   - num_contacts: {num_contacts}")
                     
                     # If contacts exceed threshold, add edge to graph
                     if num_contacts >= Nmers_contacts_cutoff:
