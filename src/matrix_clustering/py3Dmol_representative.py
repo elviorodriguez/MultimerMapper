@@ -193,13 +193,25 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                     protein_domains = mm_output['domains_df'][mm_output['domains_df']['Protein_ID'] == protein_id]
                     domains = protein_domains['Domain'].tolist()
                 
+                # Get domain ranges for this protein from domains_df
+                domain_ranges = []
+                if 'domains_df' in mm_output:
+                    protein_domains = mm_output['domains_df'][mm_output['domains_df']['Protein_ID'] == protein_id]
+                    for _, domain_row in protein_domains.iterrows():
+                        domain_ranges.append({
+                            'domain_id': int(domain_row['Domain']),
+                            'start': int(domain_row['Start']),
+                            'end': int(domain_row['End'])
+                        })
+
                 protein_info = {
                     'id': protein_id,
                     'chain': chain_id,
                     'cm': {'x': float(cm[0]), 'y': float(cm[1]), 'z': float(cm[2])},
                     'n_term': {'x': float(n_term[0]), 'y': float(n_term[1]), 'z': float(n_term[2])},
                     'c_term': {'x': float(c_term[0]), 'y': float(c_term[1]), 'z': float(c_term[2])},
-                    'domains': domains
+                    'domains': domains,  # Keep the original domains list if needed
+                    'domain_ranges': domain_ranges  # Add the detailed domain information
                 }
                 proteins_info.append(protein_info)
 
@@ -592,21 +604,23 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
             
             // Apply main style
             if (colorScheme === 'domain' && domainColors.length > 0) {{
-                // Apply domain coloring
+                // Apply domain coloring using domain_ranges
                 proteinsData.forEach(protein => {{
-                    protein.domains.forEach((domain, index) => {{
-                        const styleObj = {{}};
-                        styleObj[style] = {{color: domainColors[domain]}};
-                        
-                        // If you have domain start/end residue information, use it here
-                        // For now, color the entire chain with the first domain color
-                        if (index === 0) {{
+                    if (protein.domain_ranges && protein.domain_ranges.length > 0) {{
+                        protein.domain_ranges.forEach(domain => {{
+                            const styleObj = {{}};
+                            styleObj[style] = {{color: domainColors[domain.domain_id]}};
+                            
+                            // Apply to specific residue range for this domain
                             viewer.setStyle(
-                                {{chain: protein.chain}},
+                                {{
+                                    chain: protein.chain,
+                                    resi: `${{domain.start}}-${{domain.end}}`
+                                }},
                                 styleObj
                             );
-                        }}
-                    }});
+                        }});
+                    }}
                 }});
             }} else {{
                 // Apply standard coloring
