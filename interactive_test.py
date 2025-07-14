@@ -125,16 +125,16 @@ remove_interactions = ("Indirect",)
 
 ####################### Test 6'' (multivalency PEX13/31) ######################
 
-# fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/proteins_mm.fasta"
-# AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/2-mers"
-# AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/MM_metrics_profiles_test"
-# use_names = True
-# overwrite = True
-# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# auto_domain_detection = True
-# graph_resolution_preset = None
+fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/proteins_mm.fasta"
+AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/MM_metrics_profiles_test"
+use_names = True
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+auto_domain_detection = True
+graph_resolution_preset = None
 
 ###############################################################################
 
@@ -187,17 +187,17 @@ remove_interactions = ("Indirect",)
 
 ################ Test 6''''' (multivalency 3-mers) ############################
 
-fasta_file = "/home/elvio/Desktop/multivalency_benchmark/input_fasta_files/multivalency_3mers.fasta"
-AF2_2mers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_2mers"
-AF2_Nmers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_Nmers/3mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/multivalency_benchmark/MM_output_3mers_test"
-use_names = True
-overwrite = True
-remove_interactions = ("Indirect", "No 2-mers Data")
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-auto_domain_detection = True
-graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/multivalency_benchmark/input_fasta_files/multivalency_3mers.fasta"
+# AF2_2mers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_2mers"
+# AF2_Nmers = "/home/elvio/Desktop/multivalency_benchmark/multivalency_test_AF_Nmers/3mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/multivalency_benchmark/MM_output_3mers_test"
+# use_names = True
+# overwrite = True
+# remove_interactions = ("Indirect", "No 2-mers Data")
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
@@ -289,9 +289,27 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
 # best_stoichiometry, paths = stoichiometric_space_exploration_pipeline(mm_output)
 
 # Create 3D network, generate a layout and create py3Dmol/Plotly visualizations
+# DEFAULT FINE GRAIN CONFIG
+fine_grain_layout_cfg = {
+    "algorithm": "residue_optimized",
+    "iterations": 200,
+    "min_contact_distance": 50,
+    "max_contact_distance": 60,
+    "contact_force_strength": 10.0,
+    "repulsion_strength": 10.0,
+    "global_repulsion_strength": 5,
+    "torque_strength": 100.0,
+    "initial_step_size": 0.5,
+    "final_step_size": 0.005,
+    "min_interprotein_distance": 200.0,  # Minimum distance between protein centers
+    "surface_alignment_strength": 25,   # Strength of surface face-to-face alignment
+    "line_separation_strength": 10.0,     # Strength of contact line separation
+    "n_contacts_sample": 5
+}
+
 nw = mm.Network(mm_output['combined_graph'], logger = logger)
-nw.generate_layout()
-nw.generate_py3dmol_plot(save_path = out_path + '/graphs/3D_graph_py3Dmol.html', show_plot=True)
+nw.generate_layout_fine_grain(**fine_grain_layout_cfg)
+nw.generate_interactive_3d_plot(save_path = out_path + '/graphs/3D_graph_py3Dmol.html', show_plot=True)
 nw.generate_plotly_3d_plot(save_path = out_path + '/graphs/3D_graph_plotly.html', show_plot=True)
 
 # Generate RMSF, pLDDT clusters & RMSD trajectories considering models as monomers
