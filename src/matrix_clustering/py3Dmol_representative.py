@@ -665,7 +665,7 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                 centroidsData.forEach(centroid => {{
                     viewer.addSphere({{
                         center: {{x: centroid.x, y: centroid.y, z: centroid.z}},
-                        radius: 1.0,
+                        radius: 2.5,
                         color: centroid.color,
                         alpha: 1.0
                     }});
