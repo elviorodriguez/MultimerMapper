@@ -729,6 +729,8 @@ def compute_residue_forces_vectorized(proteins, ppis,
         forces[p1_id] += total_force_p1
         forces[p2_id] += total_force_p2
         
+        # --------- Surface alignment torque - align surfaces to face each other --------
+
         # Enhanced torque calculation with surface alignment
         p1_cm = p1.get_CM()
         p2_cm = p2.get_CM()
@@ -743,28 +745,34 @@ def compute_residue_forces_vectorized(proteins, ppis,
         total_torque_p1 = np.sum(torque1_vectors, axis=0)
         total_torque_p2 = np.sum(torque2_vectors, axis=0)
         
-        # NEW: Surface alignment torques (magnetic-like force)
+        # Surface alignment torques (magnetic-like force)
         # Create vectors from protein centers to surface centers
-        p1_to_surface1 = surface1_center - p1_cm
-        p2_to_surface2 = surface2_center - p2_cm
-        
-        # Vector between protein centers
-        protein_axis = p2_cm - p1_cm
-        protein_axis_normalized = protein_axis / (np.linalg.norm(protein_axis) + 1e-8)
-        
-        # Calculate alignment torques to orient surfaces face-to-face
-        # For p1: align surface1 to point toward p2
-        desired_p1_surface_dir = protein_axis_normalized
-        current_p1_surface_dir = p1_to_surface1 / (np.linalg.norm(p1_to_surface1) + 1e-8)
-        alignment_torque_p1 = np.cross(current_p1_surface_dir, desired_p1_surface_dir) * surface_alignment_strength
-        
-        # For p2: align surface2 to point toward p1
-        desired_p2_surface_dir = -protein_axis_normalized
-        current_p2_surface_dir = p2_to_surface2 / (np.linalg.norm(p2_to_surface2) + 1e-8)
-        alignment_torque_p2 = np.cross(current_p2_surface_dir, desired_p2_surface_dir) * surface_alignment_strength
-        
-        total_torque_p1 += alignment_torque_p1
-        total_torque_p2 += alignment_torque_p2
+
+        # Only apply to heteromeric PPIs (skip homooligomeric interactions)
+        if not ppi.is_homooligomeric():
+            p1_to_surface1 = surface1_center - p1_cm
+            p2_to_surface2 = surface2_center - p2_cm
+            
+            # Vector from p1 surface to p2 surface (the contact direction)
+            surface_to_surface = surface2_center - surface1_center
+            surface_distance = np.linalg.norm(surface_to_surface)
+            
+            if surface_distance > 1e-8:
+                contact_direction = surface_to_surface / surface_distance
+                
+                # For proper face-to-face alignment:
+                # P1's surface should point towards P2's surface
+                desired_p1_surface_dir = contact_direction
+                current_p1_surface_dir = p1_to_surface1 / (np.linalg.norm(p1_to_surface1) + 1e-8)
+                alignment_torque_p1 = np.cross(current_p1_surface_dir, desired_p1_surface_dir) * surface_alignment_strength
+                
+                # P2's surface should point towards P1's surface (opposite direction)
+                desired_p2_surface_dir = -contact_direction
+                current_p2_surface_dir = p2_to_surface2 / (np.linalg.norm(p2_to_surface2) + 1e-8)
+                alignment_torque_p2 = np.cross(current_p2_surface_dir, desired_p2_surface_dir) * surface_alignment_strength
+                
+                total_torque_p1 += alignment_torque_p1
+                total_torque_p2 += alignment_torque_p2
         
         torques[p1_id] += total_torque_p1
         torques[p2_id] += total_torque_p2

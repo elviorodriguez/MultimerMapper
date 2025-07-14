@@ -320,17 +320,27 @@ layout_3d_iterations = 10000
 fine_grain_layout_cfg = {
     "algorithm": "residue_optimized",
     "iterations": 200,
+    # Controls the inter-surface distance
     "min_contact_distance": 50,
     "max_contact_distance": 60,
-    "contact_force_strength": 2.0,
+    # Repulsive and attractive forces
+    "contact_force_strength": 10.0,
     "repulsion_strength": 10.0,
-    "torque_strength": 1.0,
+    # Controls the separation of center of masses
+    "global_repulsion_strength": 5,
+    # Minimum distance between protein centers of mass to exert force
+    "min_interprotein_distance": 200.0,
+    # Generates torque to orient protein surfaces to face each other
+    "torque_strength": 100.0,
+    # Decreases the strength of the forces over iterations
     "initial_step_size": 0.5,
     "final_step_size": 0.005,
-    "min_interprotein_distance": 200.0,  # Minimum distance between protein centers
-    "surface_alignment_strength": 8.0,   # Strength of surface face-to-face alignment
-    "line_separation_strength": 25.0,     # Strength of contact line separation
-    "n_contacts_sample": 20
+    # Strength of surface face-to-face alignment
+    "surface_alignment_strength": 25,
+    # Strength of contact line separation ("untwisting" force strength)
+    "line_separation_strength": 10.0,
+    # Nº of contact residues to sample at each iteration (reduces computation time)
+    "n_contacts_sample": 5  # None -> No sampling
 }
 
 # # Darker colors for domains
