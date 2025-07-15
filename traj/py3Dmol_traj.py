@@ -150,6 +150,7 @@ def create_trajectory_viewer(pdb_file, output_html):
     <title>PDB Trajectory Viewer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.11.6/ffmpeg.min.js"></script>
     <style>
         h3 {
             text-align: center;
@@ -277,7 +278,7 @@ def create_trajectory_viewer(pdb_file, output_html):
             <button id="pause-btn" disabled>Pause</button>
             <button id="next-btn" disabled>Next &gt;</button>
             <button id="reset-btn" disabled>Reset</button>
-            <button id="save-gif-btn" disabled>Save GIF</button>
+            <button id="save-gif-btn" disabled>Save Video</button>
             <div class="speed-control">
                 <label for="speed-control">Speed:</label>
                 <select id="speed-control" disabled>
@@ -567,24 +568,27 @@ def create_trajectory_viewer(pdb_file, output_html):
             }
         }
 
-        // Function to save GIF (simplified version without workers)
+        // Function to save Video
         async function saveGIF() {
             try {
                 // Ask user for filename
-                const filename = prompt("Enter filename for the GIF (without extension):", "trajectory_animation");
+                const filename = prompt("Enter filename for the video (without extension):", "trajectory_animation");
                 if (!filename) {
-                    showStatus("GIF creation cancelled");
+                    showStatus("Video creation cancelled");
                     return;
                 }
                 
-                showStatus("Preparing GIF creation...");
+                showStatus("Preparing video creation...");
                 saveGifBtn.disabled = true;
                 
-                // Simple canvas-based GIF creation
+                // Get current speed setting for frame rate calculation
+                const speed = parseInt(speedControl.value);
+                const fps = Math.max(1, Math.min(30, Math.round(1000 / speed))); // Convert speed to reasonable FPS
+                
+                // Capture all frames first
                 const frames = [];
                 const originalIndex = currentModelIndex; // Save current model
                 
-                // Capture all frames first
                 for (let i = 0; i < totalModels; i++) {
                     showStatus(`Capturing frame ${i + 1} of ${totalModels}...`);
                     
@@ -596,7 +600,7 @@ def create_trajectory_viewer(pdb_file, output_html):
                     try {
                         const canvas = viewer.getCanvas();
                         if (canvas) {
-                            // Convert canvas to data URL
+                            // Convert canvas to data URL (simpler approach)
                             const dataURL = canvas.toDataURL('image/png');
                             frames.push(dataURL);
                         }
@@ -609,22 +613,102 @@ def create_trajectory_viewer(pdb_file, output_html):
                     throw new Error("No frames captured");
                 }
                 
-                showStatus("Creating downloadable frames...");
+                showStatus("Creating video...");
                 
-                // Create a zip file with all frames
-                await createFramesZip(frames, filename);
+                // Create video using frames
+                await createVideo(frames, filename, fps);
                 
-                showStatus("Frames saved successfully! You can use external tools to create GIF from the PNG files.");
+                showStatus("Video saved successfully!");
                 
                 // Restore original model
                 displayModel(originalIndex);
                 
             } catch (error) {
-                showStatus("Error creating frames: " + error.message, true);
+                showStatus("Error creating video: " + error.message, true);
+            } finally {
+                saveGifBtn.disabled = false;
             }
-            
-            saveGifBtn.disabled = false;
         }
+
+        // Helper function to create video from frames
+        async function createVideo(frames, filename, fps) {
+            try {
+                // Use MediaRecorder approach since frames are data URLs
+                await createVideoWithMediaRecorder(frames, filename, fps);
+            } catch (error) {
+                showStatus("Video creation failed, downloading frames as ZIP...", true);
+                // Fallback to original ZIP method
+                await createFramesZip(frames, filename);
+            }
+        }
+
+        // MediaRecorder implementation using data URLs
+        async function createVideoWithMediaRecorder(frames, filename, fps) {
+            return new Promise(async (resolve, reject) => {
+                try {
+                    // Create a temporary canvas to draw frames
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Set canvas size based on first frame
+                    const firstImg = new Image();
+                    firstImg.src = frames[0];
+                    await new Promise(imgResolve => {
+                        firstImg.onload = imgResolve;
+                        firstImg.onerror = () => reject(new Error("Failed to load first frame"));
+                    });
+                    
+                    canvas.width = firstImg.width;
+                    canvas.height = firstImg.height;
+                    
+                    const stream = canvas.captureStream(fps);
+                    const recorder = new MediaRecorder(stream, {
+                        mimeType: 'video/webm;codecs=vp8'
+                    });
+                    
+                    const chunks = [];
+                    recorder.ondataavailable = (e) => chunks.push(e.data);
+                    
+                    recorder.onstop = () => {
+                        const blob = new Blob(chunks, { type: 'video/webm' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename.endsWith('.webm') ? filename : filename + '.webm';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        resolve();
+                    };
+                    
+                    recorder.onerror = (e) => reject(e);
+                    
+                    recorder.start();
+                    
+                    const frameDuration = 1000 / fps;
+                    for (let i = 0; i < frames.length; i++) {
+                        const img = new Image();
+                        img.src = frames[i];
+                        await new Promise(imgResolve => {
+                            img.onload = imgResolve;
+                            img.onerror = () => reject(new Error(`Failed to load frame ${i + 1}`));
+                        });
+                        
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(img, 0, 0);
+                        
+                        await new Promise(frameResolve => setTimeout(frameResolve, frameDuration));
+                    }
+                    
+                    recorder.stop();
+                    
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+
 
         // Helper function to create ZIP with frames
         async function createFramesZip(frames, filename) {
