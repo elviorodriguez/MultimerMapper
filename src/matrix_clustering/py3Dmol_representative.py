@@ -211,7 +211,8 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                     'n_term': {'x': float(n_term[0]), 'y': float(n_term[1]), 'z': float(n_term[2])},
                     'c_term': {'x': float(c_term[0]), 'y': float(c_term[1]), 'z': float(c_term[2])},
                     'domains': domains,  # Keep the original domains list if needed
-                    'domain_ranges': domain_ranges  # Add the detailed domain information
+                    'domain_ranges': domain_ranges,  # Add the detailed domain information
+                    'sequence': chain_sequences[chain_idx]
                 }
                 proteins_info.append(protein_info)
 
@@ -456,6 +457,7 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                 <label>Color Scheme:</label>
                 <select id="color-select">
                     <option value="chain">Chain</option>
+                    <option value="polymer">Polymer Entity</option>
                     <option value="spectrum">Spectrum</option>
                     <option value="residue">Residue</option>
                     <option value="secondary">Secondary Structure</option>
@@ -620,6 +622,20 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                                 styleObj
                             );
                         }});
+                    }}
+                }});
+            }} else if (colorScheme === 'polymer') {{
+                // Apply polymer entity coloring
+                proteinsData.forEach(protein => {{
+                    if (protein.sequence) {{
+                        const color = hashStringToColor(protein.sequence);
+                        const styleObj = {{}};
+                        styleObj[style] = {{color: color}};
+                        
+                        viewer.setStyle(
+                            {{chain: protein.chain}},
+                            styleObj
+                        );
                     }}
                 }});
             }} else {{
@@ -865,6 +881,38 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
         function resetZoom() {{
             viewer.zoomTo();
             viewer.render();
+        }}
+
+        function hslToRgb(h, s, l) {{
+            // h, s, l are in [0,1]; returns {{r,g,b}} in [0,255]
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            const hue2rgb = (p, q, t) => {{
+                if (t < 0) t += 1;
+                if (t > 1) t -= 1;
+                if (t < 1/6) return p + (q - p) * 6 * t;
+                if (t < 1/2) return q;
+                if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                return p;
+            }};
+            return {{
+                r: Math.round(hue2rgb(p, q, h + 1/3) * 255),
+                g: Math.round(hue2rgb(p, q, h)     * 255),
+                b: Math.round(hue2rgb(p, q, h - 1/3) * 255)
+            }};
+        }}
+
+        function hashStringToColor(str) {{
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {{
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0;
+            }}
+            const hue        = (Math.abs(hash) % 360) / 360;     // [0,1]
+            const saturation = (60 + (Math.abs(hash) % 40)) / 100; // [0.6,1.0]
+            const lightness  = (40 + (Math.abs(hash) % 30)) / 100; // [0.4,0.7]
+            const {{r, g, b}}  = hslToRgb(hue, saturation, lightness);
+            return rgbToHex(r, g, b);
         }}
 
         // Event listeners
