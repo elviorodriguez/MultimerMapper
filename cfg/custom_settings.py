@@ -41,23 +41,13 @@ remove_interactions_from_ppi_graph = ("Indirect", )
 # ----------- Conflictive cutoffs -----------
 
 # This is OK?
-Nmers_contacts_cutoff = 5
-contact_distance_cutoff: float | int = 8.0
-contact_PAE_cutoff     : float | int = 13
-contact_pLDDT_cutoff   : float | int = 0
-
-# # This adds more spurious interactions?
-# Nmers_contacts_cutoff = 3
+# Nmers_contacts_cutoff = 5
 # contact_distance_cutoff: float | int = 8.0
-# contact_PAE_cutoff     : float | int = 15
-# contact_pLDDT_cutoff   : float | int = 45
+# contact_PAE_cutoff     : float | int = 13
+# contact_pLDDT_cutoff   : float | int = 0
 
-# # Changing this to 4 causes the "No 2-mers Data" bug?
-# N_models_cutoff = 4
-
-# 
-available_layout = ['fr', 'kk', 'circle', 'drl', 'lgl', 'random', 'rt', 'rt_circular', ]
-ppi_graph_layout_algorithm = available_layout[1]
+# available_layout = ['fr', 'kk', 'circle', 'drl', 'lgl', 'random', 'rt', 'rt_circular', ]
+# ppi_graph_layout_algorithm = available_layout[1]
 
 # For 3D visualization
 # layout_3d_iterations = 1000
