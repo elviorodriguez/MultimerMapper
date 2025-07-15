@@ -380,7 +380,8 @@ def interactive_igraph_to_plotly(combined_graph,
                                  self_loop_size = self_loop_size,
                                  remove_interactions = remove_interactions_from_ppi_graph,
                                  layout_algorithm = ppi_graph_layout_algorithm,
-                                 automatic_true = igraph_to_plotly_automatic_true):
+                                 automatic_true = igraph_to_plotly_automatic_true,
+                                 show_plot = True):
 
     # Initialize the logger
     logger = configure_logger(out_path, log_level = log_level)(__name__)
@@ -422,6 +423,9 @@ def interactive_igraph_to_plotly(combined_graph,
 
             # Discards interactions types from this list
             remove_interactions = remove_interactions,
+
+            # Show the plot?
+            plot_graph = show_plot,
 
             # Logger
             logger = logger
@@ -558,6 +562,9 @@ if __name__ == "__main__":
     parser.add_argument('--skip_traj', action='store_true',
         help='Skips pseudo-dynamic computations (RMSD trajectories)')
     
+    parser.add_argument('--skip_plots', action='store_true',
+        help='Avoids displaying plots in the browser')
+    
     parser.add_argument('--reduce_verbosity', action='store_true',
         help='Changes logging level from INFO to WARNING (only displays warnings and errors)')
     
@@ -579,6 +586,7 @@ if __name__ == "__main__":
     N_value         = args.N_value
     skip_traj       = args.skip_traj
     first_plot      = args.first_plot
+    skip_plots      = args.skip_plots
 
     # Verbosity level
     if args.reduce_verbosity:
@@ -619,13 +627,15 @@ if __name__ == "__main__":
                                         manual_domains = manual_domains,
                                         use_names = use_names,
                                         overwrite = overwrite,
-                                        log_level = log_level)
+                                        log_level = log_level,
+                                        show_PAE_along_backbone = False if skip_plots else True)
 
     # Generate interactive 2D PPI graph
     combined_graph_interactive = interactive_igraph_to_plotly(mm_output["combined_graph"],
                                                               out_path = out_path,
                                                               log_level = log_level,
-                                                              automatic_true = True if first_plot else igraph_to_plotly_automatic_true)
+                                                              automatic_true = True if first_plot else igraph_to_plotly_automatic_true,
+                                                              show_plot = False if skip_plots else True)
     
     # Generate RMSF, pLDDT clusters and RMSD trajectories
     if not skip_traj:
@@ -642,7 +652,8 @@ if __name__ == "__main__":
                                      max_N = N_value + 1)
     
     # Create 3D network
-    nw = interactive_igraph_to_py3dmol(mm_output['combined_graph'], logger = logger, automatic_true = first_plot)
+    nw = interactive_igraph_to_py3dmol(mm_output['combined_graph'], logger = logger, automatic_true = first_plot,
+                                       show_plots = False if skip_plots else True)
 
     # Integrate everything into an HTML report
     create_report(out_path)
