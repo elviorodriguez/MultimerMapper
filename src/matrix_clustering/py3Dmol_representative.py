@@ -456,8 +456,8 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
             <div class="control-group">
                 <label>Color Scheme:</label>
                 <select id="color-select">
-                    <option value="chain">Chain</option>
                     <option value="polymer">Polymer Entity</option>
+                    <option value="chain">Chain</option>
                     <option value="spectrum">Spectrum</option>
                     <option value="residue">Residue</option>
                     <option value="secondary">Secondary Structure</option>
