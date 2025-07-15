@@ -624,6 +624,57 @@ def add_edges_valency(graph, mm_output, logger: Logger | None = None):
         e['valency']['is_multivalent'] = sorted_tuple_pair in multivalent_pairs_based_on_evidence           
 
 
+def get_isolated_proteins(prot_IDs, pairwise_2mers_df, graph1, graph2):
+    """Get proteins that were tested in 2-mers but have no interactions"""
+
+    # Get edges from both graphs
+    edges_g1 = [(graph1.vs["name"][edge[0]], graph1.vs["name"][edge[1]]) for edge in graph1.get_edgelist()]
+    edges_g2 = [(graph2.vs["name"][edge[0]], graph2.vs["name"][edge[1]]) for edge in graph2.get_edgelist()]
+
+    # Sorted list of edges
+    edges_g1_sort = sorted([tuple(sorted(t)) for t in edges_g1], key=lambda x: x[0])
+    edges_g2_sort = sorted([tuple(sorted(t)) for t in edges_g2], key=lambda x: x[0])
+
+    # Get untested 2-mers combinations
+    untested_edges_tuples = sorted(list(find_untested_2mers(prot_IDs = prot_IDs, pairwise_2mers_df = pairwise_2mers_df)), key=lambda x: x[0])
+        
+    # Make a combined edges set
+    edges_comb = sorted(list(set(edges_g1_sort + edges_g2_sort + untested_edges_tuples)), key=lambda x: x[0])
+
+    # Get all proteins that were tested in 2-mers
+    tested_proteins = set(pairwise_2mers_df['protein1']) | set(pairwise_2mers_df['protein2'])
+    
+    # Get proteins that appear in edges (have interactions)
+    proteins_with_interactions = set()
+    for edge in edges_comb:
+        proteins_with_interactions.update(edge)
+    
+    # Get proteins that were tested but have no interactions
+    isolated_proteins = tested_proteins - proteins_with_interactions
+    
+    # Only include proteins that were tested against ALL other proteins
+    fully_tested_isolated = []
+    for protein in isolated_proteins:
+        # Check if this protein was tested against all other proteins
+        protein_tests = pairwise_2mers_df[
+            (pairwise_2mers_df['protein1'] == protein) | 
+            (pairwise_2mers_df['protein2'] == protein)
+        ]
+        tested_against = set(protein_tests['protein1']) | set(protein_tests['protein2'])
+        tested_against.discard(protein)  # Remove self
+        
+        # If tested against all other proteins, include it
+        if len(tested_against) >= len(prot_IDs) - 1:
+            fully_tested_isolated.append(protein)
+    
+    return fully_tested_isolated
+
+def add_isolated_proteins(combined_graph, prot_IDs, pairwise_2mers_df, graph1, graph2):
+
+    isolated_proteins = get_isolated_proteins(prot_IDs, pairwise_2mers_df, graph1, graph2)
+    
+    # Assign a custom graph-level attribute
+    combined_graph["isolated_proteins"] = isolated_proteins
 
 
 # Combine 2-mers and N-mers graphs
@@ -803,6 +854,12 @@ def generate_combined_graph(
                    # N-mers cutoffs
                    min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
                    pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers)
+    
+    add_isolated_proteins(combined_graph=graphC,
+                          prot_IDs=prot_IDs,
+                          pairwise_2mers_df=pairwise_2mers_df,
+                          graph1=graph1,
+                          graph2=graph2)
 
     homooligomerization_states = add_homooligomerization_state(
         graph                     = graphC,
@@ -1224,6 +1281,7 @@ def igraph_to_plotly(
         oscillation_lines_frequency: int = 8, 
         oscillation_circles_frequency: int = 20,
         remove_interactions: tuple[str] | None = ("Indirect",),
+        add_non_interacting_proteins: bool = True,
         
         logger = None):
     
@@ -1841,6 +1899,27 @@ def igraph_to_plotly(
             name = mng + oscillation_tag,
             showlegend = True
         ))
+
+    # Add non interacting proteins
+    if add_non_interacting_proteins and len(graph["isolated_proteins"]) > 0:
+
+        # Add title
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None],
+            mode='markers',
+            marker=dict(symbol='circle', size=0, color="white"),
+            name= "<br><b>Non-interacting Proteins:</b>",
+            showlegend=True
+        ))
+        
+        for protein in graph["isolated_proteins"]:
+            fig.add_trace(go.Scatter(
+                x=[None], y=[None],
+                mode='lines',
+                line=dict(width=0),
+                name= " ● " + protein,
+                showlegend=True
+                ))
 
 
     # Add cutoff labels
