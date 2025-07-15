@@ -26,7 +26,7 @@ def does_nmer_is_fully_connected_network(
         N_models_cutoff: int = 4,
         N_models_cutoff_conv_soft: int = N_models_cutoff_conv_soft,
         miPAE_cutoff_conv_soft: float = miPAE_cutoff_conv_soft,
-        use_dynamic_conv_soft_func: bool = False,
+        use_dynamic_conv_soft_func: bool = True,
         miPAE_cutoff_conv_soft_list: list = None,
         dynamic_conv_start: int = 5,
         dynamic_conv_end: int = 1) -> bool:
