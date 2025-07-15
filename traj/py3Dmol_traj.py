@@ -282,11 +282,11 @@ def create_trajectory_viewer(pdb_file, output_html):
             <div class="speed-control">
                 <label for="speed-control">Speed:</label>
                 <select id="speed-control" disabled>
-                    <option value="2000">Slow</option>
-                    <option value="1000">Normal</option>
-                    <option value="500">Fast</option>
-                    <option value="250" selected>Very Fast</option>
-                    <option value="100" >Ultra Fast</option>
+                    <option value="2000">Very Slow</option>
+                    <option value="1000">Slow</option>
+                    <option value="500">Normal</option>
+                    <option value="250" selected>Fast</option>
+                    <option value="100" >Very Fast</option>
                 </select>
             </div>
         </div>
