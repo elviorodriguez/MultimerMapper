@@ -271,18 +271,21 @@ def create_trajectory_viewer(pdb_file, output_html):
             </select>
         </div>
         <div class="controls">
-            <button id="prev-btn" disabled>&lt; Previous</button>
+            <button id="prev-btn" disabled>&lt; Prev.</button>
             <button id="play-btn" disabled>Play</button>
+            <button id="play-reverse-btn" disabled>Reverse</button>
             <button id="pause-btn" disabled>Pause</button>
             <button id="next-btn" disabled>Next &gt;</button>
             <button id="reset-btn" disabled>Reset</button>
+            <button id="save-gif-btn" disabled>Save GIF</button>
             <div class="speed-control">
                 <label for="speed-control">Speed:</label>
                 <select id="speed-control" disabled>
                     <option value="2000">Slow</option>
-                    <option value="1000" selected>Normal</option>
+                    <option value="1000">Normal</option>
                     <option value="500">Fast</option>
                     <option value="250" selected>Very Fast</option>
+                    <option value="100" >Ultra Fast</option>
                 </select>
             </div>
         </div>
@@ -361,6 +364,7 @@ def create_trajectory_viewer(pdb_file, output_html):
         let viewer = null;
         let currentModelIndex = 0;
         let isPlaying = false;
+        let isPlayingReverse = false;
         let playInterval = null;
         let isInitialLoad = true;
 
@@ -369,10 +373,12 @@ def create_trajectory_viewer(pdb_file, output_html):
         const modelSlider = document.getElementById('model-slider');
         const modelInfo = document.getElementById('model-info');
         const playBtn = document.getElementById('play-btn');
+        const playReverseBtn = document.getElementById('play-reverse-btn');
         const pauseBtn = document.getElementById('pause-btn');
         const prevBtn = document.getElementById('prev-btn');
         const nextBtn = document.getElementById('next-btn');
         const resetBtn = document.getElementById('reset-btn');
+        const saveGifBtn = document.getElementById('save-gif-btn');
         const speedControl = document.getElementById('speed-control');
         const styleSelect = document.getElementById('style-select');
         const colorSelect = document.getElementById('color-select');
@@ -490,8 +496,10 @@ def create_trajectory_viewer(pdb_file, output_html):
                     if (viewer) {
                         // Enable controls after successful viewer creation
                         playBtn.disabled = false;
+                        playReverseBtn.disabled = false;
                         pauseBtn.disabled = true;
                         resetBtn.disabled = false;
+                        saveGifBtn.disabled = false;
                         speedControl.disabled = false;
                         prevBtn.disabled = false;
                         nextBtn.disabled = false;
@@ -515,18 +523,28 @@ def create_trajectory_viewer(pdb_file, output_html):
         }
 
         // Setup playback controls
-        function startPlayback() {
+        function startPlayback(reverse = false) {
             try {
                 isPlaying = true;
+                isPlayingReverse = reverse;
                 playBtn.disabled = true;
+                playReverseBtn.disabled = true;
                 pauseBtn.disabled = false;
                 
                 const speed = parseInt(speedControl.value);
                 
                 playInterval = setInterval(function() {
-                    let nextIndex = currentModelIndex + 1;
-                    if (nextIndex >= totalModels) {
-                        nextIndex = 0;
+                    let nextIndex;
+                    if (reverse) {
+                        nextIndex = currentModelIndex - 1;
+                        if (nextIndex < 0) {
+                            nextIndex = totalModels - 1;
+                        }
+                    } else {
+                        nextIndex = currentModelIndex + 1;
+                        if (nextIndex >= totalModels) {
+                            nextIndex = 0;
+                        }
                     }
                     displayModel(nextIndex);
                 }, speed);
@@ -538,13 +556,147 @@ def create_trajectory_viewer(pdb_file, output_html):
 
         function stopPlayback() {
             isPlaying = false;
+            isPlayingReverse = false;
             playBtn.disabled = false;
+            playReverseBtn.disabled = false;
             pauseBtn.disabled = true;
             
             if (playInterval) {
                 clearInterval(playInterval);
                 playInterval = null;
             }
+        }
+
+        // Function to save GIF (simplified version without workers)
+        async function saveGIF() {
+            try {
+                // Ask user for filename
+                const filename = prompt("Enter filename for the GIF (without extension):", "trajectory_animation");
+                if (!filename) {
+                    showStatus("GIF creation cancelled");
+                    return;
+                }
+                
+                showStatus("Preparing GIF creation...");
+                saveGifBtn.disabled = true;
+                
+                // Simple canvas-based GIF creation
+                const frames = [];
+                const originalIndex = currentModelIndex; // Save current model
+                
+                // Capture all frames first
+                for (let i = 0; i < totalModels; i++) {
+                    showStatus(`Capturing frame ${i + 1} of ${totalModels}...`);
+                    
+                    displayModel(i);
+                    
+                    // Wait for model to render
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    try {
+                        const canvas = viewer.getCanvas();
+                        if (canvas) {
+                            // Convert canvas to data URL
+                            const dataURL = canvas.toDataURL('image/png');
+                            frames.push(dataURL);
+                        }
+                    } catch (e) {
+                        showStatus("Error capturing frame " + (i + 1) + ": " + e.message, true);
+                    }
+                }
+                
+                if (frames.length === 0) {
+                    throw new Error("No frames captured");
+                }
+                
+                showStatus("Creating downloadable frames...");
+                
+                // Create a zip file with all frames
+                await createFramesZip(frames, filename);
+                
+                showStatus("Frames saved successfully! You can use external tools to create GIF from the PNG files.");
+                
+                // Restore original model
+                displayModel(originalIndex);
+                
+            } catch (error) {
+                showStatus("Error creating frames: " + error.message, true);
+            }
+            
+            saveGifBtn.disabled = false;
+        }
+
+        // Helper function to create ZIP with frames
+        async function createFramesZip(frames, filename) {
+            try {
+                // Load JSZip library
+                if (typeof JSZip === 'undefined') {
+                    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+                }
+                
+                const zip = new JSZip();
+                
+                // Add each frame to the zip
+                for (let i = 0; i < frames.length; i++) {
+                    const frameNumber = String(i + 1).padStart(3, '0');
+                    const base64Data = frames[i].split(',')[1]; // Remove data:image/png;base64,
+                    zip.file(`frame_${frameNumber}.png`, base64Data, {base64: true});
+                }
+                
+                // Create instructions file
+                const instructions = `Instructions for creating GIF:
+
+        1. Extract all PNG files from this ZIP
+        2. Use an online GIF maker like:
+        - https://ezgif.com/maker
+        - https://giphy.com/create
+        - Or use ImageMagick: convert -delay 25 -loop 0 frame_*.png animation.gif
+
+        Total frames: ${frames.length}
+        Recommended delay: 250ms between frames
+        `;
+                
+                zip.file('README.txt', instructions);
+                
+                // Generate ZIP and download
+                const content = await zip.generateAsync({type: 'blob'});
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename.endsWith('.zip') ? filename : filename + '_frames.zip';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+            } catch (error) {
+                // Fallback: download frames individually
+                showStatus("ZIP creation failed, downloading frames individually...");
+                
+                for (let i = 0; i < frames.length; i++) {
+                    const frameNumber = String(i + 1).padStart(3, '0');
+                    const a = document.createElement('a');
+                    a.href = frames[i];
+                    a.download = `${filename}_frame_${frameNumber}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    // Small delay between downloads
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+        }
+
+        // Helper function to load scripts
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
         }
 
         // Attach event listeners
@@ -556,8 +708,10 @@ def create_trajectory_viewer(pdb_file, output_html):
             displayModel(index);
         });
 
-        playBtn.addEventListener('click', startPlayback);
+        playBtn.addEventListener('click', () => startPlayback(false));
+        playReverseBtn.addEventListener('click', () => startPlayback(true));
         pauseBtn.addEventListener('click', stopPlayback);
+        saveGifBtn.addEventListener('click', saveGIF);
 
         prevBtn.addEventListener('click', function() {
             if (currentModelIndex > 0) {
