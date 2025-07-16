@@ -395,7 +395,11 @@ def plot_stability_by_pair_consistent(results_df, stat='mean', save_dir='stabili
             ),
             template='plotly_white',
             legend_title='Protein Combination',
-            hovermode='closest'
+            hovermode='closest',
+            legend=dict(
+                font=dict(size=11),
+                tracegroupgap=0,
+            )
         )
 
         # Save to file
@@ -745,7 +749,11 @@ def plot_pae_stability_by_pair_consistent(results_df, pae_type='miPAE', stat='me
             ),
             template='plotly_white',
             legend_title='Protein Combination',
-            hovermode='closest'
+            hovermode='closest',
+            legend=dict(
+                font=dict(size=11),
+                tracegroupgap=0,
+            )
         )
 
         # Save to file
