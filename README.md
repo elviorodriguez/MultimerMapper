@@ -1,4 +1,4 @@
-![image](https://github.com/user-attachments/assets/a71fc1ea-eaaf-44db-baa3-3c78d16de612)
+![image](https://github.com/elviorodriguez/MultimerMapper/blob/main/report/multimermapper_logo.png?raw=true)
 
 # What is MultimerMapper?
 It is a computational tool for the integration, analysis and visualization of AlphaFold interaction landscapes. It is presented as an innovative tool designed to help researchers understand and visualize large protein complexes easily using protein structure prediction.
