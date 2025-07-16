@@ -105,10 +105,10 @@ CLUSTERING METHODS ('clustering_method'):
 - 'dbscan': Density-based clustering (automatically determines number of clusters)
 
 LINKAGE METHODS ('linkage_method'):
-- 'single':
-- 'complete':
-- 'average':
-- 'ward':
+- 'single': clusters based on the minimum pairwise distance between observations (tends to produce elongated clusters)
+- 'complete': uses the maximum pairwise distance (yields compact, tight clusters)
+- 'average': merges clusters by the average distance between all inter-cluster pairs
+- 'ward': minimizes the total within-cluster variance (merges clusters that increase variance the least)
 
 VALIDATION METRICS ('validation_metric'):
 - 'silhouette': Silhouette coefficient (higher is better)
