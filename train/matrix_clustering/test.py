@@ -85,39 +85,44 @@ interaction_counts_df, clusters, _ = run_contacts_clustering_analysis_with_confi
 ###############################################################################
 
 """
-DISTANCE METRICS:
+DISTANCE METRICS ('distance_metric'):
 - 'jaccard': Binary overlap similarity (good for contact patterns)
 - 'closeness': Mean distance between contact points (good for structural similarity)
+      + 'use_median': Use the Median Closeness (True) or the Mean Closeness (False)
 - 'cosine': Cosine similarity between flattened matrices
 - 'correlation': Pearson correlation between matrices
 - 'spearman': Spearman correlation between matrices
 - 'hamming': Binary difference between matrices
 - 'structural_overlap': Advanced metric using 3D distance information
+      + 'overlap_structural_contribution': Proportional contribution of distogram to
+                                            the final distance between matrixes (0 to 1)
+      + 'overlap_use_contact_region_only': Use the distance from the distogram from 
+                                            residue pairs in contacts only (True)
 
-CLUSTERING METHODS:
+CLUSTERING METHODS ('clustering_method'):
 - 'hierarchical': Agglomerative clustering (default, works well with precomputed distances)
 - 'kmeans': K-means clustering (requires feature conversion)
 - 'dbscan': Density-based clustering (automatically determines number of clusters)
 
-LINKAGE METHODS:
+LINKAGE METHODS ('linkage_method'):
 - 'single':
 - 'complete':
 - 'average':
 - 'ward':
 
-VALIDATION METRICS:
+VALIDATION METRICS ('validation_metric'):
 - 'silhouette': Silhouette coefficient (higher is better)
 - 'calinski_harabasz': Calinski-Harabasz index (higher is better)
 - 'davies_bouldin': Davies-Bouldin index (lower is better)
 - 'gap_statistic': Gap statistic (higher is better)
 
 QUALITY FEATURES:
-- quality_weight: Uses PAE and pLDDT to weight distances
-- min_contacts_threshold: Minimum number of contacts to consider a matrix valid
+- 'quality_weight': Uses PAE and pLDDT to weight distances (True or False)
+- 'min_contacts_threshold': Minimum number of contacts to consider a matrix valid
 
 CLUSTER OPTIMIZATION:
-- silhouette_improvement: Minimum improvement required to add extra clusters
-- max_extra_clusters: Maximum number of clusters beyond max_valency to try
+- 'silhouette_improvement¡: Minimum improvement required to add extra clusters (proportion)
+- 'max_extra_clusters': Maximum number of clusters beyond max_valency to try
 """
 
 # ============================================================================
