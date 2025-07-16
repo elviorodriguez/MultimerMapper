@@ -1,7 +1,7 @@
 ![image](https://github.com/elviorodriguez/MultimerMapper/blob/main/report/multimermapper_logo.png?raw=true)
 
 # What is MultimerMapper?
-It is a computational tool for the integration, analysis and visualization of AlphaFold interaction landscapes. It is presented as an innovative tool designed to help researchers understand and visualize large protein complexes easily using protein structure prediction.
+It is a computational tool designed for the integration, analysis and visualization of AlphaFold interaction landscapes based on the novel concept of "Context Dependent Protein Structure Prediction". It is presented as an innovative tool to help researchers understand and visualize how protein complexes behave under different modelling conditions.
 
 The manuscript of the methodology is being written and the software is still under active development... So, keep an eye on it ;)
 
@@ -29,17 +29,18 @@ By combining predictions and smart analysis, MultimerMapper helps bridge the gap
 - Interactive RRC graph (3D) generation
 - Interaction surface mapping
 - Metrics clustering analysis
-- Homo-oligomerization states inference
-- Contact matrix clustering analysis and multivalency detection
-- Multivalency states inference
+- Multivalency detection
+- Contact matrix clustering analysis (Detects different binding modes)
+- Stoichiometry inference (Homo/Hetero-oligomerization states inference)
 - Pseudo-molecular dynamics trajectories generation (RMSD trajectories)
+- Bias in Partner Distribution (BPD) analysis
 - Partner enrichment
-- Stoichiometric Space Exploration (Assembly Path Simulation)
+- Stoichiometric Space Exploration (Assembly Path Simulation) - BETA
 - Interface with combinatorial assembler (CombFold)
 - Much more coming!
 
 # How does it works?
-The software can perform several tasks by analyzing AF2-multimer (AF3 comming soon) predictions ensembles of different combinations of proteins separated in two different directories:
+The software can perform several tasks by analyzing AF2-multimer (now AF3 too!!!) predictions ensembles of different combinations of proteins separated in two different directories:
 
     2-mers: contains all possible pairwise interaction predictions of the set of proteins (homo-2-mers and hetero-2-mers)
     N-mers: contains different combinations (3-mers, 4-mers, etc.) interaction predictions of the set of proteins that 
@@ -65,14 +66,14 @@ Every time you want to use MultimerMapper, activate the environment with the fol
 conda activate MultimerMapper
 ```
 
-## Add multimer_mapper alias (optional)
+## Add multimer_mapper alias (Linux only)
 You can add an alias to run MultimerMapper by adding the following to your ```.bashrc``` file:
 ```sh
 # Replace <user_name> with your user_name and <path_to_MM> with the repository path
 alias multimer_mapper="python /home/<user_name>/<path_to_MM>/multimer_mapper.py"
 ```
 Restart the shell and you will be able to call MultimerMapper using ```multimer_mapper``` as a shell command.
-```
+```sh
 # Display multimer_mapper help message
 multimer_mapper -h
 ```
@@ -81,11 +82,14 @@ multimer_mapper -h
 You can verify the installation as follows:
 
 ```sh
-# Activate MultimerMapper env to run the pipeline
+# Remember to activate MultimerMapper env to run the pipeline
 conda activate MultimerMapper
 
 # Take a look at the usage (this must give no errors)
 python multimer_mapper.py -h
+
+# If you have created the alias replace "python multimer_mapper.py" with the alias
+multimer_mapper -h
 ```
 There is a testing dataset composed of three trypanosomatid proteins (EAF6, EPL1 and PHD1) with all possible 2-mers and N-mers combinations that reached convergence. First run the pipeline only with 2-mers, and take a look at the output located at ```tests/output_2mers``` or ```tests/output_Nmers```, depending on which you run.
 
@@ -137,8 +141,9 @@ Let's look at the example pLDDT clusters of PHD1 (tests/expected_output/RMSF_and
 
 We can see 2 clusters. The main difference between them is in the domain 6. If we open the metadata TSV file
 
-## Visualization of RMSD trajectories
-In ChimeraX, open the sample weighted RMSD trajectory located in tests/expected_output/monomer_trajectories/PHD1/PHD1_domain_6
+## Visualization of RMSD trajectories in ChimeraX
+MultimerMapper now has its own RMSD trajectory visualizer incorporated, but you can also see it in ChimeraX. Inside ChimeraX, open the sample weighted RMSD trajectory located in tests/expected_output/monomer_trajectories/PHD1/PHD1_domain_6
+
 ```sh
 # Re-align the models to the lowest RMSD model (it will always be #1.1)
 mm #1.2-1000 to #1.1
@@ -158,7 +163,7 @@ https://github.com/user-attachments/assets/064b9c0c-820a-49c7-94f6-560877e95440
 Now AF3 predictions can be converted into a format compatible with MultimerMapper. You need to use the utility script ```utils/af3_compatibility.py``` to convert a single prediction or an entire directory containing multiple AF3 zipped predictions:
 
 ```bash
-# Process a single ZIP file
+# Process a single ZIP file (with single or multiple predictions inside)
 python utils/af3_compatibility.py af3_prediction.zip
 
 # Process a directory containing multiple ZIP files
