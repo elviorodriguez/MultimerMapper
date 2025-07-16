@@ -41,8 +41,6 @@ class ClusteringConfig:
     max_extra_clusters: int = 3
     
     # Noise handling
-    handle_sparse_matrices: bool = True
-    sparse_threshold: float = 0.1  # Fraction of non-zero elements to consider sparse
     overlap_structural_contribution: float = 0.01
     overlap_use_contact_region_only: bool = False
     
@@ -550,26 +548,6 @@ def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], D
         if 'min_pLDDT' in data:
             additional_data[f'min_pLDDT_{i}'] = data['min_pLDDT']
     
-    # Handle sparse matrices
-    if config.handle_sparse_matrices:
-        # Filter out extremely sparse matrices
-        filtered_matrices = []
-        filtered_keys = []
-        
-        for i, (mat, key) in enumerate(zip(matrices, model_keys)):
-            sparsity = np.sum(mat > 0) / mat.size
-            if sparsity >= config.sparse_threshold:
-                filtered_matrices.append(mat)
-                filtered_keys.append(key)
-        
-        if len(filtered_matrices) == 0:
-            logger.warning(f"All matrices too sparse for pair {pair}")
-            return [0] * n, model_keys, np.array([[0, 0]] * n), np.array([100])
-        
-        matrices = filtered_matrices
-        model_keys = filtered_keys
-        n = len(matrices)
-    
     # Compute distance matrix
     distance_matrix, quality_matrix = compute_distance_matrix(matrices, config, additional_data, logger)
     
@@ -639,7 +617,6 @@ def analyze_protein_interactions_with_enhanced_clustering(
     logger.info(f"  Distance metric: {config.distance_metric}")
     logger.info(f"  Clustering method: {config.clustering_method}")
     logger.info(f"  Validation metric: {config.validation_metric}")
-    logger.info(f"  Handle sparse matrices: {config.handle_sparse_matrices}")
     
     for pair in pairs:
         if pair not in all_pair_matrices:
@@ -714,9 +691,6 @@ def analyze_protein_interactions_with_enhanced_clustering(
 #         # With quality weighting
 #         ClusteringConfig(distance_metric='jaccard', quality_weight=True),
 #         ClusteringConfig(distance_metric='closeness', quality_weight=True),
-        
-#         # With sparse matrix handling
-#         ClusteringConfig(distance_metric='jaccard', handle_sparse_matrices=True),
 #     ]
     
 #     results = []
@@ -746,7 +720,6 @@ def analyze_protein_interactions_with_enhanced_clustering(
 #                 'clustering_method': config.clustering_method,
 #                 'validation_metric': config.validation_metric,
 #                 'quality_weight': config.quality_weight,
-#                 'handle_sparse': config.handle_sparse_matrices,
 #                 'total_pairs': total_pairs,
 #                 'clustered_pairs': clustered_pairs,
 #                 'avg_clusters': avg_clusters,
@@ -762,7 +735,6 @@ def analyze_protein_interactions_with_enhanced_clustering(
 #                 'clustering_method': config.clustering_method,
 #                 'validation_metric': config.validation_metric,
 #                 'quality_weight': config.quality_weight,
-#                 'handle_sparse': config.handle_sparse_matrices,
 #                 'total_pairs': 0,
 #                 'clustered_pairs': 0,
 #                 'avg_clusters': 0,
@@ -780,8 +752,7 @@ def analyze_protein_interactions_with_enhanced_clustering(
 #         distance_metric=distance_metric,
 #         clustering_method=clustering_method,
 #         validation_metric=validation_metric,
-#         quality_weight=quality_weight,
-#         handle_sparse_matrices=handle_sparse
+#         quality_weight=quality_weight
 #     )
     
 #     return analyze_protein_interactions_with_enhanced_clustering(
@@ -1029,7 +1000,6 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
                                    clustering_method: str = 'hierarchical',
                                    validation_metric: str = 'silhouette',
                                    quality_weight: bool = False,
-                                   handle_sparse_matrices: bool = True,
                                    use_median: bool = True,
                                    silhouette_improvement: float = 0.05,
                                    max_extra_clusters: int = 2,
@@ -1062,7 +1032,6 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
     #         clustering_method = best_config['clustering_method']
     #         validation_metric = best_config['validation_metric']
     #         quality_weight = best_config['quality_weight']
-    #         handle_sparse_matrices = best_config['handle_sparse']
             
     #         logger.info(f"Using best configuration from benchmark:")
     #         logger.info(f"  Distance: {distance_metric}, Method: {clustering_method}")
@@ -1074,7 +1043,6 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
         clustering_method=clustering_method,
         validation_metric=validation_metric,
         quality_weight=quality_weight,
-        handle_sparse_matrices=handle_sparse_matrices,
         use_median=use_median,
         silhouette_improvement=silhouette_improvement,
         max_extra_clusters=max_extra_clusters,

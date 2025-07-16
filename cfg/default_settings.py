@@ -263,7 +263,6 @@ contact_clustering_config = {
     'distance_metric': 'closeness',
     'clustering_method': 'hierarchical',
     'validation_metric': 'silhouette',
-    'handle_sparse_matrices': False,
     'quality_weight': True,
     'silhouette_improvement': 0.2,
     'max_extra_clusters': 3,

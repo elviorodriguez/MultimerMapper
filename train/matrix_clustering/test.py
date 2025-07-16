@@ -68,8 +68,8 @@ else:
 contact_clustering_config = {
     'distance_metric': 'closeness',
     'clustering_method': 'hierarchical',
+    'linkage_method': 'average',
     'validation_metric': 'silhouette',
-    'handle_sparse_matrices': False,
     'quality_weight': True,
     'silhouette_improvement': 0.2,
     'max_extra_clusters': 3,
@@ -99,6 +99,12 @@ CLUSTERING METHODS:
 - 'kmeans': K-means clustering (requires feature conversion)
 - 'dbscan': Density-based clustering (automatically determines number of clusters)
 
+LINKAGE METHODS:
+- 'single':
+- 'complete':
+- 'average':
+- 'ward':
+
 VALIDATION METRICS:
 - 'silhouette': Silhouette coefficient (higher is better)
 - 'calinski_harabasz': Calinski-Harabasz index (higher is better)
@@ -107,7 +113,6 @@ VALIDATION METRICS:
 
 QUALITY FEATURES:
 - quality_weight: Uses PAE and pLDDT to weight distances
-- handle_sparse_matrices: Filters out matrices with very few contacts
 - min_contacts_threshold: Minimum number of contacts to consider a matrix valid
 
 CLUSTER OPTIMIZATION:
