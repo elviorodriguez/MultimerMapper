@@ -325,25 +325,32 @@ def main():
                 print(f"Error extracting {zip_file}: {e}", file=sys.stderr)
                 continue
             
-            # Find the actual AF3 directory inside the extracted content
-            af3_dir = None
+            # Find all AF3 directories inside the extracted content
+            af3_dirs = []
             for root, dirs, files in os.walk(temp_dir):
                 full_files, summ_files, cif_files = find_af3_files_in_dir(root)
                 if full_files and summ_files and cif_files:
-                    af3_dir = root
-                    break
-            
-            if not af3_dir:
+                    af3_dirs.append(root)
+
+            if not af3_dirs:
                 print(f"No AF3 files found in {zip_file}", file=sys.stderr)
                 continue
-            
-            # Generate prefix from ZIP filename
+
+            # Generate base prefix from ZIP filename
             zip_basename = os.path.splitext(os.path.basename(zip_file))[0]
-            
-            # Process the AF3 directory
-            success = process_af3_directory(af3_dir, args.fasta, out_dir, zip_basename)
-            if success:
-                processed_count += 1
+
+            # Process each AF3 directory found
+            for af3_dir in af3_dirs:
+                # For multiple predictions in one ZIP, use the subdirectory name as part of prefix
+                if len(af3_dirs) > 1:
+                    subdir_name = os.path.basename(af3_dir)
+                    dir_prefix = f"{zip_basename}_{subdir_name}"
+                else:
+                    dir_prefix = zip_basename
+                
+                success = process_af3_directory(af3_dir, args.fasta, out_dir, dir_prefix)
+                if success:
+                    processed_count += 1
     
     finally:
         # Clean up temporary directories
