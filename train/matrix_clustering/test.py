@@ -19,6 +19,10 @@ fasta_file = working_dir + "/multivalency_test.fasta"
 AF2_2mers = working_dir + "/multivalency_test_AF_2mers"
 AF2_Nmers = working_dir + "/multivalency_test_AF_Nmers"
 
+# Dataframe with Nº of expected interaction modes at each N-mer value (3-mer, 4-mer, etc.)
+true_labels_file = "/home/elvio/MultimerMapper/train/matrix_clustering/true_labels.tsv"
+true_labels_df = pd.read_csv(true_labels_file, sep="\t")
+
 # Parsing configs
 use_names = True
 overwrite = True
