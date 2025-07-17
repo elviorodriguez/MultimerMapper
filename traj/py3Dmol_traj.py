@@ -147,6 +147,7 @@ def create_trajectory_viewer(pdb_file, output_html):
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>PDB Trajectory Viewer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
@@ -224,6 +225,7 @@ def create_trajectory_viewer(pdb_file, output_html):
             text-align: center;
             margin: 10px 0;
             font-weight: bold;
+            font-size: 14px;
         }
         .speed-control {
             display: flex;
@@ -453,7 +455,7 @@ def create_trajectory_viewer(pdb_file, output_html):
                     // Update UI
                     currentModelIndex = index;
                     modelSlider.value = index + 1;
-                    modelInfo.textContent = `Model ${index + 1} of ${totalModels}: ${modelTitles[index]}`;
+                    modelInfo.innerHTML = `Model ${index + 1} of ${totalModels}<br>${modelTitles[index]}`;
                     
                     // Update button states
                     prevBtn.disabled = (index === 0);
