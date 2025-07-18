@@ -60,4 +60,4 @@ remove_interactions_from_ppi_graph = ("Indirect", )
 
 # If True, uses same graph_resolution value for all proteins
 # If False, you can select interactively 
-auto_domain_detection: bool = True
+# auto_domain_detection: bool = True

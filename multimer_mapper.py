@@ -550,6 +550,9 @@ if __name__ == "__main__":
     parser.add_argument('--manual_domains', type = str, default = None,
         help='Path to tsv file with manually defined domains (look at tests/EAF6_EPL1_PHD1/manual_domains.tsv for an example)')
     
+    parser.add_argument('--auto_domains', action='store_true',
+        help="Domains are detected automatically using the default graph resolution value (0.075).")
+    
     parser.add_argument('--use_IDs', action='store_true',
         help='Use protein IDs instead of names')
     
@@ -583,6 +586,7 @@ if __name__ == "__main__":
     out_path        = args.out_path
     overwrite       = args.overwrite
     manual_domains  = args.manual_domains
+    auto_domains    = True if args.auto_domains else auto_domain_detection
     N_value         = args.N_value
     skip_traj       = args.skip_traj
     first_plot      = args.first_plot
@@ -628,7 +632,8 @@ if __name__ == "__main__":
                                         use_names = use_names,
                                         overwrite = overwrite,
                                         log_level = log_level,
-                                        show_PAE_along_backbone = False if skip_plots else True)
+                                        show_PAE_along_backbone = False if skip_plots else True,
+                                        auto_domain_detection = auto_domains)
 
     # Generate interactive 2D PPI graph
     combined_graph_interactive = interactive_igraph_to_plotly(mm_output["combined_graph"],

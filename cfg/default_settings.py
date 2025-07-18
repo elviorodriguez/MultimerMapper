@@ -318,7 +318,7 @@ layout_3d_iterations = 10000
 # DEFAULT FINE GRAIN CONFIG
 fine_grain_layout_cfg = {
     "algorithm": "residue_optimized",
-    "iterations": 200,
+    "iterations": 50,
     # Controls the inter-surface distance
     "min_contact_distance": 50,
     "max_contact_distance": 60,
