@@ -22,7 +22,6 @@ from utils.logger_setup import configure_logger, default_error_msgs
 from utils.combinations import get_untested_2mer_pairs, get_tested_Nmer_pairs
 from src.analyze_homooligomers import add_chain_information_to_df, does_all_have_at_least_one_interactor
 from src.convergency import does_nmer_is_fully_connected_network
-from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff, Nmer_stability_method, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft, Nmers_contacts_cutoff_convergency
 from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, dynamic_conv_start, dynamic_conv_end
 
@@ -1706,7 +1705,7 @@ def get_multivalent_pairs_list(mm_output, combined_graph, logger, drop_homooligo
 
     multivalent_pairs: list = []
 
-    multivalent_pairs_based_on_evidence: list = get_multivalent_tuple_pairs_based_on_evidence(mm_output, logger)
+    multivalent_pairs_based_on_evidence: list = mm_output['multivalent_pairs_list']
 
     for edge in combined_graph.es:
 

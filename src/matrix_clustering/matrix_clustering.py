@@ -18,6 +18,7 @@ warnings.filterwarnings('ignore')
 
 from src.analyze_multivalency import visualize_clusters_static, visualize_clusters_interactive
 from src.matrix_clustering.py3Dmol_representative import create_contact_visualizations_for_clusters, unify_pca_matrixes_and_py3dmol
+from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 from utils.logger_setup import configure_logger
 
 @dataclass
@@ -609,6 +610,12 @@ def analyze_protein_interactions_with_enhanced_clustering(
     
     # Get all protein pairs that have matrices
     pairs = list(all_pair_matrices.keys())
+
+    # Get all protein pairs that are multivalent
+    multivalent_pairs_list = get_multivalent_tuple_pairs_based_on_evidence(mm_output, logger)
+
+    # Get all protein pairs that interact via multiple binding modes
+    multimode_pairs_list = pairs # NOT IMPLEMENTED YET
     
     # Cluster contact matrices for each protein pair
     all_clusters = {}
@@ -619,6 +626,8 @@ def analyze_protein_interactions_with_enhanced_clustering(
     logger.info(f"  Validation metric: {config.validation_metric}")
     
     for pair in pairs:
+
+        # Skip pairs that have no matrices
         if pair not in all_pair_matrices:
             continue
         
@@ -626,11 +635,23 @@ def analyze_protein_interactions_with_enhanced_clustering(
         
         # Get maximum valency for this pair
         max_valency = max_valency_dict.get(tuple(sorted(pair)), 1)
-        logger.info(f"   Maximum observed valency: {max_valency}")
-        
-        # Cluster the matrices
+
+        # If multivalency was detected for the pair
+        if pair in multivalent_pairs_list:
+            # Set minimum cluster number as max valency
+            logger.info(f"   Using maximum observed valency as minimum cluster number: {max_valency}")
+            minimum_clusters_n = max_valency
+        # # If multivalency was not detected for the pair but multi-modal interaction does (not implemented)
+        # elif pair in multimode_pairs_list:
+        #     minimum_clusters_n = max_valency
+        # None of the above
+        else:
+            minimum_clusters_n = 1
+            logger.info(f"   Pair does not classifies as multivalent or multimodal. Setting cluster number as 1: {minimum_clusters_n}")
+
+        # Cluster the matrices of the pair using the minimum clusters number
         result = cluster_contact_matrices_enhanced(
-            all_pair_matrices, pair, max_valency, config, logger
+            all_pair_matrices, pair, minimum_clusters_n, config, logger
         )
         
         if result[0] is not None:
@@ -663,7 +684,7 @@ def analyze_protein_interactions_with_enhanced_clustering(
     
     logger.info(f"Generated clusters for {len(all_clusters)} protein pairs")
     
-    return interaction_counts_df, all_clusters
+    return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list
 
 
 # def benchmark_clustering_methods(mm_output: Dict[str, Any], 
@@ -1017,7 +1038,7 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
         benchmark_results: Optional DataFrame with benchmark results (if run_benchmark_analysis=True)
     """
     
-    benchmark_results = None
+    # benchmark_results = None
     
     # # Run benchmark if requested
     # if run_benchmark_analysis:
@@ -1052,7 +1073,7 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
     )
     
     # Run the enhanced analysis
-    interaction_counts_df, all_clusters = analyze_protein_interactions_with_enhanced_clustering(
+    interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list = analyze_protein_interactions_with_enhanced_clustering(
         mm_output, config, logger
     )
 
@@ -1074,14 +1095,14 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
     # Print summary
     print_clustering_summary(all_clusters, logger)
     
-    return interaction_counts_df, all_clusters, benchmark_results
+    return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list
 
 # Usage with predefined configurations
 def run_contacts_clustering_analysis_with_config(mm_output, config_dict):
     
     logger = configure_logger(mm_output['out_path'])(__name__)
 
-    results = run_enhanced_clustering_analysis(
+    interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list = run_enhanced_clustering_analysis(
         mm_output,
         logger=logger,
         **config_dict
@@ -1096,4 +1117,4 @@ def run_contacts_clustering_analysis_with_config(mm_output, config_dict):
     unify_pca_matrixes_and_py3dmol(mm_output, pairs, logger)
     logger.info("FINISHED: Creating unified HTML representations (PCA+Matrixes+py3Dmol)")
 
-    return results
+    return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list

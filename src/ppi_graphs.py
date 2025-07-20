@@ -610,9 +610,7 @@ def add_edges_valency(graph, mm_output, logger: Logger | None = None):
     # ------ Check multivalency using double interaction (based on evidence) ----------
 
     # Get multivalent pairs by computing max_valency
-    multivalent_pairs_based_on_evidence: list[tuple] = get_multivalent_tuple_pairs_based_on_evidence(mm_output, logger,
-                                                                                                     multivalency_detection_metric = multivalency_detection_metric,
-                                                                                                     metric_threshold = multivalency_metric_threshold)
+    multivalent_pairs_based_on_evidence: list[tuple] = mm_output['multivalent_pairs_list']
 
     # Verify one edge at a time
     for e in graph.es:
@@ -621,7 +619,7 @@ def add_edges_valency(graph, mm_output, logger: Logger | None = None):
         sorted_tuple_pair = tuple(sorted(e['name']))
 
         # Add True if it is multivalent, False if not
-        e['valency']['is_multivalent'] = sorted_tuple_pair in multivalent_pairs_based_on_evidence           
+        e['valency']['is_multivalent'] = sorted_tuple_pair in multivalent_pairs_based_on_evidence
 
 
 def get_isolated_proteins(prot_IDs, pairwise_2mers_df, graph1, graph2):
