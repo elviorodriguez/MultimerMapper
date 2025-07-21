@@ -635,6 +635,7 @@ def analyze_protein_interactions_with_enhanced_clustering(
         
         # Get maximum valency for this pair
         max_valency = max_valency_dict.get(tuple(sorted(pair)), 1)
+        logger.info(f"   Maximum observed valency: {max_valency}")
 
         # If multivalency was detected for the pair
         if pair in multivalent_pairs_list:

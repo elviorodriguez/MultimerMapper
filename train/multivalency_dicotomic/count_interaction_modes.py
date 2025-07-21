@@ -288,7 +288,7 @@ def compute_fraction_of_multivalent_chains(interaction_counts_df: pd.DataFrame,
 # Get multivalent pairs
 def get_multivalent_tuple_pairs_based_on_evidence(mm_output: dict, logger: logging.Logger, N_contacts_cutoff = Nmers_contacts_cutoff,
                                                   multivalency_detection_metric = ["fraction_of_multivalent_chains", "max_valency"][0],
-                                                  metric_threshold = [0.167, 2][0]):
+                                                  metric_threshold = [0.167, 2][0], also_get_homo = True):
 
     pairwise_contact_matrices = mm_output['pairwise_contact_matrices']
     
@@ -310,7 +310,7 @@ def get_multivalent_tuple_pairs_based_on_evidence(mm_output: dict, logger: loggi
         metric_threshold = 2
 
     # Get the multivalent tuple pairs
-    multivalency_tuple_pairs = [tuple(sorted(pair)) for pair in valency_dict if (valency_dict[pair] >= metric_threshold and pair[0] != pair[1])]
+    multivalency_tuple_pairs = [tuple(sorted(pair)) for pair in valency_dict if (valency_dict[pair] >= metric_threshold and (pair[0] != pair[1] or also_get_homo))]
 
     return multivalency_tuple_pairs
 
