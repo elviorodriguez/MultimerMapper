@@ -17,6 +17,7 @@ import plotly.graph_objects as go
 import numpy as np
 import io
 from scipy.spatial.distance import cdist
+from matplotlib.colors import ListedColormap
 
 from utils.logger_setup import configure_logger, default_error_msgs
 from utils.combinations import get_untested_2mer_pairs, get_tested_Nmer_pairs
@@ -936,7 +937,13 @@ def visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
         x_domains           = cluster_dict[cluster]['x_dom']
         y_domains           = cluster_dict[cluster]['y_dom']
         
-        im = ax.imshow(avg_contact_matrix, cmap='viridis', aspect='equal', vmin = 0, vmax = 1)
+        # Create a custom colormap with black for zero values
+        viridis = plt.cm.viridis
+        colors = viridis(np.linspace(0, 1, 256))
+        colors[0] = [0, 0, 0, 1]  # Set first color (zero) to black
+        custom_cmap = ListedColormap(colors)
+
+        im = ax.imshow(avg_contact_matrix, cmap=custom_cmap, aspect='equal', vmin = 0, vmax = 1)
         ax.set_title(f"Contacts cluster {cluster} (n={len(cluster_models)})")
         cbar = plt.colorbar(im, ax=ax)
         cbar.set_label(f'Contact Frequency (max={round(avg_contact_matrix.max(), ndigits=2)})')
@@ -1026,18 +1033,18 @@ def visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
         plt.close()
 
 
-def create_interactive_plot(reduced_features, labels, model_keys, cluster_dict, pair, explained_variance, all_pair_matrices):
+def create_interactive_plot(reduced_features, labels, model_keys, cluster_dict, pair, explained_variance, all_pair_matrices, sliced_PAE_and_pLDDTs):
     # Create PCA plot
     pca_fig = create_pca_plot(reduced_features, labels, model_keys, explained_variance, all_pair_matrices, pair)
     
     # Create contact maps for each cluster
-    contact_fig = create_contact_maps_with_buttons(cluster_dict, pair)
+    contact_fig = create_contact_maps_with_buttons(cluster_dict, pair, sliced_PAE_and_pLDDTs)
     
     # Create unified HTML
     return create_unified_html(pca_fig, contact_fig, pair)
 
 
-def create_contact_maps_with_buttons(cluster_dict, pair):
+def create_contact_maps_with_buttons(cluster_dict, pair, sliced_PAE_and_pLDDTs):
     fig = go.Figure()
     
     # Add all contact maps as traces, but make only the first one visible
@@ -1045,19 +1052,52 @@ def create_contact_maps_with_buttons(cluster_dict, pair):
         # Create residue indices starting at 1
         x_indices = np.arange(1, data['average_matrix'].shape[1]+1)
         y_indices = np.arange(1, data['average_matrix'].shape[0]+1)
+
+        # Get the sequence of the proteins from sliced
+        x_sequence = sliced_PAE_and_pLDDTs[data['x_lab']]['sequence']
+        y_sequence = sliced_PAE_and_pLDDTs[data['y_lab']]['sequence']
         
+        # Create custom colorscale with black for zero
+        custom_colorscale = [
+            [0.0, 'black'],      # Zero values = black
+            [0.001, '#440154'],  # Start of viridis for very small positive values
+            [0.25, '#31688e'],
+            [0.5, '#35b779'],
+            [0.75, '#fde725'],
+            [1.0, '#fde725']     # End of viridis
+        ]
+
+        # Create custom hover text with residue letters
+        hover_text = []
+        for i, y_idx in enumerate(y_indices):
+            row = []
+            for j, x_idx in enumerate(x_indices):
+                # Get amino acid letters (subtract 1 because indices start at 1 but sequences start at 0)
+                x_aa = x_sequence[x_idx-1] if x_idx-1 < len(x_sequence) else 'X'
+                y_aa = y_sequence[y_idx-1] if y_idx-1 < len(y_sequence) else 'X'
+                
+                hover_info = (
+                    f"{data['x_lab']}: {x_aa}{x_idx}<br>" +
+                    f"{data['y_lab']}: {y_aa}{y_idx}<br>" +
+                    f"Contact Freq.: {data['average_matrix'][i, j]:.2f}"
+                )
+                row.append(hover_info)
+            hover_text.append(row)
+
         fig.add_trace(
             go.Heatmap(
                 z=data['average_matrix'],
                 x=x_indices,
                 y=y_indices,
-                colorscale='Viridis',
+                colorscale=custom_colorscale,
                 zmin=0, zmax=1,
                 visible=(cluster == 0), # Only first cluster visible by default
-                name=f'Cluster {cluster}'
+                name=f'Cluster {cluster}',
+                text=hover_text,
+                hovertemplate="%{text}<extra></extra>"
             )
         )
-        
+
         # Add domain separation lines for each cluster
         if cluster == 0:  # Add shapes only for the first cluster initially
             add_domain_lines(fig, data['x_dom'], data['y_dom'], data['average_matrix'].shape)
@@ -1436,6 +1476,9 @@ def visualize_clusters_interactive(
 
     if save_plot:
 
+        # Unpack sliced_PAE_and_pLDDTs
+        sliced_PAE_and_pLDDTs = mm_output['sliced_PAE_and_pLDDTs']
+
         # Create a directory for saving plots
         output_dir = os.path.join(mm_output['out_path'], 'contact_clusters')
         os.makedirs(output_dir, exist_ok=True)
@@ -1443,7 +1486,7 @@ def visualize_clusters_interactive(
         os.makedirs(output_dir_for_htmls, exist_ok=True)
 
         # Create the interactive plot
-        html_content = create_interactive_plot(reduced_features, labels, model_keys, cluster_dict, pair, explained_variance, all_pair_matrices)
+        html_content = create_interactive_plot(reduced_features, labels, model_keys, cluster_dict, pair, explained_variance, all_pair_matrices, sliced_PAE_and_pLDDTs)
         
         # Save the HTML content to a file
         unified_html_path = os.path.join(output_dir_for_htmls, f"{pair[0]}__vs__{pair[1]}-pca_and_matrixes.html")
