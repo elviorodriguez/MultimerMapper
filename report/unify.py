@@ -150,7 +150,7 @@ def get_stability_plots(directory_path):
             metric = match.group(1)
             statistic = match.group(2)
             proteins = match.group(3)
-            protein1, protein2 = proteins.split('_', 1) if '_' in proteins else (proteins, proteins)
+            protein1, protein2 = proteins.split('__vs__', 1) if '__vs__' in proteins else (proteins, proteins)
             plots.append({
                 "metric": metric,
                 "statistic": statistic,

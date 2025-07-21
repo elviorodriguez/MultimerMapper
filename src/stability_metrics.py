@@ -403,7 +403,7 @@ def plot_stability_by_pair_consistent(results_df, stat='mean', save_dir='stabili
         )
 
         # Save to file
-        fname = f"pLDDT_{stat}-{pair[0]}_{pair[1]}.html".replace("/", "_")
+        fname = f"pLDDT_{stat}-{pair[0]}__vs__{pair[1]}.html".replace("/", "_")
         fpath = os.path.join(save_dir, fname)
         plotly_plot(fig, filename=fpath, auto_open=False)
 
@@ -757,7 +757,7 @@ def plot_pae_stability_by_pair_consistent(results_df, pae_type='miPAE', stat='me
         )
 
         # Save to file
-        fname = f"{pae_type}_{stat}-{pair[0]}_{pair[1]}.html".replace("/", "_")
+        fname = f"{pae_type}_{stat}-{pair[0]}__vs__{pair[1]}.html".replace("/", "_")
         fpath = os.path.join(save_dir, fname)
         plotly_plot(fig, filename=fpath, auto_open=False)
 
