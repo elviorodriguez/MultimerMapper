@@ -1061,9 +1061,8 @@ def create_contact_maps_with_buttons(cluster_dict, pair, sliced_PAE_and_pLDDTs):
         custom_colorscale = [
             [0.0, 'black'],      # Zero values = black
             [0.001, '#440154'],  # Start of viridis for very small positive values
-            [0.25, '#31688e'],
-            [0.5, '#35b779'],
-            [0.75, '#fde725'],
+            [0.333, '#31688e'],
+            [0.666, '#35b779'],
             [1.0, '#fde725']     # End of viridis
         ]
 
