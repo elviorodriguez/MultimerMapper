@@ -1094,7 +1094,15 @@ def create_contact_maps_with_buttons(cluster_dict, pair, sliced_PAE_and_pLDDTs):
                 visible=(cluster == 0), # Only first cluster visible by default
                 name=f'Cluster {cluster}',
                 text=hover_text,
-                hovertemplate="%{text}<extra></extra>"
+                hovertemplate="%{text}<extra></extra>",
+                colorbar=dict(
+                    title=dict(
+                        text=f'Contact Frequency (max={data["average_matrix"].max():.2f})',
+                        side='right',
+                        font=dict(size=12)
+                    ),
+                    titleside='right'
+                )  # Add colorbar to ALL traces
             )
         )
 
@@ -1108,16 +1116,9 @@ def create_contact_maps_with_buttons(cluster_dict, pair, sliced_PAE_and_pLDDTs):
         # Create visibility list
         visibility = [j == i for j in range(len(cluster_dict))]
         
-        button = dict(
-            label=f'{i}',
-            method='update',
-            args=[
-                {'visible': visibility},
-                {
-                    'shapes': []  # Clear existing shapes
-                }
-            ]
-        )
+        # Get cluster size and max frequency for the title and colorbar
+        models_n = len(cluster_dict[i]['models'])
+        max_freq = cluster_dict[i]['average_matrix'].max()
         
         # Add new shapes for the selected cluster
         new_shapes = create_domain_shapes(
@@ -1125,12 +1126,23 @@ def create_contact_maps_with_buttons(cluster_dict, pair, sliced_PAE_and_pLDDTs):
             cluster_dict[i]['y_dom'],
             cluster_dict[i]['average_matrix'].shape
         )
-        button['args'][1]['shapes'] = new_shapes
+        
+        button = dict(
+            label=f'{i}',
+            method='update',
+            args=[
+                {'visible': visibility},  # Update trace visibility
+                {
+                    'shapes': new_shapes,  # Update shapes
+                    'title': f'Contact Maps - Cluster {i} (n={models_n})',  # Update title
+                }
+            ]
+        )
         
         buttons.append(button)
 
     fig.update_layout(
-        title=dict(text="Contact Maps", x=0.5),
+        title=dict(text=f"Contact Maps - Cluster 0 (n={len(cluster_dict[0]['models'])})", x=0.5),
         xaxis_title=f"{data['x_lab']} (Residue)",
         yaxis_title=f"{data['y_lab']} (Residue)",
         yaxis=dict(scaleanchor="x", scaleratio=1),
