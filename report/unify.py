@@ -142,15 +142,18 @@ def get_stability_plots(directory_path):
         return []
     
     plots = []
-    pattern = re.compile(r"(.+)_(.+)-(.+)\.html")
+    # Format: {metric}_{statistic}-{protein1}__vs__{protein2}.html
+    pattern = re.compile(r"(.+)_(.+?)-(.+?)__vs__(.+?)\.html")
+    
     for file in glob.glob(os.path.join(stability_dir, "*.html")):
         basename = os.path.basename(file)
         match = pattern.match(basename)
         if match:
-            metric = match.group(1)
-            statistic = match.group(2)
-            proteins = match.group(3)
-            protein1, protein2 = proteins.split('__vs__', 1) if '__vs__' in proteins else (proteins, proteins)
+            metric = match.group(1)      # e.g., "aiPAE"
+            statistic = match.group(2)   # e.g., "mean"
+            protein1 = match.group(3)    # e.g., "7WP3-3"
+            protein2 = match.group(4)    # e.g., "7WP3-3"
+            
             plots.append({
                 "metric": metric,
                 "statistic": statistic,
