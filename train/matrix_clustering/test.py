@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pickle
 
+import multimer_mapper as mm
 from train.multivalency_dicotomic.parse_raw_data import parse_raw_data
 from src.matrix_clustering.matrix_clustering import run_contacts_clustering_analysis_with_config
 from utils.logger_setup import configure_logger
