@@ -262,10 +262,12 @@ use_enhanced_matrix_clustering = True
 contact_clustering_config = {
     'distance_metric': 'closeness',
     'clustering_method': 'hierarchical',
+    'linkage_method': 'ward',
     'validation_metric': 'silhouette',
     'quality_weight': True,
     'silhouette_improvement': 0.2,
     'max_extra_clusters': 3,
+    'min_extra_clusters': 2,
     'overlap_structural_contribution': 1,
     'overlap_use_contact_region_only': False,
     'use_median': False

@@ -40,6 +40,7 @@ class ClusteringConfig:
     validation_metric: str = 'silhouette'  # 'silhouette', 'calinski_harabasz', 'davies_bouldin', 'gap_statistic'
     silhouette_improvement: float = 0.05
     max_extra_clusters: int = 3
+    min_extra_clusters: int = 2
     
     # Noise handling
     overlap_structural_contribution: float = 0.01
@@ -455,12 +456,23 @@ def find_optimal_clusters(distance_matrix: np.ndarray,
     if max_clusters == 1:
         return [0] * n_samples, 0
     
+    # Change the minimum n_cluster to explore?
+    if max_valency > 2 and config.min_extra_clusters > 0:
+        min_clusters = max_valency - config.min_extra_cluster
+        # Limit the minimum to 2
+        if min_clusters < 2:
+            min_clusters = 2
+    else:
+        min_clusters = max_valency
+    
+    logger.info(f"   Testing between {min_clusters} and {max_clusters} clusters...")
+    
     best_labels = None
     best_score = -np.inf if config.validation_metric in ['silhouette', 'calinski_harabasz', 'gap_statistic'] else np.inf
     
     validator = ClusterValidationMetrics()
     
-    for n_clusters in range(max_valency, max_clusters + 1):
+    for n_clusters in range(min_clusters, max_clusters + 1):
         if n_clusters > n_samples:
             break
             
@@ -493,14 +505,18 @@ def find_optimal_clusters(distance_matrix: np.ndarray,
             if score < best_score * (1 - config.silhouette_improvement):
                 is_better = True
         
+        logger.info(f"      - Score for {n_clusters} clusters: {score:.3f}")
+
         if is_better:
             best_score = score
             best_labels = labels
-            logger.info(f"   Found better clustering with {n_clusters} clusters, score: {score:.3f}")
+            best_clust_n = n_clusters
     
     if best_labels is None:
         # Fallback to base clustering
         best_labels = perform_clustering(distance_matrix, max_valency, config)
+    
+    logger.info(f"   Final score: {best_score}")
     
     return best_labels, best_score
 
@@ -640,7 +656,7 @@ def analyze_protein_interactions_with_enhanced_clustering(
         # If multivalency was detected for the pair
         if pair in multivalent_pairs_list:
             # Set minimum cluster number as max valency
-            logger.info(f"   Using maximum observed valency as minimum cluster number: {max_valency}")
+            logger.info(f"   Using maximum observed valency as initial minimum cluster number: {max_valency}")
             minimum_clusters_n = max_valency
         # # If multivalency was not detected for the pair but multi-modal interaction does (not implemented)
         # elif pair in multimode_pairs_list:
@@ -648,7 +664,8 @@ def analyze_protein_interactions_with_enhanced_clustering(
         # None of the above
         else:
             minimum_clusters_n = 1
-            logger.info(f"   Pair does not classifies as multivalent or multimodal. Setting cluster number as 1: {minimum_clusters_n}")
+            logger.info(f"   Pair does not classifies as multivalent or multimodal:")
+            logger.info(f"      - Setting cluster number as {minimum_clusters_n}")
 
         # Cluster the matrices of the pair using the minimum clusters number
         result = cluster_contact_matrices_enhanced(
@@ -835,7 +852,7 @@ def generate_cluster_dict(all_pair_matrices: Dict,
     if n_clusters == 0:
         n_clusters = 1
 
-    logger.info(f"   Number of clusters: {n_clusters}")
+    logger.info(f"   Final Nº of clusters: {n_clusters}")
     if n_clusters > 1:
         logger.info(f"   Contact distribution represents a MULTIVALENT interaction with {n_clusters} modes")
     else:
@@ -1025,6 +1042,7 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
                                    use_median: bool = True,
                                    silhouette_improvement: float = 0.05,
                                    max_extra_clusters: int = 2,
+                                   min_extra_clusters: int = 2,
                                    overlap_structural_contribution: float = 0.01,
                                    overlap_use_contact_region_only: bool = False,
                                    # Benchmark options
@@ -1068,9 +1086,10 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
         use_median=use_median,
         silhouette_improvement=silhouette_improvement,
         max_extra_clusters=max_extra_clusters,
+        min_extra_clusters=min_extra_clusters,
         min_contacts_threshold=N_contacts_cutoff,        
         overlap_structural_contribution = overlap_structural_contribution,
-        overlap_use_contact_region_only = overlap_use_contact_region_only
+        overlap_use_contact_region_only = overlap_use_contact_region_only,
     )
     
     # Run the enhanced analysis
