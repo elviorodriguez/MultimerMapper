@@ -348,9 +348,8 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
         .viewer-container {{
             width: 800px;
             height: 600px;
-            margin: 10px auto;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+            margin: 0px auto;
+            border-radius: 0px;
             position: relative;
             background-color: #000;
         }}
@@ -363,6 +362,31 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
             padding: 20px;
             background-color: #f8f9fa;
             border-radius: 8px;
+        }}
+        .dropdown-section {{
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }}
+        .dropdown-labels {{
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }}
+        .dropdown-controls {{
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }}
+        .dropdown-labels label {{
+            height: 34px;
+            display: flex;
+            align-items: center;
+        }}
+        .buttons-section {{
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
         }}
         .control-group {{
             display: flex;
@@ -442,77 +466,58 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
         <div class="viewer-container" id="viewer-container"></div>
         
         <div class="controls">
-            <div class="control-group">
-                <label>Protein Style:</label>
-                <select id="style-select">
-                    <option value="cartoon">Cartoon</option>
-                    <option value="line">Line</option>
-                    <option value="stick">Stick</option>
-                    <option value="sphere">Sphere</option>
-                    <option value="surface">Surface</option>
-                </select>
+            <div class="dropdown-section">
+                <div class="dropdown-labels">
+                    <label>Protein Style:</label>
+                    <label>Color Scheme:</label>
+                    <label>Surface Options:</label>
+                </div>
+                <div class="dropdown-controls">
+                    <select id="style-select">
+                        <option value="cartoon">Cartoon</option>
+                        <option value="line">Line</option>
+                        <option value="stick">Stick</option>
+                        <option value="sphere">Sphere</option>
+                        <option value="surface">Surface</option>
+                    </select>
+                    <select id="color-select">
+                        <option value="polymer">Polymer Entity</option>
+                        <option value="chain">Chain</option>
+                        <option value="spectrum">Spectrum</option>
+                        <option value="residue">Residue</option>
+                        <option value="secondary">Secondary Structure</option>
+                        <option value="plddt">pLDDT</option>
+                        <option value="domain">Domain</option>
+                    </select>
+                    <select id="surface-select">
+                        <option value="none">None</option>
+                        <option value="VDW">Van der Waals</option>
+                        <option value="SAS">Solvent Accessible</option>
+                        <option value="MS">Molecular Surface</option>
+                    </select>
+                </div>
             </div>
             
-            <div class="control-group">
-                <label>Color Scheme:</label>
-                <select id="color-select">
-                    <option value="polymer">Polymer Entity</option>
-                    <option value="chain">Chain</option>
-                    <option value="spectrum">Spectrum</option>
-                    <option value="residue">Residue</option>
-                    <option value="secondary">Secondary Structure</option>
-                    <option value="plddt">pLDDT</option>
-                    <option value="domain">Domain</option>
-                </select>
-            </div>
-            
-            <div class="control-group">
-                <label>Surface Options:</label>
-                <select id="surface-select">
-                    <option value="none">None</option>
-                    <option value="VDW">Van der Waals</option>
-                    <option value="SAS">Solvent Accessible</option>
-                    <option value="MS">Molecular Surface</option>
-                </select>
-            </div>
-            
-            <div class="control-group">
-                <label>Contact Features:</label>
-                <button id="centroids-toggle" class="toggle-button">Show Centroids</button>
-                <button id="contacts-toggle" class="toggle-button">Show Contacts</button>
-            </div>
+            <div class="buttons-section">
+                <div class="control-group">
+                    <label>Contact Features:</label>
+                    <button id="centroids-toggle" class="toggle-button">Show Core Centroids</button>
+                    <button id="contacts-toggle" class="toggle-button">Show Core Contacts</button>
+                </div>
 
-            <div class="control-group">
-                <label>Labels:</label>
-                <button id="protein-ids-toggle" class="toggle-button">Show Protein IDs</button>
-                <button id="terminals-toggle" class="toggle-button">Show N/C Terminals</button>
-            </div>
+                <div class="control-group">
+                    <label>Labels:</label>
+                    <button id="protein-ids-toggle" class="toggle-button">Show Protein IDs</button>
+                    <button id="terminals-toggle" class="toggle-button">Show N/C Terminals</button>
+                </div>
 
-            <div class="control-group">
-                <label>View:</label>
-                <button id="zoom-reset">Reset Zoom</button>
+                <div class="control-group">
+                    <label>View:</label>
+                    <button id="zoom-reset">Reset Zoom</button>
+                </div>
             </div>
-
         </div>
         
-        <div class="info-panel">
-            <div class="stats">
-                <div class="stat">
-                    <div class="stat-value" id="total-residues">-</div>
-                    <div class="stat-label">Total Residues<br>in contact</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value" id="total-contacts">-</div>
-                    <div class="stat-label">Total Contacts</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value" id="avg-frequency">-</div>
-                    <div class="stat-label">Avg. Contact<br>Frequency</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
         // Data from Python
         const pdbData = `{pdb_content}`;
@@ -528,6 +533,10 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
         let contactsVisible = false;
         let proteinIdsVisible = false;
         let terminalsVisible = false;
+
+        // Contact and centroid states: 0=hidden, 1=core, 2=marginal, 3=all
+        let contactsState = 0;
+        let centroidsState = 0;
         
         // pLDDT color scale
         const plddt_colorscale = [
@@ -673,71 +682,75 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
         }}
         
         function toggleCentroids() {{
-            centroidsVisible = !centroidsVisible;
+            centroidsState = (centroidsState + 1) % 4;
             const button = document.getElementById('centroids-toggle');
             
-            if (centroidsVisible) {{
-                // Add centroids as spheres
-                centroidsData.forEach(centroid => {{
-                    viewer.addSphere({{
-                        center: {{x: centroid.x, y: centroid.y, z: centroid.z}},
-                        radius: 2.5,
-                        color: centroid.color,
-                        alpha: 1.0
-                    }});
-                }});
-                
-                // Add sticks from backbone to centroids
-                backboneData.forEach(backbone => {{
-                    const centroid = centroidsData.find(c => 
-                        c.chain === backbone.chain && c.residue === backbone.residue
-                    );
-                    if (centroid) {{
-                        viewer.addCylinder({{
-                            start: {{x: backbone.x, y: backbone.y, z: backbone.z}},
-                            end: {{x: centroid.x, y: centroid.y, z: centroid.z}},
-                            radius: 0.3,
-                            color: backbone.color,
-                            alpha: 1.0
-                        }});
-                    }}
-                }});
-                
-                button.textContent = 'Hide Centroids';
-                button.classList.add('active');
-            }} else {{
-                // Remove centroids and sticks (requires re-rendering)
-                viewer.removeAllShapes();
-                if (contactsVisible) {{
-                    showContacts();
-                }}
-                button.textContent = 'Show Centroids';
-                button.classList.remove('active');
+            // Clear existing centroids and sticks
+            viewer.removeAllShapes();
+            if (contactsState > 0) {{
+                showContactsForState(contactsState);
+            }}
+            
+            switch(centroidsState) {{
+                case 0: // Hidden
+                    button.textContent = 'Show Core Centroids';
+                    button.classList.remove('active');
+                    break;
+                case 1: // Core (>=0.50)
+                    showCentroidsForState(1);
+                    button.textContent = 'Show Marginal Centroids';
+                    button.classList.add('active');
+                    break;
+                case 2: // Marginal (<0.50)
+                    showCentroidsForState(2);
+                    button.textContent = 'Show All Centroids';
+                    button.classList.add('active');
+                    break;
+                case 3: // All
+                    showCentroidsForState(3);
+                    button.textContent = 'Hide All Centroids';
+                    button.classList.add('active');
+                    break;
             }}
             
             viewer.render();
         }}
         
         function toggleContacts() {{
-            contactsVisible = !contactsVisible;
+            contactsState = (contactsState + 1) % 4;
             const button = document.getElementById('contacts-toggle');
             
-            if (contactsVisible) {{
-                showContacts();
-                button.textContent = 'Hide Contacts';
-                button.classList.add('active');
-            }} else {{
-                viewer.removeAllShapes();
-                if (centroidsVisible) {{
-                    toggleCentroids();
-                    toggleCentroids();
-                }}
-                button.textContent = 'Show Contacts';
-                button.classList.remove('active');
+            // Clear existing contacts but preserve centroids
+            viewer.removeAllShapes();
+            if (centroidsState > 0) {{
+                showCentroidsForState(centroidsState);
+            }}
+            
+            switch(contactsState) {{
+                case 0: // Hidden
+                    button.textContent = 'Show Core Contacts';
+                    button.classList.remove('active');
+                    break;
+                case 1: // Core (>=0.50)
+                    showContactsForState(1);
+                    button.textContent = 'Show Marginal Contacts';
+                    button.classList.add('active');
+                    break;
+                case 2: // Marginal (<0.50)
+                    showContactsForState(2);
+                    button.textContent = 'Show All Contacts';
+                    button.classList.add('active');
+                    break;
+                case 3: // All
+                    showContactsForState(3);
+                    button.textContent = 'Hide Contacts';
+                    button.classList.add('active');
+                    break;
             }}
             
             viewer.render();
         }}
+
         
         // Advanced color gradient function
         function createColorGradient(colors, positions = null) {{
@@ -854,6 +867,104 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                 const radius = 0.05 + normalizedFreq * 0.20; // Scale thickness
                 
                 // Use the gradient function to get the color
+                const color = gradientFunction(normalizedFreq);
+                
+                viewer.addCylinder({{
+                    start: {{x: contact.x1, y: contact.y1, z: contact.z1}},
+                    end: {{x: contact.x2, y: contact.y2, z: contact.z2}},
+                    radius: radius,
+                    color: color,
+                    alpha: 1
+                }});
+            }});
+        }}
+
+        function showCentroidsForState(state) {{
+            let centroidsToShow = [];
+            let backboneToShow = [];
+            
+            if (state === 1) {{ // Core
+                // Get all centroids that participate in core contacts
+                const coreResidues = new Set();
+                contactsData.forEach(contact => {{
+                    if (contact.frequency >= 0.50) {{
+                        coreResidues.add(contact.chain1 + '_' + contact.residue1);
+                        coreResidues.add(contact.chain2 + '_' + contact.residue2);
+                    }}
+                }});
+                
+                centroidsToShow = centroidsData.filter(c => {{
+                    return coreResidues.has(c.chain + '_' + c.residue);
+                }});
+                backboneToShow = backboneData.filter(b => {{
+                    return coreResidues.has(b.chain + '_' + b.residue);
+                }});
+            }} else if (state === 2) {{ // Marginal
+                // Get all centroids that participate in marginal contacts
+                const marginalResidues = new Set();
+                contactsData.forEach(contact => {{
+                    if (contact.frequency < 0.50) {{
+                        marginalResidues.add(contact.chain1 + '_' + contact.residue1);
+                        marginalResidues.add(contact.chain2 + '_' + contact.residue2);
+                    }}
+                }});
+                
+                centroidsToShow = centroidsData.filter(c => {{
+                    return marginalResidues.has(c.chain + '_' + c.residue);
+                }});
+                backboneToShow = backboneData.filter(b => {{
+                    return marginalResidues.has(b.chain + '_' + b.residue);
+                }});
+            }} else if (state === 3) {{ // All
+                centroidsToShow = centroidsData;
+                backboneToShow = backboneData;
+            }}
+            
+            // Add centroids as spheres
+            centroidsToShow.forEach(centroid => {{
+                viewer.addSphere({{
+                    center: {{x: centroid.x, y: centroid.y, z: centroid.z}},
+                    radius: 2.5,
+                    color: centroid.color,
+                    alpha: 1.0
+                }});
+            }});
+            
+            // Add sticks from backbone to centroids
+            backboneToShow.forEach(backbone => {{
+                const centroid = centroidsToShow.find(c => 
+                    c.chain === backbone.chain && c.residue === backbone.residue
+                );
+                if (centroid) {{
+                    viewer.addCylinder({{
+                        start: {{x: backbone.x, y: backbone.y, z: backbone.z}},
+                        end: {{x: centroid.x, y: centroid.y, z: centroid.z}},
+                        radius: 0.3,
+                        color: backbone.color,
+                        alpha: 1.0
+                    }});
+                }}
+            }});
+        }}
+
+        function showContactsForState(state) {{
+            let contactsToShow = [];
+            
+            if (state === 1) {{ // Core
+                contactsToShow = contactsData.filter(c => c.frequency >= 0.50);
+            }} else if (state === 2) {{ // Marginal
+                contactsToShow = contactsData.filter(c => c.frequency < 0.50);
+            }} else if (state === 3) {{ // All
+                contactsToShow = contactsData;
+            }}
+            
+            const maxFreq = Math.max(...contactsToShow.map(c => c.frequency));
+            const minFreq = Math.min(...contactsToShow.map(c => c.frequency));
+            const gradientFunction = gradientPresets.redOrangeGreen;
+            
+            contactsToShow.forEach(contact => {{
+                const normalizedFreq = (contact.frequency - minFreq) / (maxFreq - minFreq);
+                const radius = 0.05 + normalizedFreq * 0.20;
                 const color = gradientFunction(normalizedFreq);
                 
                 viewer.addCylinder({{
