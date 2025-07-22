@@ -597,8 +597,7 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
             viewer.addModel(pdbData, 'pdb');
             
             applyCurrentStyle();
-            updateStats();
-            
+
             viewer.zoomTo();
             viewer.render();
         }}
@@ -856,18 +855,16 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
         }};
 
         function showContacts() {{
-            const maxFreq = Math.max(...contactsData.map(c => c.frequency));
-            const minFreq = Math.min(...contactsData.map(c => c.frequency));
-
             // Choose your gradient here - you can use presets or create custom ones
             const gradientFunction = gradientPresets.redOrangeGreen;
             
             contactsData.forEach(contact => {{
-                const normalizedFreq = (contact.frequency - minFreq) / (maxFreq - minFreq);
-                const radius = 0.05 + normalizedFreq * 0.20; // Scale thickness
-                
+            
+                // Get the radius of the contact
+                const radius = 0.05 + contact.frequency * 0.20;
+
                 // Use the gradient function to get the color
-                const color = gradientFunction(normalizedFreq);
+                const color = gradientFunction(contact.frequency);
                 
                 viewer.addCylinder({{
                     start: {{x: contact.x1, y: contact.y1, z: contact.z1}},
@@ -958,14 +955,15 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                 contactsToShow = contactsData;
             }}
             
-            const maxFreq = Math.max(...contactsToShow.map(c => c.frequency));
-            const minFreq = Math.min(...contactsToShow.map(c => c.frequency));
             const gradientFunction = gradientPresets.redOrangeGreen;
             
             contactsToShow.forEach(contact => {{
-                const normalizedFreq = (contact.frequency - minFreq) / (maxFreq - minFreq);
-                const radius = 0.05 + normalizedFreq * 0.20;
-                const color = gradientFunction(normalizedFreq);
+                
+                // Get the radius
+                const radius = 0.05 + contact.frequency * 0.20;
+
+                // Get the color
+                const color = gradientFunction(contact.frequency);
                 
                 viewer.addCylinder({{
                     start: {{x: contact.x1, y: contact.y1, z: contact.z1}},
@@ -975,18 +973,6 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                     alpha: 1
                 }});
             }});
-        }}
-        
-        function updateStats() {{
-            document.getElementById('total-residues').textContent = centroidsData.length;
-            document.getElementById('total-contacts').textContent = contactsData.length;
-            
-            if (contactsData.length > 0) {{
-                const avgFreq = contactsData.reduce((sum, c) => sum + c.frequency, 0) / contactsData.length;
-                document.getElementById('avg-frequency').textContent = avgFreq.toFixed(2);
-            }} else {{
-                document.getElementById('avg-frequency').textContent = '0.00';
-            }}
         }}
         
         function toggleProteinIds() {{
