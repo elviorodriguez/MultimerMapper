@@ -494,7 +494,9 @@ def find_optimal_clusters(distance_matrix: np.ndarray,
         elif config.validation_metric == 'gap_statistic':
             score = validator.gap_statistic(distance_matrix, labels)
         else:
-            raise ValueError(f"Unknown validation metric: {config.validation_metric}")
+            logger.error(f"      - ValueError: Unknown validation metric: {config.validation_metric}")
+            logger.error( "      - Falling back to default validation metric: silhouette")
+            score = validator.silhouette_analysis(distance_matrix, labels)
         
         # Check if this is the best score
         is_better = False
