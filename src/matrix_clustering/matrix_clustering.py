@@ -471,6 +471,7 @@ def find_optimal_clusters(distance_matrix: np.ndarray,
     best_score = -np.inf if config.validation_metric in ['silhouette', 'calinski_harabasz', 'gap_statistic'] else np.inf
     
     validator = ClusterValidationMetrics()
+    scores_dict = {}
     
     for n_clusters in range(min_clusters, max_clusters + 1):
         if n_clusters > n_samples:
@@ -498,30 +499,60 @@ def find_optimal_clusters(distance_matrix: np.ndarray,
             logger.error( "      - Falling back to default validation metric: silhouette")
             score = validator.silhouette_analysis(distance_matrix, labels)
         
-        # Check if this is the best score
-        is_better = False
-        if config.validation_metric in ['silhouette', 'calinski_harabasz', 'gap_statistic']:
-            if score > best_score * (1 + config.silhouette_improvement):
-                is_better = True
-        else:  # davies_bouldin (lower is better)
-            if score < best_score * (1 - config.silhouette_improvement):
-                is_better = True
-        
         logger.info(f"      - Score for {n_clusters} clusters: {score:.3f}")
 
-        if is_better:
-            best_score = score
-            best_labels = labels
-            best_clust_n = n_clusters
-    
-    if best_labels is None:
-        # Fallback to base clustering
-        best_labels = perform_clustering(distance_matrix, max_valency, config)
-    
-    logger.info(f"   Final score: {best_score}")
-    
-    return best_labels, best_score
+        # Save results in the dictionary
+        scores_dict[n_clusters] = {'score': score, 'labels': labels}
 
+    # Check if any score surpasses the cutoff
+    base_score = scores_dict[max_valency]['score']
+    all_scores = [scores_dict[n]['score'] for n in scores_dict.keys()]
+    
+    # Check if any score surpasses the improvement cutoff
+    if config.validation_metric in ['silhouette', 'calinski_harabasz', 'gap_statistic']:
+        # Higher is better
+        surpasses_cutoff = any(score > base_score * (1 + config.silhouette_improvement) for score in all_scores)
+    else:
+        # davies_bouldin (lower is better)
+        surpasses_cutoff = any(score < base_score * (1 - config.silhouette_improvement) for score in all_scores)
+    
+    if surpasses_cutoff:
+        # Find the best score among all configurations
+        if config.validation_metric in ['silhouette', 'calinski_harabasz', 'gap_statistic']:
+            # Higher is better
+            best_n_clusters = max(scores_dict.keys(), key=lambda k: scores_dict[k]['score'])
+            best_score = scores_dict[best_n_clusters]['score']
+            percentage_diff = ((best_score - base_score) / abs(base_score)) * 100
+        else:
+            # Lower is better
+            best_n_clusters = min(scores_dict.keys(), key=lambda k: scores_dict[k]['score'])
+            best_score = scores_dict[best_n_clusters]['score']
+            percentage_diff = ((base_score - best_score) / abs(base_score)) * 100
+        
+        best_score = scores_dict[best_n_clusters]['score']
+        logger.info(f"   Score exceeded threshold of {config.silhouette_improvement*100}% improvement")
+        logger.info(f"      - Base score: {base_score:.3f} ({max_valency} clusters)")
+        logger.info(f"      - Best score: {best_score:.3f} ({best_n_clusters} clusters)")
+        logger.info(f"      - Difference: {percentage_diff:.2f}%")
+        return scores_dict[best_n_clusters]['labels'], best_score
+    
+    else:
+        # Find the best score among all configurations (even if it doesn't surpass cutoff)
+        if config.validation_metric in ['silhouette', 'calinski_harabasz', 'gap_statistic']:
+            best_n_clusters = max(scores_dict.keys(), key=lambda k: scores_dict[k]['score'])
+            best_score = scores_dict[best_n_clusters]['score']
+            percentage_diff = ((best_score - base_score) / abs(base_score)) * 100
+        else:
+            best_n_clusters = min(scores_dict.keys(), key=lambda k: scores_dict[k]['score'])
+            best_score = scores_dict[best_n_clusters]['score']
+            percentage_diff = ((base_score - best_score) / abs(base_score)) * 100
+        
+        logger.info(f"   No score exceeded threshold of {config.silhouette_improvement*100}% improvement")
+        logger.info(f"      - Base score: {base_score:.3f} ({max_valency} clusters)")
+        logger.info(f"      - Best score: {best_score:.3f} ({best_n_clusters} clusters)")
+        logger.info(f"      - Difference: {percentage_diff:.2f}%")
+        return scores_dict[max_valency]['labels'], base_score
+    
 
 def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], Dict],
                                     pair: Tuple[str, str],
