@@ -458,7 +458,7 @@ def find_optimal_clusters(distance_matrix: np.ndarray,
     
     # Change the minimum n_cluster to explore?
     if max_valency > 2 and config.min_extra_clusters > 0:
-        min_clusters = max_valency - config.min_extra_cluster
+        min_clusters = max_valency - config.min_extra_clusters
         # Limit the minimum to 2
         if min_clusters < 2:
             min_clusters = 2
