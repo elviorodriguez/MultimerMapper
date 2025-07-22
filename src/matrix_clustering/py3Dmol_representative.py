@@ -739,41 +739,122 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
             viewer.render();
         }}
         
+        // Advanced color gradient function
+        function createColorGradient(colors, positions = null) {{
+            // If no positions provided, distribute colors evenly
+            if (!positions) {{
+                positions = colors.map((_, i) => i / (colors.length - 1));
+            }}
+            
+            // Validate inputs
+            if (colors.length !== positions.length) {{
+                throw new Error('Colors and positions arrays must have the same length');
+            }}
+            
+            // Parse color strings to RGB objects
+            function parseColor(color) {{
+                if (typeof color === 'string') {{
+                    if (color.startsWith('#')) {{
+                        // Hex color
+                        const hex = color.slice(1);
+                        return {{
+                            r: parseInt(hex.slice(0, 2), 16),
+                            g: parseInt(hex.slice(2, 4), 16),
+                            b: parseInt(hex.slice(4, 6), 16)
+                        }};
+                    }} else if (color.startsWith('rgb')) {{
+                        // RGB color
+                        const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+                        return {{
+                            r: parseInt(match[1]),
+                            g: parseInt(match[2]),
+                            b: parseInt(match[3])
+                        }};
+                    }}
+                }}
+                // Assume it's already an RGB object
+                return color;
+            }}
+            
+            const rgbColors = colors.map(parseColor);
+            
+            // Return function that takes a value between 0 and 1
+            return function(value) {{
+                // Clamp value between 0 and 1
+                value = Math.max(0, Math.min(1, value));
+                
+                // Find the two colors to interpolate between
+                let leftIndex = 0;
+                let rightIndex = positions.length - 1;
+                
+                for (let i = 0; i < positions.length - 1; i++) {{
+                    if (value >= positions[i] && value <= positions[i + 1]) {{
+                        leftIndex = i;
+                        rightIndex = i + 1;
+                        break;
+                    }}
+                }}
+                
+                // Calculate interpolation factor
+                const leftPos = positions[leftIndex];
+                const rightPos = positions[rightIndex];
+                const factor = (value - leftPos) / (rightPos - leftPos);
+                
+                // Interpolate between the two colors
+                const leftColor = rgbColors[leftIndex];
+                const rightColor = rgbColors[rightIndex];
+                
+                const r = Math.round(leftColor.r + (rightColor.r - leftColor.r) * factor);
+                const g = Math.round(leftColor.g + (rightColor.g - leftColor.g) * factor);
+                const b = Math.round(leftColor.b + (rightColor.b - leftColor.b) * factor);
+                
+                return `rgb(${{r}}, ${{g}}, ${{b}})`;
+            }};
+        }}
+
+        // Predefined gradient presets
+        const gradientPresets = {{
+            // Red to Orange to Black
+            redOrangeBlack: createColorGradient(['#FF0000', '#FF8000', '#000000']),
+
+            // Red to Orange to Green
+            redOrangeGreen: createColorGradient(['#FF0000', '#FF8000', '#00FF00']),
+            
+            // Classic heat map: Black -> Red -> Orange -> Yellow -> White
+            heatmap: createColorGradient(['#000000', '#FF0000', '#FF8000', '#FFFF00', '#FFFFFF']),
+            
+            // Cool colors: Blue -> Cyan -> Green
+            cool: createColorGradient(['#0000FF', '#00FFFF', '#00FF00']),
+            
+            // Warm colors: Red -> Orange -> Yellow
+            warm: createColorGradient(['#FF0000', '#FF8000', '#FFFF00']),
+            
+            // Rainbow
+            rainbow: createColorGradient(['#FF0000', '#FF8000', '#FFFF00', '#00FF00', '#0000FF', '#8000FF']),
+            
+            // Plasma-like
+            plasma: createColorGradient(['#0D0887', '#6A00A8', '#B12A90', '#E16462', '#FCA636', '#F0F921']),
+            
+            // Custom red-orange-black with specific positions
+            customRedBlack: createColorGradient(
+                ['#FF0000', '#FF4000', '#FF8000', '#804000', '#000000'],
+                [0, 0.25, 0.5, 0.75, 1]
+            )
+        }};
+
         function showContacts() {{
             const maxFreq = Math.max(...contactsData.map(c => c.frequency));
             const minFreq = Math.min(...contactsData.map(c => c.frequency));
+
+            // Choose your gradient here - you can use presets or create custom ones
+            const gradientFunction = gradientPresets.redOrangeGreen;
             
             contactsData.forEach(contact => {{
                 const normalizedFreq = (contact.frequency - minFreq) / (maxFreq - minFreq);
                 const radius = 0.05 + normalizedFreq * 0.20; // Scale thickness
-                const intensity = Math.floor(255 * normalizedFreq);
-                const color = `rgb(${{255 - intensity}}, ${{intensity}}, 0)`; // Red to Green gradient
-
-                // OTHER CONTACT COLOR SCHEMES OPTIONS
-                // OPTION 1: Black to White gradient
-                // const color = `rgb(${{intensity}}, ${{intensity}}, ${{intensity}})`;
-                // OPTION 2: Blue to Orange gradient (complementary colors)
-                // const color = `rgb(${{Math.floor(intensity)}}, ${{Math.floor(intensity * 0.5)}}, ${{Math.floor(255 - intensity)}})`;
-                // OPTION 3: Purple to Yellow gradient (complementary colors)
-                // const color = `rgb(${{Math.floor(128 + intensity * 0.5)}}, ${{Math.floor(intensity)}}, ${{Math.floor(255 - intensity)}})`;
-                // OPTION 4: Red to Cyan gradient (complementary colors)
-                // const color = `rgb(${{Math.floor(255 - intensity)}}, ${{Math.floor(intensity)}}, ${{Math.floor(intensity)}})`;
-                // OPTION 5: Green to Magenta gradient (complementary colors)
-                // const color = `rgb(${{Math.floor(intensity)}}, ${{Math.floor(255 - intensity)}}, ${{Math.floor(intensity)}})`;
-                // OPTION 6: Dark Blue to Bright Yellow gradient
-                // const color = `rgb(${{Math.floor(intensity)}}, ${{Math.floor(intensity)}}, ${{Math.floor(255 - intensity)}})`;
-                // OPTION 7: Dark Purple to Bright Green gradient
-                // const color = `rgb(${{Math.floor(255 - intensity)}}, ${{Math.floor(intensity)}}, ${{Math.floor(128 - intensity * 0.5)}})`;
-                // OPTION 8: Brown to Cyan gradient
-                // const color = `rgb(${{Math.floor(165 - intensity * 0.6)}}, ${{Math.floor(42 + intensity * 0.8)}}, ${{Math.floor(42 + intensity * 0.8)}})`;
-                // OPTION 9: Navy to Gold gradient
-                // const color = `rgb(${{Math.floor(intensity)}}, ${{Math.floor(intensity * 0.8)}}, ${{Math.floor(128 - intensity * 0.5)}})`;
-                // OPTION 10: Teal to Coral gradient
-                // const color = `rgb(${{Math.floor(64 + intensity * 0.7)}}, ${{Math.floor(224 - intensity * 0.6)}}, ${{Math.floor(208 - intensity * 0.6)}})`;
-
-                // DEBUGGING: To see what intensity values you're actually getting, add this line:
-                console.log('Intensity range:', Math.min(...contactsData.map(c => c.frequency)), 'to', Math.max(...contactsData.map(c => c.frequency)));
-                console.log('Current intensity:', intensity);
+                
+                // Use the gradient function to get the color
+                const color = gradientFunction(normalizedFreq);
                 
                 viewer.addCylinder({{
                     start: {{x: contact.x1, y: contact.y1, z: contact.z1}},
