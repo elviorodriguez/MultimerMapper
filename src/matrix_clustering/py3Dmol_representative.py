@@ -888,8 +888,8 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                 const coreResidues = new Set();
                 contactsData.forEach(contact => {{
                     if (contact.frequency >= 0.50) {{
-                        coreResidues.add(contact.chain1 + '_' + contact.residue1);
-                        coreResidues.add(contact.chain2 + '_' + contact.residue2);
+                        coreResidues.add(contact.chain1 + '_' + contact.res1);
+                        coreResidues.add(contact.chain2 + '_' + contact.res2);
                     }}
                 }});
                 
@@ -904,8 +904,8 @@ def create_contact_visualization(pdb_file, contact_matrix, chains_in_model, outp
                 const marginalResidues = new Set();
                 contactsData.forEach(contact => {{
                     if (contact.frequency < 0.50) {{
-                        marginalResidues.add(contact.chain1 + '_' + contact.residue1);
-                        marginalResidues.add(contact.chain2 + '_' + contact.residue2);
+                        marginalResidues.add(contact.chain1 + '_' + contact.res1);
+                        marginalResidues.add(contact.chain2 + '_' + contact.res2);
                     }}
                 }});
                 
