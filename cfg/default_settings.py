@@ -84,6 +84,10 @@ pDockQ_cutoff_Nmers = 0.0   # Do not change
 # For Nmers
 Nmers_contacts_cutoff = 3
 
+# To classify PPI dynamics just using N_models cutoff set to False
+# If true, the cluster N-mers variation will be used
+use_cluster_aware_Nmers_variation = True
+
 # ----------------------------------------------------------------------------
 # ---------------------- For Symmetry Fallback Analysis ----------------------
 # ----------------------------------------------------------------------------

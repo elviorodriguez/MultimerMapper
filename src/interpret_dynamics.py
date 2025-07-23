@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import igraph
 
-from cfg.default_settings import edge_default_weight, edge_scaling_factor, edge_min_weight, edge_max_weight, edge_midpoint_PAE, edge_weight_sigmoidal_sharpness
+from cfg.default_settings import edge_default_weight, edge_scaling_factor, edge_min_weight, edge_max_weight, edge_midpoint_PAE, edge_weight_sigmoidal_sharpness, use_cluster_aware_Nmers_variation
 
 from utils.logger_setup import configure_logger
 
@@ -274,7 +274,20 @@ def classify_edge_dynamics(tuple_edge: tuple,
 # -------------------- Getters based on dynamic classification ------------------------
 # -------------------------------------------------------------------------------------
 
-def get_edge_Nmers_variation(edge, N_models_cutoff: int):
+def get_edge_Nmers_variation(edge, N_models_cutoff: int, use_cluster_aware_variation = use_cluster_aware_Nmers_variation):
+
+    # ---------------- Get Full N-mers variation (at cluster level) ----------------
+
+    if use_cluster_aware_variation and edge['valency']['is_multivalent']:
+
+        total_models = len(edge["N_mers_data"]['cluster'])
+        predictions_that_surpass_cutoffs = len([1 for i in edge["N_mers_data"]['cluster'] if "✔" in i])
+
+        Nmers_variation = predictions_that_surpass_cutoffs / total_models
+        
+        return Nmers_variation
+    
+    # ------------------------- Get normal N-mers variation ------------------------
 
     total_models = len(list(edge["N_mers_data"]["N_models"]))
     predictions_that_surpass_cutoffs = sum(edge["N_mers_data"]["N_models"] >= N_models_cutoff)
