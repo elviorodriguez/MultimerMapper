@@ -599,13 +599,13 @@ if __name__ == "__main__":
         log_level = 'warn'
     else:
         log_level = 'info'
-    
-    # Initialize __main__ level logger
-    logger = configure_logger(out_path = out_path, log_level = log_level)(__name__)
 
     # Check if it is overwriting
     if not overwrite and os.path.exists(out_path):
         raise FileExistsError(f"The path {out_path} already exists and overwrite option was not passed.")
+    
+    # Initialize __main__ level logger
+    logger = configure_logger(out_path = out_path, log_level = log_level)(__name__)
     
     # --------------------------------------------------------------------------
     # ------------------------- 2-mers initialization --------------------------
