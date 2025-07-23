@@ -208,8 +208,8 @@ def classify_edge_dynamics(tuple_edge: tuple,
     # Classify the rest of possibilities
     e_dynamics_rows = (
         classification_df
-        .query(f'AF_2mers == {is_present_in_2mers}')
-        .query(f'AF_Nmers == {is_present_in_Nmers}')
+        .query(f'AF_2mers == {is_present_in_2mers and valency_contains_2mers}')
+        .query(f'AF_Nmers == {is_present_in_Nmers and valency_contains_Nmers}')
         .query(f'Tested_in_N_mers == {was_tested_in_Nmers}')
     )
 
