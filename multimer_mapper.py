@@ -654,6 +654,7 @@ if __name__ == "__main__":
                                                                     out_path = out_path,
                                                                     log_level = log_level)
         
+        logger.info("Computing and plotting stability metrics for all pairs...")
         df_plddt_stats, df_pae_stats = compute_and_plot_stability_metrics(mm_output, mm_traj)
     
     # Generate suggested combinations files
