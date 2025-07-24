@@ -22,7 +22,7 @@ from traj.partners_density import analyze_protein_distribution, save_results_to_
 from traj.py3Dmol_traj import create_trajectory_viewer
 from utils.logger_setup import configure_logger
 from utils.logger_setup import configure_logger
-from utils.pdb_utils import get_domain_atoms, ChainSelect, DomainSelect
+from utils.pdb_utils import get_domain_atoms, ChainSelect, DomainSelect, get_core_residues, core_superimposition, plot_core_residue_analysis
 
 
 def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
@@ -799,9 +799,17 @@ def plot_traj_heatmap(metadata_list, sorted_indices: list[int], metadata_type_y:
 def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_trajectory_folder,
                     
                     RMSDs: list, pLDDTs: np.array, mean_pLDDTs: list, ROGs: np.array,
-                    rot_matrixes: list, tran_vectors: list,
-                    all_chains, all_chain_types, all_chain_info, domain_start=None, domain_end=None,
-                    translate_to_origin=True):
+                    rot_matrixes: list, tran_vectors: list, all_atoms: list, ref_atoms: list,
+                    all_chains, all_chain_types, all_chain_info,
+                    domain_start=None, domain_end=None,
+                    translate_to_origin=True, use_core_superimposer = True,
+                    logger: logging.Logger = None
+    ):
+
+    # Set up logging
+    if logger is None:
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
     
     trajectory_file = os.path.join(protein_trajectory_folder, f'{protein_ID}_{filename_suffix}_traj.pdb')
     
@@ -825,6 +833,23 @@ def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_traject
     
     io = PDB.PDBIO()
     with open(trajectory_file, 'w') as f1:
+
+        if use_core_superimposer:
+            
+            logger.info("   Using core residues method:")
+
+            core_save_path = os.path.join(protein_trajectory_folder, f'{protein_ID}_{filename_suffix}_core_residues.png')
+            core_residues = get_core_residues(pLDDTs)
+            plot_core_residue_analysis(
+                pLDDTs = pLDDTs, 
+                core_residues = core_residues,
+                protein_ID = protein_ID,
+                save_path = core_save_path,
+                logger = logger,
+                show_plot = False)
+            
+            logger.info(f"      - Superimpositions will be performed using {len(core_residues)} core atoms out of {len(ref_atoms)} total atoms")
+
         for i, idx in enumerate(sorted_indices):
             chain = all_chains[idx]
             chain_type = all_chain_types[idx]
@@ -843,9 +868,18 @@ def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_traject
                 })
             trajectory_df = pd.concat([trajectory_df, model_data], ignore_index=True)
             
-            ### APPLY ROTATION AND TRANSLATION TO ALL ATOMS ###
+            ################ APPLY ROTATION AND TRANSLATION TO ALL ATOMS ################
+
+            # Get the all atoms rotran
             rotation_matrix = rot_matrixes[idx]
             translation_vector = tran_vectors[idx]
+
+            # Use a compensation to align only the core of the structure (do not uses disordered regions)
+            if use_core_superimposer:
+                # Align the atoms against the reference, skipping low pLDDTs
+                rotation_matrix, translation_vector = core_superimposition(all_atoms[idx], ref_atoms, core_residues,
+                                                                           fallback_rotation = rotation_matrix,
+                                                                           fallback_translation = translation_vector)        
             
             # Apply transformation at the chain level
             chain.transform(rotation_matrix, translation_vector)
@@ -1403,6 +1437,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     
     # Initialize lists to store values
     rmsd_values = []
+    all_atoms = []
     all_coords = []
     b_factors = []
     rmsf_values = []
@@ -1449,7 +1484,8 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
         monomer_rot_matrixes.append(rotation_matrix)
         monomer_tran_vectors.append(translation_vector)
 
-        # Store coordinates and pLDDT values
+        # Store atoms, coordinates and pLDDT values
+        all_atoms.append(chain_atoms)
         all_coords.append(transformed_coords)
         b_factors.append(plddt_values)
 
@@ -1578,7 +1614,14 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
 
                                      all_chains      = all_chains,
                                      all_chain_types = all_chain_types,
-                                     all_chain_info  = all_chain_info)
+                                     all_chain_info  = all_chain_info,
+
+                                     # For core superimposition
+                                     use_core_superimposer = True,
+                                     all_atoms = all_atoms,
+                                     ref_atoms = ref_atoms,
+                                     
+                                     logger = logger)
 
     # Run distribution analysis if monomer trajectory folder exists
     if os.path.exists(monomer_trajectory_folder):
@@ -1664,6 +1707,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
 
             # Initialize lists
             domain_rmsd_values  = []
+            domain_all_atoms    = []
             domain_all_coords   = []
             domain_b_factors    = []
             domain_rot_matrixes = []
@@ -1688,7 +1732,8 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                 domain_rot_matrixes.append(rotation_matrix)
                 domain_tran_vectors.append(translation_vector)
 
-                # Store coordinates and pLDDT values
+                # Store atoms, coordinates and pLDDT values
+                domain_all_atoms.append(domain_chain_atoms)
                 domain_all_coords.append(transformed_coords)
                 domain_b_factors.append(domain_plddt_values)
 
@@ -1739,7 +1784,14 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                             all_chain_types=all_chain_types,
                             all_chain_info=all_chain_info,
                             domain_start=domain_start,
-                            domain_end=domain_end)
+                            domain_end=domain_end,
+                            
+                            # For core superimposition
+                            use_core_superimposer = True,
+                            all_atoms = domain_all_atoms,
+                            ref_atoms = domain_ref_atoms,
+                            
+                            logger = logger)
                         
             # Run distribution analysis if domain trajectory folder exists
             if os.path.exists(domain_trajectory_folder):

@@ -795,7 +795,7 @@ def compute_and_plot_stability_metrics(mm_output, mm_monomers_traj, save_dir = N
     
     
     # Generate pLDDT plots with the consistent_color_map
-    print("Generating pLDDT plots with consistent colors...")
+    # print("Generating pLDDT plots with consistent colors...")
     figs_mean_consistent = plot_stability_by_pair_consistent(
         df_plddt_stats, stat='mean', save_dir = save_dir, color_map=consistent_color_map
     )
@@ -804,7 +804,7 @@ def compute_and_plot_stability_metrics(mm_output, mm_monomers_traj, save_dir = N
     )
         
     # Generate PAE plots
-    print("Generating PAE plots with consistent colors...")
+    # print("Generating PAE plots with consistent colors...")
     figs_miPAE_mean_consistent = plot_pae_stability_by_pair_consistent(
         df_pae_stats, pae_type='miPAE', stat='mean', save_dir = save_dir, color_map=consistent_color_map
     )
