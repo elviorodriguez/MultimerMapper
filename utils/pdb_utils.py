@@ -131,8 +131,8 @@ class DomainSelect(PDB.Select):
 #################################################################################################
 
 def get_core_residues(pLDDTs: List[np.ndarray], 
-                     percentile_threshold: float = 75.0,
-                     cv_threshold_percentile: float = 25.0,
+                     percentile_threshold: float = 50.0,
+                     cv_threshold_percentile: float = 50.0,
                      min_core_fraction: float = 0.3,
                      max_core_fraction: float = 0.8,
                      logger: logging.Logger = None) -> Set[int]:
