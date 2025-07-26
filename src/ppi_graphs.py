@@ -1242,10 +1242,6 @@ def get_edge_weights_using_Xmers_frequency(graph: igraph.Graph, contribution_Nme
     # Get the contribution of N-mers
     contribution_2mers = 1 - contribution_Nmers
 
-    print("Contributions:")
-    print("   - 2-mers:", contribution_2mers)
-    print("   - N-mers:", contribution_Nmers)
-
     # Get set of proteins and initialize dict to store weights
     ppis = set(edge['name'] for edge in graph.es)
     ppis_weights = {ppi: [] for ppi in ppis}
@@ -1254,7 +1250,6 @@ def get_edge_weights_using_Xmers_frequency(graph: igraph.Graph, contribution_Nme
     for edge in graph.es:
         
         try:
-            print("NOT - Failed")
             # --------------------- Get 2-mers frequency (0 or 1) ---------------------
             freq_2mers = len([1 for i in edge["2_mers_data"]['cluster'] if "✔" in i])
         
@@ -1267,7 +1262,6 @@ def get_edge_weights_using_Xmers_frequency(graph: igraph.Graph, contribution_Nme
             freq_Xmers = contribution_2mers * freq_2mers + contribution_Nmers * freq_Nmers
 
         except:
-            print("Failed")
             # If anything fails, use the default weight
             freq_Xmers = fallback_weight
 
