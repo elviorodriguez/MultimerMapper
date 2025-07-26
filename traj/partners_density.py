@@ -50,23 +50,55 @@ def analyze_protein_distribution(df, target_protein, windows=[5, 10, 15, 20]):
         window_rolling = {}
         
         for protein in all_proteins:
-            # Calculate rolling average of occurrence
-            rolling_avg = pd.Series(occurrence_df[protein]).rolling(window=window).mean()
+            # Calculate overall frequency for this protein
+            overall_frequency = occurrence_df[protein].mean()
+            
+            # Calculate rolling average of occurrence (center-aligned)
+            rolling_avg = pd.Series(occurrence_df[protein]).rolling(window=window, center=True).mean()
+            
+            # Convert to BPD scale (-1 to 1)
+            # BPD = (local_frequency - overall_frequency) / max_possible_deviation
+            if overall_frequency == 0:
+                # If protein never appears, BPD is 0 everywhere
+                bpd_values = pd.Series([0] * len(rolling_avg))
+            elif overall_frequency == 1:
+                # If protein always appears, BPD is 0 everywhere
+                bpd_values = pd.Series([0] * len(rolling_avg))
+            else:
+                # Calculate BPD values
+                # When local > overall: positive BPD (up to +1)
+                # When local < overall: negative BPD (down to -1)
+                bpd_values = rolling_avg.copy()
+                
+                # Normalize based on the maximum possible deviation
+                for i in range(len(rolling_avg)):
+                    if pd.isna(rolling_avg.iloc[i]):
+                        bpd_values.iloc[i] = np.nan
+                    elif rolling_avg.iloc[i] >= overall_frequency:
+                        # Enrichment case: scale from 0 to 1
+                        max_possible = 1.0
+                        bpd_values.iloc[i] = (rolling_avg.iloc[i] - overall_frequency) / (max_possible - overall_frequency)
+                    else:
+                        # Depletion case: scale from 0 to -1
+                        min_possible = 0.0
+                        bpd_values.iloc[i] = (rolling_avg.iloc[i] - overall_frequency) / (overall_frequency - min_possible)
+            
             window_results[protein] = {
-                'max_density': rolling_avg.max(),
-                'min_density': rolling_avg.min(),
-                'mean_density': rolling_avg.mean(),
-                'peak_positions': list(np.where(rolling_avg == rolling_avg.max())[0] + 1),
-                'total_occurrences': occurrence_df[protein].sum()
+                'max_density': bpd_values.max(),
+                'min_density': bpd_values.min(),
+                'mean_density': bpd_values.mean(),
+                'peak_positions': list(np.where(bpd_values == bpd_values.max())[0] + 1),
+                'total_occurrences': occurrence_df[protein].sum(),
+                'overall_frequency': overall_frequency  # Add this for reference
             }
-            window_rolling[protein] = rolling_avg
+            window_rolling[protein] = bpd_values
             
         results[window] = window_results
         rolling_data[window] = window_rolling
     
     return results, rolling_data
 
-def save_results_to_csv(results, output_path):
+def save_results_to_tsv(results, output_path):
     # Create a list to store all rows
     rows = []
     
@@ -85,7 +117,7 @@ def save_results_to_csv(results, output_path):
     
     # Convert to DataFrame and save
     results_df = pd.DataFrame(rows)
-    results_df.to_csv(output_path, index=False)
+    results_df.to_csv(output_path, sep= "\t", index=False)
     return results_df
 
 def plot_distributions(rolling_data, output_dir, soft=False, noise_scale=0.01, target_protein = ""):
@@ -233,29 +265,37 @@ def html_interactive_metadata(protein_ID: str,
     # Process BPD data for all window sizes
     window_sizes = list(bpd_values.keys()) if bpd_values else []
     processed_bpd_data = {}
-    
+
     for window_size in window_sizes:
         protein_data = bpd_values[window_size]
         window_data = {}
         
         for protein, distribution in protein_data.items():
-            # Extract the value at window_size position (or the first valid value)
             valid_idx = ~np.isnan(distribution.values)
+            
+            # First valid value padding
             first_valid_idx = np.where(valid_idx)[0][0] if any(valid_idx) else 0
             first_valid_value = distribution.values[first_valid_idx] if any(valid_idx) else 1.0
+
+            # Last valid value padding
+            last_valid_idx = np.where(valid_idx)[0][-1] if any(valid_idx) else len(distribution) - 1
+            last_valid_value = distribution.values[last_valid_idx] if any(valid_idx) else 1.0
             
-            # Create a new complete distribution with padding for the start
             new_distribution = distribution.copy()
             
-            # Add padding at the beginning (window_size-1 times the first valid value)
-            for i in range(window_size - 1):
-                if i not in new_distribution.index:
+            # Pad start
+            for i in range(0, first_valid_idx + 1):
+                if i in new_distribution.index:
                     new_distribution.loc[i] = first_valid_value
             
-            # Sort the index to ensure proper ordering
+            # Pad end
+            for i in range(last_valid_idx + 1, len(distribution)):
+                if i in new_distribution.index:
+                    new_distribution.loc[i] = last_valid_value
+            
             new_distribution = new_distribution.sort_index()
             
-            # Add a small amount of noise to prevent overlapping
+            # Add small noise
             noise = np.random.normal(0, 0.01, size=len(new_distribution))
             new_distribution = new_distribution + noise
             
@@ -304,17 +344,6 @@ def html_interactive_metadata(protein_ID: str,
                 valid_idx = ~np.isnan(distribution.values)
                 x_values = distribution.index[valid_idx] + 1  # +1 for 1-based indexing
                 y_values = distribution.values[valid_idx]
-
-                # Prepend the first value to indices 1 to (window_size - 1)
-                if len(y_values) > 0:  # Ensure there are valid values
-                    first_value = y_values[0]  # Get the first valid value
-                    num_missing = window_size - 1  # Number of missing indices
-                    x_prepended = list(range(1, window_size))  # Indices to prepend
-                    y_prepended = [first_value] * num_missing  # Repeat first value
-                    
-                    # Combine prepended and valid values
-                    x_values = np.concatenate([x_prepended, x_values])
-                    y_values = np.concatenate([y_prepended, y_values])
                 
                 # Set visibility based on if this is the default window size
                 is_visible = window_size == default_window_size
@@ -341,7 +370,21 @@ def html_interactive_metadata(protein_ID: str,
             end_idx = trace_index - 1
             bpd_traces_info[window_size] = [start_idx, end_idx]
         
-        # Add reference line at y=1 (always visible)
+        # Add reference line at BPD=0 (solid line, always visible)
+        fig.add_trace(
+            go.Scatter(
+                x=[1, n_models],
+                y=[0, 0],
+                mode='lines',
+                line=dict(color='black', width=1),
+                showlegend=False,
+                hoverinfo='skip'
+            ),
+            row=1, col=1
+        )
+        trace_index += 1
+        
+        # Add reference line at BPD=1 (dashed line, always visible)
         fig.add_trace(
             go.Scatter(
                 x=[1, n_models],
@@ -354,6 +397,23 @@ def html_interactive_metadata(protein_ID: str,
             row=1, col=1
         )
         trace_index += 1
+        
+        # Add reference line at BPD=-1 (dashed line, always visible)
+        fig.add_trace(
+            go.Scatter(
+                x=[1, n_models],
+                y=[-1, -1],
+                mode='lines',
+                line=dict(color='black', width=1, dash='dash'),
+                showlegend=False,
+                hoverinfo='skip'
+            ),
+            row=1, col=1
+        )
+        trace_index += 1
+
+    # Set fixed y-axis range for BPD plot
+    fig.update_yaxes(range=[-1.1, 1.1], row=1, col=1)
 
     # ------------------------------------------------------------------------------------------------
     # 2. Plot RMSD -----------------------------------------------------------------------------------
@@ -788,10 +848,10 @@ def main():
         windows=args.windows,
         target_protein=args.target_protein)
     
-    # Save results to CSV
-    output_csv = output_dir / 'protein_distribution_results.csv'
+    # Save results to TSV
+    output_csv = output_dir / 'protein_distribution_results.tsv'
     print(f"Saving results to: {output_csv}")
-    results_df = save_results_to_csv(results, output_csv)
+    results_df = save_results_to_tsv(results, output_csv)
     
     # Create plots
     print("Generating distribution plots...")

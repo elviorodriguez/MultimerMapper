@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from collections import Counter
 from wordcloud import WordCloud
 
-from traj.partners_density import analyze_protein_distribution, save_results_to_csv, plot_distributions, html_interactive_metadata
+from traj.partners_density import analyze_protein_distribution, save_results_to_tsv, plot_distributions, html_interactive_metadata
 from traj.py3Dmol_traj import create_trajectory_viewer
 from utils.logger_setup import configure_logger
 from utils.logger_setup import configure_logger
@@ -1652,8 +1652,8 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
             
             # Save results to CSV using the same prefix
             output_csv = os.path.join(monomer_trajectory_folder, 
-                                    f'{tsv_prefix}_BPD_results.csv')
-            monomer_distribution_results_df = save_results_to_csv(monomer_distribution_results, output_csv)
+                                    f'{tsv_prefix}_BPD_results.tsv')
+            monomer_distribution_results_df = save_results_to_tsv(monomer_distribution_results, output_csv)
             
             # Create a subdirectory for plots using the same prefix
             plots_dir = os.path.join(monomer_trajectory_folder, f'{tsv_prefix}_BPD_plots')
@@ -1823,8 +1823,8 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                     
                     # Save results to CSV using the same prefix
                     output_csv = os.path.join(domain_trajectory_folder, 
-                                            f'{tsv_prefix}_BPD_results.csv')
-                    domain_distribution_results_df = save_results_to_csv(domain_rmsd_traj_results, output_csv)
+                                            f'{tsv_prefix}_BPD_results.tsv')
+                    domain_distribution_results_df = save_results_to_tsv(domain_rmsd_traj_results, output_csv)
                     
                     # Create a subdirectory for plots using the same prefix
                     plots_dir = os.path.join(domain_trajectory_folder, f'{tsv_prefix}_BPD_plots')
