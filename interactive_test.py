@@ -278,7 +278,7 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
 # combined_graph, dynamic_proteins, homooligomerization_states, multivalency_states = mm.generate_combined_graph(mm_output)
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
     mm_output["combined_graph"], out_path = out_path,
-    layout_algorithm = 'fr',    
+    layout_algorithm = 'weighted_fr',    
     
     # You can remove specific interaction types from the graph
     # "No 2-mers Data"

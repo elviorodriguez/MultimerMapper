@@ -839,10 +839,12 @@ def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_traject
             logger.info("   Using core residues method:")
 
             core_save_path = os.path.join(protein_trajectory_folder, f'{protein_ID}_{filename_suffix}_core_residues.png')
-            core_residues = get_core_residues(pLDDTs)
+            core_residues, final_plddt_threshold, final_cv_threshold = get_core_residues(pLDDTs, logger=logger)
             plot_core_residue_analysis(
                 pLDDTs = pLDDTs, 
                 core_residues = core_residues,
+                final_plddt_threshold = final_plddt_threshold,
+                final_cv_threshold = final_cv_threshold,                
                 protein_ID = protein_ID,
                 save_path = core_save_path,
                 logger = logger,
