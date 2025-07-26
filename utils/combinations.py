@@ -437,7 +437,7 @@ def save_af3_json_files(af3_jobs: List[Dict[str, Any]],
         json_file_path = os.path.join(combination_suggestions_path, f"{prefix}_af3_jobs_all.json")
         with open(json_file_path, 'w') as f:
             json.dump(af3_jobs, f, indent=2)
-        print(f"Saved {len(af3_jobs)} jobs to {json_file_path}")
+        # print(f"Saved {len(af3_jobs)} jobs to {json_file_path}")
     
     else:
         # Save jobs in separate files or batches
@@ -447,7 +447,7 @@ def save_af3_json_files(af3_jobs: List[Dict[str, Any]],
                 json_file_path = os.path.join(combination_suggestions_path, f"{prefix}_af3_job_{i+1:03d}.json")
                 with open(json_file_path, 'w') as f:
                     json.dump([job], f, indent=2)  # AF3 expects a list even for single jobs
-            print(f"Saved {len(af3_jobs)} individual job files")
+            # print(f"Saved {len(af3_jobs)} individual job files")
         
         else:
             # Create batch files
@@ -457,7 +457,7 @@ def save_af3_json_files(af3_jobs: List[Dict[str, Any]],
                 json_file_path = os.path.join(combination_suggestions_path, f"{prefix}_af3_jobs_batch_{batch_num:03d}.json")
                 with open(json_file_path, 'w') as f:
                     json.dump(batch, f, indent=2)
-            print(f"Saved {len(af3_jobs)} jobs in {(len(af3_jobs) + max_jobs_per_file - 1) // max_jobs_per_file} batch files")
+            # print(f"Saved {len(af3_jobs)} jobs in {(len(af3_jobs) + max_jobs_per_file - 1) // max_jobs_per_file} batch files")
 
 
 # When no 2-mers and no N-mers are passed
