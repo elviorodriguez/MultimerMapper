@@ -17,7 +17,7 @@ from src.interpret_dynamics import read_classification_df, classify_edge_dynamic
 from src.coordinate_analyzer import add_domain_RMSD_against_reference
 from src.analyze_multivalency import add_multivalency_state
 from cfg.default_settings import vertex_color1, vertex_color2, vertex_color3, vertex_color_both, Nmer_stability_method, multivalency_detection_metric, multivalency_metric_threshold, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft
-from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, dynamic_conv_start, dynamic_conv_end
+from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, dynamic_conv_start, dynamic_conv_end, weighted_fr_Nmers_contribution
 from utils.combinations import generate_multivalent_pair_suggestions
 from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 
@@ -1235,6 +1235,102 @@ def generate_layout_ignoring_edges(graph, layout_algorithm="fr", ignore_attr=Non
     # Return the layout
     return layout
 
+
+def get_edge_weights_using_Xmers_frequency(graph: igraph.Graph, contribution_Nmers: float = 3/4,
+                                           fallback_weight = 0.5):
+
+    # Get the contribution of N-mers
+    contribution_2mers = 1 - contribution_Nmers
+
+    print("Contributions:")
+    print("   - 2-mers:", contribution_2mers)
+    print("   - N-mers:", contribution_Nmers)
+
+    # Get set of proteins and initialize dict to store weights
+    ppis = set(edge['name'] for edge in graph.es)
+    ppis_weights = {ppi: [] for ppi in ppis}
+
+    # Compute frequency of each edge
+    for edge in graph.es:
+        
+        try:
+            print("NOT - Failed")
+            # --------------------- Get 2-mers frequency (0 or 1) ---------------------
+            freq_2mers = len([1 for i in edge["2_mers_data"]['cluster'] if "✔" in i])
+        
+            # --------------------- Get N-mers frequency (0 to 1) ---------------------
+            total_models = len(edge["N_mers_data"]['cluster'])    
+            Nmers_predictions_that_surpass_cutoffs = len([1 for i in edge["N_mers_data"]['cluster'] if "✔" in i])
+            freq_Nmers = Nmers_predictions_that_surpass_cutoffs / total_models
+        
+            # --------------------- Get X-mers frequency (0 to 1) ---------------------
+            freq_Xmers = contribution_2mers * freq_2mers + contribution_Nmers * freq_Nmers
+
+        except:
+            print("Failed")
+            # If anything fails, use the default weight
+            freq_Xmers = fallback_weight
+
+        ppis_weights[edge['name']].append(freq_Xmers)
+
+    # Compute the average weight for each edge type
+    ppis_mean_weight = {ppi: np.mean(ppis_weights[ppi]) for ppi in ppis_weights.keys()}
+
+    return ppis_mean_weight
+
+def generate_layout_using_Xmers_frequency(graph: igraph.Graph, contribution_Nmers: float = 3/4):
+    
+    # Get the weights
+    ppis_mean_weight = get_edge_weights_using_Xmers_frequency(graph, contribution_Nmers)
+    
+    # Create a temporary graph copy to modify edge weights
+    temp_graph = graph.copy()
+    
+    # Set edge weights based on Xmers frequency
+    # Higher frequency = stronger attraction = lower distance = higher weight
+    for edge in temp_graph.es:
+        edge_name = edge['name']
+        if edge_name in ppis_mean_weight:
+            # Convert frequency to weight: higher frequency = higher weight
+            # Add small epsilon to avoid zero weights
+            weight = max(ppis_mean_weight[edge_name], 0.001)
+            edge['weight'] = weight
+        else:
+            # Default very low weight for edges without frequency data
+            edge['weight'] = 0.001
+    
+    # Generate layout using weighted Fruchterman-Reingold algorithm
+    # The algorithm will place nodes with higher edge weights closer together
+    try:
+        # Try with minimal parameters first
+        layout = temp_graph.layout_fruchterman_reingold(weights='weight')
+    except Exception as e:
+        # If weights parameter doesn't work, fall back to basic FR layout
+        # and then manually adjust positions based on weights
+        print(f"Warning: Could not use weighted layout, falling back to basic FR: {e}")
+        layout = temp_graph.layout_fruchterman_reingold()
+        
+        # Manual adjustment: move connected nodes closer based on edge weights
+        positions = np.array(layout.coords)
+        for edge in temp_graph.es:
+            source_idx = edge.source
+            target_idx = edge.target
+            weight = edge['weight']
+            
+            # Move nodes closer based on weight (higher weight = closer)
+            if weight > 0.001:  # Only adjust for meaningful weights
+                # Calculate direction vector
+                direction = positions[target_idx] - positions[source_idx]
+                # Adjust positions (move towards each other)
+                adjustment = direction * weight * 0.1  # Scale factor
+                positions[source_idx] += adjustment * 0.5
+                positions[target_idx] -= adjustment * 0.5
+        
+        # Create new layout with adjusted positions
+        layout = igraph.Layout(positions.tolist())
+    
+    return layout
+
 # ------------------------------------------------------------------------------------
 
 # Convert igraph graph to interactive plotly plot
@@ -1247,7 +1343,8 @@ def igraph_to_plotly(
 
         # Layout generation options
         ignore_dynamics_for_layout: tuple[str] | None = ("Weak Positive", "Strong Negative", "Indirect", "No N-mers Data", "No 2-mers Data"),
-        layout_algorithm = "fr",
+        layout_algorithm = "weighted_fr",
+        weighted_fr_Nmers_contribution = weighted_fr_Nmers_contribution,
         one_edge_per_pair_for_layout: bool = True,
         
         # Edges visualization
@@ -1334,10 +1431,12 @@ def igraph_to_plotly(
     for interaction_type in remove_interactions:
         # Remove edges that meet the condition
         remove_edges_by_condition(graph, attribute = 'dynamics', condition = interaction_type)
-    
+
     # Generate layout if it was not provided
-    if layout == None:
-        # Use the modified function to generate a layout with various filtering options
+    if layout is None and layout_algorithm == "weighted_fr":
+        layout = generate_layout_using_Xmers_frequency(graph, weighted_fr_Nmers_contribution)
+    # Use the modified function to generate a layout with various filtering options
+    elif layout is None:
         layout = generate_layout_ignoring_edges(
             graph, 
             layout_algorithm=layout_algorithm, 
@@ -1345,8 +1444,8 @@ def igraph_to_plotly(
             ignore_conditions=ignore_dynamics_for_layout,
             one_edge_per_pair=one_edge_per_pair_for_layout
         )
+    # Use the modified function with the specified algorithm
     elif type(layout) == str:
-        # Use the modified function with the specified algorithm
         layout = generate_layout_ignoring_edges(
             graph, 
             layout_algorithm=layout, 
@@ -1354,8 +1453,9 @@ def igraph_to_plotly(
             ignore_conditions=ignore_dynamics_for_layout,
             one_edge_per_pair=one_edge_per_pair_for_layout
         )
+    # Generate at least one layout
     else:
-        layout = graph.layout(layout_algorithm)
+        layout = graph.layout("kk")
     
     # Extract node and edge positions from the layout
     pos = {vertex.index: layout[vertex.index] for vertex in graph.vs}

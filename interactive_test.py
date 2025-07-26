@@ -10,6 +10,9 @@ pd.set_option( 'display.max_columns' , None )
 
 remove_interactions = ("Indirect",)
 
+# Hides domains plots
+show_PAE_along_backbone = False
+
 ################################# Test 1 ######################################
 
 # fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
@@ -39,6 +42,7 @@ remove_interactions = ("Indirect",)
 # graph_resolution_preset = None
 
 # ################################# Test 3 ######################################
+# T. brucei
 
 # fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/NuA4_proteins.fasta"
 # AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/2-mers"
@@ -47,9 +51,9 @@ remove_interactions = ("Indirect",)
 # out_path = "/home/elvio/Desktop/Assemblies/NuA4/MM_NuA4"
 # use_names = True 
 # overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/graph_resolution_preset.json"
+# # graph_resolution_preset = "/home/elvio/Desktop/Assemblies/NuA4/graph_resolution_preset.json"
 # auto_domain_detection = True
-# # graph_resolution_preset = None
+# graph_resolution_preset = None
 
 # ###################### Test 4 (indirect interactions) #########################
 
@@ -62,6 +66,7 @@ remove_interactions = ("Indirect",)
 # overwrite = True
 # # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 # graph_resolution_preset = None
+# auto_domain_detection = True
 
 # ################################ Test 5 (SIN3) ################################
 
@@ -125,16 +130,16 @@ remove_interactions = ("Indirect",)
 
 ####################### Test 6'' (multivalency PEX13/31) ######################
 
-fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/proteins_mm.fasta"
-AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/2-mers"
-AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/MM_metrics_profiles_test"
-use_names = True
-overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-auto_domain_detection = True
-graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/proteins_mm.fasta"
+# AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/MM_metrics_profiles_test"
+# use_names = True
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
@@ -231,6 +236,20 @@ graph_resolution_preset = None
 
 ###############################################################################
 
+# ###################### Test 9 (TbNuA4 - No piccolo) #########################
+
+fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/NuA4_no_piccolo.fasta"
+AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/mm_out_testing_layout_algorithm"
+use_names = True 
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+graph_resolution_preset = None
+auto_domain_detection = True
+
+
 ###############################################################################
 ############################### MM main run ###################################
 ###############################################################################
@@ -251,7 +270,8 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
                                        use_names = use_names,
                                        overwrite = overwrite,
                                        auto_domain_detection = auto_domain_detection,
-                                       graph_resolution_preset = graph_resolution_preset)
+                                       graph_resolution_preset = graph_resolution_preset,
+                                       show_PAE_along_backbone = False)
 
 # Generate interactive graph
 # import multimer_mapper as mm

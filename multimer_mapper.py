@@ -382,6 +382,7 @@ def interactive_igraph_to_plotly(combined_graph,
                                  self_loop_size = self_loop_size,
                                  remove_interactions = remove_interactions_from_ppi_graph,
                                  layout_algorithm = ppi_graph_layout_algorithm,
+                                 weighted_fr_Nmers_contribution = weighted_fr_Nmers_contribution,
                                  automatic_true = igraph_to_plotly_automatic_true,
                                  show_plot = True):
 
@@ -403,6 +404,7 @@ def interactive_igraph_to_plotly(combined_graph,
             graph = combined_graph,
             layout = None,
             layout_algorithm = layout_algorithm,
+            weighted_fr_Nmers_contribution= weighted_fr_Nmers_contribution,
 
             # Aspect of homooligomerization edges
             self_loop_orientation = self_loop_orientation,

@@ -184,8 +184,11 @@ add_cutoff_legend = False
 
 # Have a look at https://igraph.org/python/tutorial/0.9.8/tutorial.html
 # for more info about layout algorithms
-available_layout = ['fr', 'kk', 'circle', 'drl', 'lgl', 'random', 'rt', 'rt_circular', ]
+available_layout = ['weighted_fr', 'fr', 'kk', 'circle', 'drl', 'lgl', 'random', 'rt', 'rt_circular']
 ppi_graph_layout_algorithm = available_layout[0]
+
+# Fraction of the weight that N-mers contribute
+weighted_fr_Nmers_contribution = 9/10
 
 # If True, the first generated interactive PPI graph will be saved, without asking
 igraph_to_plotly_automatic_true = False
