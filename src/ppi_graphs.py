@@ -1548,8 +1548,14 @@ def igraph_to_plotly(
                 # add text trace
                 edge_traces.append(oscillated_edge_trace)
             
-            # Generate self-loop edge trace
-            edge_trace = go.Scatter(
+            # Raw data hovertext
+            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * len(circle_x)
+            
+            # Correlation hovertext  
+            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- φ correlations between PPI dynamics and partners presence --------<br><br>" + edge["phi_coef_ascii_plot_html"]+ "<br>"] * len(circle_x)
+
+            # Generate self-loop edge trace for correlations (visible by default)
+            edge_trace_corr = go.Scatter(
                 x = circle_x.tolist() + [None],
                 y = circle_y.tolist() + [None],
                 mode = "lines",
@@ -1557,14 +1563,34 @@ def igraph_to_plotly(
                             width = int(edge_width * edge_weight),
                             dash  = edge_linetype),
                 hoverinfo  ="text",
-                text       = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * len(circle_x),
-                hovertext  = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * len(circle_x),
+                text       = corr_hovertext,
+                hovertext  = corr_hovertext,
                 hoverlabel = dict(font=dict(family='Courier New', size=hovertext_size)),
-                showlegend = False
+                showlegend = False,
+                visible = True,
+                name = f"edge_corr_{edge.index}"
+            )
+            
+            # Generate self-loop edge trace for raw data (hidden by default)
+            edge_trace_raw = go.Scatter(
+                x = circle_x.tolist() + [None],
+                y = circle_y.tolist() + [None],
+                mode = "lines",
+                line = dict(color = edge_color,
+                            width = int(edge_width * edge_weight),
+                            dash  = edge_linetype),
+                hoverinfo  ="text",
+                text       = raw_hovertext,
+                hovertext  = raw_hovertext,
+                hoverlabel = dict(font=dict(family='Courier New', size=hovertext_size)),
+                showlegend = False,
+                visible = False,
+                name = f"edge_raw_{edge.index}"
             )
             
             # Add traces
-            edge_traces.append(edge_trace)
+            edge_traces.append(edge_trace_corr)
+            edge_traces.append(edge_trace_raw)
 
             # ------------- Add homooligomerization state data -----------------------
             
@@ -1661,23 +1687,50 @@ def igraph_to_plotly(
                 # Add traces
                 edge_traces.append(oscillated_edge_trace)
             
-            # Compute the edge trace
-            edge_trace = go.Scatter(
+            # Raw data hovertext
+            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * (resolution + 2)
+            
+            # Correlation hovertext
+            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- φ correlations between PPI dynamics and partners presence --------<br><br>" + edge["phi_coef_ascii_plot_html"] + "<br>"] * (resolution + 2)
+
+            # Compute the edge trace for correlations (visible by default)
+            edge_trace_corr = go.Scatter(
                 x=intermediate_x.tolist() + [None],
                 y=intermediate_y.tolist() + [None],
                 mode = "lines",
                 line = dict(color = edge_color,
                             width = int(edge_width * edge_weight),
                             dash  = edge_linetype),
-                hoverinfo   = "text",  # Add hover text
-                text        = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * (resolution + 2),
-                hovertext   = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * (resolution + 2),
+                hoverinfo   = "text",
+                text        = corr_hovertext,
+                hovertext   = corr_hovertext,
                 hoverlabel  = dict(font=dict(family='Courier New', size=hovertext_size)),
-                showlegend  = False
+                showlegend  = False,
+                visible = True,
+                name = f"edge_corr_{edge.index}"
+            )
+            
+            # Compute the edge trace for raw data (hidden by default)
+            edge_trace_raw = go.Scatter(
+                x=intermediate_x.tolist() + [None],
+                y=intermediate_y.tolist() + [None],
+                mode = "lines",
+                line = dict(color = edge_color,
+                            width = int(edge_width * edge_weight),
+                            dash  = edge_linetype),
+                hoverinfo   = "text",
+                text        = raw_hovertext,
+                hovertext   = raw_hovertext,
+                hoverlabel  = dict(font=dict(family='Courier New', size=hovertext_size)),
+                showlegend  = False,
+                visible = False,
+                name = f"edge_raw_{edge.index}"
             )
 
-            # Add edge trace
-            edge_traces.append(edge_trace)
+            # Add edge traces
+            edge_traces.append(edge_trace_corr)
+            edge_traces.append(edge_trace_raw)
+
 
             # Add multivalency state for multivalent pairs only for valency == 0
             if edge_valency == 0 and edge_is_multivalent:
@@ -1844,7 +1897,7 @@ def igraph_to_plotly(
             display_RMSD_dfs.append(display_df)
         
         # Modify the hovertext to contain domains and RMSD values (showing only rank 1)
-        nodes_hovertext = [
+        nodes_hovertext_raw = [
             hovertext +
             "<br><br>-------- Reference structure domains --------<br>" +
             domain_data.to_string(index=False).replace('\n', '<br>')+
@@ -1854,8 +1907,28 @@ def igraph_to_plotly(
             f'**Only residues with pLDDT > {graph["cutoffs_dict"]["trimming_RMSD_plddt_cutoff"]} were considered for RMSD calculations.'
             for hovertext, domain_data, display_RMSD_data in zip(nodes_hovertext, nodes_df["domains_df"], display_RMSD_dfs)
         ]
+
+        # Get the ASCII HTML plots - extract individual strings from the list
+        RMSD_point_biserial_corr_ascii_plot_html_data = nodes_df['RMSD_point_biserial_corr_ascii_plot_html']
+
+        # Hovertext I want to display by default (Correlation) - now properly iterating
+        nodes_hovertext_ascii = [
+            hovertext +
+            "<br><br>-------- Reference structure domains --------<br>" +
+            domain_data.to_string(index=False).replace('\n', '<br>')+
+            "<br><br>-------- Correlation between RMSD and presence/absence of proteins --------<br>" +
+            str(ascii_plot_data) +  # Convert to string and use individual element
+            f'<br><br>*Domains with mean pLDDT < {graph["cutoffs_dict"]["domain_RMSD_plddt_cutoff"]} (disordered) were not used for RMSD calculations.<br>'+
+            f'**Only residues with pLDDT > {graph["cutoffs_dict"]["trimming_RMSD_plddt_cutoff"]} were considered for RMSD calculations.'
+            for hovertext, domain_data, ascii_plot_data in zip(
+                nodes_hovertext, 
+                nodes_df["domains_df"],
+                RMSD_point_biserial_corr_ascii_plot_html_data
+            )
+        ]
     
-    node_trace = go.Scatter(
+    # Create two node traces - one for each hovertext type
+    node_trace_correlations = go.Scatter(
         x=nodes_df["x_coord"],
         y=nodes_df["y_coord"],
         mode="markers+text",
@@ -1865,11 +1938,29 @@ def igraph_to_plotly(
         textposition='middle center',
         textfont=dict(size=node_names_fontsize),
         hoverinfo="text",
-        hovertext=nodes_hovertext,
+        hovertext=nodes_hovertext_ascii,
         hoverlabel=dict(font=dict(family='Courier New', size=hovertext_size)),
-        showlegend=False
+        showlegend=False,
+        visible=True,  # Default visible
+        name="nodes_correlations"
     )
-    
+
+    node_trace_rawdata = go.Scatter(
+        x=nodes_df["x_coord"],
+        y=nodes_df["y_coord"],
+        mode="markers+text",
+        marker=dict(size=node_size, color=nodes_df["color"],
+                    line=dict(color=node_border_color, width= node_border_width)),
+        text=nodes_df["name"],
+        textposition='middle center',
+        textfont=dict(size=node_names_fontsize),
+        hoverinfo="text",
+        hovertext=nodes_hovertext_raw,
+        hoverlabel=dict(font=dict(family='Courier New', size=hovertext_size)),
+        showlegend=False,
+        visible="legendonly",  # Changed from False to "legendonly"
+        name="nodes_rawdata"
+    )
 
     # Create the layout for the plot
     layout = go.Layout(        
@@ -1886,8 +1977,98 @@ def igraph_to_plotly(
     )
     
     # Create the Figure and add traces
-    fig = go.Figure(data=[*edge_traces, node_trace], layout=layout)
+    fig = go.Figure(data=[*edge_traces, node_trace_correlations, node_trace_rawdata], layout=layout)
     fig.update_layout(annotations=annotations_trace)
+
+    # Create visibility arrays for each mode
+    correlation_visibility = []
+    rawdata_visibility = []
+
+    for trace in fig.data:
+        trace_name = str(trace.name) if trace.name else ""
+        
+        # Legend traces and other non-data traces should always be visible
+        is_legend_trace = (trace_name is None or 
+                        trace_name == "" or 
+                        "legend" in trace_name.lower() or
+                        "<b>" in trace_name or  # Legend titles with bold formatting
+                        " ● " in trace_name or  # Non-interacting proteins
+                        " = " in trace_name or  # Cutoff values
+                        not any(x in trace_name for x in ["corr", "raw", "nodes_correlations", "nodes_rawdata", "edge_"]))
+        
+        if is_legend_trace:
+            # Legend traces are always visible in both modes
+            correlation_visibility.append(True)
+            rawdata_visibility.append(True)
+        elif ("corr" in trace_name or trace_name == "nodes_correlations"):
+            # Correlation-specific traces
+            correlation_visibility.append(True)
+            rawdata_visibility.append(False)
+        elif ("raw" in trace_name or trace_name == "nodes_rawdata"):
+            # Raw data-specific traces
+            correlation_visibility.append(False)
+            rawdata_visibility.append(True)
+        else:
+            # Default for other traces (oscillations, etc.)
+            correlation_visibility.append(True)
+            rawdata_visibility.append(True)
+
+    # Create trace indices for data traces only (exclude legend traces)
+    data_trace_indices = []
+    for i, trace in enumerate(fig.data):
+        trace_name = str(trace.name) if trace.name else ""
+        # Only include actual data traces, not legend traces
+        is_data_trace = (any(x in trace_name for x in ["corr", "raw", "nodes_correlations", "nodes_rawdata", "edge_"]) or
+                        trace_name == "" and hasattr(trace, 'x') and trace.x[0] is not None)  # Edge traces without names
+        if is_data_trace:
+            data_trace_indices.append(i)
+
+    # Create visibility arrays only for data traces
+    correlation_visibility_dict = {}
+    rawdata_visibility_dict = {}
+
+    for i in data_trace_indices:
+        trace = fig.data[i]
+        trace_name = str(trace.name) if trace.name else ""
+        
+        if ("corr" in trace_name or trace_name == "nodes_correlations"):
+            correlation_visibility_dict[i] = True
+            rawdata_visibility_dict[i] = False
+        elif ("raw" in trace_name or trace_name == "nodes_rawdata"):
+            correlation_visibility_dict[i] = False
+            rawdata_visibility_dict[i] = True
+        else:
+            # Default for other data traces (oscillations, etc.)
+            correlation_visibility_dict[i] = True
+            rawdata_visibility_dict[i] = True
+
+    # Add toggle buttons for switching between correlation and raw data
+    fig.update_layout(
+        updatemenus=[
+            dict(
+                type="buttons",
+                direction="left",
+                buttons=list([
+                    dict(
+                        args=[{"visible": [correlation_visibility_dict.get(i, True) for i in range(len(fig.data))]}],
+                        label="Correlations",
+                        method="restyle"
+                    ),
+                    dict(
+                        args=[{"visible": [rawdata_visibility_dict.get(i, True) for i in range(len(fig.data))]}],
+                        label="Raw Data", 
+                        method="restyle"
+                    )
+                ]),
+                pad={"r": 10, "t": 10},
+                showactive=True,
+                x=0.01,
+                xanchor="left",
+                y=1.02,
+                yanchor="top"
+            ),
+        ]
+    )
     
     # ----------------------------------------------------------------------------------
     # ------------------------------- Legend Labels ------------------------------------
