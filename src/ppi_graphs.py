@@ -2050,13 +2050,22 @@ def igraph_to_plotly(
                 direction="left",
                 buttons=list([
                     dict(
-                        args=[{"visible": [correlation_visibility_dict.get(i, True) for i in range(len(fig.data))]}],
+                        # only toggle the data_trace_indices
+                        args=[
+                            {"visible": [correlation_visibility_dict.get(i, True)
+                                        for i in data_trace_indices]},
+                            data_trace_indices
+                        ],
                         label="Correlations",
                         method="restyle"
                     ),
                     dict(
-                        args=[{"visible": [rawdata_visibility_dict.get(i, True) for i in range(len(fig.data))]}],
-                        label="Raw Data", 
+                        args=[
+                            {"visible": [rawdata_visibility_dict.get(i, True)
+                                        for i in data_trace_indices]},
+                            data_trace_indices
+                        ],
+                        label="Raw Data",
                         method="restyle"
                     )
                 ]),
@@ -2069,6 +2078,7 @@ def igraph_to_plotly(
             ),
         ]
     )
+
     
     # ----------------------------------------------------------------------------------
     # ------------------------------- Legend Labels ------------------------------------
