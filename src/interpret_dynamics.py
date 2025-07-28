@@ -544,4 +544,170 @@ def add_phi_coefficients_to_combined_graph(combined_graph, logger: None | loggin
         
         # Add phi scores to the edge (PPI)
         edge['phi_coef'] = all_phi_scores
+
+        # Add phi coefficients as ASCII plots
+        phi_ascii_plot = plot_phi_coefficients_ascii(edge['phi_coef'])
+        html_phi_ascii_plot = convert_ascii_plot_to_html(phi_ascii_plot)
+        edge['phi_coef_ascii_plot'] = phi_ascii_plot
+        edge['phi_coef_ascii_plot_html'] = html_phi_ascii_plot
+
+
+# -------------------------------------------------------------------------------------
+# -------------- Convert phi coefficient to ASCII plots HTML compatible ---------------
+# -------------------------------------------------------------------------------------
+
+
+def plot_phi_coefficients_ascii(phi_coef_dict, edge_index=None, title=None):
+    """
+    Create an ASCII bar graph for phi coefficients.
+    
+    Args:
+        phi_coef_dict: Dictionary with protein names as keys and phi coefficients as values
+        edge_index: Optional edge index for labeling
+        title: Optional title for the plot
+    
+    Returns:
+        String containing the ASCII plot
+    """
+    # Filter out NaN values and convert to float
+    filtered_data = {}
+    for protein, coef in phi_coef_dict.items():
+        if not (isinstance(coef, float) and math.isnan(coef)) and coef is not None:
+            filtered_data[protein] = float(coef)
+    
+    if not filtered_data:
+        return f"Edge {edge_index}: No valid phi coefficients to plot\n"
+    
+    # Configuration
+    resolution = 0.05  # 0.05 per character
+    scale_width = int(2.0 / resolution)  # Total width for -1 to +1 range
+    zero_pos = scale_width // 2  # Position of zero
+    max_protein_name_len = max(len(name) for name in filtered_data.keys())
+    
+    # Characters for different bar intensities
+    bar_chars = {
+        'light': '░',
+        'medium': '▒', 
+        'heavy': '█',
+        'zero': '│'
+    }
+    
+    # Build the plot
+    lines = []
+    
+    # Add title
+    if title:
+        lines.append(title)
+    elif edge_index is not None:
+        lines.append(f"Edge {edge_index} - Phi Coefficients")
+    else:
+        lines.append("Phi Coefficients")
+    lines.append("")
+    
+    # Add numerical scale: place "-1" at left, "0" at center, "1" at right
+    prefix = " " * (max_protein_name_len + 1)
+    nums = [" "] * (scale_width + 1)
+
+    # left end "-1"
+    nums[0] = "-"
+    nums[1] = "1"
+
+    # zero "0"
+    nums[zero_pos + 1] = "0"
+
+    # right end "1"
+    nums[-1] = "1"
+
+    lines.append(prefix + "".join(nums))
+    
+    # Create scale header
+    scale_line = " " * (max_protein_name_len + 2)
+    for i in range(scale_width):
+        value = -1.0 + (i * resolution)
+        if abs(value) < 0.025:  # Close to zero
+            scale_line += "│"
+        elif abs(value - (-1.0)) < 0.025:  # Close to -1
+            scale_line += "┤"
+        elif abs(value - 1.0) < 0.025:  # Close to +1
+            scale_line += "├"
+        elif i % 10 == 0:  # Every 0.5 units
+            scale_line += "┼"
+        else:
+            scale_line += "─"
+    scale_line = scale_line[:-1] + "├"
+    
+    lines.append(scale_line)
+    
+    # Add a separator
+    lines.append("")
+    
+    # Sort proteins by name for consistent output
+    sorted_proteins = sorted(filtered_data.items())
+    
+    # Create bars for each protein
+    for protein, coef in sorted_proteins:
+        # Calculate bar length and direction
+        bar_length = int(abs(coef) / resolution)
+        bar_length = min(bar_length, zero_pos)  # Cap at maximum possible length
         
+        # Choose bar character based on coefficient magnitude
+        if abs(coef) < 0.1:
+            bar_char = bar_chars['light']
+        elif abs(coef) < 0.5:
+            bar_char = bar_chars['medium']
+        else:
+            bar_char = bar_chars['heavy']
+        
+        # Build the line
+        line = f"{protein:<{max_protein_name_len}} │"
+        
+        # Create the bar
+        bar_line = [' '] * scale_width
+        
+        # Add zero line
+        bar_line[zero_pos] = bar_chars['zero']
+        
+        if coef < 0:
+            # Negative bar (goes left from zero)
+            start_pos = max(0, zero_pos - bar_length)
+            for i in range(start_pos, zero_pos):
+                bar_line[i] = bar_char
+        elif coef > 0:
+            # Positive bar (goes right from zero)
+            end_pos = min(scale_width, zero_pos + bar_length + 1)
+            for i in range(zero_pos + 1, end_pos):
+                bar_line[i] = bar_char
+        
+        line += ''.join(bar_line)
+        line += f"│ {coef:>6.3f}"
+        
+        lines.append(line)
+    
+    lines.append("")
+    return "\n".join(lines)
+
+
+def plot_all_edges_phi_coefficients(combined_graph):
+    """
+    Create ASCII bar graphs for all edges in the combined graph.
+    
+    Args:
+        combined_graph: Graph object with edges containing phi_coef data
+    
+    Returns:
+        String containing all plots
+    """
+    all_plots = []
+    
+    for i, edge in enumerate(combined_graph.es):
+        if 'phi_coef' in edge.attributes():
+            phi_coef_dict = edge['phi_coef']
+            plot = plot_phi_coefficients_ascii(phi_coef_dict, edge_index=i)
+            all_plots.append(plot)
+    
+    return "\n" + "="*80 + "\n".join(all_plots)
+
+
+def convert_ascii_plot_to_html(ascii_plot: str):
+    html_ascii_plot = ascii_plot.replace("\n", "<br>")
+    return html_ascii_plot
