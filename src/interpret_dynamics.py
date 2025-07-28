@@ -2,9 +2,10 @@
 import numpy as np
 import pandas as pd
 import igraph
+import logging
+import math
 
 from cfg.default_settings import edge_default_weight, edge_scaling_factor, edge_min_weight, edge_max_weight, edge_midpoint_PAE, edge_weight_sigmoidal_sharpness, use_cluster_aware_Nmers_variation
-
 from utils.logger_setup import configure_logger
 
 # -------------------------------------------------------------------------------------
@@ -427,5 +428,120 @@ def get_edge_oscillation(graph_edge: igraph.Edge, classification_df: pd.DataFram
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 # -------------------------------------------------------------------------------------
-# ------------------- Residue-Residue contacts matrix dynamics ------------------------
+# --------------- Associations between protein appearance and dynamics ----------------
 # -------------------------------------------------------------------------------------
+
+
+def compute_phi_coef_from_N_mers_data(
+        N_mers_data: pd.DataFrame, pair: tuple[str], protein: str, dynamics: str, logger: logging.Logger
+    ):
+    
+    # No protein affects the manifestation of the interaction
+    if dynamics == "Static":
+        return 0
+    # All tested proteins in all combinations affect the manifestation of the interaction in a negative way
+    elif dynamics == "Strong Negative":
+        return -1
+    # All tested proteins in all combinations affect the manifestation of the interaction in a positive way
+    elif dynamics == "Strong Positive":
+        return 1
+    
+    # For homo-interactions, the protein must be in the combination at least three times
+    if protein == pair[0] and protein == pair[1]:
+        count_threshold = 3
+    # For hetero-interactions that contain the protein, it must be in the combination at least two times
+    elif protein in pair:
+        count_threshold = 2
+    # Everything else, it must be present at least once
+    else:
+        count_threshold = 1
+    
+    # Counts outcomes
+    n11=0
+    n10=0
+    n01=0
+    n00=0
+    
+    # Assign each combination to an outcome
+    for idx, n_mer_row in N_mers_data.iterrows():
+        
+        # ----- Does the protein is in the combination? True or False (X) -----
+        is_protein_in_combination  = False
+        if n_mer_row['proteins_in_model'].count(protein) >= count_threshold:
+            is_protein_in_combination = True
+        
+        # ------------- Does the pair interact? True or False (Y) -------------
+        if "✔" in n_mer_row['cluster']:
+            is_ppi_detected=True
+        elif "✗" in n_mer_row['cluster'] or "X" in n_mer_row['cluster'] or "x" in n_mer_row['cluster']:
+            is_ppi_detected=False
+        else:
+            is_ppi_detected=False
+            logger.error( "Something went wrong during the computation of Phi Coefficient:")
+            logger.error( "   - None of the following characters ✔, ✗, X or x is in N_mers_data")
+            logger.error(f"   - Pair: {pair}")
+            logger.error(f"   - Protein: {protein}")
+            logger.error(f"   - N_mers_data row: {n_mer_row}")
+            logger.error( "MultimerMapper will continue, but the results may be unreliable or the program might crash later...")
+        
+        # --------------------- Classify the count ----------------------------
+        if is_protein_in_combination and is_ppi_detected:
+            n11+=1
+        if is_protein_in_combination and not is_ppi_detected:
+            n10+=1
+        if not is_protein_in_combination and is_ppi_detected:
+            n01+=1
+        if not is_protein_in_combination and not is_ppi_detected:
+            n00+=1
+        
+    # Compute marginal totals
+    n1_=n11+n10
+    n0_=n01+n00
+    n_1=n11+n01
+    n_0=n10+n00
+
+    
+    # Compute Phi Coefficient for the protein in the PPI mode
+    if n1_ == 0 or n0_ == 0 or n_1 == 0 or n_0 == 0:
+        # logger.error( "Something went wrong during the computation of Phi Coefficient:")
+        # logger.error(f"   - Pair: {pair}")
+        # logger.error(f"   - Protein: {protein}")
+        # logger.error( "   - At least one marginal coefficient is zero and no dynamics match:")
+        # logger.error(f"         COEFFICIENTS: n1_={n1_}  n0_={n0_}  n_1={n_1}  n_0={n_1}")
+        # logger.error(f"         DYNAMICS: {dynamics}")
+        # logger.error(f"   - N_mers_data row: {N_mers_data}")
+        # logger.error( "MultimerMapper will continue, but the results may be unreliable or the program might crash later...")
+        return float('nan')
+    else:
+        phi_coef = (n11*n00-n10*n01)/math.sqrt(n1_*n0_*n_1*n_0)
+    
+    return phi_coef
+    
+
+def add_phi_coefficients_to_combined_graph(combined_graph, logger: None | logging.Logger = None):
+    
+    # Configure logger
+    if logger == None:
+        logger = configure_logger()(__name__)
+
+    for edge in combined_graph.es:
+        
+        # Unpack necessary data
+        pair = edge['name']
+        prot1 = pair[0]
+        prot2 = pair[1]
+        dynamics = edge['dynamics']
+        n_mers_df = edge['N_mers_data']
+        possible_proteins = set([prot for combination in n_mers_df["proteins_in_model"] for prot in combination])
+
+        all_phi_scores = {}
+        
+        for protein in possible_proteins:            
+            protein_phi_score = compute_phi_coef_from_N_mers_data(
+                n_mers_df, pair, protein, dynamics, logger)
+                        
+            all_phi_scores[protein] = protein_phi_score
+        
+        # Add phi scores to the edge (PPI)
+        edge['phi_coef'] = all_phi_scores
+        
