@@ -20,6 +20,7 @@ from cfg.default_settings import vertex_color1, vertex_color2, vertex_color3, ve
 from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, dynamic_conv_start, dynamic_conv_end, weighted_fr_Nmers_contribution
 from utils.combinations import generate_multivalent_pair_suggestions
 from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
+from src.interpret_dynamics import add_phi_coefficients_to_combined_graph
 
 # -----------------------------------------------------------------------------
 # PPI graph for 2-mers --------------------------------------------------------
@@ -987,6 +988,11 @@ def generate_combined_graph(
         indirect_edges = [e.index for e in graphC.es if e['dynamics'] == "Indirect"]
         graphC.delete_edges(indirect_edges)
     
+    # ----------------------------------------------------------------------------------------
+    # ------------ Add associations between protein presence/absence and dynamics ------------
+    # ----------------------------------------------------------------------------------------
+    
+    add_phi_coefficients_to_combined_graph(graphC)
     
     return graphC, dynamic_proteins, homooligomerization_states, multivalency_states
 
