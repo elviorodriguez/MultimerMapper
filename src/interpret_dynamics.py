@@ -4,7 +4,7 @@ import pandas as pd
 import igraph
 import logging
 import math
-from scipy.stats import pointbiserialr
+from scipy.stats import pointbiserialr, chi2_contingency
 
 from cfg.default_settings import edge_default_weight, edge_scaling_factor, edge_min_weight, edge_max_weight, edge_midpoint_PAE, edge_weight_sigmoidal_sharpness, use_cluster_aware_Nmers_variation
 from utils.logger_setup import configure_logger
@@ -407,13 +407,13 @@ def compute_phi_coef_from_N_mers_data(
     
     # No protein affects the manifestation of the interaction
     if dynamics == "Static":
-        return 0
+        return {"phi_coef": 0, "pval": 1.0}
     # All tested proteins in all combinations affect the manifestation of the interaction in a negative way
     elif dynamics == "Strong Negative":
-        return -1
+        return {"phi_coef": -1, "pval": 0.0}
     # All tested proteins in all combinations affect the manifestation of the interaction in a positive way
     elif dynamics == "Strong Positive":
-        return 1
+        return {"phi_coef": 1, "pval": 0.0}
     
     # For homo-interactions, the protein must be in the combination at least three times
     if protein == pair[0] and protein == pair[1]:
@@ -470,21 +470,20 @@ def compute_phi_coef_from_N_mers_data(
     n_0=n10+n00
 
     
-    # Compute Phi Coefficient for the protein in the PPI mode
+    # Compute Phi Coefficient and p-value using chi2_contingency
     if n1_ == 0 or n0_ == 0 or n_1 == 0 or n_0 == 0:
-        # logger.error( "Something went wrong during the computation of Phi Coefficient:")
-        # logger.error(f"   - Pair: {pair}")
-        # logger.error(f"   - Protein: {protein}")
-        # logger.error( "   - At least one marginal coefficient is zero and no dynamics match:")
-        # logger.error(f"         COEFFICIENTS: n1_={n1_}  n0_={n0_}  n_1={n_1}  n_0={n_1}")
-        # logger.error(f"         DYNAMICS: {dynamics}")
-        # logger.error(f"   - N_mers_data row: {N_mers_data}")
-        # logger.error( "MultimerMapper will continue, but the results may be unreliable or the program might crash later...")
-        return float('nan')
+        return {"phi_coef": float('nan'), "pval": float('nan')}
     else:
+        # Create contingency table
+        contingency_table = np.array([[n11, n10], [n01, n00]])
+        
+        # Compute chi-square test
+        chi2, pval, dof, expected = chi2_contingency(contingency_table)
+        
+        # Compute phi coefficient manually (same as before)
         phi_coef = (n11*n00-n10*n01)/math.sqrt(n1_*n0_*n_1*n_0)
-    
-    return phi_coef
+        
+        return {"phi_coef": phi_coef, "pval": pval}
     
 
 def add_phi_coefficients_to_combined_graph(combined_graph, logger: None | logging.Logger = None):
@@ -506,10 +505,10 @@ def add_phi_coefficients_to_combined_graph(combined_graph, logger: None | loggin
         all_phi_scores = {}
         
         for protein in possible_proteins:            
-            protein_phi_score = compute_phi_coef_from_N_mers_data(
+            protein_phi_result = compute_phi_coef_from_N_mers_data(
                 n_mers_df, pair, protein, dynamics, logger)
                         
-            all_phi_scores[protein] = protein_phi_score
+            all_phi_scores[protein] = protein_phi_result
         
         # Add phi scores to the edge (PPI)
         edge['phi_coef'] = all_phi_scores
@@ -531,18 +530,28 @@ def plot_phi_coefficients_ascii(phi_coef_dict, edge_index=None, title=None):
     Create an ASCII bar graph for phi coefficients.
     
     Args:
-        phi_coef_dict: Dictionary with protein names as keys and phi coefficients as values
+        phi_coef_dict: Dictionary with protein names as keys and phi coefficient data as values
+                      (can be either float values or dict with 'phi_coef' and 'pval' keys)
         edge_index: Optional edge index for labeling
         title: Optional title for the plot
     
     Returns:
         String containing the ASCII plot
     """
-    # Filter out NaN values and convert to float
+    # Filter out NaN values and convert to appropriate format
     filtered_data = {}
-    for protein, coef in phi_coef_dict.items():
+    for protein, coef_data in phi_coef_dict.items():
+        # Handle both old format (float) and new format (dict)
+        if isinstance(coef_data, dict):
+            coef = coef_data.get('phi_coef')
+            pval = coef_data.get('pval')
+        else:
+            # Backward compatibility with old float format
+            coef = coef_data
+            pval = None
+            
         if not (isinstance(coef, float) and math.isnan(coef)) and coef is not None:
-            filtered_data[protein] = float(coef)
+            filtered_data[protein] = {'phi_coef': float(coef), 'pval': pval}
     
     if not filtered_data:
         return f"Edge {edge_index}: No valid phi coefficients to plot\n"
@@ -589,7 +598,7 @@ def plot_phi_coefficients_ascii(phi_coef_dict, edge_index=None, title=None):
 
     lines.append(prefix + "".join(nums))
     
-    # Create scale header
+    # Create scale header with p-value reference
     scale_line = " " * (max_protein_name_len + 2)
     for i in range(scale_width):
         value = -1.0 + (i * resolution)
@@ -603,7 +612,7 @@ def plot_phi_coefficients_ascii(phi_coef_dict, edge_index=None, title=None):
             scale_line += "┼"
         else:
             scale_line += "─"
-    scale_line = scale_line[:-1] + "├"
+    scale_line = scale_line[:-1] + "├ (p-val)"
     
     lines.append(scale_line)
     
@@ -614,7 +623,10 @@ def plot_phi_coefficients_ascii(phi_coef_dict, edge_index=None, title=None):
     sorted_proteins = sorted(filtered_data.items())
     
     # Create bars for each protein
-    for protein, coef in sorted_proteins:
+    for protein, coef_data in sorted_proteins:
+        coef = coef_data['phi_coef']
+        pval = coef_data['pval']
+        
         # Calculate bar length and direction
         bar_length = int(abs(coef) / resolution)
         bar_length = min(bar_length, zero_pos)  # Cap at maximum possible length
@@ -648,7 +660,14 @@ def plot_phi_coefficients_ascii(phi_coef_dict, edge_index=None, title=None):
                 bar_line[i] = bar_char
         
         line += ''.join(bar_line)
-        line += f"│ {coef:>6.3f}"
+        
+        # Format p-value for display
+        if isinstance(pval, float) and not math.isnan(pval):
+            pval_str = f"{pval:.3f}"
+        else:
+            pval_str = "N/A"
+        
+        line += f"│ {coef:>6.3f} ({pval_str})"
         
         lines.append(line)
     
