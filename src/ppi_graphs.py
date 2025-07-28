@@ -1732,65 +1732,6 @@ def igraph_to_plotly(
                 p_position = start_point * 0.8 + end_point * 0.2  # Closer to P
                 q_position = start_point * 0.2 + end_point * 0.8  # Closer to Q
 
-                ################################# TRY 1 (looks like squares that can be turned on/off):
-
-                # # Create annotation for P
-                # p_annotation = go.layout.Annotation(
-                #     x=p_position[0],
-                #     y=p_position[1],
-                #     text="P",
-                #     showarrow=False,
-                #     font=dict(size=10, color='black'),
-                #     bgcolor='white',
-                #     bordercolor='black',
-                #     borderwidth=1,
-                #     visible=True,
-                #     clicktoshow='onoff'
-                # )
-
-                # # Create annotation for Q
-                # q_annotation = go.layout.Annotation(
-                #     x=q_position[0],
-                #     y=q_position[1],
-                #     text="Q",
-                #     showarrow=False,
-                #     font=dict(size=10, color='black'),
-                #     bgcolor='white',
-                #     bordercolor='black',
-                #     borderwidth=1,
-                #     visible=True,
-                #     clicktoshow='onoff'
-                # )
-
-                # # Create scatter points for toggling visibility
-                # p_trace = go.Scatter(
-                #     x=[p_position[0]], y=[p_position[1]],
-                #     mode='markers+text',
-                #     marker=dict(size=10, color='white', line=dict(color='black', width=1), symbol='circle'),
-                #     text=[""],
-                #     textposition="middle center",
-                #     hoverinfo="none",
-                #     showlegend=False
-                # )
-
-                # q_trace = go.Scatter(
-                #     x=[q_position[0]], y=[q_position[1]],
-                #     mode='markers+text',
-                #     marker=dict(size=10, color='white', line=dict(color='black', width=1), symbol='circle'),
-                #     text=[""],
-                #     textposition="middle center",
-                #     hoverinfo="none",
-                #     showlegend=False
-                # )
-
-                # # Append the new annotations and traces
-                # annotations_trace.append(p_annotation)
-                # annotations_trace.append(q_annotation)
-                # edge_traces.append(p_trace)
-                # edge_traces.append(q_trace)
-
-                ################################# TRY 2 (looks like static circles):
-
                 # Create scatter points for P and Q with text inside circles
                 p_trace = go.Scatter(
                     x=[p_position[0]],
@@ -1831,9 +1772,6 @@ def igraph_to_plotly(
                 # Append the new traces
                 edge_traces.append(p_trace)
                 edge_traces.append(q_trace)
-
-            
-    
     
     # ----------------------------------------------------------------------------------
     # ------------------------ Nodes/proteins/vertex traces ----------------------------
