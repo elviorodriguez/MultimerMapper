@@ -1828,23 +1828,30 @@ def igraph_to_plotly(
             
             # Apply the function to the 'RMSD' column
             for DF, sub_df in enumerate(nodes_df["RMSD_df"]):
-                # nodes_df["RMSD_df"][DF]['RMSD'] = nodes_df["RMSD_df"][DF]['RMSD'].apply(lambda x: format_rmsd(x, threshold=add_bold_RMSD_cutoff))
-                # nodes_df["RMSD_df"][DF].rename(columns={'RMSD': '<b></b>RMSD'}, inplace = True)
                 RMSD_data = nodes_df["RMSD_df"][DF]['RMSD'].apply(lambda x: format_rmsd(x, threshold=add_bold_RMSD_cutoff))
                 RMSD_dfs[DF] = nodes_df["RMSD_df"][DF].drop(columns="RMSD")
                 RMSD_dfs[DF]['<b></b>RMSD'] = RMSD_data
         
-        # Modify the hovertext to contain domains and RMSD values
+        # Create display dataframes with only rank 1 data for hovertext
+        display_RMSD_dfs = []
+        for rmsd_df in RMSD_dfs:
+            if not rmsd_df.empty and 'Rank' in rmsd_df.columns:
+                # Filter for rank 1 only for display
+                display_df = rmsd_df[rmsd_df['Rank'] == 1].drop(columns=['Rank'])
+            else:
+                display_df = rmsd_df
+            display_RMSD_dfs.append(display_df)
+        
+        # Modify the hovertext to contain domains and RMSD values (showing only rank 1)
         nodes_hovertext = [
             hovertext +
             "<br><br>-------- Reference structure domains --------<br>" +
             domain_data.to_string(index=False).replace('\n', '<br>')+
-            "<br><br>-------- Domain RMSD against highest pLDDT structure --------<br>" +
-            RMSD_data.to_string(index=False).replace('\n', '<br>') +
+            "<br><br>-------- Domain RMSD against highest pLDDT structure (Rank 1 only) --------<br>" +
+            display_RMSD_data.to_string(index=False).replace('\n', '<br>') +
             f'<br><br>*Domains with mean pLDDT < {graph["cutoffs_dict"]["domain_RMSD_plddt_cutoff"]} (disordered) were not used for RMSD calculations.<br>'+
             f'**Only residues with pLDDT > {graph["cutoffs_dict"]["trimming_RMSD_plddt_cutoff"]} were considered for RMSD calculations.'
-            # for hovertext, domain_data, RMSD_data in zip(nodes_hovertext, nodes_df["domains_df"], nodes_df["RMSD_df"])
-            for hovertext, domain_data, RMSD_data in zip(nodes_hovertext, nodes_df["domains_df"], RMSD_dfs)
+            for hovertext, domain_data, display_RMSD_data in zip(nodes_hovertext, nodes_df["domains_df"], display_RMSD_dfs)
         ]
     
     node_trace = go.Scatter(

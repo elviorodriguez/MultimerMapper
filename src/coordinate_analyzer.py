@@ -116,10 +116,10 @@ def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
         vertex["domains_df"] = domains_df.query(f'Protein_ID == "{protein_ID}"').filter(["Domain", "Start", "End", "Mean_pLDDT"])
         
         # Initialize dataframes to store RMSD
-        columns = ["Domain","Model","Chain", "Mean_pLDDT", "RMSD"]
+        columns = ["Domain","Model","Chain", "Rank", "Mean_pLDDT", "RMSD"]
         vertex["RMSD_df"] = pd.DataFrame(columns = columns)
         
-        logger.info(f"   - Computing RMSD for {protein_ID}...")
+        logger.info(f"   - Computing initial RMSDs for {protein_ID}...")
         
         # Work domain by domain
         for D, domain in domains_df.query(f'Protein_ID == "{protein_ID}"').iterrows():
@@ -137,8 +137,8 @@ def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
             # Create a reference chain for the domain (comparisons are made against it)
             ref_domain_chain = create_model_chain_from_residues(ref_residues[start:end])
             
-            # Compute RMSD for 2-mers models that are part of interactions (use only rank 1)
-            for M, model in pairwise_2mers_df.query(f'(protein1 == "{protein_ID}" | protein2 == "{protein_ID}") & rank == 1').iterrows():
+            # Compute RMSD for 2-mers models that are part of interactions
+            for M, model in pairwise_2mers_df.query(f'(protein1 == "{protein_ID}" | protein2 == "{protein_ID}")').iterrows():
                 
                 prot1 = str(model["protein1"])
                 prot2 = str(model["protein2"])
@@ -166,15 +166,16 @@ def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
                             "Domain": [domain_num],
                             "Model": [model_proteins],
                             "Chain": [query_chain_ID],
+                            "Rank": [model["rank"]],
                             "Mean_pLDDT": [round(query_domain_mean_pLDDT, 1)],
                             "RMSD": [round(query_domain_RMSD, 2)] 
-                            })
+                        })
                         
                         vertex["RMSD_df"] = pd.concat([vertex["RMSD_df"], query_domain_RMSD_data], ignore_index = True)
             
             
-            # Compute RMSD for N-mers models that are part of interactions (use only rank 1)
-            for M, model in pairwise_Nmers_df.query(f'(protein1 == "{protein_ID}" | protein2 == "{protein_ID}") & rank == 1').iterrows():
+            # Compute RMSD for N-mers models that are part of interactions
+            for M, model in pairwise_Nmers_df.query(f'(protein1 == "{protein_ID}" | protein2 == "{protein_ID}")').iterrows():
                 
                 prot1 = model["protein1"]
                 prot2 = model["protein2"]
@@ -202,9 +203,10 @@ def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
                             "Domain": [domain_num],
                             "Model": [model_proteins],
                             "Chain": [query_chain_ID],
+                            "Rank": [model["rank"]],  # ADD THIS LINE
                             "Mean_pLDDT": [round(query_domain_mean_pLDDT, 1)],
                             "RMSD": [round(query_domain_RMSD, 2)]
-                            })
+                        })
                         
                         vertex["RMSD_df"] = pd.concat([vertex["RMSD_df"], query_domain_RMSD_data], ignore_index = True)
 
