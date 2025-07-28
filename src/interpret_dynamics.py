@@ -4,6 +4,7 @@ import pandas as pd
 import igraph
 import logging
 import math
+from scipy.stats import pointbiserialr
 
 from cfg.default_settings import edge_default_weight, edge_scaling_factor, edge_min_weight, edge_max_weight, edge_midpoint_PAE, edge_weight_sigmoidal_sharpness, use_cluster_aware_Nmers_variation
 from utils.logger_setup import configure_logger
@@ -316,38 +317,6 @@ def get_edge_linetype(graph_edge: igraph.Edge, classification_df: pd.DataFrame):
     edge_dynamics = graph_edge["dynamics"]
     edge_line_type = classification_df.query(f'Classification == "{edge_dynamics}"')["Line_type"].iloc[0]
     return edge_line_type
-
-# # Weight using min and max with if-elif-else
-# def get_edge_weight(graph_edge: igraph.Edge, classification_df: pd.DataFrame, default_edge_weight = 0.5, scaling_factor = 7, 
-#                     min_edge_weight = 1, max_edge_weight = 6):
-
-#     edge_dynamics = graph_edge["dynamics"]
-#     edge_width_is_variable = classification_df.query(f'Classification == "{edge_dynamics}"')["Variable_Edge_width"].iloc[0]
-
-#     if edge_width_is_variable:
-
-            
-#         # Using 1/mean_miPAE and 2mer ipTM
-#         if edge_width_is_variable:
-#             edge_weight_2mer_iptm = np.mean(list(graph_edge["2_mers_data"]["ipTM"]))
-#             edge_weight_PAE = 1/ np.mean(list(graph_edge["2_mers_data"]["min_PAE"]) + list(graph_edge["N_mers_data"]["min_PAE"]))
-#             edge_weight = edge_weight_2mer_iptm * edge_weight_PAE * scaling_factor
-        
-#         # # Use mean number of models that surpass the cutoff and 1/mean(miPAE) to construct a weight
-#         # edge_weight_Nmers = int(np.mean(list(graph_edge["2_mers_data"]["N_models"]) + list(graph_edge["N_mers_data"]["N_models"])))
-#         # edge_weight_PAE = int(1/ np.mean(list(graph_edge["2_mers_data"]["min_PAE"]) + list(graph_edge["N_mers_data"]["min_PAE"])))
-#         # edge_weight = edge_weight_Nmers * edge_weight_PAE
-
-#         # Limit to reasonable values
-#         if edge_weight < min_edge_weight:
-#             return min_edge_weight
-#         elif edge_weight > max_edge_weight:
-#             return max_edge_weight
-#         return edge_weight
-    
-#     # If it has fixed length
-#     else:
-#         return default_edge_weight
 
 # Weight using sigmoidal scaling
 def sigmoid_rescale(x, min_val=1, max_val=6, midpoint=1, sharpness=1):
@@ -711,3 +680,241 @@ def plot_all_edges_phi_coefficients(combined_graph):
 def convert_ascii_plot_to_html(ascii_plot: str):
     html_ascii_plot = ascii_plot.replace("\n", "<br>")
     return html_ascii_plot
+
+# -------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# -------------------------------------------------------------------------------------
+# ------------- Associations between protein appearance and RMSD change ---------------
+# -------------------------------------------------------------------------------------
+
+def compute_point_biserial_corr_from_rmsd_df(rmsd_df, ref_protein, query_protein, domain):
+    
+    # Determine how many times ref_protein must appear
+    count_threshold = 2 if ref_protein == query_protein else 1
+    
+    # Collect rows of (RMSD, is_present)
+    records = []
+    domain_mask = rmsd_df['Domain'] == domain
+    for _, row in rmsd_df[domain_mask].iterrows():
+        rmsd = row['RMSD']
+        model = row['Model']
+        is_present = model.count(query_protein) >= count_threshold
+        records.append({'RMSD': rmsd, 'is_present': is_present})
+
+    # Turn into DataFrame
+    rmsd_protein_counts_df = pd.DataFrame.from_records(records, columns=['RMSD', 'is_present'])
+    
+    # need both classes
+    if rmsd_protein_counts_df["is_present"].nunique() < 2:
+        return float("nan"), float("nan")
+
+    # compute point‑biserial
+    r, p_value = pointbiserialr(
+        rmsd_protein_counts_df["RMSD"],
+        rmsd_protein_counts_df["is_present"]
+    )
+    
+    return r, p_value
+
+
+def add_point_biserial_corr_for_rmsd_and_partners(combined_graph):
+    
+    for node in combined_graph.vs:
+        
+        # Extract necessary data
+        ref_protein = node['name']
+        rmsd_df = node['RMSD_df']
+        available_domains = set(rmsd_df['Domain'])
+        available_proteins = set([prot for combination in rmsd_df['Model'] for prot in combination])
+        
+        # Store results
+        point_biserial_corr_dict = {d: {} for d in available_domains}
+        
+        for domain in available_domains:
+            
+            for query_protein in available_proteins:
+                
+                rpb, pval = compute_point_biserial_corr_from_rmsd_df(
+                    rmsd_df, ref_protein, query_protein, domain
+                )
+                
+                point_biserial_corr_dict[domain][query_protein] = {
+                    "rpb": rpb, "pval": pval
+                }
+        
+        # Add results to the node
+        node['RMSD_point_biserial_corr'] = point_biserial_corr_dict
+
+        # Add ASCII plots
+        point_biserial_corr_ascii_plot = plot_point_biserial_corr_ascii(point_biserial_corr_dict)
+        point_biserial_corr_ascii_plot_html = convert_ascii_plot_to_html(point_biserial_corr_ascii_plot)
+        node['RMSD_point_biserial_corr_ascii_plot'] = point_biserial_corr_ascii_plot
+        node['RMSD_point_biserial_corr_ascii_plot_html'] = point_biserial_corr_ascii_plot_html
+
+
+def plot_point_biserial_corr_ascii(point_biserial_corr_dict, node_index=None, title=None):
+    """
+    Create ASCII bar graphs for point-biserial correlations across multiple domains.
+    
+    Args:
+        point_biserial_corr_dict: Nested dictionary with domains as keys, and protein names 
+                                 as sub-keys with 'rpb' and 'pval' values
+        node_index: Optional node index for labeling
+        title: Optional title for the plot
+    
+    Returns:
+        String containing the ASCII plots for all domains
+    """
+    if not point_biserial_corr_dict:
+        return f"Node {node_index}: No point-biserial correlation data to plot\n"
+    
+    # Configuration
+    resolution = 0.05  # 0.05 per character
+    scale_width = int(2.0 / resolution)  # Total width for -1 to +1 range
+    zero_pos = scale_width // 2  # Position of zero
+    
+    # Characters for different bar intensities
+    bar_chars = {
+        'light': '░',
+        'medium': '▒', 
+        'heavy': '█',
+        'zero': '│'
+    }
+    
+    # Build the plot
+    lines = []
+    
+    # Add title
+    if title:
+        lines.append(title)
+    elif node_index is not None:
+        lines.append(f"Node {node_index} - Point-Biserial Correlations (RMSD vs Protein Presence)")
+    else:
+        lines.append("Point-Biserial Correlations (RMSD vs Protein Presence)")
+    lines.append("")
+    
+    # Sort domains for consistent output
+    sorted_domains = sorted(point_biserial_corr_dict.keys())
+    
+    for domain_idx, domain in enumerate(sorted_domains):
+        domain_data = point_biserial_corr_dict[domain]
+        
+        # Filter out NaN values and convert to float
+        filtered_data = {}
+        for protein, corr_data in domain_data.items():
+            rpb = corr_data.get('rpb')
+            pval = corr_data.get('pval')
+            if not (isinstance(rpb, float) and math.isnan(rpb)) and rpb is not None:
+                filtered_data[protein] = {'rpb': float(rpb), 'pval': pval}
+        
+        if not filtered_data:
+            lines.append(f"Domain {domain}: No valid correlations to plot")
+            lines.append("")
+            continue
+        
+        # Add domain header
+        lines.append(f"Domain: {domain}")
+        lines.append("-" * (domain + 8))
+        
+        # Calculate max protein name length for this domain
+        max_protein_name_len = max(len(name) for name in filtered_data.keys())
+        
+        # Add numerical scale: place "-1" at left, "0" at center, "1" at right
+        prefix = " " * (max_protein_name_len + 1)
+        nums = [" "] * (scale_width + 1)
+
+        # left end "-1"
+        nums[0] = "-"
+        nums[1] = "1"
+
+        # zero "0"
+        nums[zero_pos + 1] = "0"
+
+        # right end "1"
+        nums[-1] = "1"
+
+        lines.append(prefix + "".join(nums))
+        
+        # Create scale header with p-value reference
+        scale_line = " " * (max_protein_name_len + 2)
+        for i in range(scale_width):
+            value = -1.0 + (i * resolution)
+            if abs(value) < 0.025:  # Close to zero
+                scale_line += "│"
+            elif abs(value - (-1.0)) < 0.025:  # Close to -1
+                scale_line += "┤"
+            elif abs(value - 1.0) < 0.025:  # Close to +1
+                scale_line += "├"
+            elif i % 10 == 0:  # Every 0.5 units
+                scale_line += "┼"
+            else:
+                scale_line += "─"
+        scale_line = scale_line[:-1] + "├ (p-val)"
+        
+        lines.append(scale_line)
+        
+        # Add a separator
+        lines.append("")
+        
+        # Sort proteins by name for consistent output
+        sorted_proteins = sorted(filtered_data.items())
+        
+        # Create bars for each protein
+        for protein, corr_data in sorted_proteins:
+            rpb = corr_data['rpb']
+            pval = corr_data['pval']
+            
+            # Calculate bar length and direction
+            bar_length = int(abs(rpb) / resolution)
+            bar_length = min(bar_length, zero_pos)  # Cap at maximum possible length
+            
+            # Choose bar character based on coefficient magnitude
+            if abs(rpb) < 0.1:
+                bar_char = bar_chars['light']
+            elif abs(rpb) < 0.5:
+                bar_char = bar_chars['medium']
+            else:
+                bar_char = bar_chars['heavy']
+            
+            # Build the line
+            line = f"{protein:<{max_protein_name_len}} │"
+            
+            # Create the bar
+            bar_line = [' '] * scale_width
+            
+            # Add zero line
+            bar_line[zero_pos] = bar_chars['zero']
+            
+            if rpb < 0:
+                # Negative bar (goes left from zero)
+                start_pos = max(0, zero_pos - bar_length)
+                for i in range(start_pos, zero_pos):
+                    bar_line[i] = bar_char
+            elif rpb > 0:
+                # Positive bar (goes right from zero)
+                end_pos = min(scale_width, zero_pos + bar_length + 1)
+                for i in range(zero_pos + 1, end_pos):
+                    bar_line[i] = bar_char
+            
+            line += ''.join(bar_line)
+            
+            # Format p-value for display
+            if isinstance(pval, float) and not math.isnan(pval):
+                pval_str = f"{pval:.3f}"
+            else:
+                pval_str = "N/A"
+            
+            line += f"│ {rpb:>6.3f} ({pval_str})"
+            
+            lines.append(line)
+        
+        # Add spacing between domains (except for the last one)
+        if domain_idx < len(sorted_domains) - 1:
+            lines.append("")
+    
+    lines.append("")
+    return "\n".join(lines)
