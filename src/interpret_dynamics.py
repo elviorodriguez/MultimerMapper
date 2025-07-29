@@ -401,6 +401,93 @@ def get_edge_oscillation(graph_edge: igraph.Edge, classification_df: pd.DataFram
 # -------------------------------------------------------------------------------------
 
 
+def compute_full_phi_coef_from_N_mers_data(
+        all_available_Nmers_models: list[tuple],
+        cluster_available_Nmers_models: list[tuple],
+        not_cluster_available_Nmers_models: list[tuple],
+        pair: tuple[str], protein: str, dynamics: str, logger: logging.Logger
+    ):
+
+    # No protein affects the manifestation of the interaction
+    if dynamics == "Static":
+        return {"phi_coef": 0, "pval": 1.0}
+    # All tested proteins in all combinations affect the manifestation of the interaction in a negative way
+    elif dynamics == "Strong Negative":
+        return {"phi_coef": -1, "pval": 0.0}
+    # All tested proteins in all combinations affect the manifestation of the interaction in a positive way
+    elif dynamics == "Strong Positive":
+        return {"phi_coef": 1, "pval": 0.0}
+    
+    # For homo-interactions, the protein must be in the combination at least three times
+    if protein == pair[0] and protein == pair[1]:
+        count_threshold = 3
+    # For hetero-interactions that contain the protein, it must be in the combination at least two times
+    elif protein in pair:
+        count_threshold = 2
+    # Everything else, it must be present at least once
+    else:
+        count_threshold = 1
+
+    # Counts outcomes
+    n11=0
+    n10=0
+    n01=0
+    n00=0
+    
+    for m, model in enumerate(all_available_Nmers_models):
+        
+        # ----- Does the protein is in the combination? True or False (X) -----
+        is_protein_in_combination  = False
+        if model[0].count(protein) >= count_threshold:
+            is_protein_in_combination = True
+        
+        # ------------- Does the pair interact? True or False (Y) -------------
+        if model in cluster_available_Nmers_models:
+            is_ppi_detected=True
+        elif model in not_cluster_available_Nmers_models:
+            is_ppi_detected=False
+        else:
+            is_ppi_detected=False
+            logger.error( "Something went wrong during the computation of (full) Phi Coefficient:")
+            logger.error(f"   - Model {model} is not available in any of the available models")
+            logger.error(f"   - cluster_available_Nmers_models: {cluster_available_Nmers_models}")
+            logger.error(f"   - not_cluster_available_Nmers_models: {not_cluster_available_Nmers_models}")
+            logger.error(f"   - Pair: {pair}")
+            logger.error(f"   - Protein: {protein}")
+            logger.error( "MultimerMapper will continue, but the results may be unreliable or the program might crash later...")
+
+        # --------------------- Classify the count ----------------------------
+        if is_protein_in_combination and is_ppi_detected:
+            n11+=1
+        elif is_protein_in_combination and not is_ppi_detected:
+            n10+=1
+        elif not is_protein_in_combination and is_ppi_detected:
+            n01+=1
+        elif not is_protein_in_combination and not is_ppi_detected:
+            n00+=1
+        
+    # Compute marginal totals
+    n1_=n11+n10
+    n0_=n01+n00
+    n_1=n11+n01
+    n_0=n10+n00
+    
+    # Compute Phi Coefficient and p-value using chi2_contingency
+    if n1_ == 0 or n0_ == 0 or n_1 == 0 or n_0 == 0:
+        return {"phi_coef": float('nan'), "pval": float('nan')}
+    else:
+        # Create contingency table
+        contingency_table = np.array([[n11, n10], [n01, n00]])
+        
+        # Compute chi-square test
+        chi2, pval, dof, expected = chi2_contingency(contingency_table, correction=False)
+        
+        # Compute phi coefficient manually (same as before)
+        phi_coef = (n11*n00-n10*n01)/math.sqrt(n1_*n0_*n_1*n_0)
+        
+        return {"phi_coef": phi_coef, "pval": pval}
+        
+
 def compute_phi_coef_from_N_mers_data(
         N_mers_data: pd.DataFrame, pair: tuple[str], protein: str, dynamics: str, logger: logging.Logger
     ):
@@ -478,7 +565,7 @@ def compute_phi_coef_from_N_mers_data(
         contingency_table = np.array([[n11, n10], [n01, n00]])
         
         # Compute chi-square test
-        chi2, pval, dof, expected = chi2_contingency(contingency_table)
+        chi2, pval, dof, expected = chi2_contingency(contingency_table, correction=False)
         
         # Compute phi coefficient manually (same as before)
         phi_coef = (n11*n00-n10*n01)/math.sqrt(n1_*n0_*n_1*n_0)
@@ -486,7 +573,7 @@ def compute_phi_coef_from_N_mers_data(
         return {"phi_coef": phi_coef, "pval": pval}
     
 
-def add_phi_coefficients_to_combined_graph(combined_graph, logger: None | logging.Logger = None):
+def add_phi_coefficients_to_combined_graph(combined_graph, mm_output, use_full_computation = True, logger: None | logging.Logger = None):
     
     # Configure logger
     if logger == None:
@@ -496,17 +583,34 @@ def add_phi_coefficients_to_combined_graph(combined_graph, logger: None | loggin
         
         # Unpack necessary data
         pair = edge['name']
-        prot1 = pair[0]
-        prot2 = pair[1]
         dynamics = edge['dynamics']
         n_mers_df = edge['N_mers_data']
         possible_proteins = set([prot for combination in n_mers_df["proteins_in_model"] for prot in combination])
 
+        if use_full_computation:
+            # Get pairwise contacts data for the pair
+            all_available_Nmers_models = [
+                (row['proteins_in_model'], row['pair_chains_tuple'], row['rank'])
+                for idx, row in mm_output['pairwise_Nmers_df'][
+                    mm_output['pairwise_Nmers_df']["sorted_tuple_pair"] == tuple(sorted(pair))
+                ].iterrows()
+            ]
+            cluster_available_Nmers_models = [model for model in edge['valency']['models'] if len(model[0]) > 2]
+            not_cluster_available_Nmers_models = [model for model in all_available_Nmers_models if model not in cluster_available_Nmers_models]
+
         all_phi_scores = {}
         
-        for protein in possible_proteins:            
-            protein_phi_result = compute_phi_coef_from_N_mers_data(
-                n_mers_df, pair, protein, dynamics, logger)
+        for protein in possible_proteins:
+            if use_full_computation:
+                protein_phi_result = compute_full_phi_coef_from_N_mers_data(
+                    all_available_Nmers_models,
+                    cluster_available_Nmers_models,
+                    not_cluster_available_Nmers_models,
+                    pair, protein, dynamics, logger
+                )
+            else:
+                protein_phi_result = compute_phi_coef_from_N_mers_data(
+                    n_mers_df, pair, protein, dynamics, logger)
                         
             all_phi_scores[protein] = protein_phi_result
         
