@@ -992,7 +992,9 @@ def generate_combined_graph(
     # ------------ Add associations between protein presence/absence and dynamics ------------
     # ----------------------------------------------------------------------------------------
     
+    logger.info("   Computing correlations between protein presence/absence and PPI dynamics...")
     add_phi_coefficients_to_combined_graph(graphC, mm_output=mm_output, logger=logger)
+    logger.info("   Computing correlations between protein presence/absence and RMSDs...")
     add_point_biserial_corr_for_rmsd_and_partners(graphC)
     
     return graphC, dynamic_proteins, homooligomerization_states, multivalency_states
