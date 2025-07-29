@@ -1549,10 +1549,13 @@ def igraph_to_plotly(
                 edge_traces.append(oscillated_edge_trace)
             
             # Raw data hovertext
-            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * len(circle_x)
+            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * len(circle_x)
             
-            # Correlation hovertext  
-            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- φ correlations between PPI dynamics and partners presence --------<br><br>" + edge["phi_coef_ascii_plot_html"]+ "<br>"] * len(circle_x)
+            # Correlation hovertext
+            comment_about_pval = "Notes:<br>1) p-values are computed using χ2 test"
+            comment_about_pval += '<br>2) <b>φ ~ -1</b> --> Protein presence <b>disrupts PPI</b> mode'
+            comment_about_pval += '<br>3) <b>φ ~ +1</b> --> Protein presence <b>activates PPI</b> mode'
+            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- φ correlations (PPI dynamics vs partner presence) --------<br><br>" + edge["phi_coef_ascii_plot_html"] + "<br><br>" + comment_about_pval] * len(circle_x)
 
             # Generate self-loop edge trace for correlations (visible by default)
             edge_trace_corr = go.Scatter(
@@ -1688,10 +1691,13 @@ def igraph_to_plotly(
                 edge_traces.append(oscillated_edge_trace)
             
             # Raw data hovertext
-            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * (resolution + 2)
+            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * (resolution + 2)
             
             # Correlation hovertext
-            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- φ correlations between PPI dynamics and partners presence --------<br><br>" + edge["phi_coef_ascii_plot_html"] + "<br>"] * (resolution + 2)
+            comment_about_pval = "Notes:<br>1) p-values are computed using χ2 test"
+            comment_about_pval += '<br>2) <b>φ ~ -1</b> --> Protein presence <b>disrupts PPI</b> mode'
+            comment_about_pval += '<br>3) <b>φ ~ +1</b> --> Protein presence <b>activates PPI</b> mode'
+            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- φ correlations (PPI dynamics vs partner presence) --------<br><br>" + edge["phi_coef_ascii_plot_html"] + "<br>" + comment_about_pval] * (resolution + 2)
 
             # Compute the edge trace for correlations (visible by default)
             edge_trace_corr = go.Scatter(
@@ -1860,7 +1866,7 @@ def igraph_to_plotly(
         bold_names = ["<b>" + name + "</b>" for name in nodes_df["name"]]
         nodes_df["name"] = bold_names
         
-    nodes_hovertext =  [mng + f" (ID: {ID})" for mng, ID in zip(nodes_df["meaning"].tolist(), nodes_df["IDs"].tolist())]
+    nodes_hovertext =  [mng + f" (Protein: {name} - ID: {ID})" for mng, ID, name in zip(nodes_df["meaning"].tolist(), nodes_df["IDs"].tolist(), nodes_df["name"].tolist())]
     
     
     if add_RMSD:
@@ -1903,8 +1909,8 @@ def igraph_to_plotly(
             domain_data.to_string(index=False).replace('\n', '<br>')+
             "<br><br>-------- Domain RMSD against highest pLDDT structure (Rank 1 only) --------<br>" +
             display_RMSD_data.to_string(index=False).replace('\n', '<br>') +
-            f'<br><br>*Domains with mean pLDDT < {graph["cutoffs_dict"]["domain_RMSD_plddt_cutoff"]} (disordered) were not used for RMSD calculations.<br>'+
-            f'**Only residues with pLDDT > {graph["cutoffs_dict"]["trimming_RMSD_plddt_cutoff"]} were considered for RMSD calculations.'
+            f'<br><br>*Domains with mean pLDDT < {graph["cutoffs_dict"]["domain_RMSD_plddt_cutoff"]} (disordered) were not used for RMSD calculations.'+
+            f'<br>**Only residues with pLDDT > {graph["cutoffs_dict"]["trimming_RMSD_plddt_cutoff"]} were considered for RMSD calculations.'
             for hovertext, domain_data, display_RMSD_data in zip(nodes_hovertext, nodes_df["domains_df"], display_RMSD_dfs)
         ]
 
@@ -1916,10 +1922,12 @@ def igraph_to_plotly(
             hovertext +
             "<br><br>-------- Reference structure domains --------<br>" +
             domain_data.to_string(index=False).replace('\n', '<br>')+
-            "<br><br>-------- Correlation between RMSD and presence/absence of proteins --------<br>" +
+            "<br><br>-------- RMSD vs protein presence correlation --------<br>" +
             str(ascii_plot_data) +  # Convert to string and use individual element
-            f'<br><br>*Domains with mean pLDDT < {graph["cutoffs_dict"]["domain_RMSD_plddt_cutoff"]} (disordered) were not used for RMSD calculations.<br>'+
-            f'**Only residues with pLDDT > {graph["cutoffs_dict"]["trimming_RMSD_plddt_cutoff"]} were considered for RMSD calculations.'
+            f'<br>Notes:<br>1) Domains with mean pLDDT < {graph["cutoffs_dict"]["domain_RMSD_plddt_cutoff"]} (disordered) were not used for RMSD calculations.'+
+            f'<br>2) Only residues with pLDDT > {graph["cutoffs_dict"]["trimming_RMSD_plddt_cutoff"]} were considered for RMSD calculations.' +
+             '<br>3) <b>r<sub>pb</sub> ~ -1</b> --> Protein presence <b>lowers RMSD</b> (towards the reference structure)' +
+             '<br>4) <b>r<sub>pb</sub> ~ +1</b> --> Protein presence <b>increases RMSD</b> (away from the reference structure)'
             for hovertext, domain_data, ascii_plot_data in zip(
                 nodes_hovertext, 
                 nodes_df["domains_df"],

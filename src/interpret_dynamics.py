@@ -565,7 +565,8 @@ def plot_phi_coefficients_ascii(phi_coef_dict, edge_index=None, title=None):
     # Characters for different bar intensities
     bar_chars = {
         'light': '░',
-        'medium': '▒', 
+        'medium': '▒',
+        'high':'▓',
         'heavy': '█',
         'zero': '│'
     }
@@ -577,10 +578,9 @@ def plot_phi_coefficients_ascii(phi_coef_dict, edge_index=None, title=None):
     if title:
         lines.append(title)
     elif edge_index is not None:
-        lines.append(f"Edge {edge_index} - Phi Coefficients")
+        lines.append(f"Edge {edge_index} - Phi Coefficients (φ)")
     else:
-        lines.append("Phi Coefficients")
-    lines.append("")
+        lines.append((zero_pos - 2) * " " + "Phi Coefficients (φ)")
     
     # Add numerical scale: place "-1" at left, "0" at center, "1" at right
     prefix = " " * (max_protein_name_len + 1)
@@ -612,12 +612,14 @@ def plot_phi_coefficients_ascii(phi_coef_dict, edge_index=None, title=None):
             scale_line += "┼"
         else:
             scale_line += "─"
-    scale_line = scale_line[:-1] + "├ (p-val)"
+    scale_line = scale_line[:-1] + "├         (p-val)"
     
     lines.append(scale_line)
     
-    # Add a separator
-    lines.append("")
+    # Add top of the square for the plot
+    start_line_idx = scale_line.find("┤")
+    end_line_idx = scale_line.rfind("├")
+    lines.append(" " * (start_line_idx) + "_" * (end_line_idx - start_line_idx + 1))
     
     # Sort proteins by name for consistent output
     sorted_proteins = sorted(filtered_data.items())
@@ -634,8 +636,10 @@ def plot_phi_coefficients_ascii(phi_coef_dict, edge_index=None, title=None):
         # Choose bar character based on coefficient magnitude
         if abs(coef) < 0.1:
             bar_char = bar_chars['light']
-        elif abs(coef) < 0.5:
+        elif abs(coef) < 0.3:
             bar_char = bar_chars['medium']
+        elif abs(coef) < 0.6:
+            bar_char = bar_chars['high']
         else:
             bar_char = bar_chars['heavy']
         
@@ -671,7 +675,9 @@ def plot_phi_coefficients_ascii(phi_coef_dict, edge_index=None, title=None):
         
         lines.append(line)
     
-    lines.append("")
+    # Add bottom of the square for the plot
+    lines.append(" " * (start_line_idx) + "¯" * (end_line_idx - start_line_idx + 1))
+
     return "\n".join(lines)
 
 
@@ -696,8 +702,10 @@ def plot_all_edges_phi_coefficients(combined_graph):
     return "\n" + "="*80 + "\n".join(all_plots)
 
 
-def convert_ascii_plot_to_html(ascii_plot: str):
+def convert_ascii_plot_to_html(ascii_plot: str, is_rpb = False):
     html_ascii_plot = ascii_plot.replace("\n", "<br>")
+    if is_rpb:
+        html_ascii_plot = html_ascii_plot.replace("(rpb)", "(r<sub>pb</sub>)")
     return html_ascii_plot
 
 # -------------------------------------------------------------------------------------
@@ -770,7 +778,7 @@ def add_point_biserial_corr_for_rmsd_and_partners(combined_graph):
 
         # Add ASCII plots
         point_biserial_corr_ascii_plot = plot_point_biserial_corr_ascii(point_biserial_corr_dict)
-        point_biserial_corr_ascii_plot_html = convert_ascii_plot_to_html(point_biserial_corr_ascii_plot)
+        point_biserial_corr_ascii_plot_html = convert_ascii_plot_to_html(point_biserial_corr_ascii_plot, is_rpb=True)
         node['RMSD_point_biserial_corr_ascii_plot'] = point_biserial_corr_ascii_plot
         node['RMSD_point_biserial_corr_ascii_plot_html'] = point_biserial_corr_ascii_plot_html
 
@@ -799,10 +807,12 @@ def plot_point_biserial_corr_ascii(point_biserial_corr_dict, node_index=None, ti
     # Characters for different bar intensities
     bar_chars = {
         'light': '░',
-        'medium': '▒', 
+        'medium': '▒',
+        'high':'▓',
         'heavy': '█',
         'zero': '│'
     }
+
     
     # Build the plot
     lines = []
@@ -813,7 +823,7 @@ def plot_point_biserial_corr_ascii(point_biserial_corr_dict, node_index=None, ti
     elif node_index is not None:
         lines.append(f"Node {node_index} - Point-Biserial Correlations (RMSD vs Protein Presence)")
     else:
-        lines.append("Point-Biserial Correlations (RMSD vs Protein Presence)")
+        pass
     lines.append("")
     
     # Sort domains for consistent output
@@ -835,9 +845,9 @@ def plot_point_biserial_corr_ascii(point_biserial_corr_dict, node_index=None, ti
             lines.append("")
             continue
         
-        # Add domain header
+        # Add domain header and x-axis title
         lines.append(f"Domain: {domain}")
-        lines.append("-" * (domain + 8))
+        lines.append(" " * 11 + "Point-Biserial Correlations (rpb)")
         
         # Calculate max protein name length for this domain
         max_protein_name_len = max(len(name) for name in filtered_data.keys())
@@ -872,12 +882,14 @@ def plot_point_biserial_corr_ascii(point_biserial_corr_dict, node_index=None, ti
                 scale_line += "┼"
             else:
                 scale_line += "─"
-        scale_line = scale_line[:-1] + "├ (p-val)"
+        scale_line = scale_line[:-1] + "├         (p-val)"
         
         lines.append(scale_line)
         
-        # Add a separator
-        lines.append("")
+        # Add top of the square for the plot
+        start_line_idx = scale_line.find("┤")
+        end_line_idx = scale_line.rfind("├")
+        lines.append(" " * (start_line_idx) + "_" * (end_line_idx - start_line_idx + 1))
         
         # Sort proteins by name for consistent output
         sorted_proteins = sorted(filtered_data.items())
@@ -894,8 +906,10 @@ def plot_point_biserial_corr_ascii(point_biserial_corr_dict, node_index=None, ti
             # Choose bar character based on coefficient magnitude
             if abs(rpb) < 0.1:
                 bar_char = bar_chars['light']
-            elif abs(rpb) < 0.5:
+            elif abs(rpb) < 0.3:
                 bar_char = bar_chars['medium']
+            elif abs(rpb) < 0.6:
+                bar_char = bar_chars['high']
             else:
                 bar_char = bar_chars['heavy']
             
@@ -930,10 +944,9 @@ def plot_point_biserial_corr_ascii(point_biserial_corr_dict, node_index=None, ti
             line += f"│ {rpb:>6.3f} ({pval_str})"
             
             lines.append(line)
-        
-        # Add spacing between domains (except for the last one)
-        if domain_idx < len(sorted_domains) - 1:
-            lines.append("")
+                
+        # Add bottom of the square for the plot
+        lines.append(" " * (start_line_idx) + "¯" * (end_line_idx - start_line_idx + 1))
     
     lines.append("")
     return "\n".join(lines)
