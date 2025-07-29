@@ -1549,13 +1549,13 @@ def igraph_to_plotly(
                 edge_traces.append(oscillated_edge_trace)
             
             # Raw data hovertext
-            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * len(circle_x)
+            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº: {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * len(circle_x)
             
             # Correlation hovertext
             comment_about_pval = "Notes:<br>1) p-values are computed using χ2 test"
             comment_about_pval += '<br>2) <b>φ ~ -1</b> --> Protein presence <b>disrupts PPI</b> mode'
             comment_about_pval += '<br>3) <b>φ ~ +1</b> --> Protein presence <b>activates PPI</b> mode'
-            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- φ correlations (PPI dynamics vs partner presence) --------<br><br>" + edge["phi_coef_ascii_plot_html"] + "<br><br>" + comment_about_pval] * len(circle_x)
+            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº: {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- φ correlations (PPI dynamics vs partner presence) --------<br><br>" + edge["phi_coef_ascii_plot_html"] + "<br><br>" + comment_about_pval] * len(circle_x)
 
             # Generate self-loop edge trace for correlations (visible by default)
             edge_trace_corr = go.Scatter(
@@ -1691,13 +1691,13 @@ def igraph_to_plotly(
                 edge_traces.append(oscillated_edge_trace)
             
             # Raw data hovertext
-            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * (resolution + 2)
+            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº: {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * (resolution + 2)
             
             # Correlation hovertext
             comment_about_pval = "Notes:<br>1) p-values are computed using χ2 test"
             comment_about_pval += '<br>2) <b>φ ~ -1</b> --> Protein presence <b>disrupts PPI</b> mode'
             comment_about_pval += '<br>3) <b>φ ~ +1</b> --> Protein presence <b>activates PPI</b> mode'
-            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- φ correlations (PPI dynamics vs partner presence) --------<br><br>" + edge["phi_coef_ascii_plot_html"] + "<br>" + comment_about_pval] * (resolution + 2)
+            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº: {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- φ correlations (PPI dynamics vs partner presence) --------<br><br>" + edge["phi_coef_ascii_plot_html"] + "<br>" + comment_about_pval] * (resolution + 2)
 
             # Compute the edge trace for correlations (visible by default)
             edge_trace_corr = go.Scatter(
