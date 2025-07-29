@@ -93,7 +93,7 @@ def check_if_skipped_homo_N_mers(homo_Nmers_models: set,
     models = sorted(list(homo_Nmers_models), key = len)
     # In the case that not even the homo-3-mer is present:
     if len(models) == 0:
-        logger.warning(f"No homooligomerization states for {protein}")
+        logger.warning(f"   No homooligomers bigger with N>2 for {protein}")
         return [False]
     biggest_homo_N_mer  = len(models[-1])
 
@@ -105,7 +105,7 @@ def check_if_skipped_homo_N_mers(homo_Nmers_models: set,
     #     return [False]
     
     # Progress
-    logger.info(f'Verifying homo-N-mers for {models[0][0]} (3-mers or bigger)')
+    logger.info(f'   Computing homooligomerization stability for {models[0][0]}:')
     
     is_ok = []
     
@@ -261,6 +261,7 @@ def find_homooligomerization_breaks(pairwise_2mers_df, pairwise_Nmers_df, pairwi
         
         homo_Nmers_models: set = set(protein_homo_N_mers_pairwise_df['proteins_in_model'])
         
+        # Skipped homo-N-mers will show False
         is_ok: list[bool] = check_if_skipped_homo_N_mers(homo_Nmers_models, protein, logger)
         
         # If any state was skipped
@@ -285,8 +286,8 @@ def find_homooligomerization_breaks(pairwise_2mers_df, pairwise_Nmers_df, pairwi
                                                                                           pairwise_2mers_df    = pairwise_2mers_df,
                                                                                           pairwise_2mers_df_F3 = pairwise_2mers_df_F3)
             
-            # Progress
-            logger.info(f'   - DONE: {len(is_ok)} homooligomerization state(s) found')
+            # # Progress
+            # logger.info(f'      Found {len(is_ok)} homooligomerization state(s):')
         
         # For each homooligomerization state (starting with homo-3-mers)
         for N_state, model in enumerate(sorted(list(homo_Nmers_models), key = len), start = 3):
@@ -355,6 +356,29 @@ def find_homooligomerization_breaks(pairwise_2mers_df, pairwise_Nmers_df, pairwi
 
             homooligomerization_states[protein]["is_ok"]   .append(False)
             homooligomerization_states[protein]["N_states"].append(None)
+
+
+        # Log the results for the homooligomer
+        if homooligomerization_states[protein]['2mer_interact']:
+            dimer_classification = "Stable"
+        elif homooligomerization_states[protein]['2mer_interact']:
+            dimer_classification = "Unstable"
+        elif homooligomerization_states[protein]['2mer_interact'] is None:
+            dimer_classification = "Not tested"
+        else:
+            dimer_classification = f"Unexpected classification: {homooligomerization_states[protein]['2mer_interact']}"
+        logger.info(f'      - 2 x {protein}: {dimer_classification}')
+        for N_state_idx, no_skip in enumerate(homooligomerization_states[protein]["is_ok"]):
+            if no_skip and homooligomerization_states[protein]["N_states"][N_state_idx]:
+                nmer_classification = "Stable"
+            elif no_skip and not homooligomerization_states[protein]["N_states"][N_state_idx]:
+                nmer_classification = "Unstable"
+            elif not no_skip:
+                nmer_classification = "Not tested"
+            else:
+                nmer_classification = f"Unexpected classification: {no_skip}"
+
+            logger.info(f'      - {N_state_idx + 3} x {protein}: {nmer_classification}')
     
     return homooligomerization_states
             
