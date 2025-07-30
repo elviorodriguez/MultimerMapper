@@ -20,6 +20,7 @@ from src.analyze_multivalency import visualize_clusters_static, visualize_cluste
 from src.matrix_clustering.py3Dmol_representative import create_contact_visualizations_for_clusters, unify_pca_matrixes_and_py3dmol
 from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 from utils.logger_setup import configure_logger
+from cfg.default_settings import multivalency_detection_metric, multivalency_metric_threshold
 
 @dataclass
 class ClusteringConfig:
@@ -279,7 +280,7 @@ def save_representative_pdbs_and_metadata(mm_output, clusters, representative_pd
     pdb_io = PDBIO()
     
     for pair in clusters:
-        print(f'Pair: {pair}')
+        logger.info(f'Pair: {pair}')
         
         representative_pdb_for_pair_prefix = f'{representative_pdbs_dir}/{pair[0]}__vs__{pair[1]}'
         
@@ -661,7 +662,19 @@ def analyze_protein_interactions_with_enhanced_clustering(
     pairs = list(all_pair_matrices.keys())
 
     # Get all protein pairs that are multivalent
-    multivalent_pairs_list = get_multivalent_tuple_pairs_based_on_evidence(mm_output, logger)
+    logger.info(f'INITIALIZING: Multivalency detection using {multivalency_detection_metric} with {multivalency_metric_threshold} as threshold...')
+    multivalent_pairs_list, valency_dict = get_multivalent_tuple_pairs_based_on_evidence(
+        mm_output = mm_output,
+        multivalency_detection_metric = multivalency_detection_metric,
+        metric_threshold = multivalency_metric_threshold,
+        logger = logger,
+        also_get_homo = True
+    )
+    logger.info(f"FINISHED: Multivalency detection. Final {multivalency_detection_metric} scores:")
+    for pair, score in valency_dict.items():
+        multivalent_str = "MULTIVALENT" if pair in multivalent_pairs_list else "Monovalent"
+        logger.info(f'   - Pair {pair} score: {score:.2f} --> {multivalent_str}')
+
 
     # Get all protein pairs that interact via multiple binding modes
     multimode_pairs_list = pairs # NOT IMPLEMENTED YET
@@ -735,7 +748,7 @@ def analyze_protein_interactions_with_enhanced_clustering(
     
     logger.info(f"Generated clusters for {len(all_clusters)} protein pairs")
     
-    return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list
+    return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict
 
 
 # def benchmark_clustering_methods(mm_output: Dict[str, Any], 
@@ -1128,7 +1141,7 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
     )
     
     # Run the enhanced analysis
-    interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list = analyze_protein_interactions_with_enhanced_clustering(
+    interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict = analyze_protein_interactions_with_enhanced_clustering(
         mm_output, config, logger
     )
 
@@ -1150,14 +1163,14 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
     # Print summary
     print_clustering_summary(all_clusters, logger)
     
-    return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list
+    return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict
 
 # Usage with predefined configurations
 def run_contacts_clustering_analysis_with_config(mm_output, config_dict):
     
     logger = configure_logger(mm_output['out_path'])(__name__)
 
-    interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list = run_enhanced_clustering_analysis(
+    interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict = run_enhanced_clustering_analysis(
         mm_output,
         logger=logger,
         **config_dict
@@ -1172,4 +1185,4 @@ def run_contacts_clustering_analysis_with_config(mm_output, config_dict):
     unify_pca_matrixes_and_py3dmol(mm_output, pairs, logger)
     logger.info("FINISHED: Creating unified HTML representations (PCA+Matrixes+py3Dmol)")
 
-    return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list
+    return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict
