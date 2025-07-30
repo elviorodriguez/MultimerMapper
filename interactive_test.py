@@ -238,17 +238,33 @@ show_PAE_along_backbone = False
 
 # ###################### Test 9 (TbNuA4 - No piccolo) #########################
 
-fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/NuA4_no_piccolo.fasta"
-AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/2-mers"
-AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/N-mers"
+# fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/NuA4_no_piccolo.fasta"
+# AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/mm_out_testing_layout_algorithm"
+# use_names = True 
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# graph_resolution_preset = None
+# auto_domain_detection = True
+
+###############################################################################
+
+# ###################### Test 10 (TcNuA4 - No piccolo) ########################
+
+fasta_file = "/home/elvio/Desktop/Assemblies/TESIS_Tcruzi/NuA4_proteins_mm_ANNOTATED.fasta"
+AF2_2mers = "/home/elvio/Desktop/Assemblies/TESIS_Tcruzi/predicciones_NuA4/AF2_2mers"
+AF2_Nmers = "/home/elvio/Desktop/Assemblies/TESIS_Tcruzi/predicciones_NuA4/AF2_Nmers"
 # AF2_Nmers = None
-out_path = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/mm_out_testing_layout_algorithm"
+out_path = "/home/elvio/Desktop/MM_runs_for_the_paper/TcNuA4_clusters_bug"
 use_names = True 
 overwrite = True
 # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 graph_resolution_preset = None
 auto_domain_detection = True
 
+###############################################################################
 
 ###############################################################################
 ############################### MM main run ###################################
@@ -276,6 +292,8 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
 # Generate interactive graph
 # import multimer_mapper as mm
 # combined_graph, dynamic_proteins, homooligomerization_states, multivalency_states = mm.generate_combined_graph(mm_output)
+
+
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
     mm_output["combined_graph"], out_path = out_path,
     layout_algorithm = 'weighted_fr',    
@@ -288,8 +306,6 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     
     # Answer y automatically
     automatic_true = True)
-
-
 
 # mm_output['contacts_clusters'][list(mm_output['contacts_clusters'].keys())[1]][0].keys()
 # ['models', 'representative', 'average_matrix', 'x_lab', 'y_lab', 'x_dom', 'y_dom', 'was_tested_in_2mers', 'was_tested_in_Nmers', 'average_2mers_matrix', 'average_Nmers_matrix', 'cluster_n']
