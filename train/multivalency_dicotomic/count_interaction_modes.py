@@ -43,7 +43,8 @@ def analyze_protein_interactions(pairwise_contact_matrices: Dict,
         unique_proteins.update(pair)
     unique_proteins = sorted(list(unique_proteins))
     
-    logger.info(f"Found {len(unique_proteins)} unique protein entities: {unique_proteins}")
+    logger.info(f"   Counting multivalent chains in models...")
+    logger.info(f"      - Found {len(unique_proteins)} unique protein entities: {unique_proteins}")
     
     # Initialize data structures
     interaction_data = []
@@ -51,7 +52,7 @@ def analyze_protein_interactions(pairwise_contact_matrices: Dict,
     
     # Process each protein pair and collect matrices
     for pair in pairs:
-        logger.info(f"Processing pair: {pair}")
+        # logger.info(f"Processing pair: {pair}")
         
         if pair not in pairwise_contact_matrices:
             continue
@@ -115,8 +116,8 @@ def analyze_protein_interactions(pairwise_contact_matrices: Dict,
                 })
     
     if not interaction_data:
-        logger.warning("No interactions found in the data")
-        return pd.DataFrame(), {}
+        logger.warning("   - No interactions found in the data")
+        return pd.DataFrame()
     
     # Create interaction DataFrame
     df_interactions = pd.DataFrame(interaction_data)
@@ -312,7 +313,7 @@ def get_multivalent_tuple_pairs_based_on_evidence(mm_output: dict, logger: loggi
     # Get the multivalent tuple pairs
     multivalency_tuple_pairs = [tuple(sorted(pair)) for pair in valency_dict if (valency_dict[pair] >= metric_threshold and (pair[0] != pair[1] or also_get_homo))]
 
-    return multivalency_tuple_pairs
+    return multivalency_tuple_pairs, valency_dict
 
 
 ###############################################################################
