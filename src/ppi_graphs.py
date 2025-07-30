@@ -859,7 +859,8 @@ def generate_combined_graph(
                           pairwise_2mers_df=pairwise_2mers_df,
                           graph1=graph1,
                           graph2=graph2)
-
+    
+    logger.info(f'INITIALIZING: Convergency detection algorithm for homooligomeric pairs...')
     homooligomerization_states = add_homooligomerization_state(
         graph                     = graphC,
         pairwise_2mers_df         = pairwise_2mers_df,
@@ -883,6 +884,7 @@ def generate_combined_graph(
         dynamic_conv_start = dynamic_conv_start,
         dynamic_conv_end = dynamic_conv_end,
         )
+    logger.info(f'FINISHED: Convergency detection algorithm for homooligomeric pairs')
     
     multivalency_states = add_multivalency_state(graphC, mm_output, logger)
 
@@ -992,9 +994,9 @@ def generate_combined_graph(
     # ------------ Add associations between protein presence/absence and dynamics ------------
     # ----------------------------------------------------------------------------------------
     
-    logger.info("   Computing correlations between protein presence/absence and PPI dynamics...")
+    logger.info("Computing correlations between protein presence/absence and PPI dynamics...")
     add_phi_coefficients_to_combined_graph(graphC, mm_output=mm_output, logger=logger)
-    logger.info("   Computing correlations between protein presence/absence and RMSDs...")
+    logger.info("Computing correlations between protein presence/absence and RMSDs...")
     add_point_biserial_corr_for_rmsd_and_partners(graphC)
     
     return graphC, dynamic_proteins, homooligomerization_states, multivalency_states
