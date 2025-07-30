@@ -1946,7 +1946,7 @@ def inform_multivalency_states(multivalency_states, logger: Logger | None = None
             p_count = model.count(pair[0])
             q_count = model.count(pair[1])
 
-            logger.info(f'      - {p_count}P{q_count}Q: {multivalency_states[pair][model]}')
+            logger.info(f'      - {p_count}P{q_count}Q: {"Stable" if multivalency_states[pair][model] else "Unstable"}')
 
 def add_multivalency_state(combined_graph, mm_output, logger,
                            min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
@@ -1960,7 +1960,7 @@ def add_multivalency_state(combined_graph, mm_output, logger,
                            dynamic_conv_start = dynamic_conv_start,
                            dynamic_conv_end = dynamic_conv_end):
     
-    logger.info(f'INITIALIZING: Multivalency states detection algorithm...')
+    logger.info(f'INITIALIZING: Convergency detection algorithm for multivalent heterooligomeric pairs...')
 
     # Compute multivalency states data
     multivalency_states: dict = find_multivalency_states(combined_graph, mm_output,
@@ -1991,7 +1991,7 @@ def add_multivalency_state(combined_graph, mm_output, logger,
 
     inform_multivalency_states(multivalency_states, logger)
 
-    logger.info(f'FINISHED: Multivalency states detection algorithm')
+    logger.info(f'FINISHED: Convergency detection algorithm for multivalent heterooligomeric pairs')
 
     return multivalency_states
 
