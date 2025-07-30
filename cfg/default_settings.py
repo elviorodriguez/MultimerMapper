@@ -1,4 +1,8 @@
 
+# ----------------------------------------------------------------------------
+# ------------------------- General Configurations ---------------------------
+# ----------------------------------------------------------------------------
+
 # For using names as node labels (if false, IDs will be used)
 use_names: bool = True
 
@@ -208,38 +212,6 @@ contact_distance_cutoff: float | int = 8.0
 contact_PAE_cutoff     : float | int = 13
 contact_pLDDT_cutoff   : float | int = 0
 
-# Contact Clustering Matrix Method -------------------------------------------
-# default is "contact_fraction_comparison" (MCFT), the rest are experimental
-contacts_clustering_method = ["contact_similarity_matrix",
-                             "agglomerative_clustering",
-                             "contact_fraction_comparison",
-                             "mc_threshold"][3]
-mc_threshold = 10
-use_median = True
-
-# Refine using contact similarity (experimental)
-refine_contact_clusters = False
-
-# For Agglomerative Hierarchical Clustering + Silhouette (experimental) ------
-# Silhouette threshold to surpass in order to consider multivalent interaction
-multivalency_silhouette_threshold: float = 0.3
-
-# For Agglomerative Hierarchical Clustering + Silhouette (experimental) ------
-
-# Contacts must be less similar than this to be considered separate clusters (0 to 1)
-multivalency_contact_similarity_threshold: float = 0.7
-# Maximum valency to test (max_contact_clusters modes of interactions)
-max_contact_clusters: int = 5
-
-# For MCFT (Merging by Contact Fraction Threshold) - Experimental ------------
-
-# To optimize
-contact_fraction_threshold: float               = 0.1
-refinement_contact_similarity_threshold: float  = 0.5
-refinement_cf_threshold: float                  = 0.5
-
-# ----------------------------------------------------------------------------
-
 # Save/display the contact clusters with PCA plots?
 display_contact_clusters = False
 save_contact_clusters    = True
@@ -426,6 +398,41 @@ default_color_palette = {
 
 # Domain colors derived from default_color_palette
 DOMAIN_COLORS_RRC = [v[-5] for v in default_color_palette.values()] * 10
+
+# ----------------------------------------------------------------------------
+# -------------------- EXPERIMENTAL SECTION (do not touch) -------------------
+# ----------------------------------------------------------------------------
+
+# Contact Clustering Matrix Method -------------------------------------------
+# default is "contact_fraction_comparison" (MCFT), the rest are experimental
+contacts_clustering_method = ["contact_similarity_matrix",
+                             "agglomerative_clustering",
+                             "contact_fraction_comparison",
+                             "mc_threshold"][3]
+mc_threshold = 10
+use_median = True
+
+# Refine using contact similarity (experimental)
+refine_contact_clusters = False
+
+# For Agglomerative Hierarchical Clustering + Silhouette (experimental) ------
+# Silhouette threshold to surpass in order to consider multivalent interaction
+multivalency_silhouette_threshold: float = 0.3
+
+# For Agglomerative Hierarchical Clustering + Silhouette (experimental) ------
+
+# Contacts must be less similar than this to be considered separate clusters (0 to 1)
+multivalency_contact_similarity_threshold: float = 0.7
+# Maximum valency to test (max_contact_clusters modes of interactions)
+max_contact_clusters: int = 5
+
+# For MCFT (Merging by Contact Fraction Threshold) - Experimental ------------
+
+# To optimize
+contact_fraction_threshold: float               = 0.1
+refinement_contact_similarity_threshold: float  = 0.5
+refinement_cf_threshold: float                  = 0.5
+
 
 # ----------------------------------------------------------------------------
 #------------------------ To modify default settings -------------------------
