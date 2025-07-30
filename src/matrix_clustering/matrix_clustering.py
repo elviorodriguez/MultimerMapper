@@ -677,7 +677,7 @@ def analyze_protein_interactions_with_enhanced_clustering(
 
 
     # Get all protein pairs that interact via multiple binding modes
-    multimode_pairs_list = pairs # NOT IMPLEMENTED YET
+    multimode_pairs_list = [] # NOT IMPLEMENTED YET
     
     # Cluster contact matrices for each protein pair
     all_clusters = {}
