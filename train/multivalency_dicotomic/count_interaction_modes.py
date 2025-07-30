@@ -186,22 +186,21 @@ def compute_max_valency(interaction_counts_df: pd.DataFrame) -> Dict[Tuple[str, 
 
 def compute_fraction_of_multivalent_chains(interaction_counts_df: pd.DataFrame, 
                                           threshold: float = multivalency_metric_threshold,
-                                          _model_size_filter: int = 3,
-                                          _recursion_done: bool = False) -> Dict[Tuple[str, str], float]:
+                                          _target_pair: Tuple[str, str] = None,
+                                          _use_all_nmers: bool = False) -> Dict[Tuple[str, str], float]:
     """
     Compute the fraction of chains with multivalent interactions for each protein pair.
-    Uses recursion to first try with 3-mers only, then falls back to all N-mers if threshold not met.
     
     Parameters:
     -----------
     interaction_counts_df : pd.DataFrame
         DataFrame from analyze_protein_interactions function
     threshold : float
-        Threshold value to determine if 3-mer result is sufficient
-    _model_size_filter : int
-        Internal parameter for model size filtering (3 for first call, None for second)
-    _recursion_done : bool
-        Internal parameter to prevent infinite recursion
+        Threshold value to determine multivalency
+    _target_pair : Tuple[str, str]
+        Internal parameter for specific pair processing
+    _use_all_nmers : bool
+        Internal parameter to use all N-mers instead of just 3-subunit models
         
     Returns:
     --------
@@ -223,6 +222,10 @@ def compute_fraction_of_multivalent_chains(interaction_counts_df: pd.DataFrame,
                 pair = tuple(sorted([protein, other_protein]))
                 protein_pairs.add(pair)
     
+    # If processing specific pair, only process that one
+    if _target_pair is not None:
+        protein_pairs = {_target_pair} if _target_pair in protein_pairs else set()
+    
     # Compute fraction of multivalent chains for each protein pair
     for pair in protein_pairs:
         protein1, protein2 = pair
@@ -240,16 +243,20 @@ def compute_fraction_of_multivalent_chains(interaction_counts_df: pd.DataFrame,
                 contact_col = f'contacts_with_{other_protein}'
                 
                 if contact_col in row and row[contact_col] > 0:
-                    model_size = len(row['proteins_in_model'])
+                    # Count subunits of P and Q in this model
+                    proteins_in_model = row['proteins_in_model']
+                    p_count = proteins_in_model.count(protein1)
+                    q_count = proteins_in_model.count(protein2)
                     
-                    # Apply model size filter based on recursion state
-                    if _model_size_filter is not None:
-                        # First call: only use 3-mers
-                        if model_size == _model_size_filter:
+                    # Apply filtering logic based on processing mode
+                    if _use_all_nmers:
+                        # Use all N-mers with more than 2 total subunits
+                        if len(proteins_in_model) > 2:
                             chain_observations.append(row[contact_col])
                     else:
-                        # Second call: use all N-mers (excluding 2-mers)
-                        if model_size > 2:
+                        # Use only models with exactly 3 subunits of P and Q combined
+                        # This includes: 1P2Q, 2P1Q, and 3P (for homo-oligomers)
+                        if p_count + q_count == 3:
                             chain_observations.append(row[contact_col])
         
         if chain_observations:
@@ -260,28 +267,28 @@ def compute_fraction_of_multivalent_chains(interaction_counts_df: pd.DataFrame,
         else:
             fraction_dict[pair] = 0.0
     
-    # Recursive logic: if first call and any value is below threshold, recurse with all N-mers
-    if not _recursion_done and _model_size_filter == 3:
-        # Check if any fraction is below threshold
-        needs_fallback = any(fraction < threshold for fraction in fraction_dict.values())
+    # Handle fallback logic for pairs that don't meet threshold with 3-subunit models
+    if not _use_all_nmers and _target_pair is None:
+        # First pass: identify pairs that need fallback
+        pairs_needing_fallback = []
+        for pair, fraction in fraction_dict.items():
+            if fraction < threshold:
+                pairs_needing_fallback.append(pair)
         
-        if needs_fallback:
-            # Recursive call with all N-mers
-            all_nmers_dict = compute_fraction_of_multivalent_chains(
+        # Second pass: compute with all N-mers for pairs that need it
+        for pair in pairs_needing_fallback:
+            all_nmers_result = compute_fraction_of_multivalent_chains(
                 interaction_counts_df, 
                 threshold=threshold,
-                _model_size_filter=None,  # Use all N-mers
-                _recursion_done=True     # Prevent further recursion
+                _target_pair=pair,
+                _use_all_nmers=True
             )
             
-            # Return the maximum value between 3-mers and all N-mers for each pair
-            final_dict = {}
-            for pair in protein_pairs:
-                threemer_value = fraction_dict.get(pair, 0.0)
-                allmers_value = all_nmers_dict.get(pair, 0.0)
-                final_dict[pair] = max(threemer_value, allmers_value)
-            
-            return final_dict
+            if pair in all_nmers_result:
+                # Use the maximum between 3-subunit and all N-mers results
+                original_value = fraction_dict[pair]
+                fallback_value = all_nmers_result[pair]
+                fraction_dict[pair] = max(original_value, fallback_value)
     
     return fraction_dict
 
