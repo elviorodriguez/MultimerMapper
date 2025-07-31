@@ -55,8 +55,7 @@ else:
         out_path   = out_path,
         use_names = use_names,
         auto_domain_detection = auto_domain_detection,
-        graph_resolution = graph_resolution_preset,
-        auto_domain_detection = auto_domain_detection,
+        graph_resolution_preset = graph_resolution_preset,
         display_PAE_domains = show_plots,
         show_monomer_structures = show_plots,
     )
