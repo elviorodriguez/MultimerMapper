@@ -838,7 +838,7 @@ def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_traject
 
         if use_core_superimposer:
             
-            logger.info("   Using core residues method:")
+            logger.info("      Using core residues method:")
 
             core_save_path = os.path.join(protein_trajectory_folder, f'{protein_ID}_{filename_suffix}_core_residues.png')
             core_residues, final_plddt_threshold, final_cv_threshold = get_core_residues(pLDDTs, logger=logger)
@@ -1348,7 +1348,7 @@ def create_interactive_plddt_visualization(
     with open(output_filename, 'w') as f:
         f.write(html_content)
     
-    logger.info(f"   - Interactive pLDDT visualization saved to {output_filename}")
+    logger.info(f"      - Interactive pLDDT visualization saved to {output_filename}")
     
     # Open in browser if requested
     if show_plot:
@@ -1420,7 +1420,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
         ref_model: PDB.Chain.Chain = sliced_PAE_and_pLDDTs[protein_ID]['PDB_xyz']        
     
     # Progress
-    logger.info(f"   - Isolating {protein_ID} models...")
+    logger.info(f"   Isolating {protein_ID} models...")
     
     # Get the list of matching chain models with the protein from 2-mers
     monomer_chains_from_2mers: dict = get_monomers_models_from_pairwise_2mers(
@@ -1505,7 +1505,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     # -------------------------------------------------
 
     # Progress
-    logger.info(f"   - Computing pLDDT clusters for {protein_ID}...")
+    logger.info(f"   Computing pLDDT clusters for {protein_ID}...")
     
     # Generate automatic pLDDT (b-factors) clusters using the silhouette method
     plddt_clusters_filename = os.path.join(plddt_clusters_folder, protein_ID + "-pLDDT_clusters.png")
@@ -1552,7 +1552,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     
     # Create interactive visualization if requested
     if generate_interactive_viz:
-        logger.info(f"   - Creating interactive pLDDT visualization for {protein_ID}...")
+        logger.info(f"      - Creating interactive pLDDT visualization for {protein_ID}...")
         
         interactive_viz_path = create_interactive_plddt_visualization(
             protein_ID=protein_ID,
@@ -1567,7 +1567,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
             logger=logger
         )
         
-        logger.info(f"   - Interactive visualization saved to: {interactive_viz_path}")
+        logger.info(f"      - Interactive visualization saved to: {interactive_viz_path}")
 
     # Create PDB trajectory dirs (one for each protein)
     trajectory_folder = os.path.join(out_path, 'monomer_trajectories')
@@ -1602,7 +1602,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     # ------------------------------------------------------------
     
     # Save RMSD traj and metadata
-    logger.info(f"   - Generating RMSD trajectory files for whole {protein_ID}...")
+    logger.info(f"   Generating RMSD trajectory files for whole {protein_ID}...")
     rmsd_traj_file = save_trajectory(sorted_indices = monomer_RMSD_traj_indices,
                                      protein_ID = protein_ID,
                                      filename_suffix = "monomer_RMSD",
@@ -1692,7 +1692,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     perform_domain_analysis = len(protein_domains) > 1
     
     if perform_domain_analysis:
-        logger.info(f"   - Multiple domains detected for {protein_ID}, performing domain analysis...")
+        logger.info(f"   Multiple domains detected for {protein_ID}. Performing domain analysis...")
 
         # Initialize superimposer
         super_imposer = PDB.Superimposer()
@@ -1701,7 +1701,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
         for _, domain in protein_domains.iterrows():
             
             # Progress
-            logger.info(f"   - Generating RMSD trajectories for domain {domain['Domain']}...")
+            logger.info(f"   Generating RMSD trajectories for domain {domain['Domain']}...")
             
             domain_start, domain_end = domain['Start'], domain['End']
             domain_name = f"{protein_ID}_domain_{domain['Domain']}"
