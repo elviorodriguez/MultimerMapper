@@ -1,11 +1,11 @@
-Classification	AF_2mers	AF_Nmers	Tested_in_2_mers	Tested_in_N_mers	N_mers_variation	N_mers_pDockQ	Color_name	Color_hex	Line_type	Edge_oscillates	Variable_Edge_width
-Static	True	True	True	True	[1;1]	[0;1]	black         	#000000	solid	False	True
-Strong Positive	False	True	True	True	[1;1]	[0.23;1]	green         	#228833	solid	False	True
-Positive	False	True	True	True	[0.5;1)	[0.23;1]	green         	#228833	dash	False	True
-Weak Positive	False	True	True	True	(0;0.5)	[0.23;1]	green         	#228833	dot	False	False
-Weak Negative	True	True	True	True	[0.5;1)	[0;1]	red           	#EE6677	solid	False	True
-Negative	True	True	True	True	(0;0.5)	[0;1]	red           	#EE6677	dash	False	True
-Strong Negative	True	False	True	True	[0;0]	[0;1]	red           	#EE6677	dot	False	False
-Indirect	False	True	True	True	(0;1]	[0;0.23)	yellow        	#CCBB44	dot	False	False
-No N-mers Data	True	False	True	False	[0;0]	[0;1]	orange        	#e69f00	solid	False	False
-No 2-mers Data	False	False	False	False	[0;0]	[0;1]	orange	#e69f00	dash	False	False
+Classification	AF_2mers	AF_Nmers	Tested_in_2_mers	Tested_in_N_mers	N_mers_variation	N_mers_pDockQ	N_mers_contacts	Color_name	Color_hex	Line_type	Edge_oscillates	Variable_Edge_width
+Static	True	True	True	True	[1;1]	[0;1]	NA	black         	#000000	solid	False	True
+Strong Positive	False	True	True	True	[1;1]	[0;1]	True	green         	#228833	solid	False	True
+Positive	False	True	True	True	[0.5;1)	[0;1]	True	green         	#228833	dash	False	True
+Weak Positive	False	True	True	True	(0;0.5)	[0;1]	True	green         	#228833	dot	False	False
+Weak Negative	True	True	True	True	[0.5;1)	[0;1]	NA	red           	#EE6677	solid	False	True
+Negative	True	True	True	True	(0;0.5)	[0;1]	NA	red           	#EE6677	dash	False	True
+Strong Negative	True	False	True	True	[0;0]	[0;1]	NA	red           	#EE6677	dot	False	False
+Indirect	False	True	True	True	(0;1]	[0;1]	False	yellow        	#CCBB44	dot	False	False
+No N-mers Data	True	False	True	False	[0;0]	[0;1]	NA	orange        	#e69f00	solid	False	False
+No 2-mers Data	False	False	False	False	[0;0]	[0;1]	NA	orange	#e69f00	dash	False	False

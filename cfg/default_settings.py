@@ -86,7 +86,7 @@ min_PAE_cutoff_Nmers = 13
 pDockQ_cutoff_Nmers = 0.0   # Do not change
 
 # For Nmers
-Nmers_contacts_cutoff = 3
+Nmers_contacts_cutoff = 5
 
 # To classify PPI dynamics just using N_models cutoff set to False
 # If true, the cluster N-mers variation will be used
@@ -192,7 +192,7 @@ available_layout = ['weighted_fr', 'fr', 'kk', 'circle', 'drl', 'lgl', 'random',
 ppi_graph_layout_algorithm = available_layout[0]
 
 # Fraction of the weight that N-mers contribute
-weighted_fr_Nmers_contribution = 9/10
+weighted_fr_Nmers_contribution = 49/50
 
 # If True, the first generated interactive PPI graph will be saved, without asking
 igraph_to_plotly_automatic_true = False

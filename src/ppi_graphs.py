@@ -17,7 +17,7 @@ from src.interpret_dynamics import read_classification_df, classify_edge_dynamic
 from src.coordinate_analyzer import add_domain_RMSD_against_reference
 from src.analyze_multivalency import add_multivalency_state
 from cfg.default_settings import vertex_color1, vertex_color2, vertex_color3, vertex_color_both, Nmer_stability_method, multivalency_detection_metric, multivalency_metric_threshold, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft
-from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, dynamic_conv_start, dynamic_conv_end, weighted_fr_Nmers_contribution
+from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, dynamic_conv_start, dynamic_conv_end, weighted_fr_Nmers_contribution, Nmers_contacts_cutoff
 from utils.combinations import generate_multivalent_pair_suggestions
 from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 from src.interpret_dynamics import add_phi_coefficients_to_combined_graph, add_point_biserial_corr_for_rmsd_and_partners
@@ -348,7 +348,7 @@ def add_edges_data(graph,
             edge["N_mers_data"] = pd.DataFrame(columns=["pTM", "ipTM", "min_PAE", "pDockQ", "N_models", "proteins_in_model", "extra_Nmer_proteins", "cluster"])
         else:
             # Convert data to a string
-            data_str = edge["N_mers_data"].filter(["pTM", "ipTM", "min_PAE", "pDockQ", "N_models", "proteins_in_model", "cluster"]).to_string(index=False).replace('\n', '<br>')
+            data_str = edge["N_mers_data"].filter(["pTM", "ipTM", "min_PAE", "pDockQ", "N_models", "proteins_in_model", "cluster"]).rename(columns={'min_PAE': 'miPAE', 'cluster': 'Nº of PPIs', 'proteins_in_model': 'Proteins Combination'}).to_string(index=False).replace('\n', '<br>')
             edge["N_mers_info"] = data_str
     
     
@@ -447,7 +447,7 @@ def add_edges_data(graph,
                 
         else:
             # Convert data to a string and add the attribute on the edge
-            edge["2_mers_info"] = edge["2_mers_data"].to_string(index=False).replace('\n', '<br>')
+            edge["2_mers_info"] = edge["2_mers_data"].rename(columns={'min_PAE': 'miPAE', 'cluster': 'Nº of PPIs'}).to_string(index=False).replace('\n', '<br>')
 
 # Function to add the IDs of the proteins
 def add_vertices_IDs(graph, prot_IDs, prot_names):
@@ -690,6 +690,7 @@ def generate_combined_graph(
 
         # General cutoff
         N_models_cutoff = 3,
+        Nmers_contacts_cutoff = Nmers_contacts_cutoff,
 
         # For RMSD calculations
         domain_RMSD_plddt_cutoff = 60, trimming_RMSD_plddt_cutoff = 70,
@@ -907,6 +908,7 @@ def generate_combined_graph(
                                            
                                            # Cutoffs
                                            N_models_cutoff = N_models_cutoff,
+                                           Nmers_contacts_cutoff = Nmers_contacts_cutoff,
                                            
                                            # Sorted tuple edges lists
                                            sorted_edges_2mers_graph  = edges_g1_sort, 
@@ -1553,13 +1555,13 @@ def igraph_to_plotly(
                 edge_traces.append(oscillated_edge_trace)
             
             # Raw data hovertext
-            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº: {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * len(circle_x)
+            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])} <br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * len(circle_x)
             
             # Correlation hovertext
             comment_about_pval = "Notes:<br>1) p-values are computed using χ2 test"
             comment_about_pval += '<br>2) <b>φ ~ -1</b> --> Protein presence <b>disrupts PPI</b> mode'
             comment_about_pval += '<br>3) <b>φ ~ +1</b> --> Protein presence <b>activates PPI</b> mode'
-            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº: {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- φ correlations (PPI dynamics vs partner presence) --------<br><br>" + edge["phi_coef_ascii_plot_html"] + "<br><br>" + comment_about_pval] * len(circle_x)
+            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])} <br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}' + "<br><br>-------- φ correlations (PPI dynamics vs partner presence) --------<br><br>" + edge["phi_coef_ascii_plot_html"] + "<br>" + comment_about_pval] * len(circle_x)
 
             # Generate self-loop edge trace for correlations (visible by default)
             edge_trace_corr = go.Scatter(
@@ -1695,13 +1697,13 @@ def igraph_to_plotly(
                 edge_traces.append(oscillated_edge_trace)
             
             # Raw data hovertext
-            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº: {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * (resolution + 2)
+            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])} <br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * (resolution + 2)
             
             # Correlation hovertext
             comment_about_pval = "Notes:<br>1) p-values are computed using χ2 test"
             comment_about_pval += '<br>2) <b>φ ~ -1</b> --> Protein presence <b>disrupts PPI</b> mode'
             comment_about_pval += '<br>3) <b>φ ~ +1</b> --> Protein presence <b>activates PPI</b> mode'
-            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - Contacts cluster (PPI mode) Nº: {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])}' + "<br><br>-------- φ correlations (PPI dynamics vs partner presence) --------<br><br>" + edge["phi_coef_ascii_plot_html"] + "<br>" + comment_about_pval] * (resolution + 2)
+            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])} <br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}' + "<br><br>-------- φ correlations (PPI dynamics vs partner presence) --------<br><br>" + edge["phi_coef_ascii_plot_html"] + "<br>" + comment_about_pval] * (resolution + 2)
 
             # Compute the edge trace for correlations (visible by default)
             edge_trace_corr = go.Scatter(

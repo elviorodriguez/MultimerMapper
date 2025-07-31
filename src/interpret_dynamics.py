@@ -159,14 +159,15 @@ def classify_edge_dynamics(tuple_edge: tuple,
                            # Combined Graph
                            true_edge: igraph.Edge,
 
-                           # Cutoff
-                           N_models_cutoff: int,
-
                            sorted_edges_2mers_graph  : list[tuple], 
                            sorted_edges_Nmers_graph  : list[tuple],
                            untested_edges_tuples     : list[tuple],
                            tested_Nmers_edges_sorted : list[tuple],
 
+                            # Cutoff
+                           N_models_cutoff: int,
+                           Nmers_contacts_cutoff: int,
+                           Nmers_contact_freq_cutoff: float = 0.5,
                            classification_df: pd.DataFrame|None = classification_df,
 
                            logger = None
@@ -183,8 +184,8 @@ def classify_edge_dynamics(tuple_edge: tuple,
     # Get parameters for classification
     valency_contains_2mers = any(mer_number == 2 for mer_number in [len(model[0]) for model in true_edge['valency']['models']])
     valency_contains_Nmers = any(mer_number  > 2 for mer_number in [len(model[0]) for model in true_edge['valency']['models']])
-    is_present_in_2mers = tuple_edge in sorted_edges_2mers_graph or valency_contains_2mers
-    is_present_in_Nmers = tuple_edge in sorted_edges_Nmers_graph or valency_contains_Nmers
+    is_present_in_2mers = tuple_edge in sorted_edges_2mers_graph and valency_contains_2mers
+    is_present_in_Nmers = tuple_edge in sorted_edges_Nmers_graph and valency_contains_Nmers
     was_tested_in_2mers = tuple_edge not in untested_edges_tuples
     was_tested_in_Nmers = tuple_edge in tested_Nmers_edges_sorted
 
@@ -220,6 +221,7 @@ def classify_edge_dynamics(tuple_edge: tuple,
         e_dynamics = str(e_dynamics_rows["Classification"].iloc[0])
         log_debug(logger, tuple_edge, is_present_in_2mers, is_present_in_Nmers, was_tested_in_2mers, was_tested_in_Nmers, e_dynamics, true_edge)
         return e_dynamics
+    
     # This happens for indirectly interacting proteins (they have no contacts and both is_present_in_2/Nmers end up as false)
     elif e_dynamics_rows.shape[0] == 0:
         return "Indirect"
@@ -245,13 +247,27 @@ def classify_edge_dynamics(tuple_edge: tuple,
     
     # --------------------------------------- (4) ---------------------------------------
     
-    # If not, get more info
-    Nmers_mean_pdockq = get_edge_Nmers_pDockQ(edge = true_edge, N_models_cutoff = N_models_cutoff)
+    ####################### pDockQ is deprecated ########################
+    
+    # # If not, get more info
+    # Nmers_mean_pdockq = get_edge_Nmers_pDockQ(edge = true_edge, N_models_cutoff = N_models_cutoff)
+    
+    # # Classify using N_mers_variation
+    # e_dynamics_rows = find_rows_that_contains_interval(df = e_dynamics_rows,
+    #                                                     interval_name = "N_mers_pDockQ",
+    #                                                     lambda_val = Nmers_mean_pdockq)
+    
+    #################### Use N_mers_contacts instead ####################
 
-    # Classify using N_mers_variation
-    e_dynamics_rows = find_rows_that_contains_interval(df = e_dynamics_rows,
-                                                        interval_name = "N_mers_pDockQ",
-                                                        lambda_val = Nmers_mean_pdockq)
+    # Check if the average contact matrix contains sufficient contacts
+    surpass_N_mers_contact = (true_edge['valency']['average_Nmers_matrix'] > Nmers_contact_freq_cutoff).sum() > Nmers_contacts_cutoff
+
+    # Classify the rest of possibilities
+    e_dynamics_rows = (
+        e_dynamics_rows
+        .query(f'N_mers_contacts == {surpass_N_mers_contact}')
+    )
+
 
     # Info must be enough to classify at this point
     if e_dynamics_rows.shape[0] == 1:
@@ -280,7 +296,8 @@ def get_edge_Nmers_variation(edge, N_models_cutoff: int, use_cluster_aware_varia
 
     # ---------------- Get Full N-mers variation (at cluster level) ----------------
 
-    if use_cluster_aware_variation and edge['valency']['is_multivalent']:
+    # if use_cluster_aware_variation and edge['valency']['is_multivalent']:
+    if use_cluster_aware_variation:
 
         total_models = len(edge["N_mers_data"]['cluster'])
         predictions_that_surpass_cutoffs = len([1 for i in edge["N_mers_data"]['cluster'] if "✔" in i])
