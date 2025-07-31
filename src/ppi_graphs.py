@@ -21,6 +21,7 @@ from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_s
 from utils.combinations import generate_multivalent_pair_suggestions
 from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 from src.interpret_dynamics import add_phi_coefficients_to_combined_graph, add_point_biserial_corr_for_rmsd_and_partners
+from utils.strings import longest_between, padded_flag
 
 # -----------------------------------------------------------------------------
 # PPI graph for 2-mers --------------------------------------------------------
@@ -1555,7 +1556,24 @@ def igraph_to_plotly(
                 edge_traces.append(oscillated_edge_trace)
             
             # Raw data hovertext
-            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])} <br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * len(circle_x)
+            hovertext_width=len(longest_between(edge["N_mers_info"], start="<br>", end="<br>"))
+            dimers_flag = padded_flag(' 2-mers data (*) ', hovertext_width)
+            nmers_flag  = padded_flag(' N-mers data (*) ', hovertext_width)
+            raw_hovertext = [
+                edge_dynamics + f' {edge["name"]}'
+                +  '<br>'
+                + f'<br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]}'
+                + f'<br>   - Cluster size: {len(edge["valency"]["models"])}'
+                + f'<br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}'
+                +  '<br>'
+                + f'<br>{dimers_flag}'
+                + f'<br>{edge["2_mers_info"]}'
+                +  '<br>'
+                + f'<br>{nmers_flag}'
+                + f'<br>{edge["N_mers_info"]}'
+                +  '<br>'
+                +  '<br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model'
+            ] * len(circle_x)
             
             # Correlation hovertext
             comment_about_pval = "Notes:<br>1) p-values are computed using χ2 test"
@@ -1693,11 +1711,29 @@ def igraph_to_plotly(
                     text        = None,
                     showlegend  = False
                 )
+                
                 # Add traces
                 edge_traces.append(oscillated_edge_trace)
             
             # Raw data hovertext
-            raw_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])} <br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}' + "<br><br>-------- 2-mers data (*) --------<br>" + edge["2_mers_info"] + "<br><br>-------- N-mers data (*) --------<br>" + edge["N_mers_info"] + "<br><br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model"] * (resolution + 2)
+            hovertext_width=len(longest_between(edge["N_mers_info"], start="<br>", end="<br>"))
+            dimers_flag = padded_flag(' 2-mers data (*) ', hovertext_width)
+            nmers_flag  = padded_flag(' N-mers data (*) ', hovertext_width)
+            raw_hovertext = [
+                edge_dynamics + f' {edge["name"]}'
+                +  '<br>'
+                + f'<br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]}'
+                + f'<br>   - Cluster size: {len(edge["valency"]["models"])}'
+                + f'<br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}'
+                +  '<br>'
+                + f'<br>{dimers_flag}'
+                + f'<br>{edge["2_mers_info"]}'
+                +  '<br>'
+                + f'<br>{nmers_flag}'
+                + f'<br>{edge["N_mers_info"]}'
+                +  '<br>'
+                +  '<br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model'
+            ] * (resolution + 2)
             
             # Correlation hovertext
             comment_about_pval = "Notes:<br>1) p-values are computed using χ2 test"

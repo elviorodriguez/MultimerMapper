@@ -15,7 +15,7 @@ from tempfile import NamedTemporaryFile
 from utils.logger_setup import configure_logger
 from utils.progress_bar import print_progress_bar
 from utils.pdockq import pdockq_read_pdb, calc_pdockq
-from utils.find_most_similar_string import find_most_similar
+from utils.strings import find_most_similar
 
 # -----------------------------------------------------------------------------
 # Extracts PAE matrices for each protein from JSON files ----------------------

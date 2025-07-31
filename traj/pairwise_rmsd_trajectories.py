@@ -10,7 +10,7 @@ from utils.logger_setup import configure_logger
 from utils.pdb_utils import get_chain_sequence, get_domain_data, calculate_distance
 from utils.pdockq import calc_pdockq_for_traj
 from src.coordinate_analyzer import calculate_weighted_rmsd
-from utils.find_most_similar_string import find_all_indexes
+from utils.strings import find_all_indexes
 
 # -----------------------------------------------------------------------------
 # ------------  Generate a dict with pairwise models information --------------

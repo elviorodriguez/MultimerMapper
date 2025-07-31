@@ -1,3 +1,5 @@
+import re
+
 # To match JSON files with PDB files
 from difflib import SequenceMatcher
 
@@ -47,3 +49,32 @@ def find_all_indexes(string_list, target_string):
         list of int: The list of indexes where the target string occurs.
     """
     return [index for index, value in enumerate(string_list) if value == target_string]
+
+
+
+def longest_between(text: str, start: str, end: str) -> str:
+    """
+    Return the longest substring in `text` found between `start` and `end`.
+    If no match is found, returns an empty string.
+    """
+    # build regex: escape the delimiters, capture anything (including newlines) in between
+    pattern = re.escape(start) + r'(.*?)' + re.escape(end)
+    # find all non-overlapping matches
+    matches = re.findall(pattern, text, flags=re.DOTALL)
+    # return the longest match (or '' if none)
+    return max(matches, key=len) if matches else ''
+
+def padded_flag(label: str, width: int, pad_char: str = '-') -> str:
+    """
+    Center the `label` inside a field of total length `width`,
+    padded on both sides with `pad_char`. If width is smaller
+    than the label length, returns the label unchanged.
+    """
+    label_length = len(label)
+    if label_length >= width:
+        return label
+    total_pad = width - label_length
+    left_pad = total_pad // 2
+    right_pad = total_pad - left_pad
+    return pad_char * left_pad + label + pad_char * right_pad
+
