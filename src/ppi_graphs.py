@@ -1573,6 +1573,8 @@ def igraph_to_plotly(
                 + f'<br>{edge["N_mers_info"]}'
                 +  '<br>'
                 +  '<br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model'
+                + f'<br>**N_models: Nº of models that surpass miPAE ≤ {graph["cutoffs_dict"]["min_PAE_cutoff_Nmers"]} Å cutoff'
+                +  '<br>***Nº of PPIs: count of decomposed models in contact'
             ] * len(circle_x)
             
             # Correlation hovertext
@@ -1750,6 +1752,8 @@ def igraph_to_plotly(
                 + f'<br>{edge["N_mers_info"]}'
                 +  '<br>'
                 +  '<br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model'
+                + f'<br>**N_models: Nº of models that surpass miPAE ≤ {graph["cutoffs_dict"]["min_PAE_cutoff_Nmers"]} Å cutoff'
+                +  '<br>***Nº of PPIs: count of decomposed models in contact'
             ] * (resolution + 2)
             
             # Correlation hovertext
