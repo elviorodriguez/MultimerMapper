@@ -21,7 +21,7 @@ from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_s
 from utils.combinations import generate_multivalent_pair_suggestions
 from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 from src.interpret_dynamics import add_phi_coefficients_to_combined_graph, add_point_biserial_corr_for_rmsd_and_partners
-from utils.strings import longest_between, padded_flag
+from utils.strings import get_max_visual_line_length, padded_flag_html_aware
 
 # -----------------------------------------------------------------------------
 # PPI graph for 2-mers --------------------------------------------------------
@@ -1556,9 +1556,9 @@ def igraph_to_plotly(
                 edge_traces.append(oscillated_edge_trace)
             
             # Raw data hovertext
-            hovertext_width=len(longest_between(edge["N_mers_info"], start="<br>", end="<br>"))
-            dimers_flag = padded_flag(' 2-mers data (*) ', hovertext_width)
-            nmers_flag  = padded_flag(' N-mers data (*) ', hovertext_width)
+            hovertext_width = get_max_visual_line_length(edge["N_mers_info"])
+            dimers_flag = padded_flag_html_aware(' 2-mers data (*) ', hovertext_width)
+            nmers_flag  = padded_flag_html_aware(' N-mers data (*) ', hovertext_width)
             raw_hovertext = [
                 edge_dynamics + f' {edge["name"]}'
                 +  '<br>'
@@ -1579,7 +1579,24 @@ def igraph_to_plotly(
             comment_about_pval = "Notes:<br>1) p-values are computed using χ2 test"
             comment_about_pval += '<br>2) <b>φ ~ -1</b> --> Protein presence <b>disrupts PPI</b> mode'
             comment_about_pval += '<br>3) <b>φ ~ +1</b> --> Protein presence <b>activates PPI</b> mode'
-            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])} <br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}' + "<br><br>-------- φ correlations (PPI dynamics vs partner presence) --------<br><br>" + edge["phi_coef_ascii_plot_html"] + "<br>" + comment_about_pval] * len(circle_x)
+            hovertext_width = max(
+                get_max_visual_line_length(edge["phi_coef_ascii_plot_html"]),
+                get_max_visual_line_length(comment_about_pval)
+            )
+            padded_correlations_flag = padded_flag_html_aware(' φ correlations (PPI dynamics vs partner presence) ', hovertext_width)
+            corr_hovertext = [
+                edge_dynamics + f' {edge["name"]}'
+                +  '<br>'
+                + f'<br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]}'
+                + f'<br>   - Cluster size: {len(edge["valency"]["models"])}'
+                + f'<br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}'
+                +  '<br>'
+                + f'<br>{padded_correlations_flag}'
+                +  '<br>'
+                + f'<br>{edge["phi_coef_ascii_plot_html"]}'
+                +  '<br>'
+                + comment_about_pval
+            ] * len(circle_x)
 
             # Generate self-loop edge trace for correlations (visible by default)
             edge_trace_corr = go.Scatter(
@@ -1711,14 +1728,14 @@ def igraph_to_plotly(
                     text        = None,
                     showlegend  = False
                 )
-                
+
                 # Add traces
                 edge_traces.append(oscillated_edge_trace)
             
             # Raw data hovertext
-            hovertext_width=len(longest_between(edge["N_mers_info"], start="<br>", end="<br>"))
-            dimers_flag = padded_flag(' 2-mers data (*) ', hovertext_width)
-            nmers_flag  = padded_flag(' N-mers data (*) ', hovertext_width)
+            hovertext_width = get_max_visual_line_length(edge["N_mers_info"])
+            dimers_flag = padded_flag_html_aware(' 2-mers data (*) ', hovertext_width)
+            nmers_flag  = padded_flag_html_aware(' N-mers data (*) ', hovertext_width)
             raw_hovertext = [
                 edge_dynamics + f' {edge["name"]}'
                 +  '<br>'
@@ -1739,7 +1756,24 @@ def igraph_to_plotly(
             comment_about_pval = "Notes:<br>1) p-values are computed using χ2 test"
             comment_about_pval += '<br>2) <b>φ ~ -1</b> --> Protein presence <b>disrupts PPI</b> mode'
             comment_about_pval += '<br>3) <b>φ ~ +1</b> --> Protein presence <b>activates PPI</b> mode'
-            corr_hovertext = [edge_dynamics + f' {edge["name"]} <br><br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]} <br>   - Cluster size: {len(edge["valency"]["models"])} <br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}' + "<br><br>-------- φ correlations (PPI dynamics vs partner presence) --------<br><br>" + edge["phi_coef_ascii_plot_html"] + "<br>" + comment_about_pval] * (resolution + 2)
+            hovertext_width = max(
+                get_max_visual_line_length(edge["phi_coef_ascii_plot_html"]),
+                get_max_visual_line_length(comment_about_pval)
+            )
+            padded_correlations_flag = padded_flag_html_aware(' φ correlations (PPI dynamics vs partner presence) ', hovertext_width)
+            corr_hovertext = [
+                edge_dynamics + f' {edge["name"]}'
+                +  '<br>'
+                + f'<br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]}'
+                + f'<br>   - Cluster size: {len(edge["valency"]["models"])}'
+                + f'<br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}'
+                +  '<br>'
+                + f'<br>{padded_correlations_flag}'
+                +  '<br>'
+                + f'<br>{edge["phi_coef_ascii_plot_html"]}'
+                +  '<br>'
+                + comment_about_pval
+            ] * (resolution + 2)
 
             # Compute the edge trace for correlations (visible by default)
             edge_trace_corr = go.Scatter(
@@ -1944,38 +1978,91 @@ def igraph_to_plotly(
                 display_df = rmsd_df
             display_RMSD_dfs.append(display_df)
         
-        # Modify the hovertext to contain domains and RMSD values (showing only rank 1)
-        nodes_hovertext_raw = [
-            hovertext +
-            "<br><br>-------- Reference structure domains --------<br>" +
-            domain_data.to_string(index=False).replace('\n', '<br>')+
-            "<br><br>-------- Domain RMSD against highest pLDDT structure (Rank 1 only) --------<br>" +
-            display_RMSD_data.to_string(index=False).replace('\n', '<br>') +
-            f'<br><br>*Domains with mean pLDDT < {graph["cutoffs_dict"]["domain_RMSD_plddt_cutoff"]} (disordered) were not used for RMSD calculations.'+
-            f'<br>**Only residues with pLDDT > {graph["cutoffs_dict"]["trimming_RMSD_plddt_cutoff"]} were considered for RMSD calculations.'
-            for hovertext, domain_data, display_RMSD_data in zip(nodes_hovertext, nodes_df["domains_df"], display_RMSD_dfs)
-        ]
+        # ------------------------ Generate the Raw Data text ------------------------
+
+        nodes_hovertext_raw = []
+        cut1 = graph["cutoffs_dict"]["domain_RMSD_plddt_cutoff"]
+        cut2 = graph["cutoffs_dict"]["trimming_RMSD_plddt_cutoff"]
+
+        for hovertext, domain_data, display_RMSD_data in zip(
+            nodes_hovertext,
+            nodes_df["domains_df"],
+            display_RMSD_dfs
+        ):
+            # render tables as HTML fragments
+            domain_str = domain_data.to_string(index=False).replace('\n', '<br>')
+            rmsd_str   = display_RMSD_data.to_string(index=False).replace('\n', '<br>')
+
+            # Build notes
+            notes = (
+                f'<br><br>*Domains with mean pLDDT < {cut1} (disordered) were not used for RMSD calculations.'
+                f'<br>**Only residues with pLDDT > {cut2} were considered for RMSD calculations.'
+            )
+
+            # find the longest line in each table
+            max_domain_line = get_max_visual_line_length(domain_str)
+            max_rmsd_line   = get_max_visual_line_length(rmsd_str)
+            max_notes_line  = get_max_visual_line_length(notes)
+            
+            # compute overall width
+            width = max(max_domain_line, max_rmsd_line, max_notes_line)
+
+            # create padded flags
+            ref_flag = padded_flag_html_aware(' Reference structure domains ', width)
+            rmsd_flag = padded_flag_html_aware(' Domain RMSD against reference structure (Rank 1 only) ', width)            
+
+            # stitch everything together
+            html = (
+                hovertext
+                + f'<br><br>{ref_flag}<br>'
+                + domain_str
+                + f'<br><br>{rmsd_flag}<br>'
+                + rmsd_str
+                + notes
+            )
+            nodes_hovertext_raw.append(html)
+
+        # ------------------------ Generate the Correlations text ------------------------
 
         # Get the ASCII HTML plots - extract individual strings from the list
         RMSD_point_biserial_corr_ascii_plot_html_data = nodes_df['RMSD_point_biserial_corr_ascii_plot_html']
 
-        # Hovertext I want to display by default (Correlation) - now properly iterating
-        nodes_hovertext_ascii = [
-            hovertext +
-            "<br><br>-------- Reference structure domains --------<br>" +
-            domain_data.to_string(index=False).replace('\n', '<br>')+
-            "<br><br>-------- RMSD vs protein presence correlation --------<br>" +
-            str(ascii_plot_data) +  # Convert to string and use individual element
-            f'<br>Notes:<br>1) Domains with mean pLDDT < {graph["cutoffs_dict"]["domain_RMSD_plddt_cutoff"]} (disordered) were not used for RMSD calculations.'+
-            f'<br>2) Only residues with pLDDT > {graph["cutoffs_dict"]["trimming_RMSD_plddt_cutoff"]} were considered for RMSD calculations.' +
-             '<br>3) <b>r<sub>pb</sub> ~ -1</b> --> Protein presence <b>lowers RMSD</b> (towards the reference structure)' +
-             '<br>4) <b>r<sub>pb</sub> ~ +1</b> --> Protein presence <b>increases RMSD</b> (away from the reference structure)'
-            for hovertext, domain_data, ascii_plot_data in zip(
-                nodes_hovertext, 
-                nodes_df["domains_df"],
-                RMSD_point_biserial_corr_ascii_plot_html_data
+        # Note to add at the bottom
+        notes_flag  = f'<br>Notes:<br>1) Domains with mean pLDDT < {graph["cutoffs_dict"]["domain_RMSD_plddt_cutoff"]} (disordered) were not used for RMSD calculations.'
+        notes_flag += f'<br>2) Only residues with pLDDT > {graph["cutoffs_dict"]["trimming_RMSD_plddt_cutoff"]} were considered for RMSD calculations.'
+        notes_flag += '<br>3) <b>r<sub>pb</sub> ~ -1</b> --> Protein presence <b>lowers RMSD</b> (towards the reference structure)'
+        notes_flag += '<br>4) <b>r<sub>pb</sub> ~ +1</b> --> Protein presence <b>increases RMSD</b> (away from the reference structure)'
+        
+        nodes_hovertext_ascii = []
+
+        for hovertext, domain_data, ascii_plot_data in zip(
+            nodes_hovertext,
+            nodes_df["domains_df"],
+            RMSD_point_biserial_corr_ascii_plot_html_data
+        ):
+            # stringify the ASCII plot
+            ascii_str = str(ascii_plot_data)
+
+            # compute per-node width
+            ascii_width = get_max_visual_line_length(ascii_str)
+            notes_width = get_max_visual_line_length(notes_flag)
+            width = max(ascii_width, notes_width)
+
+            # rebuild the padded flags for this width
+            ref_domains_flag       = padded_flag_html_aware(' Reference structure domains ', width)
+            rmsd_vs_protein_flag   = padded_flag_html_aware(' RMSD vs protein presence correlation ', width)
+
+            # stitch together
+            html = (
+                hovertext
+                + f"<br><br>{ref_domains_flag}<br>"
+                + domain_data.to_string(index=False).replace('\n', '<br>')
+                + f"<br><br>{rmsd_vs_protein_flag}<br>"
+                + ascii_str
+                + notes_flag
             )
-        ]
+            nodes_hovertext_ascii.append(html)
+
     
     # Create two node traces - one for each hovertext type
     node_trace_correlations = go.Scatter(

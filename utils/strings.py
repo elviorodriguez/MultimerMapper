@@ -64,6 +64,7 @@ def longest_between(text: str, start: str, end: str) -> str:
     # return the longest match (or '' if none)
     return max(matches, key=len) if matches else ''
 
+
 def padded_flag(label: str, width: int, pad_char: str = '-') -> str:
     """
     Center the `label` inside a field of total length `width`,
@@ -78,3 +79,109 @@ def padded_flag(label: str, width: int, pad_char: str = '-') -> str:
     right_pad = total_pad - left_pad
     return pad_char * left_pad + label + pad_char * right_pad
 
+
+import re
+from typing import List
+
+def strip_html_tags(text: str) -> str:
+    """
+    Remove HTML tags from text, leaving only the visible content.
+    
+    Args:
+        text: String that may contain HTML tags
+        
+    Returns:
+        String with HTML tags removed
+    """
+    # Remove HTML tags using regex
+    clean_text = re.sub(r'<[^>]+>', '', text)
+    return clean_text
+
+def get_visual_line_lengths(text: str) -> List[int]:
+    """
+    Get the visual lengths of all lines in HTML text, ignoring HTML tags.
+    Lines are separated by <br> tags or string boundaries.
+    
+    Args:
+        text: HTML text string
+        
+    Returns:
+        List of integers representing visual length of each line
+    """
+    # Split by <br> tags (case insensitive)
+    lines = re.split(r'<br\s*/?>', text, flags=re.IGNORECASE)
+    
+    # Calculate visual length for each line (after stripping HTML tags)
+    visual_lengths = []
+    for line in lines:
+        clean_line = strip_html_tags(line)
+        visual_lengths.append(len(clean_line))
+    
+    return visual_lengths
+
+def get_max_visual_line_length(text: str) -> int:
+    """
+    Get the maximum visual line length in HTML text, ignoring HTML tags.
+    
+    Args:
+        text: HTML text string
+        
+    Returns:
+        Integer representing the maximum visual line length
+    """
+    lengths = get_visual_line_lengths(text)
+    return max(lengths) if lengths else 0
+
+def get_longest_visual_line(text: str) -> str:
+    """
+    Get the visually longest line from HTML text (after stripping HTML tags).
+    
+    Args:
+        text: HTML text string
+        
+    Returns:
+        The longest line with HTML tags stripped
+    """
+    # Split by <br> tags (case insensitive)
+    lines = re.split(r'<br\s*/?>', text, flags=re.IGNORECASE)
+    
+    if not lines:
+        return ""
+    
+    # Find the line with maximum visual length
+    max_line = ""
+    max_length = 0
+    
+    for line in lines:
+        clean_line = strip_html_tags(line)
+        if len(clean_line) > max_length:
+            max_length = len(clean_line)
+            max_line = clean_line
+    
+    return max_line
+
+def padded_flag_html_aware(label: str, width: int, pad_char: str = '-') -> str:
+    """
+    Center the `label` inside a field of total length `width`,
+    padded on both sides with `pad_char`. Width is calculated
+    based on visual length (ignoring HTML tags in width calculation).
+    
+    Args:
+        label: The label text (may contain HTML tags)
+        width: Target visual width
+        pad_char: Character to use for padding
+        
+    Returns:
+        Padded string
+    """
+    # Calculate visual length of label (without HTML tags)
+    visual_label_length = len(strip_html_tags(label))
+    
+    if visual_label_length >= width:
+        return label
+    
+    total_pad = width - visual_label_length
+    left_pad = total_pad // 2
+    right_pad = total_pad - left_pad
+    
+    return pad_char * left_pad + label + pad_char * right_pad
