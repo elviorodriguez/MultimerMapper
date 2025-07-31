@@ -15,7 +15,7 @@ pd.set_option('display.max_columns', None)
 
 # Paths
 working_dir = "/home/elvio/Desktop/multivalency_benchmark"
-out_path = working_dir + "/benchmark_test"
+out_path = working_dir + "/matrix_clustering_benchmark_results"
 fasta_file = working_dir + "/multivalency_test.fasta"
 AF2_2mers = working_dir + "/multivalency_test_AF_2mers"
 AF2_Nmers = working_dir + "/multivalency_test_AF_Nmers"

@@ -6,24 +6,29 @@ homo	6J9Q-2	6J9Q-2	GK	GK	FALSE	3	1	OK	OK
 homo	5AB5-2	5AB5-2	SLP	SLP	FALSE	3	1	OK	OK			
 homo	8J6E-2	8J6E-2	QOR	QOR	FALSE	3	1	OK	OK			
 homo	3IBA-o2	3IBA-o2	FPPS	FPPS	FALSE	3	1	OK	OK			
-homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	3	>1	OK	OK			
-homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	4	>1	OK	OK			
-homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	5	>1	OK	OK			
-homo	7WP3-3	7WP3-3	PCNA	PCNA	TRUE	3	>1	OK	OK			
-homo	7WP3-3	7WP3-3	PCNA	PCNA	TRUE	4	>1	OK	OK			
-homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	3	1	OK	OK			
-homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	4	?	OK	OK			
-homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	5	?	OK	OK			
-homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	6	?	OK	OK			
-homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	7	?	OK	OK			
-homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	3	>1	OK	OK			
-homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	4	>1	OK	OK			
-homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	5	>1	OK	OK			
-homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	6	>1	OK	OK			
-homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	7	>1	OK	OK			
-homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	3	>1	OK	OK			
-homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	4	>1	OK	OK			
-homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	5	>1	OK	OK			
+homo	5EUC-4	5EUC-4	HPRT	HPRT	FALSE	2	1	OK	OK	OK		
+homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	3	3	OK	OK	OK	The 1st and 2nd interaction modes are clear and are the main stabilizers of the structure. The 3rd one is not clear, but it must appear in the contact matrixes.	
+homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	4	3	OK	OK	OK	The 1st and 2nd interaction modes are clear and are the main stabilizers of the structure. The 3rd one is not clear, but it must appear in the contact matrixes.	
+homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	5	3	OK	OK	OK	The 5th chain is modeled outside the stable homo-4-mer 	
+homo	7WP3-3	7WP3-3	PCNA	PCNA	FALSE	2	0	OK	OK	OK	PPI is not detected (FP)	
+homo	7WP3-3	7WP3-3	PCNA	PCNA	TRUE	3	2	OK	OK	OK	This is the true stoichiometry	
+homo	7WP3-3	7WP3-3	PCNA	PCNA	TRUE	4	2	OK	OK	OK	AF keeps adding subunits to the circle, but it is still divalent	
+homo	7WHR-6	7WHR-6	GMPP	GMPP	FALSE	2	1	OK	OK	OK		
+homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	3	2	OK	OK	OK		
+homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	4	2	OK	OK	OK		
+homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	5	2	OK	OK	OK		
+homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	6	2	OK	OK	OK	This is the true stoichiometry	
+homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	7	2	OK	OK	OK	AF keeps adding subunits to the circle, but it is still divalent	
+homo	7MK0-6	7MK0-6	NDK1	NDK1	FALSE	2	1	OK	OK	OK		
+homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	3	3	OK	OK	OK		
+homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	4	3	OK	OK	OK		
+homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	5	4	OK	OK	OK		
+homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	6	4	OK	OK	OK		
+homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	7	4	OK	OK	OK	In some models AF keeps adding subunits to the structure, and in some they are kept outside. PPI is detected but it is consider unstable. The 4 PPI modes are also represented	
+homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	2		OK	OK			
+homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	3		OK	OK			
+homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	4		OK	OK			
+homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	5		OK	OK			
 homo	7V4J-5	7V4J-5	GSIb	GSIb	TRUE	3	0	OK	OK			
 homo	7V4J-5	7V4J-5	GSIb	GSIb	TRUE	4	?	OK	OK			
 homo	7V4J-5	7V4J-5	GSIb	GSIb	TRUE	5	?	OK	OK			
