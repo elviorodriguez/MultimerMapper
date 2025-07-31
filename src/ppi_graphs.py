@@ -1557,8 +1557,8 @@ def igraph_to_plotly(
             
             # Raw data hovertext
             hovertext_width = get_max_visual_line_length(edge["N_mers_info"])
-            dimers_flag = padded_flag_html_aware(' 2-mers data (*) ', hovertext_width)
-            nmers_flag  = padded_flag_html_aware(' N-mers data (*) ', hovertext_width)
+            dimers_flag = padded_flag_html_aware(' 2-mers data ', hovertext_width)
+            nmers_flag  = padded_flag_html_aware(' N-mers data ', hovertext_width)
             raw_hovertext = [
                 edge_dynamics + f' {edge["name"]}'
                 +  '<br>'
@@ -1572,9 +1572,10 @@ def igraph_to_plotly(
                 + f'<br>{nmers_flag}'
                 + f'<br>{edge["N_mers_info"]}'
                 +  '<br>'
-                +  '<br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model'
-                + f'<br>**N_models: Nº of models that surpass miPAE ≤ {graph["cutoffs_dict"]["min_PAE_cutoff_Nmers"]} Å cutoff'
-                +  '<br>***Nº of PPIs: count of decomposed models in contact'
+                +  '<br>Notes:'
+                +  '<br>1) pTM, ipTM, miPAE and pDockQ are from rank 1 model'
+                + f'<br>2) N_models: Nº of models that surpass miPAE ≤ {graph["cutoffs_dict"]["min_PAE_cutoff_Nmers"]} Å cutoff'
+                +  '<br>3) Nº of PPIs: count of decomposed models in contact'
             ] * len(circle_x)
             
             # Correlation hovertext
@@ -1736,8 +1737,8 @@ def igraph_to_plotly(
             
             # Raw data hovertext
             hovertext_width = get_max_visual_line_length(edge["N_mers_info"])
-            dimers_flag = padded_flag_html_aware(' 2-mers data (*) ', hovertext_width)
-            nmers_flag  = padded_flag_html_aware(' N-mers data (*) ', hovertext_width)
+            dimers_flag = padded_flag_html_aware(' 2-mers data ', hovertext_width)
+            nmers_flag  = padded_flag_html_aware(' N-mers data ', hovertext_width)
             raw_hovertext = [
                 edge_dynamics + f' {edge["name"]}'
                 +  '<br>'
@@ -1751,9 +1752,10 @@ def igraph_to_plotly(
                 + f'<br>{nmers_flag}'
                 + f'<br>{edge["N_mers_info"]}'
                 +  '<br>'
-                +  '<br>*pTM, ipTM, miPAE and pDockQ are from rank 1 model'
-                + f'<br>**N_models: Nº of models that surpass miPAE ≤ {graph["cutoffs_dict"]["min_PAE_cutoff_Nmers"]} Å cutoff'
-                +  '<br>***Nº of PPIs: count of decomposed models in contact'
+                +  '<br>Notes:'
+                +  '<br>1) pTM, ipTM, miPAE and pDockQ are from rank 1 model'
+                + f'<br>2) N_models: Nº of models that surpass miPAE ≤ {graph["cutoffs_dict"]["min_PAE_cutoff_Nmers"]} Å cutoff'
+                +  '<br>3) Nº of PPIs: count of decomposed models in contact'
             ] * (resolution + 2)
             
             # Correlation hovertext
@@ -1999,8 +2001,8 @@ def igraph_to_plotly(
 
             # Build notes
             notes = (
-                f'<br><br>*Domains with mean pLDDT < {cut1} (disordered) were not used for RMSD calculations.'
-                f'<br>**Only residues with pLDDT > {cut2} were considered for RMSD calculations.'
+                f'<br><br>Notes:<br>1) Domains with mean pLDDT < {cut1} (disordered) were not used for RMSD calculations.'
+                f'<br>2) Only residues with pLDDT > {cut2} were considered for RMSD calculations.'
             )
 
             # find the longest line in each table
