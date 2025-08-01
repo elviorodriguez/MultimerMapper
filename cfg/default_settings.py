@@ -262,7 +262,7 @@ Nmer_stability_method = ["pae", "contact_network"][1]
 # Use the same cutoff as for other Nmers? 
 Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff
 
-# Dynamic softening function
+# Dynamic softening function (False uses static method: just one cutoff)
 use_dynamic_conv_soft_func = True
 
 # ------------------------------ Dynamic method ------------------------------
