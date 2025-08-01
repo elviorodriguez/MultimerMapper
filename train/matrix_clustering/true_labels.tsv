@@ -1,113 +1,167 @@
-type	id1	id2	prot1	prot2	is_multivalent	N_value	binding_modes_curated	is_2mers	is_3mers	is_plus4mers	comments	binding_modes_expected
-homo	5F8V-2	5F8V-2	PSAT	PSAT	FALSE	3	1	OK	OK			
-homo	7TUR-2	7TUR-2	AAT	AAT	FALSE	3	1	OK	OK			
-homo	7S2H-2	7S2H-2	GCK	GCK	FALSE	3	1	OK	OK			
-homo	6J9Q-2	6J9Q-2	GK	GK	FALSE	3	1	OK	OK			
-homo	5AB5-2	5AB5-2	SLP	SLP	FALSE	3	1	OK	OK			
-homo	8J6E-2	8J6E-2	QOR	QOR	FALSE	3	1	OK	OK			
-homo	3IBA-o2	3IBA-o2	FPPS	FPPS	FALSE	3	1	OK	OK			
-homo	5EUC-4	5EUC-4	HPRT	HPRT	FALSE	2	1	OK	OK	OK		
-homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	3	3	OK	OK	OK	The 1st and 2nd interaction modes are clear and are the main stabilizers of the structure. The 3rd one is not clear, but it must appear in the contact matrixes.	
-homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	4	3	OK	OK	OK	The 1st and 2nd interaction modes are clear and are the main stabilizers of the structure. The 3rd one is not clear, but it must appear in the contact matrixes.	
-homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	5	3	OK	OK	OK	The 5th chain is modeled outside the stable homo-4-mer 	
-homo	7WP3-3	7WP3-3	PCNA	PCNA	FALSE	2	0	OK	OK	OK	PPI is not detected (FP)	
-homo	7WP3-3	7WP3-3	PCNA	PCNA	TRUE	3	2	OK	OK	OK	This is the true stoichiometry	
-homo	7WP3-3	7WP3-3	PCNA	PCNA	TRUE	4	2	OK	OK	OK	AF keeps adding subunits to the circle, but it is still divalent	
-homo	7WHR-6	7WHR-6	GMPP	GMPP	FALSE	2	1	OK	OK	OK		
-homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	3	2	OK	OK	OK		
-homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	4	2	OK	OK	OK		
-homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	5	2	OK	OK	OK		
-homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	6	2	OK	OK	OK	This is the true stoichiometry	
-homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	7	2	OK	OK	OK	AF keeps adding subunits to the circle, but it is still divalent	
-homo	7MK0-6	7MK0-6	NDK1	NDK1	FALSE	2	1	OK	OK	OK		
-homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	3	3	OK	OK	OK		
-homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	4	3	OK	OK	OK		
-homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	5	4	OK	OK	OK		
-homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	6	4	OK	OK	OK		
-homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	7	4	OK	OK	OK	In some models AF keeps adding subunits to the structure, and in some they are kept outside. PPI is detected but it is consider unstable. The 4 PPI modes are also represented	
-homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	2		OK	OK			
-homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	3		OK	OK			
-homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	4		OK	OK			
-homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	5		OK	OK			
-homo	7V4J-5	7V4J-5	GSIb	GSIb	TRUE	3	0	OK	OK			
-homo	7V4J-5	7V4J-5	GSIb	GSIb	TRUE	4	?	OK	OK			
-homo	7V4J-5	7V4J-5	GSIb	GSIb	TRUE	5	?	OK	OK			
-homo	7V4J-5	7V4J-5	GSIb	GSIb	TRUE	6	?	OK	OK			
-homo	1A7K-4	1A7K-4	GAPDH	GAPDH	TRUE	3	>1	OK	OK			
-homo	1A7K-4	1A7K-4	GAPDH	GAPDH	TRUE	4	>1	OK	OK			
-homo	1A7K-4	1A7K-4	GAPDH	GAPDH	TRUE	5	>1	OK	OK			
-hetero	1Y14-oP1	1Y14-oQ1	RPB4	RPB7	FALSE	3	1	OK	OK			
-hetero	8SGZ-P1	8SGZ-Q1	PCCα	PCCβ	FALSE	3	1	OK	OK			
-hetero	8GH2-P1	8GH2-Q1	MDH	PEX5	FALSE	3	0	OK	OK			
-hetero	8CDP-P1	8CDP-Q1	GAP1	GAP2	FALSE	3	1	OK	OK			
-hetero	8AG6-oP1_8OMO-oP1	8AG6-oQ1	MSH2	MSH6	FALSE	3	?	OK	OK			
-hetero	8AG6-oP1_8OMO-oP1	8OMO-oQ1	MSH2	MSH3	FALSE	3	?	OK	OK			
-hetero	4RSI-oP1	4RSI-oQ1	SMC2	SMC4	FALSE	3	?	OK	OK			
-hetero	1JEY-oP1	1JEY-oQ1	Ku70	Ku80	FALSE	3	1	OK	OK			
-hetero	2GIA-oP2	2GIA-oQ2	MRP1	MRP2	TRUE	3	2	OK	OK			
-hetero	2GIA-oP2	2GIA-oQ2	MRP1	MRP2	TRUE	4	2	OK	OK			
-hetero	2GIA-oP2	2GIA-oQ2	MRP1	MRP2	TRUE	5	2	OK	OK			
-hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	3	>1	OK	OK			
-hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	4	>1	OK	OK			
-hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	5	>1	OK	OK			
-hetero	5FIL-oP3	5FIL-oQ3	ATPSα	ATPSβ	TRUE	3	2	OK	OK			
-hetero	5FIL-oP3	5FIL-oQ3	ATPSα	ATPSβ	TRUE	4	2	OK	OK			
-hetero	5FIL-oP3	5FIL-oQ3	ATPSα	ATPSβ	TRUE	5	2	OK	OK			
-hetero	5FIL-oP3	5FIL-oQ3	ATPSα	ATPSβ	TRUE	6	2	OK	OK			
-hetero	5FIL-oP3	5FIL-oQ3	ATPSα	ATPSβ	TRUE	7	2	OK	OK			
-hetero	6DFT-P2	6DFT-Q2	DHSc	DHSp	TRUE	3	3	OK	OK			2
-hetero	6DFT-P2	6DFT-Q2	DHSc	DHSp	TRUE	4	3	OK	OK			2
-hetero	6DFT-P2	6DFT-Q2	DHSc	DHSp	TRUE	5	3	OK	OK			2
-												
-REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR
-hetero	7Q8S-P5	7Q8S-Q5	ACT	Cofilin	TRUE	3	>1	OK	OK			
-hetero	7Q8S-P5	7Q8S-Q5	ACT	Cofilin	TRUE	4	>1	OK	OK			
-hetero	7Q8S-P5	7Q8S-Q5	ACT	Cofilin	TRUE	5	>1	OK	OK			
-hetero	7Q8S-P5	7Q8S-Q5	ACT	Cofilin	TRUE	6	>1	OK	OK			
-hetero	7Q8S-P5	7Q8S-Q5	ACT	Cofilin	TRUE	7	>1	OK	OK			
-REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR
-												
-hetero	8RTH-P6	8RTH-Q6	MCCα	MCCβ	TRUE	3	>1	OK	OK			
-hetero	8RTH-P6	8RTH-Q6	MCCα	MCCβ	TRUE	3	>1	OK	OK			
-hetero	8RTH-P6	8RTH-Q6	MCCα	MCCβ	TRUE	3	>1	OK	OK			
-hetero	8RTH-P6	8RTH-Q6	MCCα	MCCβ	TRUE	3	>1	OK	OK			
-hetero	8U0V-oP3	8U0V-oQ3	PEX1	PEX6	TRUE	3	1	OK	OK			
-hetero	8U0V-oP3	8U0V-oQ3	PEX1	PEX6	TRUE	4	?	OK	OK			
-hetero	8U0V-oP3	8U0V-oQ3	PEX1	PEX6	TRUE	5	?	OK	OK			
-hetero	8U0V-oP3	8U0V-oQ3	PEX1	PEX6	TRUE	6	?	OK	OK			
-hetero	8U0V-oP3	8U0V-oQ3	PEX1	PEX6	TRUE	7	?	OK	OK			
-hetero	9EMC-oP3	9EMC-oQ3	RUVBL1	RUVBL2	TRUE	3	>1	OK	OK			
-hetero	9EMC-oP3	9EMC-oQ3	RUVBL1	RUVBL2	TRUE	4	>1	OK	OK			
-hetero	9EMC-oP3	9EMC-oQ3	RUVBL1	RUVBL2	TRUE	5	>1	OK	OK			
-hetero	9EMC-oP3	9EMC-oQ3	RUVBL1	RUVBL2	TRUE	6	>1	OK	OK			
-hetero	9EMC-oP3	9EMC-oQ3	RUVBL1	RUVBL2	TRUE	7	>1	OK	OK			
-hetero	9EMC-oP3	9EMC-oQ3	RUVBL1	RUVBL2	TRUE	8	>1	OK	OK			
-homo_from_hetero	2GIA-oP2	2GIA-oP2	MRP1	MRP1	FALSE	3	0	OK	OK		Only appears in heterotetrameric combinations: activated after MRP1-MRP2 interaction	
-homo_from_hetero	2GIA-oP2	2GIA-oP2	MRP1	MRP1	TRUE	4	2	OK	OK		Only appears in heterotetrameric combinations: activated after MRP1-MRP2 interaction	
-homo_from_hetero	3MZL-oP2	3MZL-oP2	SEC13	SEC13	FALSE	3	1	OK	OK			
-homo_from_hetero	3MZL-oP2	3MZL-oP2	SEC13	SEC13	FALSE	4	1	OK	OK			
-homo_from_hetero	3MZL-oP2	3MZL-oP2	SEC13	SEC13	FALSE	5	1	OK	OK			
-homo_from_hetero	3MZL-oQ2	3MZL-oQ2	SEC31	SEC31	FALSE	3	2	OK	OK		Multiple binding modes independent of multivalency	
-homo_from_hetero	3MZL-oQ2	3MZL-oQ2	SEC31	SEC31	FALSE	4	2	OK	OK		Multiple binding modes independent of multivalency	
-homo_from_hetero	3MZL-oQ2	3MZL-oQ2	SEC31	SEC31	FALSE	5	2	OK	OK		Multiple binding modes independent of multivalency	
-homo_from_hetero	5FIL-oP3	5FIL-oP3	ATPSα	ATPSα	FALSE	3	0	OK	OK			
-homo_from_hetero	5FIL-oQ3	5FIL-oQ3	ATPSβ	ATPSβ	FALSE	3	0	OK	OK			
-homo_from_hetero	6DFT-P2	6DFT-P2	DHSc	DHSc	TRUE	3	3	OK	OK		DHSc and DHSp are so similar that AF considers them interchangeable	0
-homo_from_hetero	6DFT-P2	6DFT-P2	DHSc	DHSc	TRUE	4	3	OK	OK		DHSc and DHSp are so similar that AF considers them interchangeable	0
-homo_from_hetero	6DFT-P2	6DFT-P2	DHSc	DHSc	TRUE	5	3	OK	OK		DHSc and DHSp are so similar that AF considers them interchangeable	0
-homo_from_hetero	6DFT-Q2	6DFT-Q2	DHSp	DHSp	TRUE	3	3	OK	OK		DHSc and DHSp are so similar that AF considers them interchangeable	0
-homo_from_hetero	6DFT-Q2	6DFT-Q2	DHSp	DHSp	TRUE	4	3	OK	OK		DHSc and DHSp are so similar that AF considers them interchangeable	0
-homo_from_hetero	6DFT-Q2	6DFT-Q2	DHSp	DHSp	TRUE	5	3	OK	OK		DHSc and DHSp are so similar that AF considers them interchangeable	0
-												
-REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR
-homo_from_hetero	7Q8S-P5	7Q8S-P5	ACT	ACT	TRUE	3	2?					
-homo_from_hetero	7Q8S-Q5	7Q8S-Q5	Cofilin	Cofilin	FALSE	3	0					
-REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR
-												
-homo_from_hetero												
-homo_from_hetero												
-homo_from_hetero												
-homo_from_hetero												
-homo_from_hetero												
-homo_from_hetero												
-homo_from_hetero												
+type	id1	id2	prot1	prot2	is_multivalent	N	stoich	ppi_modes	cumulative_modes	2mers_ok	3mers_ok	plus4mers_ok	comments
+homo	5F8V-2	5F8V-2	PSAT	PSAT	FALSE	2	2	1	1	TRUE	TRUE	NA	True stoichiometry
+homo	5F8V-2	5F8V-2	PSAT	PSAT	FALSE	3	3	1	1	TRUE	TRUE	NA	
+homo	7TUR-2	7TUR-2	AAT	AAT	FALSE	2	2	1	1	TRUE	TRUE	NA	True stoichiometry
+homo	7TUR-2	7TUR-2	AAT	AAT	FALSE	3	3	1	1	TRUE	TRUE	NA	
+homo	7S2H-2	7S2H-2	GCK	GCK	FALSE	2	2	1	1	TRUE	TRUE	NA	True stoichiometry
+homo	7S2H-2	7S2H-2	GCK	GCK	FALSE	3	3	1	1	TRUE	TRUE	NA	
+homo	6J9Q-2	6J9Q-2	GK	GK	FALSE	2	2	1	1	TRUE	TRUE	NA	True stoichiometry
+homo	6J9Q-2	6J9Q-2	GK	GK	FALSE	3	3	1	1	TRUE	TRUE	NA	
+homo	5AB5-2	5AB5-2	SLP	SLP	FALSE	2	2	1	1	TRUE	TRUE	NA	True stoichiometry
+homo	5AB5-2	5AB5-2	SLP	SLP	FALSE	3	3	1	1	TRUE	TRUE	NA	
+homo	8J6E-2	8J6E-2	QOR	QOR	FALSE	2	2	1	1	TRUE	TRUE	NA	True stoichiometry
+homo	8J6E-2	8J6E-2	QOR	QOR	FALSE	3	3	1	1	TRUE	TRUE	NA	
+homo	3IBA-o2	3IBA-o2	FPPS	FPPS	FALSE	2	2	1	1	TRUE	TRUE	NA	True stoichiometry
+homo	3IBA-o2	3IBA-o2	FPPS	FPPS	FALSE	3	3	1	1	TRUE	TRUE	NA	
+#	#	#	#	#	#		#	#	#	#	#	#	#
+#	#	#	#	#	#		#	#	#	#	#	#	#
+homo	5EUC-4	5EUC-4	HPRT	HPRT	FALSE	2	2	1	1	TRUE	TRUE	TRUE	
+homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	3	3	3	3	TRUE	TRUE	TRUE	The 1st and 2nd interaction modes are clear and are the main stabilizers of the structure. The 3rd one is not clear, but it must appear in the contact matrixes.
+homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	4	4	3	3	TRUE	TRUE	TRUE	The 1st and 2nd interaction modes are clear and are the main stabilizers of the structure. The 3rd one is not clear, but it must appear in the contact matrixes.
+homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	5	5	3	3	TRUE	TRUE	TRUE	The 5th chain is modeled outside the stable homo-4-mer 
+homo	7WP3-3	7WP3-3	PCNA	PCNA	FALSE	2	2	0	0	TRUE	TRUE	TRUE	PPI is not detected (FP)
+homo	7WP3-3	7WP3-3	PCNA	PCNA	TRUE	3	3	2	2	TRUE	TRUE	TRUE	This is the true stoichiometry
+homo	7WP3-3	7WP3-3	PCNA	PCNA	TRUE	4	4	2	2	TRUE	TRUE	TRUE	AF keeps adding subunits to the circle, but it is still divalent
+homo	7WHR-6	7WHR-6	GMPP	GMPP	FALSE	2	2	1	1	TRUE	TRUE	TRUE	
+homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	3	3	2	2	TRUE	TRUE	TRUE	
+homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	4	4	2	2	TRUE	TRUE	TRUE	
+homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	5	5	2	2	TRUE	TRUE	TRUE	
+homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	6	6	2	2	TRUE	TRUE	FALSE	This is the true stoichiometry
+homo	7WHR-6	7WHR-6	GMPP	GMPP	TRUE	7	7	2	2	TRUE	TRUE	FALSE	AF keeps adding subunits to the circle, but it is still divalent
+homo	7MK0-6	7MK0-6	NDK1	NDK1	FALSE	2	2	1	1	TRUE	TRUE	TRUE	
+homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	3	3	3	3	TRUE	TRUE	TRUE	
+homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	4	4	3	3	TRUE	TRUE	TRUE	
+homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	5	5	4	4	TRUE	TRUE	TRUE	
+homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	6	6	4	4	TRUE	TRUE	TRUE	
+homo	7MK0-6	7MK0-6	NDK1	NDK1	TRUE	7	7	4	4	TRUE	TRUE	FALSE	In some models AF keeps adding subunits to the structure, and in some they are kept outside. PPI is detected but it is consider unstable. The 4 PPI modes are also represented
+homo	8I40-4	8I40-4	ASCT	ASCT	FALSE	2	2	1	1	TRUE	TRUE	TRUE	
+homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	3	3	2	2	TRUE	TRUE	TRUE	
+homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	4	4	2	2	TRUE	TRUE	TRUE	This is the true stoichiometry
+homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	5	5	2	2	TRUE	TRUE	TRUE	The 5th chain is modeled outside the stable homo-4-mer 
+homo	7V4J-5	7V4J-5	GSIb	GSIb	FALSE	2	2	0	0	TRUE	TRUE	TRUE	PPI is not detected (FN)
+homo	7V4J-5	7V4J-5	GSIb	GSIb	FALSE	3	3	0	0	TRUE	TRUE	TRUE	PPI is not detected (FN).
+homo	7V4J-5	7V4J-5	GSIb	GSIb	FALSE	4	4	2	2	TRUE	TRUE	TRUE	Still, PPI is not detected (FN): AF tries to close the circle but it can’t as the subunits are not big enough, so they end up disconnecting
+homo	7V4J-5	7V4J-5	GSIb	GSIb	TRUE	5	5	2	2	TRUE	TRUE	TRUE	This is the true stoichiometry
+homo	7V4J-5	7V4J-5	GSIb	GSIb	TRUE	6	6	2	2	TRUE	TRUE	FALSE	AF keeps adding subunits to the circle, but it is still divalent
+homo	7V4J-5	7V4J-5	GSIb	GSIb	TRUE	7	7	2	2	TRUE	TRUE	FALSE	AF keeps adding subunits to the circle, but it is still divalent
+homo	7V4J-5	7V4J-5	GSIb	GSIb	FALSE	8	8	0	2	TRUE	TRUE	FALSE	From here after, the structure is unstable
+homo	7V4J-5	7V4J-5	GSIb	GSIb	FALSE	9	9	0	2	TRUE	TRUE	FALSE	Here, the fallback happens
+homo	1A7K-4	1A7K-4	GAPDH	GAPDH	FALSE	2	2	1	1	TRUE	TRUE	TRUE	
+homo	1A7K-4	1A7K-4	GAPDH	GAPDH	TRUE	3	3	3	3	TRUE	TRUE	TRUE	
+homo	1A7K-4	1A7K-4	GAPDH	GAPDH	TRUE	4	4	3	3	TRUE	TRUE	TRUE	This is the true stoichiometry
+homo	1A7K-4	1A7K-4	GAPDH	GAPDH	TRUE	5	5	3	3	TRUE	TRUE	TRUE	The 5th chain is modeled outside the stable homo-4-mer 
+#	#	#	#	#	#		#	#	#	#	#	#	#
+#	#	#	#	#	#		#	#	#	#	#	#	#
+hetero	1Y14-oP1	1Y14-oQ1	RPB4	RPB7	FALSE	2	1P1Q	1	1	TRUE	TRUE	NA	True stoichiometry
+hetero	1Y14-oP1	1Y14-oQ1	RPB4	RPB7	FALSE	3	1P2Q	1	1	TRUE	TRUE	NA	Non-stable
+hetero	1Y14-oP1	1Y14-oQ1	RPB4	RPB7	FALSE	3	2P1Q	1	1	TRUE	TRUE	NA	Non-stable
+hetero	8SGZ-P1	8SGZ-Q1	PCCα	PCCβ	FALSE	2	1P1Q	1	1	TRUE	TRUE	NA	True stoichiometry
+hetero	8SGZ-P1	8SGZ-Q1	PCCα	PCCβ	FALSE	3	2P1Q	1	1	TRUE	TRUE	NA	Everything is fully-connected, but P-Q interaction is still monovalent. P homooligomerizes.
+hetero	8SGZ-P1	8SGZ-Q1	PCCα	PCCβ	FALSE	3	1P2Q	1	1	TRUE	TRUE	NA	2nd Q subunit is modeled disconnected.
+hetero	8GH2-P1	8GH2-Q1	MDH	PEX5	FALSE	2	1P1Q	0	0	TRUE	TRUE	NA	True stoichiometry. PPI is not detected (FP)
+hetero	8GH2-P1	8GH2-Q1	MDH	PEX5	FALSE	3	2P1Q	0	0	TRUE	TRUE	NA	PPI is not detected (FP). Here P starts to homooligomerize
+hetero	8GH2-P1	8GH2-Q1	MDH	PEX5	FALSE	3	1P2Q	0	0	TRUE	TRUE	NA	PPI is not detected (FP)
+hetero	8CDP-P1	8CDP-Q1	GAP1	GAP2	FALSE	2	1P1Q	1	1	TRUE	TRUE	NA	True stoichiometry
+hetero	8CDP-P1	8CDP-Q1	GAP1	GAP2	FALSE	3	2P1Q	1	1	TRUE	TRUE	NA	2nd P chain is leaved outside
+hetero	8CDP-P1	8CDP-Q1	GAP1	GAP2	FALSE	3	1P2Q	1	1	TRUE	TRUE	NA	2nd Q chain is leaved outside
+hetero	8AG6-oP1_8OMO-oP1	8AG6-oQ1	MSH2	MSH6	FALSE	2	1P1Q	1	1	TRUE	TRUE	NA	True stoichiometry
+hetero	8AG6-oP1_8OMO-oP1	8AG6-oQ1	MSH2	MSH6	FALSE	3	2P1Q	0	1	TRUE	TRUE	NA	Adding +1P disorders everything
+hetero	8AG6-oP1_8OMO-oP1	8AG6-oQ1	MSH2	MSH6	FALSE	3	1P2Q	0	1	TRUE	TRUE	NA	Adding +1Q disorders everything
+hetero	8AG6-oP1_8OMO-oP1	8OMO-oQ1	MSH2	MSH3	FALSE	2	1P1Q	1	1	TRUE	TRUE	NA	True stoichiometry
+hetero	8AG6-oP1_8OMO-oP1	8OMO-oQ1	MSH2	MSH3	FALSE	3	2P1Q	0	1	TRUE	TRUE	NA	Adding +1P disorders everything (same as 8AG6)
+hetero	8AG6-oP1_8OMO-oP1	8OMO-oQ1	MSH2	MSH3	FALSE	3	1P2Q	0	1	TRUE	TRUE	NA	Adding +1Q disorders everything (same as 8AG6)
+hetero	4RSI-oP1	4RSI-oQ1	SMC2	SMC4	FALSE	2	1P1Q	1	1	TRUE	TRUE	NA	True stoichiometry
+hetero	4RSI-oP1	4RSI-oQ1	SMC2	SMC4	FALSE	3	2P1Q	1	1	TRUE	TRUE	NA	AF tries to add the extra +1P by creating a circular structure in which P self-interacts, but it is unstable
+hetero	4RSI-oP1	4RSI-oQ1	SMC2	SMC4	FALSE	3	1P2Q	1	1	TRUE	TRUE	NA	AF tries to add the extra +1Q by creating a circular structure in which P self-interacts, but it is unstable
+hetero	1JEY-oP1	1JEY-oQ1	Ku70	Ku80	FALSE	2	1P1Q	1	1	TRUE	TRUE	NA	True stoichiometry
+hetero	1JEY-oP1	1JEY-oQ1	Ku70	Ku80	FALSE	3	2P1Q	0	1	TRUE	TRUE	NA	AF properly assembles 1P1Q, leaving the extra +1P chain aside, but it fails completely in one of the models
+hetero	1JEY-oP1	1JEY-oQ1	Ku70	Ku80	FALSE	3	1P2Q	0	1	TRUE	TRUE	NA	AF properly assembles 1P1Q, leaving the extra +1Q chain aside, but it fails completely in one of the models
+#	#	#	#	#	#		#	#	#	#	#	#	#
+#	#	#	#	#	#		#	#	#	#	#	#	#
+hetero	2GIA-oP2	2GIA-oQ2	MRP1	MRP2	FALSE	2	1P1Q	1	1	TRUE	TRUE	TRUE	Stable
+hetero	2GIA-oP2	2GIA-oQ2	MRP1	MRP2	TRUE	3	2P1Q	2	2	TRUE	TRUE	TRUE	Stable
+hetero	2GIA-oP2	2GIA-oQ2	MRP1	MRP2	TRUE	3	1P2Q	2	2	TRUE	TRUE	TRUE	Stable
+hetero	2GIA-oP2	2GIA-oQ2	MRP1	MRP2	TRUE	4	1P3Q	2	2	TRUE	TRUE	TRUE	Unstable: AF add the third Q subunit to close the symmetric structure by forming a chain of 3Q (but without adding a Positive dynamics interaction to the Q homooligomerization), but the structure is detected as unstable. Also the homooligomerization of 2Q and 3Q is detected as unstable, which is OK.
+hetero	2GIA-oP2	2GIA-oQ2	MRP1	MRP2	TRUE	4	3P1Q	2	2	TRUE	TRUE	TRUE	Unstable: AF add the third P subunit to close the symmetric structure by forming a chain of 3Q (which add a Positive dynamics interaction to the Q homooligomerization), but the structure is detected as unstable. Also the homooligomerization of 2Q and 3Q is detected as unstable, which is OK.
+hetero	2GIA-oP2	2GIA-oQ2	MRP1	MRP2	TRUE	4	2P2Q	2	2	TRUE	TRUE	TRUE	True stoichiometry
+hetero	2GIA-oP2	2GIA-oQ2	MRP1	MRP2	TRUE	5	2P3Q	2	2	TRUE	TRUE	TRUE	Unstable: in some models the extra Q subunit is included in the symmetric structure, and in some not. However, the valency should be still 2.
+hetero	2GIA-oP2	2GIA-oQ2	MRP1	MRP2	TRUE	5	3P2Q	2	2	TRUE	TRUE	TRUE	Unstable: in some models the extra P subunit is included in the symmetric structure, and in some not. However, the valency should be still 2.
+hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	2	1P1Q	1	1	TRUE	TRUE	TRUE	Stable
+hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	3	1P2Q	2	2	TRUE	TRUE	TRUE	Stable: Q homooligomerizes and P is hold by the N-ter of Q1 and the C-ter of Q2.
+hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	3	2P1Q	1	2	TRUE	TRUE	TRUE	Unstable: The extra P subunit is left aside.
+hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	4	1P3Q	2	2	TRUE	TRUE	TRUE	Is detected as unstable, but it is described as stable stoichiometry by the literature. Q forms a homotrimer using a flexible section. However, it does not affects the divalency with P.
+hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	4	2P2Q	2	2	TRUE	TRUE	TRUE	True stoichiometry
+hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	5	2P3Q			TRUE	TRUE	TRUE	Unstable
+hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	5	3P2Q			TRUE	TRUE	TRUE	Unstable
+hetero	5FIL-oP3	5FIL-oQ3	ATPSα	ATPSβ	TRUE	2	1P1Q	1					
+hetero	5FIL-oP3	5FIL-oQ3	ATPSα	ATPSβ	TRUE	3		2					
+													
+hetero	5FIL-oP3	5FIL-oQ3	ATPSα	ATPSβ	TRUE		4	2					
+													
+hetero	5FIL-oP3	5FIL-oQ3	ATPSα	ATPSβ	TRUE		5	2					
+													
+hetero	5FIL-oP3	5FIL-oQ3	ATPSα	ATPSβ	TRUE		6	2					
+hetero	5FIL-oP3	5FIL-oQ3	ATPSα	ATPSβ	TRUE		7	2					
+													
+													
+													
+													
+													
+													
+hetero	6DFT-P2	6DFT-Q2	DHSc	DHSp	TRUE		3	3					
+hetero	6DFT-P2	6DFT-Q2	DHSc	DHSp	TRUE		4	3					
+hetero	6DFT-P2	6DFT-Q2	DHSc	DHSp	TRUE		5	3					
+													
+													
+													
+REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR		REVISAR	REVISAR					
+hetero	7Q8S-P5	7Q8S-Q5	ACT	Cofilin	TRUE		3	>1					
+hetero	7Q8S-P5	7Q8S-Q5	ACT	Cofilin	TRUE		4	>1					
+hetero	7Q8S-P5	7Q8S-Q5	ACT	Cofilin	TRUE		5	>1					
+hetero	7Q8S-P5	7Q8S-Q5	ACT	Cofilin	TRUE		6	>1					
+hetero	7Q8S-P5	7Q8S-Q5	ACT	Cofilin	TRUE		7	>1					
+REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR		REVISAR	REVISAR					
+hetero	8RTH-P6	8RTH-Q6	MCCα	MCCβ	TRUE		3	>1					
+hetero	8RTH-P6	8RTH-Q6	MCCα	MCCβ	TRUE		3	>1					
+hetero	8RTH-P6	8RTH-Q6	MCCα	MCCβ	TRUE		3	>1					
+hetero	8RTH-P6	8RTH-Q6	MCCα	MCCβ	TRUE		3	>1					
+hetero	8U0V-oP3	8U0V-oQ3	PEX1	PEX6	TRUE		3	1					
+hetero	8U0V-oP3	8U0V-oQ3	PEX1	PEX6	TRUE		4	?					
+hetero	8U0V-oP3	8U0V-oQ3	PEX1	PEX6	TRUE		5	?					
+hetero	8U0V-oP3	8U0V-oQ3	PEX1	PEX6	TRUE		6	?					
+hetero	8U0V-oP3	8U0V-oQ3	PEX1	PEX6	TRUE		7	?					
+hetero	9EMC-oP3	9EMC-oQ3	RUVBL1	RUVBL2	TRUE		3	>1					
+hetero	9EMC-oP3	9EMC-oQ3	RUVBL1	RUVBL2	TRUE		4	>1					
+hetero	9EMC-oP3	9EMC-oQ3	RUVBL1	RUVBL2	TRUE		5	>1					
+hetero	9EMC-oP3	9EMC-oQ3	RUVBL1	RUVBL2	TRUE		6	>1					
+hetero	9EMC-oP3	9EMC-oQ3	RUVBL1	RUVBL2	TRUE		7	>1					
+hetero	9EMC-oP3	9EMC-oQ3	RUVBL1	RUVBL2	TRUE		8	>1					
+#	#	#	#	#	#		#	#		#	#	#	#
+#	#	#	#	#	#		#	#		#	#	#	#
+homo_from_hetero	2GIA-oP2	2GIA-oP2	MRP1	MRP1	FALSE		3	0		TRUE	TRUE		Only appears in heterotetrameric combinations: activated after MRP1-MRP2 interaction
+homo_from_hetero	2GIA-oP2	2GIA-oP2	MRP1	MRP1	TRUE		4	2		TRUE	TRUE		Only appears in heterotetrameric combinations: activated after MRP1-MRP2 interaction
+homo_from_hetero	3MZL-oP2	3MZL-oP2	SEC13	SEC13	FALSE		3	1		TRUE	TRUE		
+homo_from_hetero	3MZL-oP2	3MZL-oP2	SEC13	SEC13	FALSE		4	1		TRUE	TRUE		
+homo_from_hetero	3MZL-oP2	3MZL-oP2	SEC13	SEC13	FALSE		5	1		TRUE	TRUE		
+homo_from_hetero	3MZL-oQ2	3MZL-oQ2	SEC31	SEC31	FALSE		3	2		TRUE	TRUE		Multiple binding modes independent of multivalency
+homo_from_hetero	3MZL-oQ2	3MZL-oQ2	SEC31	SEC31	FALSE		4	2		TRUE	TRUE		Multiple binding modes independent of multivalency
+homo_from_hetero	3MZL-oQ2	3MZL-oQ2	SEC31	SEC31	FALSE		5	2		TRUE	TRUE		Multiple binding modes independent of multivalency
+homo_from_hetero	5FIL-oP3	5FIL-oP3	ATPSα	ATPSα	FALSE		3	0		TRUE	TRUE		
+homo_from_hetero	5FIL-oQ3	5FIL-oQ3	ATPSβ	ATPSβ	FALSE		3	0		TRUE	TRUE		
+homo_from_hetero	6DFT-P2	6DFT-P2	DHSc	DHSc	TRUE		3	3		TRUE	TRUE		DHSc and DHSp are so similar that AF considers them interchangeable
+homo_from_hetero	6DFT-P2	6DFT-P2	DHSc	DHSc	TRUE		4	3		TRUE	TRUE		DHSc and DHSp are so similar that AF considers them interchangeable
+homo_from_hetero	6DFT-P2	6DFT-P2	DHSc	DHSc	TRUE		5	3		TRUE	TRUE		DHSc and DHSp are so similar that AF considers them interchangeable
+homo_from_hetero	6DFT-Q2	6DFT-Q2	DHSp	DHSp	TRUE		3	3		TRUE	TRUE		DHSc and DHSp are so similar that AF considers them interchangeable
+homo_from_hetero	6DFT-Q2	6DFT-Q2	DHSp	DHSp	TRUE		4	3		TRUE	TRUE		DHSc and DHSp are so similar that AF considers them interchangeable
+homo_from_hetero	6DFT-Q2	6DFT-Q2	DHSp	DHSp	TRUE		5	3		TRUE	TRUE		DHSc and DHSp are so similar that AF considers them interchangeable
+REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR		REVISAR	REVISAR		REVISAR	REVISAR	REVISAR	REVISAR
+homo_from_hetero	7Q8S-P5	7Q8S-P5	ACT	ACT	TRUE		3	2?					
+homo_from_hetero	7Q8S-Q5	7Q8S-Q5	Cofilin	Cofilin	FALSE		3	0					
+REVISAR	REVISAR	REVISAR	REVISAR	REVISAR	REVISAR		REVISAR	REVISAR		REVISAR	REVISAR	REVISAR	REVISAR
+homo_from_hetero	8SGZ-P1	8SGZ-P1	PCCα	PCCα	?		2	?		FALSE	FALSE	FALSE	Falta agregar
+homo_from_hetero	8SGZ-P1	8SGZ-P1	PCCα	PCCα	?		3	?		FALSE	FALSE	FALSE	Falta agregar
+homo_from_hetero	8SGZ-P1	8SGZ-P1	PCCα	PCCα	?		4	?		FALSE	FALSE	FALSE	Falta agregar
+homo_from_hetero	8GH2-P1	8GH2-P1	MDH	MDH	?		2	?		FALSE	FALSE	FALSE	Falta agregar
+homo_from_hetero	8GH2-P1	8GH2-P1	MDH	MDH	?		3	?		FALSE	FALSE	FALSE	Falta agregar
+homo_from_hetero	8GH2-P1	8GH2-P1	MDH	MDH	?		4	?		FALSE	FALSE	FALSE	Falta agregar
+homo_from_hetero													

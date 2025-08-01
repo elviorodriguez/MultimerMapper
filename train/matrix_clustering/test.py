@@ -24,6 +24,12 @@ AF2_Nmers = working_dir + "/multivalency_test_AF_Nmers"
 true_labels_file = "/home/elvio/MultimerMapper/train/matrix_clustering/true_labels.tsv"
 true_labels_df = pd.read_csv(true_labels_file, sep="\t")
 
+# Add sorted Names and IDs tuples
+true_labels_df['sorted_tuple_names'] = true_labels_df[['prot1','prot2']] \
+    .apply(lambda x: tuple(sorted(x)), axis=1)
+true_labels_df['sorted_tuple_ids'] = true_labels_df[['id1','id2']] \
+    .apply(lambda x: tuple(sorted(x)), axis=1)
+
 # Parsing configs
 use_names = True
 overwrite = True
@@ -37,7 +43,7 @@ benchmark_logger = configure_logger(out_path = out_path, log_level = log_level, 
 
 # Save or load data?
 use_saved_matrices = False
-save_pickle_dict = True
+save_pickle_dict = False
 pickle_file_path = out_path + "/raw_mm_output.pkl"
 
 ###############################################################################
@@ -83,8 +89,34 @@ contact_clustering_config = {
 }
 
 # Run with conservative configuration
-interaction_counts_df, clusters, _ = run_contacts_clustering_analysis_with_config(
-    mm_output, contact_clustering_config, benchmark_logger)
+results = run_contacts_clustering_analysis_with_config(
+    mm_output, contact_clustering_config)
+
+interaction_counts_df   = results[0]
+all_clusters            = results[1]
+multivalent_pairs_list  = results[2]
+multimode_pairs_list    = results[3]
+valency_dict            = results[4]
+
+for pair, cluster_list in all_clusters.items():
+    
+    print(f'Pair: {pair} ---> {len( all_clusters[pair])} PPI mode(s)')
+    
+    # find rows where either sorted_tuple_names or sorted_tuple_ids == pair
+    mask = (
+        (true_labels_df['sorted_tuple_names'] == pair) |
+        (true_labels_df['sorted_tuple_ids'] == pair)
+    )
+    matches = true_labels_df[mask]
+
+    if matches.empty:
+        raise ValueError(f"No match in true_labels_df for pair {pair!r}")
+
+    # now print the clusters for that pair
+    for cluster_n in cluster_list:
+        print(f"   Cluster ID: {cluster_n}")
+
+    print()
 
 ###############################################################################
 
