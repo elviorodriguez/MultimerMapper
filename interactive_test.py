@@ -130,11 +130,26 @@ show_PAE_along_backbone = False
 
 ####################### Test 6'' (multivalency PEX13/31) ######################
 
-fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/proteins_mm.fasta"
-AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/2-mers"
-AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/N-mers"
+# fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/proteins_mm.fasta"
+# AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/MM_multivalency_test"
+# use_names = True
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
+
+###############################################################################
+
+####################### Test 6'' (multivalency 2GIA) ######################
+
+fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_2GIA/proteins_mm.fasta"
+AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_2GIA/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_2GIA/N-mers"
 # AF2_Nmers = None
-out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/MM_metrics_profiles_test"
+out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_2GIA/MM_multivalency_test"
 use_names = True
 overwrite = True
 # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
