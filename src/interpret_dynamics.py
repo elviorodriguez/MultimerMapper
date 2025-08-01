@@ -167,7 +167,7 @@ def classify_edge_dynamics(tuple_edge: tuple,
                             # Cutoff
                            N_models_cutoff: int,
                            Nmers_contacts_cutoff: int,
-                           Nmers_contact_freq_cutoff: float = 0.5,
+                           Nmers_contact_freq_cutoff: float = 0.0,
                            classification_df: pd.DataFrame|None = classification_df,
 
                            logger = None
