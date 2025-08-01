@@ -130,16 +130,16 @@ show_PAE_along_backbone = False
 
 ####################### Test 6'' (multivalency PEX13/31) ######################
 
-# fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/proteins_mm.fasta"
-# AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/2-mers"
-# AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/3MZL_problematic/MM_metrics_profiles_test"
-# use_names = True
-# overwrite = True
-# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# auto_domain_detection = True
-# graph_resolution_preset = None
+fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/proteins_mm.fasta"
+AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/MM_metrics_profiles_test"
+use_names = True
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+auto_domain_detection = True
+graph_resolution_preset = None
 
 ###############################################################################
 
@@ -253,16 +253,16 @@ show_PAE_along_backbone = False
 
 # ###################### Test 10 (TcNuA4 - No piccolo) ########################
 
-fasta_file = "/home/elvio/Desktop/Assemblies/TESIS_Tcruzi/NuA4_proteins_mm_ANNOTATED.fasta"
-AF2_2mers = "/home/elvio/Desktop/Assemblies/TESIS_Tcruzi/predicciones_NuA4/AF2_2mers"
-AF2_Nmers = "/home/elvio/Desktop/Assemblies/TESIS_Tcruzi/predicciones_NuA4/AF2_Nmers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/MM_runs_for_the_paper/TcNuA4_clusters_bug"
-use_names = True 
-overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-graph_resolution_preset = None
-auto_domain_detection = True
+# fasta_file = "/home/elvio/Desktop/Assemblies/TESIS_Tcruzi/NuA4_proteins_mm_ANNOTATED.fasta"
+# AF2_2mers = "/home/elvio/Desktop/Assemblies/TESIS_Tcruzi/predicciones_NuA4/AF2_2mers"
+# AF2_Nmers = "/home/elvio/Desktop/Assemblies/TESIS_Tcruzi/predicciones_NuA4/AF2_Nmers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/MM_runs_for_the_paper/TcNuA4_clusters_bug"
+# use_names = True 
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# graph_resolution_preset = None
+# auto_domain_detection = True
 
 ###############################################################################
 
