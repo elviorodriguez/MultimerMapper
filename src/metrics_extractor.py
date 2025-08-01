@@ -491,8 +491,8 @@ def generate_pairwise_Nmers_df(all_pdb_data: dict, out_path: str = ".", save_pai
         sub_PAE_2 = full_PAE_matrix[pair_start_positions[1]:pair_end_positions[1],
                                     pair_start_positions[0]:pair_end_positions[0]]
         
-        sub_PAE_1_t = np.transpose(sub_PAE_1)
-        sub_PAE_min = np.minimum(sub_PAE_1_t, sub_PAE_2)
+        sub_PAE_2_t = np.transpose(sub_PAE_2)
+        sub_PAE_min = np.minimum(sub_PAE_1, sub_PAE_2_t)
         
         return sub_PAE_min
     
