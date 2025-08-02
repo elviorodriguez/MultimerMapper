@@ -9,9 +9,13 @@ from train.multivalency_dicotomic.parse_raw_data import parse_raw_data
 from src.matrix_clustering.matrix_clustering import run_contacts_clustering_analysis_with_config
 from utils.logger_setup import configure_logger
 
+pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 
-################################### Setup #####################################
+
+# ============================================================================
+# Benchmark setup
+# ============================================================================
 
 # Paths
 working_dir = "/home/elvio/Desktop/multivalency_benchmark"
@@ -35,6 +39,24 @@ true_labels_df['sorted_tuple_names'] = true_labels_df[['prot1','prot2']] \
     .apply(lambda x: tuple(sorted(x)), axis=1)
 true_labels_df['sorted_tuple_ids'] = true_labels_df[['id1','id2']] \
     .apply(lambda x: tuple(sorted(x)), axis=1)
+    
+# Convert N to integer
+true_labels_df['N'] = true_labels_df['N'].astype(int)
+
+# Remove unnecesary columns
+cols_to_drop = [
+    '2mers_ok',
+    '3mers_ok',
+    'plus4mers_ok',
+    'stoich',
+    'ppi_modes',
+    'comments'
+]
+true_labels_df = true_labels_df.drop(columns=cols_to_drop)
+
+# remove duplicate rows and eset the index
+true_labels_df = true_labels_df.drop_duplicates()
+true_labels_df = true_labels_df.reset_index(drop=True)
 
 # Parsing configs
 use_names = True
@@ -52,8 +74,9 @@ use_saved_matrices = False
 save_pickle_dict = False
 pickle_file_path = out_path + "/raw_mm_output.pkl"
 
-###############################################################################
-
+# ============================================================================
+# Preprocess data for the benchmark (contact matrixes, metadata, etc)
+# ============================================================================
 
 # Save or load?
 if use_saved_matrices:
@@ -77,55 +100,72 @@ else:
         with open(pickle_file_path, 'wb') as pickle_file:
             pickle.dump(mm_output, pickle_file)
 
-# ============================================================================
-# BEST CONFIGURATION (UNTIL NOW)
-# ============================================================================
+# Unpack necessary data
+matrix_data = mm_output['pairwise_contact_matrices']
+benchmark_pairs = set(true_labels_df['sorted_tuple_names'])
+benchmark_proteins = set(list(true_labels_df['prot1']) + list(true_labels_df['prot2']))
+tested_2mer_pairs = set(mm_output['pairwise_2mers_df'].sorted_tuple_pair)
+tested_Nmer_pairs = set(mm_output['pairwise_Nmers_df'].sorted_tuple_pair)
 
-# Custom analysis
-contact_clustering_config = {
-    'distance_metric': 'closeness',
-    'clustering_method': 'hierarchical',
-    'linkage_method': 'average',
-    'validation_metric': 'silhouette',
-    'quality_weight': True,
-    'silhouette_improvement': 0.2,
-    'max_extra_clusters': 3,
-    'overlap_structural_contribution': 1,
-    'overlap_use_contact_region_only': False,
-    'use_median': False
-}
+discarded_data_pairs = []
+working_data_pairs = []
+homo_from_hetero_pairs = []
+negative_ppi_pairs = []
+positive_ppi_pairs = []
 
-# Run with conservative configuration
-results = run_contacts_clustering_analysis_with_config(
-    mm_output, contact_clustering_config)
-
-interaction_counts_df   = results[0]
-all_clusters            = results[1]
-multivalent_pairs_list  = results[2]
-multimode_pairs_list    = results[3]
-valency_dict            = results[4]
-
-for pair, cluster_list in all_clusters.items():
+# Verify that all of the pairs from the data are in the benchmark and viceversa
+for pair, cluster_list in matrix_data.items():
+        
+    if pair not in benchmark_pairs:
+        discarded_data_pairs.append(pair)
+        benchmark_logger.warning(f"No match in true_labels_df for pair {pair}")
+        benchmark_logger.warning( '   - Added to discarded_pairs list')
+        benchmark_logger.warning( "   - Skipping pair and continuing to the next one")
+        
+        if pair[0] not in benchmark_proteins:
+            raise ValueError(f'A protein from the data is not in the benchmark: {pair[0]}')
+        if pair[1] not in benchmark_proteins:
+            raise ValueError(f'A protein from the data is not in the benchmark: {pair[1]}')
+            
+        # Verify if it is a product of homooligomerization inside the heterooligomer
+        if pair[0] == pair[1] and (pair[0] not in benchmark_pairs or pair[1] not in benchmark_pairs):
+            benchmark_logger.warning( "   - The pair is a product of homooligomerization in the heteromeric benchmark pair (OK)")
+            homo_from_hetero_pairs.append(pair)
+        else:
+            raise ValueError(f'   - The pair {pair} is not an homooligomer inside an hetero. Something is wrong.')
+        
+    else:
+        working_data_pairs.append(pair)
+        benchmark_logger.info(f'Pair: {pair} ---> {len( matrix_data[pair])} contact matrixes')
+        benchmark_logger.info( '   - Added to working_pairs list')
+is_input_dataset_ok = True
+        
+# Verify pairs tested but that were not detected as interactors
+for bm_pair in benchmark_pairs:
     
-    print(f'Pair: {pair} ---> {len( all_clusters[pair])} PPI mode(s)')
-    
-    # find rows where either sorted_tuple_names or sorted_tuple_ids == pair
-    mask = (
-        (true_labels_df['sorted_tuple_names'] == pair) |
-        (true_labels_df['sorted_tuple_ids'] == pair)
-    )
-    matches = true_labels_df[mask]
+    if bm_pair not in working_data_pairs:        
+        
+        # Verify if the pair was tested and PPI was false negative
+        if bm_pair not in tested_2mer_pairs:
+            raise ValueError(f'   - The benchmark pair {pair} was not tested in the 2-mers preprocessed data')
+        if bm_pair not in tested_Nmer_pairs:
+            raise ValueError(f'   - The benchmark pair {pair} was not tested in the N-mers preprocessed data')
+        
+        negative_ppi_pairs.append(bm_pair)
+        
+    else:
+        positive_ppi_pairs.append(bm_pair)
+        
 
-    if matches.empty:
-        raise ValueError(f"No match in true_labels_df for pair {pair!r}")
+# A final check
+for bm_pair in benchmark_pairs:    
+    if bm_pair not in negative_ppi_pairs and bm_pair not in positive_ppi_pairs:
+        raise ValueError('SOMETHING WENT WRONG DURING THE PREPROCESSING!')
 
-    # now print the clusters for that pair
-    for cluster_n in cluster_list:
-        print(f"   Cluster ID: {cluster_n}")
 
-    print()
-
-###############################################################################
+# ============================================================================
+# Contact matrix clustering options to test
+# ============================================================================
 
 """
 DISTANCE METRICS ('distance_metric'):
@@ -168,7 +208,90 @@ CLUSTER OPTIMIZATION:
 - 'max_extra_clusters': Maximum number of clusters beyond max_valency to try
 """
 
+benchmark_configs = {
+    
+    "contact_clustering_config": {
+        'distance_metric': 'closeness',
+        'clustering_method': 'hierarchical',
+        'linkage_method': 'average',
+        'validation_metric': 'silhouette',
+        'quality_weight': True,
+        'silhouette_improvement': 0.2,
+        'max_extra_clusters': 3,
+        'overlap_structural_contribution': 1,
+        'overlap_use_contact_region_only': False,
+        'use_median': False
+    },
+    
+    
+    
+    
+}
+
+
+
+
+
 # ============================================================================
 # BENCHMARK
 # ============================================================================
+
+
+    
+    # discarded_pairs = []
+    
+    # for pair, cluster_list in all_clusters.items():
+        
+    #     print(f'Pair: {pair} ---> {len( all_clusters[pair])} PPI mode(s)')
+        
+    #     # find rows where either sorted_tuple_names or sorted_tuple_ids == pair
+    #     mask = (
+    #         (true_labels_df['sorted_tuple_names'] == pair) |
+    #         (true_labels_df['sorted_tuple_ids'] == pair)
+    #     )
+    #     matches = true_labels_df[mask]
+        
+    #     # Skip pairs that are not part of the benchmark (eg: homooligomerizations comming from hetero)
+    #     if matches.empty:
+    #         discarded_pairs.append(pair)        
+    #         benchmark_logger.warning(f"No match in true_labels_df for pair {pair}")
+    #         benchmark_logger.warning( '   - Added to discarded_pairs list')
+    #         benchmark_logger.warning( "   - Skipping pair and continuing to the next one")
+    #         continue
+    
+    #     # now print the clusters for that pair
+    #     for cluster_n in cluster_list:
+    #         print(f"   Cluster ID: {cluster_n}")
+
+
+# ============================================================================
+# BEST CONFIGURATION (UNTIL NOW)
+# ============================================================================
+
+# Custom analysis
+contact_clustering_config = {
+    'distance_metric': 'closeness',
+    'clustering_method': 'hierarchical',
+    'linkage_method': 'average',
+    'validation_metric': 'silhouette',
+    'quality_weight': True,
+    'silhouette_improvement': 0.2,
+    'max_extra_clusters': 3,
+    'overlap_structural_contribution': 1,
+    'overlap_use_contact_region_only': False,
+    'use_median': False
+}
+
+# Run with conservative configuration
+results = run_contacts_clustering_analysis_with_config(
+    mm_output, contact_clustering_config)
+
+interaction_counts_df   = results[0]
+all_clusters            = results[1]
+multivalent_pairs_list  = results[2]
+multimode_pairs_list    = results[3]
+valency_dict            = results[4]
+
+
+
 
