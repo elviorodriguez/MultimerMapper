@@ -1,8 +1,8 @@
 
 import os
+import sys
 import numpy as np
 import pandas as pd
-import pickle
 
 import multimer_mapper as mm
 from train.multivalency_dicotomic.parse_raw_data import parse_raw_data
@@ -80,6 +80,7 @@ pickle_file_path = out_path + "/raw_mm_output.pkl"
 
 # Save or load?
 if use_saved_matrices:
+    import pickle
     with open(pickle_file_path, 'rb') as pickle_file:
         pairwise_contact_matrices = pickle.load(pickle_file)
 else:
@@ -97,6 +98,7 @@ else:
     )
 
     if save_pickle_dict:
+        import pickle        
         with open(pickle_file_path, 'wb') as pickle_file:
             pickle.dump(mm_output, pickle_file)
 
@@ -142,7 +144,6 @@ for pair, cluster_list in matrix_data.items():
         working_data_pairs.append(pair)
         benchmark_logger.info(f'Pair: {pair} ---> {len( matrix_data[pair])} contact matrixes')
         benchmark_logger.info( '   - Added to working_pairs list')
-is_input_dataset_ok = True
         
 # Verify pairs tested but that were not detected as interactors
 for bm_pair in benchmark_pairs:
@@ -166,6 +167,8 @@ for bm_pair in benchmark_pairs:
     if bm_pair not in negative_ppi_pairs and bm_pair not in positive_ppi_pairs:
         raise ValueError('SOMETHING WENT WRONG DURING THE PREPROCESSING!')
 
+
+del cluster_list, pair, bm_pair, matrix_data
 
 # ============================================================================
 # Contact matrix clustering options to test
@@ -252,6 +255,8 @@ for dist_met in distance_metrics:
                     'max_extra_clusters': 3
                 }
 
+del dist_met, clust_met, link_met, val_met
+
 # ============================================================================
 # BENCHMARK
 # ============================================================================
@@ -261,26 +266,51 @@ bm_results_dict = {}
 
 for cfg in benchmark_configs:
     
+    # Skip already computed cfgs
+    if cfg in bm_results_dict.keys() and 'passed' in bm_results_dict[cfg].keys():
+        benchmark_logger.info(f'====================================================================')
+        benchmark_logger.warning(f'Skipping config {cfg} (ALREADY COMPUTED)')
+        benchmark_logger.info(f'====================================================================')
+        continue
+    
+    benchmark_logger.info(f'====================================================================')
+    benchmark_logger.warning(f'Running clustering configuration: {cfg}')
+    benchmark_logger.info(f'====================================================================')
+    
     bm_results_dict[cfg] = {}
     
     try:
 
         results = run_contacts_clustering_analysis_with_config(
-            mm_output, benchmark_configs[cfg])
+            mm_output, benchmark_configs[cfg],
+            save_plots_and_metadata = False,
+            log_level = "warning")
         
-        bm_results_dict['interaction_counts_df']  = results[0]
-        bm_results_dict['all_clusters']           = results[1]
-        bm_results_dict['multivalent_pairs_list'] = results[2]
-        bm_results_dict['multimode_pairs_list']   = results[3]
-        bm_results_dict['valency_dict']           = results[4]
-
+        bm_results_dict[cfg]['interaction_counts_df']  = results[0]
+        bm_results_dict[cfg]['all_clusters']           = results[1]
+        bm_results_dict[cfg]['multivalent_pairs_list'] = results[2]
+        bm_results_dict[cfg]['multimode_pairs_list']   = results[3]
+        bm_results_dict[cfg]['valency_dict']           = results[4]
+        bm_results_dict[cfg]['passed']                 = True
+        bm_results_dict[cfg]['error']                  = None
         
-    except:
+    except Exception as e:
+        
         benchmark_logger.error(f'Clustering configuration {cfg} failed!')
-        bm_results_dict[cfg] = "failed"
+        bm_results_dict[cfg]['interaction_counts_df']  = pd.DataFrame()
+        bm_results_dict[cfg]['all_clusters']           = {}
+        bm_results_dict[cfg]['multivalent_pairs_list'] = []
+        bm_results_dict[cfg]['multimode_pairs_list']   = []
+        bm_results_dict[cfg]['valency_dict']           = {}
+        bm_results_dict[cfg]['passed']                 = False
+        bm_results_dict[cfg]['error']                  = e
+        
 
-
-
+for cfg in bm_results_dict.keys():
+    if cfg in bm_results_dict.keys() and 'passed' in bm_results_dict[cfg].keys():
+        if not bm_results_dict[cfg]['passed']:
+            print(cfg)
+            
 # ============================================================================
 # BEST CONFIGURATION (UNTIL NOW)
 # ============================================================================
