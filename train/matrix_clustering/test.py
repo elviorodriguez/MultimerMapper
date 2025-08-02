@@ -100,6 +100,10 @@ else:
         with open(pickle_file_path, 'wb') as pickle_file:
             pickle.dump(mm_output, pickle_file)
 
+# ============================================================================
+# Input verification
+# ============================================================================
+
 # Unpack necessary data
 matrix_data = mm_output['pairwise_contact_matrices']
 benchmark_pairs = set(true_labels_df['sorted_tuple_names'])
@@ -169,38 +173,38 @@ for bm_pair in benchmark_pairs:
 
 """
 DISTANCE METRICS ('distance_metric'):
-- 'jaccard': Binary overlap similarity (good for contact patterns)
-- 'closeness': Mean distance between contact points (good for structural similarity)
+- 'jaccard' (J): Binary overlap similarity (good for contact patterns)
+- 'closeness' (MC/MedC): Mean distance between contact points (good for structural similarity)
       + 'use_median': Use the Median Closeness (True) or the Mean Closeness (False)
-- 'cosine': Cosine similarity between flattened matrices
-- 'correlation': Pearson correlation between matrices
-- 'spearman': Spearman correlation between matrices
-- 'hamming': Binary difference between matrices
-- 'structural_overlap': Advanced metric using 3D distance information
+- 'cosine' (Cos): Cosine similarity between flattened matrices
+- 'correlation' (Corr): Pearson correlation between matrices
+- 'spearman' (S): Spearman correlation between matrices
+- 'hamming' (H): Binary difference between matrices
+- 'structural_overlap' (SO): Advanced metric using 3D distance information
       + 'overlap_structural_contribution': Proportional contribution of distogram to
                                             the final distance between matrixes (0 to 1)
       + 'overlap_use_contact_region_only': Use the distance from the distogram from 
                                             residue pairs in contacts only (True)
 
 CLUSTERING METHODS ('clustering_method'):
-- 'hierarchical': Agglomerative clustering (default, works well with precomputed distances)
-- 'kmeans': K-means clustering (requires feature conversion)
-- 'dbscan': Density-based clustering (automatically determines number of clusters)
+- 'hierarchical' (H): Agglomerative clustering (default, works well with precomputed distances)
+- 'kmeans' (K): K-means clustering (requires feature conversion)
+- 'dbscan' (D): Density-based clustering (automatically determines number of clusters)
 
 LINKAGE METHODS ('linkage_method'):
-- 'single': clusters based on the minimum pairwise distance between observations (tends to produce elongated clusters)
-- 'complete': uses the maximum pairwise distance (yields compact, tight clusters)
-- 'average': merges clusters by the average distance between all inter-cluster pairs
-- 'ward': minimizes the total within-cluster variance (merges clusters that increase variance the least)
+- 'single' (S): clusters based on the minimum pairwise distance between observations (tends to produce elongated clusters)
+- 'complete' (C): uses the maximum pairwise distance (yields compact, tight clusters)
+- 'average' (A): merges clusters by the average distance between all inter-cluster pairs
+- 'ward' (W): minimizes the total within-cluster variance (merges clusters that increase variance the least)
 
 VALIDATION METRICS ('validation_metric'):
-- 'silhouette': Silhouette coefficient (higher is better)
-- 'calinski_harabasz': Calinski-Harabasz index (higher is better)
-- 'davies_bouldin': Davies-Bouldin index (lower is better)
-- 'gap_statistic': Gap statistic (higher is better)
+- 'silhouette' (S): Silhouette coefficient (higher is better)
+- 'calinski_harabasz' (CH): Calinski-Harabasz index (higher is better)
+- 'davies_bouldin' (DB): Davies-Bouldin index (lower is better)
+- 'gap_statistic' (G): Gap statistic (higher is better)
 
 QUALITY FEATURES:
-- 'quality_weight': Uses PAE and pLDDT to weight distances (True or False)
+- 'quality_weight' (QW): Uses PAE and pLDDT to weight distances (True or False)
 - 'min_contacts_threshold': Minimum number of contacts to consider a matrix valid
 
 CLUSTER OPTIMIZATION:
@@ -208,60 +212,73 @@ CLUSTER OPTIMIZATION:
 - 'max_extra_clusters': Maximum number of clusters beyond max_valency to try
 """
 
-benchmark_configs = {
-    
-    "contact_clustering_config": {
-        'distance_metric': 'closeness',
-        'clustering_method': 'hierarchical',
-        'linkage_method': 'average',
-        'validation_metric': 'silhouette',
-        'quality_weight': True,
-        'silhouette_improvement': 0.2,
-        'max_extra_clusters': 3,
-        'overlap_structural_contribution': 1,
-        'overlap_use_contact_region_only': False,
-        'use_median': False
-    },
-    
-    
-    
-    
-}
+# Symbols
+distance_metrics = ['J', 'MC', 'MedC', 'Cos', 'Corr', 'S', 'H']
+clustering_methods = ['H', 'K', 'D']
+linkage_methods = ['S', 'C', 'A']
+validation_methods = ['S', 'CH', 'DB', 'G']
 
+# True names
+distance_names = ['jaccard', 'closeness', 'closeness', 'cosine', 'correlation', 'spearman', 'hamming']
+clustering_names = ['hierarchical', 'kmeans', 'dbscan']
+linkage_names = ['single', 'complete', 'average']
+validation_names = ['silhouette', 'calinski_harabasz', 'davies_bouldin', 'gap_statistic']
 
+# Symbol-to-name maps
+dist_map = dict(zip(distance_metrics, distance_names))
+clust_map = dict(zip(clustering_methods, clustering_names))
+link_map = dict(zip(linkage_methods, linkage_names))
+val_map = dict(zip(validation_methods, validation_names))
 
+benchmark_configs = {}
 
+# Generate all possible cfgs
+for dist_met in distance_metrics:
+    for clust_met in clustering_methods:
+        for link_met in linkage_methods:
+            for val_met in validation_methods:
+                
+                cfg_name = f'{dist_met}_{clust_met}_{link_met}_{val_met}'
+                    
+                benchmark_configs[cfg_name] = {
+                    'distance_metric': dist_map[dist_met],
+                    'use_median': (dist_met == 'MedC'),
+                    'clustering_method': clust_map[clust_met],
+                    'linkage_method': link_map[link_met],
+                    'validation_metric': val_map[val_met],
+                    'quality_weight': False,
+                    'silhouette_improvement': 0.0,
+                    'min_extra_clusters': 2,
+                    'max_extra_clusters': 3
+                }
 
 # ============================================================================
 # BENCHMARK
 # ============================================================================
 
+# Run clustering with each of the cfgs
+bm_results_dict = {}
 
+for cfg in benchmark_configs:
     
-    # discarded_pairs = []
+    bm_results_dict[cfg] = {}
     
-    # for pair, cluster_list in all_clusters.items():
+    try:
+
+        results = run_contacts_clustering_analysis_with_config(
+            mm_output, benchmark_configs[cfg])
         
-    #     print(f'Pair: {pair} ---> {len( all_clusters[pair])} PPI mode(s)')
+        bm_results_dict['interaction_counts_df']  = results[0]
+        bm_results_dict['all_clusters']           = results[1]
+        bm_results_dict['multivalent_pairs_list'] = results[2]
+        bm_results_dict['multimode_pairs_list']   = results[3]
+        bm_results_dict['valency_dict']           = results[4]
+
         
-    #     # find rows where either sorted_tuple_names or sorted_tuple_ids == pair
-    #     mask = (
-    #         (true_labels_df['sorted_tuple_names'] == pair) |
-    #         (true_labels_df['sorted_tuple_ids'] == pair)
-    #     )
-    #     matches = true_labels_df[mask]
-        
-    #     # Skip pairs that are not part of the benchmark (eg: homooligomerizations comming from hetero)
-    #     if matches.empty:
-    #         discarded_pairs.append(pair)        
-    #         benchmark_logger.warning(f"No match in true_labels_df for pair {pair}")
-    #         benchmark_logger.warning( '   - Added to discarded_pairs list')
-    #         benchmark_logger.warning( "   - Skipping pair and continuing to the next one")
-    #         continue
-    
-    #     # now print the clusters for that pair
-    #     for cluster_n in cluster_list:
-    #         print(f"   Cluster ID: {cluster_n}")
+    except:
+        benchmark_logger.error(f'Clustering configuration {cfg} failed!')
+        bm_results_dict[cfg] = "failed"
+
 
 
 # ============================================================================
