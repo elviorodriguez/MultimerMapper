@@ -21,6 +21,7 @@ from src.matrix_clustering.py3Dmol_representative import create_contact_visualiz
 from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 from utils.logger_setup import configure_logger
 from cfg.default_settings import multivalency_detection_metric, multivalency_metric_threshold
+from train.multivalency_dicotomic.count_interaction_modes import analyze_protein_interactions, compute_max_valency
 
 @dataclass
 class ClusteringConfig:
@@ -643,8 +644,6 @@ def analyze_protein_interactions_with_enhanced_clustering(
 ) -> Tuple[pd.DataFrame, Dict]:
     """Main function with enhanced clustering"""
     
-    from train.multivalency_dicotomic.count_interaction_modes import analyze_protein_interactions, compute_max_valency
-    
     # Unpack the pairwise contact matrices
     all_pair_matrices = mm_output['pairwise_contact_matrices']
     
@@ -1093,7 +1092,7 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
                                    overlap_structural_contribution: float = 0.01,
                                    overlap_use_contact_region_only: bool = False,
                                    # Benchmark options
-                                   run_benchmark_analysis: bool = False,
+                                   save_plots_and_metadata: bool = False,
                                    logger = None) -> Tuple[pd.DataFrame, Dict, Optional[pd.DataFrame]]:
     """
     Main function that replaces your original analyze_protein_interactions_with_clustering
@@ -1149,30 +1148,34 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
     representative_pdbs_dir = mm_output['out_path'] + '/contact_clusters/representative_pdbs'
     os.makedirs(representative_pdbs_dir, exist_ok=True)
 
-    # Save the representative PDB of each cluster and create HTML visualization
-    save_representative_pdbs_and_metadata(mm_output, all_clusters, representative_pdbs_dir, logger)
+    if save_plots_and_metadata:
+        # Save the representative PDB of each cluster and create HTML visualization
+        save_representative_pdbs_and_metadata(mm_output, all_clusters, representative_pdbs_dir, logger)
 
-    # Create interactive HTML py3Dmol visualizations 
-    html_files = create_contact_visualizations_for_clusters(
-        clusters = all_clusters,
-        mm_output = mm_output,
-        representative_pdbs_dir = representative_pdbs_dir,
-        logger=logger
-    )
-    
-    # Print summary
-    print_clustering_summary(all_clusters, logger)
+        # Create interactive HTML py3Dmol visualizations 
+        html_files = create_contact_visualizations_for_clusters(
+            clusters = all_clusters,
+            mm_output = mm_output,
+            representative_pdbs_dir = representative_pdbs_dir,
+            logger=logger
+        )
+        
+        # Print summary
+        print_clustering_summary(all_clusters, logger)
     
     return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict
 
 # Usage with predefined configurations
-def run_contacts_clustering_analysis_with_config(mm_output, config_dict):
+def run_contacts_clustering_analysis_with_config(mm_output, config_dict, save_plots_and_metadata = True, log_level = 'info'):
     
-    logger = configure_logger(mm_output['out_path'])(__name__)
+    logger = configure_logger(out_path=mm_output['out_path'],
+                              log_level = log_level,
+                              clear_root_handlers = True)(__name__)
 
     interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict = run_enhanced_clustering_analysis(
         mm_output,
         logger=logger,
+        save_plots_and_metadata = save_plots_and_metadata,
         **config_dict
     )
 
