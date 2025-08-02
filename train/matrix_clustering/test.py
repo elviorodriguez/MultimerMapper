@@ -24,6 +24,12 @@ AF2_Nmers = working_dir + "/multivalency_test_AF_Nmers"
 true_labels_file = "/home/elvio/MultimerMapper/train/matrix_clustering/true_labels.tsv"
 true_labels_df = pd.read_csv(true_labels_file, sep="\t")
 
+# Remove unnecesary rows and separators
+true_labels_df = true_labels_df[
+    true_labels_df['type'].isin(['homo', 'hetero'])
+    & (true_labels_df['plus4mers_ok'] != 'FALSE')
+]
+
 # Add sorted Names and IDs tuples
 true_labels_df['sorted_tuple_names'] = true_labels_df[['prot1','prot2']] \
     .apply(lambda x: tuple(sorted(x)), axis=1)
@@ -60,6 +66,7 @@ else:
         AF2_Nmers  = AF2_Nmers,
         out_path   = out_path,
         use_names = use_names,
+        overwrite = overwrite,
         auto_domain_detection = auto_domain_detection,
         graph_resolution_preset = graph_resolution_preset,
         display_PAE_domains = show_plots,
