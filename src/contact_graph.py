@@ -962,19 +962,19 @@ def apply_residue_level_layout_optimized(proteins, ppis, network,
     Optimized residue-level force field layout with vectorized operations.
     """
     
-    network.logger.info(f'Applying OPTIMIZED residue-level force field layout...')
-    network.logger.info(f'   - Total iterations: {iterations}')
+    network.logger.info(f'   Applying OPTIMIZED residue-level force field layout...')
+    network.logger.info(f'      - Total iterations: {iterations}')
     
     # Reduce logging frequency to improve performance
     log_interval = max(100, iterations // 50)  # Log at most 50 times
     
     # Phase 1: Strong forces (60% of iterations)
     phase1_iterations = int(iterations * 0.6)
-    network.logger.info(f'   - Phase 1: {phase1_iterations} iterations')
+    network.logger.info(f'      - Phase 1: {phase1_iterations} iterations')
     
     for i in range(phase1_iterations):
         if i % log_interval == 0:
-            network.logger.info(f'   - Phase 1 iteration {i}...')
+            network.logger.info(f'      - Phase 1 iteration {i}...')
         
         forces, torques = compute_residue_forces_vectorized(
             proteins, ppis,
@@ -999,11 +999,11 @@ def apply_residue_level_layout_optimized(proteins, ppis, network,
     
     # Phase 2: Medium forces (30% of iterations)
     phase2_iterations = int(iterations * 0.3)
-    network.logger.info(f'   - Phase 2: {phase2_iterations} iterations')
+    network.logger.info(f'      - Phase 2: {phase2_iterations} iterations')
     
     for i in range(phase2_iterations):
         if i % log_interval == 0:
-            network.logger.info(f'   - Phase 2 iteration {i}...')
+            network.logger.info(f'      - Phase 2 iteration {i}...')
         
         forces, torques = compute_residue_forces_vectorized(
             proteins, ppis,
@@ -1028,11 +1028,11 @@ def apply_residue_level_layout_optimized(proteins, ppis, network,
     
     # Phase 3: Fine tuning (10% of iterations)
     phase3_iterations = iterations - phase1_iterations - phase2_iterations
-    network.logger.info(f'   - Phase 3: {phase3_iterations} iterations')
+    network.logger.info(f'      - Phase 3: {phase3_iterations} iterations')
     
     for i in range(phase3_iterations):
         if i % log_interval == 0:
-            network.logger.info(f'   - Phase 3 iteration {i}...')
+            network.logger.info(f'      - Phase 3 iteration {i}...')
         
         forces, torques = compute_residue_forces_vectorized(
             proteins, ppis,
@@ -1051,7 +1051,7 @@ def apply_residue_level_layout_optimized(proteins, ppis, network,
         apply_forces_and_torques(proteins, forces, torques,
                                 final_step_size, final_max_rotation)
     
-    network.logger.info('Optimized residue-level layout completed')
+    network.logger.info('   Optimized residue-level layout completed')
 
 def optimize_residue_layout_fast(network, **kwargs):
     """
