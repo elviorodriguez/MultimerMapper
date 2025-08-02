@@ -15,8 +15,8 @@ def configure_logger(out_path = ".", log_level: str = "info", clear_root_handler
         level = logging.DEBUG
     elif log_level == "info":
         level = logging.INFO
-    elif log_level == "warn":
-        level = logging.WARN
+    elif log_level == "warning" or log_level == "warn":
+        level = logging.WARNING
     elif log_level == "error":
         level = logging.ERROR
     elif log_level == "critical":
