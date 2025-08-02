@@ -312,9 +312,9 @@ fine_grain_layout_cfg = {
     "contact_force_strength": 10.0,
     "repulsion_strength": 10.0,
     # Controls the separation of center of masses
-    "global_repulsion_strength": 5,
+    "global_repulsion_strength": 10,
     # Minimum distance between protein centers of mass to exert force
-    "min_interprotein_distance": 200.0,
+    "min_interprotein_distance": 300.0,
     # Generates torque to orient protein surfaces to face each other
     "torque_strength": 100.0,
     # Decreases the strength of the forces over iterations
