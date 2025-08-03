@@ -320,7 +320,7 @@ for current, cfg in enumerate(benchmark_configs):
         results = run_contacts_clustering_analysis_with_config(
             mm_output, benchmark_configs[cfg],
             save_plots_and_metadata = False,
-            log_level = "info")
+            log_level = "warning")
         
         # # This end up occupying too much memory
         # bm_results_dict[cfg]['interaction_counts_df']  = results[0]

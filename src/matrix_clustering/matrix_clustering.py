@@ -640,6 +640,7 @@ def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], D
 def analyze_protein_interactions_with_enhanced_clustering(
     mm_output: Dict[str, Any],
     config: ClusteringConfig,
+    save_plots_and_metadata = True,
     logger = None
 ) -> Tuple[pd.DataFrame, Dict]:
     """Main function with enhanced clustering"""
@@ -728,6 +729,8 @@ def analyze_protein_interactions_with_enhanced_clustering(
             
             if cluster_info:
                 all_clusters[pair] = cluster_info
+            
+            if cluster_info and save_plots_and_metadata:
 
                 # Visualization (DO NOT REMOVE)
                 visualize_clusters_static(cluster_info, pair, model_keys, labels, mm_output,
@@ -748,129 +751,6 @@ def analyze_protein_interactions_with_enhanced_clustering(
     logger.info(f"Generated clusters for {len(all_clusters)} protein pairs")
     
     return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict
-
-
-# def benchmark_clustering_methods(mm_output: Dict[str, Any], 
-#                                ground_truth: Dict = None,
-#                                logger = None) -> pd.DataFrame:
-#     """Benchmark different clustering configurations"""
-    
-#     # Define different configurations to test
-#     configs = [
-#         ClusteringConfig(distance_metric='jaccard', validation_metric='silhouette'),
-#         ClusteringConfig(distance_metric='closeness', validation_metric='silhouette'),
-#         ClusteringConfig(distance_metric='cosine', validation_metric='silhouette'),
-#         ClusteringConfig(distance_metric='correlation', validation_metric='silhouette'),
-#         ClusteringConfig(distance_metric='hamming', validation_metric='silhouette'),
-#         ClusteringConfig(distance_metric='structural_overlap', validation_metric='silhouette'),
-        
-#         # Different validation metrics
-#         ClusteringConfig(distance_metric='jaccard', validation_metric='calinski_harabasz'),
-#         ClusteringConfig(distance_metric='closeness', validation_metric='davies_bouldin'),
-        
-#         # Different clustering methods
-#         ClusteringConfig(distance_metric='jaccard', clustering_method='kmeans'),
-#         ClusteringConfig(distance_metric='jaccard', clustering_method='dbscan'),
-        
-#         # With quality weighting
-#         ClusteringConfig(distance_metric='jaccard', quality_weight=True),
-#         ClusteringConfig(distance_metric='closeness', quality_weight=True),
-#     ]
-    
-#     results = []
-    
-#     for i, config in enumerate(configs):
-#         logger.info(f"Testing configuration {i+1}/{len(configs)}")
-        
-#         try:
-#             _, clusters = analyze_protein_interactions_with_enhanced_clustering(
-#                 mm_output, config, logger
-#             )
-            
-#             # Calculate metrics for this configuration
-#             total_pairs = len(mm_output['pairwise_contact_matrices'])
-#             clustered_pairs = len(clusters)
-            
-#             # Calculate average number of clusters
-#             avg_clusters = np.mean([len(cluster_info) for cluster_info in clusters.values()]) if clusters else 0
-            
-#             # Calculate multivalent fraction
-#             multivalent_pairs = sum(1 for cluster_info in clusters.values() if len(cluster_info) > 1)
-#             multivalent_fraction = multivalent_pairs / clustered_pairs if clustered_pairs > 0 else 0
-            
-#             results.append({
-#                 'config_id': i,
-#                 'distance_metric': config.distance_metric,
-#                 'clustering_method': config.clustering_method,
-#                 'validation_metric': config.validation_metric,
-#                 'quality_weight': config.quality_weight,
-#                 'total_pairs': total_pairs,
-#                 'clustered_pairs': clustered_pairs,
-#                 'avg_clusters': avg_clusters,
-#                 'multivalent_fraction': multivalent_fraction,
-#                 'success': True
-#             })
-            
-#         except Exception as e:
-#             logger.error(f"Configuration {i+1} failed: {str(e)}")
-#             results.append({
-#                 'config_id': i,
-#                 'distance_metric': config.distance_metric,
-#                 'clustering_method': config.clustering_method,
-#                 'validation_metric': config.validation_metric,
-#                 'quality_weight': config.quality_weight,
-#                 'total_pairs': 0,
-#                 'clustered_pairs': 0,
-#                 'avg_clusters': 0,
-#                 'multivalent_fraction': 0,
-#                 'success': False
-#             })
-    
-#     return pd.DataFrame(results)
-
-
-
-#     """Run analysis with specified parameters"""
-    
-#     config = ClusteringConfig(
-#         distance_metric=distance_metric,
-#         clustering_method=clustering_method,
-#         validation_metric=validation_metric,
-#         quality_weight=quality_weight
-#     )
-    
-#     return analyze_protein_interactions_with_enhanced_clustering(
-#         mm_output, config, logger
-#     )
-
-
-# def run_benchmark(mm_output: Dict[str, Any], logger = None):
-#     """Run comprehensive benchmark"""
-    
-#     logger.info("Starting comprehensive benchmark of clustering methods...")
-    
-#     results_df = benchmark_clustering_methods(mm_output, logger=logger)
-    
-#     # Display results
-#     logger.info("\nBenchmark Results:")
-#     logger.info("="*50)
-    
-#     successful_configs = results_df[results_df['success']]
-    
-#     if len(successful_configs) > 0:
-#         # Best by multivalent detection
-#         best_multivalent = successful_configs.loc[successful_configs['multivalent_fraction'].idxmax()]
-#         logger.info(f"Best for multivalent detection: {best_multivalent['distance_metric']} + {best_multivalent['validation_metric']}")
-        
-#         # Best by average clusters
-#         best_clusters = successful_configs.loc[successful_configs['avg_clusters'].idxmax()]
-#         logger.info(f"Highest average clusters: {best_clusters['distance_metric']} + {best_clusters['validation_metric']}")
-        
-#         # Most successful
-#         best_coverage = successful_configs.loc[successful_configs['clustered_pairs'].idxmax()]
-#         logger.info(f"Best coverage: {best_coverage['distance_metric']} + {best_coverage['validation_metric']}")
-    
-#     return results_df
 
 
 # Integration functions to work with your existing code
@@ -1092,7 +972,7 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
                                    overlap_structural_contribution: float = 0.01,
                                    overlap_use_contact_region_only: bool = False,
                                    # Benchmark options
-                                   save_plots_and_metadata: bool = False,
+                                   save_plots_and_metadata: bool = True,
                                    logger = None) -> Tuple[pd.DataFrame, Dict, Optional[pd.DataFrame]]:
     """
     Main function that replaces your original analyze_protein_interactions_with_clustering
@@ -1102,26 +982,6 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
         all_clusters: Dict with clustering results
         benchmark_results: Optional DataFrame with benchmark results (if run_benchmark_analysis=True)
     """
-    
-    # benchmark_results = None
-    
-    # # Run benchmark if requested
-    # if run_benchmark_analysis:
-    #     logger.info("Running benchmark analysis...")
-    #     benchmark_results = run_benchmark(mm_output, logger)
-        
-    #     # Use best performing configuration
-    #     successful_configs = benchmark_results[benchmark_results['success']]
-    #     if len(successful_configs) > 0:
-    #         best_config = successful_configs.loc[successful_configs['multivalent_fraction'].idxmax()]
-    #         distance_metric = best_config['distance_metric']
-    #         clustering_method = best_config['clustering_method']
-    #         validation_metric = best_config['validation_metric']
-    #         quality_weight = best_config['quality_weight']
-            
-    #         logger.info(f"Using best configuration from benchmark:")
-    #         logger.info(f"  Distance: {distance_metric}, Method: {clustering_method}")
-    #         logger.info(f"  Validation: {validation_metric}, Quality weight: {quality_weight}")
     
     # Create configuration
     config = ClusteringConfig(
@@ -1141,7 +1001,7 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
     
     # Run the enhanced analysis
     interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict = analyze_protein_interactions_with_enhanced_clustering(
-        mm_output, config, logger
+        mm_output, config, save_plots_and_metadata, logger
     )
 
     # Create folder to store the representative pdbs of each cluster
