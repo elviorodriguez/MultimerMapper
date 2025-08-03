@@ -290,8 +290,8 @@ def visualize_clustering_methods(
         rows=n_rows, 
         cols=n_cols,
         subplot_titles=subplot_titles,
-        horizontal_spacing=0.06,
-        vertical_spacing=0.08
+        horizontal_spacing=0.04,
+        vertical_spacing=0.04
     )
     
     # Track which combinations we've added to the legend
@@ -337,9 +337,8 @@ def visualize_clustering_methods(
                                     text_parts.append(f"{col}: {row[col]}")
                         hover_text.append("<br>".join(text_parts))
                     
-                    # Determine if this combination should show in legend
-                    show_in_legend = (color_cat not in added_to_legend["color"] or 
-                                    shape_cat not in added_to_legend["shape"])
+                    # Only add to legend for the first occurrence to avoid duplicates
+                    show_in_legend = False
                     
                     # Create trace
                     trace = go.Scatter(
@@ -362,31 +361,63 @@ def visualize_clustering_methods(
                     
                     fig.add_trace(trace, row=i+1, col=j+1)
                     
-                    # Mark as added to legend
-                    if show_in_legend:
-                        added_to_legend["color"].add(color_cat)
-                        added_to_legend["shape"].add(shape_cat)
+                    # Don't mark anything as added since we're not using the combined legend
     
-    # Add size legend traces (invisible points for size reference)
-    if not added_to_legend["size"]:
-        size_values = [size_min, (size_min + size_max) / 2, size_max]
-        size_sizes = [min_size, (min_size + max_size) / 2, max_size]
-        
-        for k, (val, size) in enumerate(zip(size_values, size_sizes)):
-            fig.add_trace(go.Scatter(
-                x=[None], y=[None],
-                mode='markers',
-                marker=dict(
-                    size=size, 
-                    color='rgba(128,128,128,0.7)', 
-                    line=dict(width=1, color='white')
-                ),
-                showlegend=True,
-                legendgroup="size_legend",
-                legendgrouptitle=dict(text=f"<b>{point_size}</b>"),
-                name=f"{val:.2f}"
-            ))
-        added_to_legend["size"] = True
+    # Create separate legends for color, shape, and size
+    # Color legend
+    for i, color_cat in enumerate(color_categories):
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None],
+            mode='markers',
+            marker=dict(
+                size=15, 
+                color=color_map[color_cat],
+                symbol='circle',
+                line=dict(width=1, color='white')
+            ),
+            showlegend=True,
+            legendgroup="color_legend",
+            legendgrouptitle=dict(text=f"<b>{point_color}</b>", font=dict(size=16)),
+            name=color_cat
+        ))
+    
+    # Shape legend  
+    for i, shape_cat in enumerate(shape_categories):
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None],
+            mode='markers',
+            marker=dict(
+                size=15, 
+                color='gray',
+                symbol=shape_map[shape_cat],
+                line=dict(width=1, color='white')
+            ),
+            showlegend=True,
+            legendgroup="shape_legend", 
+            legendgrouptitle=dict(text=f"<b>{point_shape}</b>", font=dict(size=16)),
+            name=shape_cat
+        ))
+    
+    # Size legend - create 5 intermediate sizes
+    n_size_levels = 5
+    size_values = [size_min + i * (size_max - size_min) / (n_size_levels - 1) for i in range(n_size_levels)]
+    size_sizes = [min_size + i * (max_size - min_size) / (n_size_levels - 1) for i in range(n_size_levels)]
+    
+    for k, (val, size) in enumerate(zip(size_values, size_sizes)):
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None],
+            mode='markers',
+            marker=dict(
+                size=size, 
+                color='gray', 
+                symbol='circle',
+                line=dict(width=1, color='white')
+            ),
+            showlegend=True,
+            legendgroup="size_legend",
+            legendgrouptitle=dict(text=f"<b>{point_size}</b>", font=dict(size=16)),
+            name=f"{val:.3f}"
+        ))
     
     # Update layout
     fig.update_layout(
@@ -401,69 +432,75 @@ def visualize_clustering_methods(
         showlegend=True,
         plot_bgcolor='white',
         font=dict(size=10),
-        margin=dict(l=100, r=300, t=80, b=80),  # Increased right margin for legend
+        margin=dict(l=120, r=350, t=120, b=100),  # Adjusted margins
         legend=dict(
-            x=1.02,
+            x=1.05,  # Moved further right
             y=1,
             bgcolor="rgba(255,255,255,0.9)",
             bordercolor="lightgray",
             borderwidth=1,
-            font=dict(size=10),
-            groupclick="toggleitem"
+            font=dict(size=16),  # Doubled legend font size
+            groupclick="toggleitem",
+            itemsizing="trace"  # Changed from "constant" to "trace"
         )
     )
     
-    # Add custom annotations for row and column labels
+    # Add custom annotations for row labels (right side)
     for i, row_cat in enumerate(row_categories):
+        # Calculate the y position for each row
+        y_pos = 1 - (i*1.08 + 0.42) / n_rows
         fig.add_annotation(
             text=f"<b>{str(row_cat)}</b>",
-            x=1.01,
-            y=(n_rows - i - 0.5) / n_rows,
+            x=1.02,  # Moved slightly further right
+            y=y_pos,
             xref="paper",
             yref="paper",
-            textangle=90,  # Rotated 180 degrees
+            textangle=90,
             showarrow=False,
-            font=dict(size=14, color="black"),
+            font=dict(size=16, color="black"),  # Increased font size
             xanchor="center",
             yanchor="middle"
         )
     
+    # Add custom annotations for column labels (top)
     for j, col_cat in enumerate(col_categories):
+        # Calculate the x position for each column
+        x_pos = (j*1.057 + 0.417) / n_cols
         fig.add_annotation(
             text=f"<b>{str(col_cat)}</b>",
-            x=(j + 0.5) / n_cols,
-            y=1.04,
+            x=x_pos,
+            y=1.02,  # Moved higher
             xref="paper", 
             yref="paper",
             showarrow=False,
-            font=dict(size=14, color="black"),
+            font=dict(size=16, color="black"),  # Increased font size
             xanchor="center",
             yanchor="bottom"
         )
     
-    # Add single x-axis and y-axis labels with better positioning
+    # Add single x-axis and y-axis labels with bigger font
     fig.add_annotation(
         text=f"<b>{x_axis}</b>",
         x=0.5,
-        y=-0.06,
+        y=-0.08,
         xref="paper",
         yref="paper",
         showarrow=False,
-        font=dict(size=16, color="black"),
+        font=dict(size=24, color="black"),  # 1.5x bigger font
         xanchor="center",
         yanchor="top"
     )
     
-    # Y-axis label rotated 180 degrees
+    # Y-axis label
     fig.add_annotation(
         text=f"<b>{y_axis}</b>",
-        x=-0.06,
+        x=-0.08,
         y=0.5,
         xref="paper",
         yref="paper",
-        textangle=180+90,  # Rotated 180 degrees instead of 90
+        textangle=270,
         showarrow=False,
-        font=dict(size=16, color="black"),
+        font=dict(size=24, color="black"),  # 1.5x bigger font
         xanchor="center",
         yanchor="middle"
     )
@@ -501,38 +538,38 @@ def visualize_clustering_methods(
                 row=i, col=j
             )
             
-            # Add range lines if requested
+            # Add range lines if requested - using shapes instead of lines to avoid overlap
             if add_range_lines and x_range:
                 # Vertical lines at x_min and x_max
-                fig.add_vline(
-                    x=x_range[0], 
-                    line_dash="solid", 
-                    line_color="black", 
-                    line_width=4,
+                fig.add_shape(
+                    type="line",
+                    x0=x_range[0], y0=y_range[0] if y_range else 0,
+                    x1=x_range[0], y1=y_range[1] if y_range else 1,
+                    line=dict(color="black", width=2),
                     row=i, col=j
                 )
-                fig.add_vline(
-                    x=x_range[1], 
-                    line_dash="solid", 
-                    line_color="black", 
-                    line_width=4,
+                fig.add_shape(
+                    type="line",
+                    x0=x_range[1], y0=y_range[0] if y_range else 0,
+                    x1=x_range[1], y1=y_range[1] if y_range else 1,
+                    line=dict(color="black", width=2),
                     row=i, col=j
                 )
             
             if add_range_lines and y_range:
                 # Horizontal lines at y_min and y_max
-                fig.add_hline(
-                    y=y_range[0], 
-                    line_dash="solid", 
-                    line_color="black", 
-                    line_width=4,
+                fig.add_shape(
+                    type="line",
+                    x0=x_range[0] if x_range else 0, y0=y_range[0],
+                    x1=x_range[1] if x_range else 1, y1=y_range[0],
+                    line=dict(color="black", width=2),
                     row=i, col=j
                 )
-                fig.add_hline(
-                    y=y_range[1], 
-                    line_dash="solid", 
-                    line_color="black", 
-                    line_width=4,
+                fig.add_shape(
+                    type="line",
+                    x0=x_range[0] if x_range else 0, y0=y_range[1],
+                    x1=x_range[1] if x_range else 1, y1=y_range[1],
+                    line=dict(color="black", width=2),
                     row=i, col=j
                 )
     
