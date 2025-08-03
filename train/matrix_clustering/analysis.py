@@ -6,7 +6,7 @@ from sklearn.metrics import precision_score, recall_score, accuracy_score, f1_sc
 from scipy.stats import pearsonr, spearmanr
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from itertools import cycle
+
 
 ############################## Helper functions ###############################
 
@@ -461,7 +461,7 @@ def visualize_clustering_methods(
         y=0.5,
         xref="paper",
         yref="paper",
-        textangle=180,  # Rotated 180 degrees instead of 90
+        textangle=180+90,  # Rotated 180 degrees instead of 90
         showarrow=False,
         font=dict(size=16, color="black"),
         xanchor="center",
@@ -508,14 +508,14 @@ def visualize_clustering_methods(
                     x=x_range[0], 
                     line_dash="solid", 
                     line_color="black", 
-                    line_width=1,
+                    line_width=4,
                     row=i, col=j
                 )
                 fig.add_vline(
                     x=x_range[1], 
                     line_dash="solid", 
                     line_color="black", 
-                    line_width=1,
+                    line_width=4,
                     row=i, col=j
                 )
             
@@ -525,14 +525,14 @@ def visualize_clustering_methods(
                     y=y_range[0], 
                     line_dash="solid", 
                     line_color="black", 
-                    line_width=1,
+                    line_width=4,
                     row=i, col=j
                 )
                 fig.add_hline(
                     y=y_range[1], 
                     line_dash="solid", 
                     line_color="black", 
-                    line_width=1,
+                    line_width=4,
                     row=i, col=j
                 )
     
@@ -590,6 +590,8 @@ def visualize_clustering_methods(
 
 ###############################################################################
 
+drop_monovalent = True
+
 # --------------------------------- Load data ---------------------------------
 
 # Paths
@@ -601,6 +603,8 @@ benchmark_df_file =  out_path + '/valencies_by_method.tsv'
 benchmark_df = pd.read_csv(benchmark_df_file, sep="\t")
 benchmark_df['sorted_tuple_names'] = benchmark_df['sorted_tuple_names'].apply(ast.literal_eval)
 
+if drop_monovalent:
+    benchmark_df = benchmark_df.query('true_val > 1')
 
 # ------------------------------ Analyze the data -----------------------------
 
@@ -628,26 +632,6 @@ for metric, methods in best_methods.items():
 
 # --------------------------- Some plots of the data  -------------------------
 
-
-# fig = visualize_clustering_methods(
-#     evaluation_results,
-#     # subplot_rows="Linkage",
-#     # subplot_cols="Validation", 
-#     # x_axis="Recall",
-#     # y_axis="Precision",
-#     point_size="Accuracy",  # Using exact match accuracy instead
-#     # point_color="Distance",
-#     # point_shape="Clustering",
-#     min_size=8,
-#     max_size=30,
-#     opacity=0.8,
-#     title="",
-#     filename="/home/elvio/Desktop/clustering_performance_analysis.html",
-#     x_range=[0, 1],  # Limit x-axis from 0 to 1
-#     y_range=[0, 1],  # Limit y-axis from 0 to 1
-#     fullscreen=True  # Make plot occupy full HTML page
-# )
-
 fig = visualize_clustering_methods(
     evaluation_results,
     point_size="Accuracy",
@@ -655,6 +639,7 @@ fig = visualize_clustering_methods(
     y_range=[0, 1],
     add_range_lines=True,  # Add boundary lines
     grid_divisions=10,     # More grid lines
+    title = '',
     filename="/home/elvio/Desktop/clustering_performance_analysis.html",
-    fullscreen=True
+    fullscreen=False
 )

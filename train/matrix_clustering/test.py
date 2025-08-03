@@ -376,8 +376,11 @@ for cfg in bm_results_dict.keys():
     # Column name for this cfg
     col_name = cfg
 
-    # Prepare mapping from pair name to valency
-    val_dict = bm_results_dict[cfg]['final_valencies_dict']
+    try:
+        # Prepare mapping from pair name to valency
+        val_dict = bm_results_dict[cfg]['final_valencies_dict']
+    except:
+        continue
 
     # Build column values
     vals = []
