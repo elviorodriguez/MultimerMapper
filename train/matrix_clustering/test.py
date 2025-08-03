@@ -219,15 +219,15 @@ CLUSTER OPTIMIZATION:
 
 # Symbols
 distance_metrics = ['J', 'MC', 'MedC', 'Cos', 'Corr', 'S', 'H']
-clustering_methods = ['H', 'K', 'D']
+clustering_methods = ['H', 'K']
 linkage_methods = ['S', 'C', 'A']
-validation_methods = ['S', 'CH', 'DB', 'G']
+validation_methods = ['S', 'CH', 'DB']
 
 # True names
 distance_names = ['jaccard', 'closeness', 'closeness', 'cosine', 'correlation', 'spearman', 'hamming']
-clustering_names = ['hierarchical', 'kmeans', 'dbscan']
+clustering_names = ['hierarchical', 'kmeans']
 linkage_names = ['single', 'complete', 'average']
-validation_names = ['silhouette', 'calinski_harabasz', 'davies_bouldin', 'gap_statistic']
+validation_names = ['silhouette', 'calinski_harabasz', 'davies_bouldin']
 
 # Symbol-to-name maps
 dist_map = dict(zip(distance_metrics, distance_names))
@@ -243,6 +243,8 @@ for dist_met in distance_metrics:
         for link_met in linkage_methods:
             for val_met in validation_methods:
                 
+                # Add one without QF
+                
                 cfg_name = f'{dist_met}_{clust_met}_{link_met}_{val_met}'
                     
                 benchmark_configs[cfg_name] = {
@@ -252,6 +254,21 @@ for dist_met in distance_metrics:
                     'linkage_method': link_map[link_met],
                     'validation_metric': val_map[val_met],
                     'quality_weight': False,
+                    'silhouette_improvement': 0.0,
+                    'min_extra_clusters': 2,
+                    'max_extra_clusters': 3
+                }
+                
+                # Add one with QF
+                cfg_name = f'{dist_met}_{clust_met}_{link_met}_{val_met}_QW'
+                    
+                benchmark_configs[cfg_name] = {
+                    'distance_metric': dist_map[dist_met],
+                    'use_median': (dist_met == 'MedC'),
+                    'clustering_method': clust_map[clust_met],
+                    'linkage_method': link_map[link_met],
+                    'validation_metric': val_map[val_met],
+                    'quality_weight': True,
                     'silhouette_improvement': 0.0,
                     'min_extra_clusters': 2,
                     'max_extra_clusters': 3
