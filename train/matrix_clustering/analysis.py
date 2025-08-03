@@ -57,10 +57,10 @@ def evaluate_clustering_methods(df, true_label_col, metadata_cols):
         
         # Compute classification metrics (treating as multi-class)
         try:
-            precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)
-            recall = recall_score(y_true, y_pred, average='weighted', zero_division=0)
+            precision = precision_score(y_true, y_pred, average='macro', zero_division=0)
+            recall = recall_score(y_true, y_pred, average='macro', zero_division=0)
             accuracy = accuracy_score(y_true, y_pred)
-            f1 = f1_score(y_true, y_pred, average='weighted', zero_division=0)
+            f1 = f1_score(y_true, y_pred, average='macro', zero_division=0)
         except:
             precision = recall = accuracy = f1 = np.nan
         
@@ -166,7 +166,7 @@ def create_summary_report(results_df):
 def visualize_clustering_methods(
     df,
     subplot_rows="Linkage",
-    subplot_cols="Validation", 
+    subplot_cols="Validation",
     x_axis="Recall",
     y_axis="Precision",
     point_size="Accuracy",
@@ -186,7 +186,11 @@ def visualize_clustering_methods(
     y_range=None,
     fullscreen=True,
     add_range_lines=False,
-    grid_divisions=5
+    grid_divisions=5,
+    rows_map=None,
+    cols_map=None,
+    colors_map=None,
+    shapes_map=None
 ):
     """
     Create an advanced visualization of clustering method performance.
@@ -366,6 +370,9 @@ def visualize_clustering_methods(
     # Create separate legends for color, shape, and size
     # Color legend
     for i, color_cat in enumerate(color_categories):
+        # Map the color category to the actual name
+        display_name = colors_map[color_cat] if colors_map and color_cat in colors_map else color_cat
+        
         fig.add_trace(go.Scatter(
             x=[None], y=[None],
             mode='markers',
@@ -377,12 +384,15 @@ def visualize_clustering_methods(
             ),
             showlegend=True,
             legendgroup="color_legend",
-            legendgrouptitle=dict(text=f"<b>{point_color}</b>", font=dict(size=16)),
-            name=color_cat
+            legendgrouptitle=dict(text=f"<b>{point_color} method</b>", font=dict(size=16)),
+            name=display_name  # CHANGED FROM color_cat TO display_name
         ))
     
     # Shape legend  
     for i, shape_cat in enumerate(shape_categories):
+        # Map the shape category to the actual name
+        display_name = shapes_map[shape_cat] if shapes_map and shape_cat in shapes_map else shape_cat
+        
         fig.add_trace(go.Scatter(
             x=[None], y=[None],
             mode='markers',
@@ -394,8 +404,8 @@ def visualize_clustering_methods(
             ),
             showlegend=True,
             legendgroup="shape_legend", 
-            legendgrouptitle=dict(text=f"<b>{point_shape}</b>", font=dict(size=16)),
-            name=shape_cat
+            legendgrouptitle=dict(text=f"<b>{point_shape} method</b>", font=dict(size=16)),
+            name=display_name  # CHANGED FROM shape_cat TO display_name
         ))
     
     # Size legend - create 5 intermediate sizes
@@ -447,6 +457,11 @@ def visualize_clustering_methods(
     
     # Add custom annotations for row labels (right side)
     for i, row_cat in enumerate(row_categories):
+        
+        # Map the column category to the actual name
+        if rows_map:
+            row_cat = rows_map[row_cat]
+        
         # Calculate the y position for each row
         y_pos = 1 - (i*1.08 + 0.42) / n_rows
         fig.add_annotation(
@@ -464,6 +479,11 @@ def visualize_clustering_methods(
     
     # Add custom annotations for column labels (top)
     for j, col_cat in enumerate(col_categories):
+        
+        # Map the column category to the actual name
+        if cols_map:
+            col_cat = cols_map[col_cat]
+        
         # Calculate the x position for each column
         x_pos = (j*1.057 + 0.417) / n_cols
         fig.add_annotation(
@@ -625,6 +645,26 @@ def visualize_clustering_methods(
     
     return fig
 
+
+# Symbols
+distance_metrics = ['J', 'MC', 'MedC', 'Cos', 'Corr', 'S', 'H']
+clustering_methods = ['H', 'K', 'D']
+linkage_methods = ['S', 'C', 'A']
+validation_methods = ['S', 'CH', 'DB', 'G']
+
+# True names
+distance_names = ['Jaccard', 'Mean Closeness', 'Median Closeness', 'Cosine', 'Pearson', 'Spearman', 'Hamming']
+clustering_names = ['Hierarchical', 'K-means',  'DBSCAN']
+linkage_names = ['Single Linkage', 'Complete Linkage', 'Average Linkage']
+validation_names = ['Silhouette', 'Calinski-Harabasz', 'Davies-Bouldin', 'Gap']
+
+# Symbol-to-name maps
+dist_map = dict(zip(distance_metrics, distance_names))
+clust_map = dict(zip(clustering_methods, clustering_names))
+link_map = dict(zip(linkage_methods, linkage_names))
+val_map = dict(zip(validation_methods, validation_names))
+
+
 ###############################################################################
 
 drop_monovalent = True
@@ -671,6 +711,8 @@ for metric, methods in best_methods.items():
 
 fig = visualize_clustering_methods(
     evaluation_results,
+    subplot_rows="Linkage",
+    subplot_cols="Validation",
     point_size="Accuracy",
     x_range=[0, 1],
     y_range=[0, 1],
@@ -678,5 +720,9 @@ fig = visualize_clustering_methods(
     grid_divisions=10,     # More grid lines
     title = '',
     filename="/home/elvio/Desktop/clustering_performance_analysis.html",
-    fullscreen=False
+    fullscreen=False,
+    rows_map=link_map,
+    cols_map=val_map,
+    colors_map=dist_map,
+    shapes_map=clust_map
 )

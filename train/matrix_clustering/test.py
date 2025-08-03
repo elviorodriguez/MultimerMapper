@@ -21,8 +21,8 @@ pd.set_option('display.max_columns', None)
 
 # Paths
 working_dir = "/home/elvio/Desktop/multivalency_benchmark"
-out_path = working_dir + "/matrix_clustering_benchmark_results"
-fasta_file = working_dir + "/multivalency_test.fasta"
+out_path = working_dir + "/matrix_clustering_benchmark_results_no_monovalent"
+fasta_file = working_dir + "/multivalency_test_no_monovalent.fasta"
 AF2_2mers = working_dir + "/multivalency_test_AF_2mers"
 AF2_Nmers = working_dir + "/multivalency_test_AF_Nmers"
 
@@ -42,8 +42,9 @@ true_labels_df['sorted_tuple_names'] = true_labels_df[['prot1','prot2']] \
 true_labels_df['sorted_tuple_ids'] = true_labels_df[['id1','id2']] \
     .apply(lambda x: tuple(sorted(x)), axis=1)
     
-# Convert N to integer
+# Convert to integer
 true_labels_df['N'] = true_labels_df['N'].astype(int)
+true_labels_df['cumulative_modes'] = true_labels_df['cumulative_modes'].astype(int)
 
 # Remove unnecesary columns
 cols_to_drop = [
@@ -56,9 +57,14 @@ cols_to_drop = [
 ]
 true_labels_df = true_labels_df.drop(columns=cols_to_drop)
 
+# Filters only multivalent
+true_labels_df = true_labels_df.query('cumulative_modes > 1')
+
 # remove duplicate rows and eset the index
 true_labels_df = true_labels_df.drop_duplicates()
 true_labels_df = true_labels_df.reset_index(drop=True)
+
+
 
 # Parsing configs
 use_names = True
@@ -314,7 +320,7 @@ for current, cfg in enumerate(benchmark_configs):
         results = run_contacts_clustering_analysis_with_config(
             mm_output, benchmark_configs[cfg],
             save_plots_and_metadata = False,
-            log_level = "warning")
+            log_level = "info")
         
         # # This end up occupying too much memory
         # bm_results_dict[cfg]['interaction_counts_df']  = results[0]
@@ -342,9 +348,9 @@ for current, cfg in enumerate(benchmark_configs):
         bm_results_dict[cfg]['passed']                 = False
         bm_results_dict[cfg]['error']                  = e
     
-    # Trigger garbage collection every 10 iterations
-    if current%10 == 0:
-        gc.collect()
+    # # Trigger garbage collection every 10 iterations
+    # if current%10 == 0:
+    #     gc.collect()
         
 
 # Verify if any have failed
