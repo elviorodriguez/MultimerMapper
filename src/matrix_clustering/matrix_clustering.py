@@ -1184,8 +1184,9 @@ def run_contacts_clustering_analysis_with_config(mm_output, config_dict, save_pl
     pairs = list(all_pair_matrices.keys())
 
     # Create final HTML files
-    logger.info("INITIALIZING: Creating unified HTML representations (PCA+Matrixes+py3Dmol)...")
-    unify_pca_matrixes_and_py3dmol(mm_output, pairs, logger)
-    logger.info("FINISHED: Creating unified HTML representations (PCA+Matrixes+py3Dmol)")
+    if save_plots_and_metadata:
+        logger.info("INITIALIZING: Creating unified HTML representations (PCA+Matrixes+py3Dmol)...")
+        unify_pca_matrixes_and_py3dmol(mm_output, pairs, logger)
+        logger.info("FINISHED: Creating unified HTML representations (PCA+Matrixes+py3Dmol)")
 
     return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict
