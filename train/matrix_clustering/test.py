@@ -1,6 +1,7 @@
 
 import os
 import sys
+import gc
 import numpy as np
 import pandas as pd
 
@@ -8,6 +9,7 @@ import multimer_mapper as mm
 from train.multivalency_dicotomic.parse_raw_data import parse_raw_data
 from src.matrix_clustering.matrix_clustering import run_contacts_clustering_analysis_with_config
 from utils.logger_setup import configure_logger
+from utils.progress_bar import print_progress_bar
 
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
@@ -261,21 +263,32 @@ del dist_met, clust_met, link_met, val_met
 # BENCHMARK
 # ============================================================================
 
+# Helper function
+def get_final_valencies_dict(cfg_all_clusters_result):
+    final_valencies_dict = {}
+    for pair in cfg_all_clusters_result:
+        final_valency = len(cfg_all_clusters_result[pair].keys())
+        final_valencies_dict[pair] = final_valency
+    return final_valencies_dict
+
+
+# For progress bar
+total = len(list(benchmark_configs.keys()))
+
 # Run clustering with each of the cfgs
 bm_results_dict = {}
 
-for cfg in benchmark_configs:
+
+
+
+for current, cfg in enumerate(benchmark_configs):
     
     # Skip already computed cfgs
     if cfg in bm_results_dict.keys() and 'passed' in bm_results_dict[cfg].keys():
-        benchmark_logger.info(f'====================================================================')
-        benchmark_logger.warning(f'Skipping config {cfg} (ALREADY COMPUTED)')
-        benchmark_logger.info(f'====================================================================')
+        benchmark_logger.warning(f'{print_progress_bar(current, total, text = " (Benchmark)")} - Skipping config {cfg} (ALREADY COMPUTED)')
         continue
     
-    benchmark_logger.info(f'====================================================================')
-    benchmark_logger.warning(f'Running clustering configuration: {cfg}')
-    benchmark_logger.info(f'====================================================================')
+    benchmark_logger.warning(f'{print_progress_bar(current, total, text = " (Benchmark)")} - Running clustering configuration: {cfg}')
     
     bm_results_dict[cfg] = {}
     
@@ -286,31 +299,104 @@ for cfg in benchmark_configs:
             save_plots_and_metadata = False,
             log_level = "warning")
         
-        bm_results_dict[cfg]['interaction_counts_df']  = results[0]
-        bm_results_dict[cfg]['all_clusters']           = results[1]
-        bm_results_dict[cfg]['multivalent_pairs_list'] = results[2]
-        bm_results_dict[cfg]['multimode_pairs_list']   = results[3]
-        bm_results_dict[cfg]['valency_dict']           = results[4]
+        # # This end up occupying too much memory
+        # bm_results_dict[cfg]['interaction_counts_df']  = results[0]
+        # bm_results_dict[cfg]['all_clusters']           = results[1]
+        # bm_results_dict[cfg]['multivalent_pairs_list'] = results[2]
+        # bm_results_dict[cfg]['multimode_pairs_list']   = results[3]
+        # bm_results_dict[cfg]['valency_dict']           = results[4]
+        
+        bm_results_dict[cfg]['final_valencies_dict']   = get_final_valencies_dict(results[1])
         bm_results_dict[cfg]['passed']                 = True
         bm_results_dict[cfg]['error']                  = None
         
     except Exception as e:
         
         benchmark_logger.error(f'Clustering configuration {cfg} failed!')
-        bm_results_dict[cfg]['interaction_counts_df']  = pd.DataFrame()
-        bm_results_dict[cfg]['all_clusters']           = {}
-        bm_results_dict[cfg]['multivalent_pairs_list'] = []
-        bm_results_dict[cfg]['multimode_pairs_list']   = []
-        bm_results_dict[cfg]['valency_dict']           = {}
+        
+        # # This end up occupying too much memory
+        # bm_results_dict[cfg]['interaction_counts_df']  = pd.DataFrame()
+        # bm_results_dict[cfg]['all_clusters']           = {}
+        # bm_results_dict[cfg]['multivalent_pairs_list'] = []
+        # bm_results_dict[cfg]['multimode_pairs_list']   = []
+        # bm_results_dict[cfg]['valency_dict']           = {}
+        
+        bm_results_dict[cfg]['final_valencies_dict']   = {}
         bm_results_dict[cfg]['passed']                 = False
         bm_results_dict[cfg]['error']                  = e
+    
+    # Trigger garbage collection every 10 iterations
+    if current%10 == 0:
+        gc.collect()
         
 
+# Verify if any have failed
 for cfg in bm_results_dict.keys():
     if cfg in bm_results_dict.keys() and 'passed' in bm_results_dict[cfg].keys():
+        
+        print(bm_results_dict[cfg].keys())
+        
+        # # This end up occupying too much memory
+        # del bm_results_dict[cfg]["interaction_counts_df"]
+        # del bm_results_dict[cfg]["all_clusters"]
+        # del bm_results_dict[cfg]["multivalent_pairs_list"]
+        # del bm_results_dict[cfg]["multimode_pairs_list"]
+        # del bm_results_dict[cfg]["valency_dict"]
+        
         if not bm_results_dict[cfg]['passed']:
             print(cfg)
             
+# ============================================================================
+# Generate an input dataframe to perform the benchmark analysis
+# ============================================================================
+
+# Keep only necessary of the benchmark df
+cols_to_drop = [
+    'id1',
+    'id2',
+    'prot1',
+    'prot2',
+    'is_multivalent',
+    'N',
+    'sorted_tuple_ids'
+]
+benchmark_df = (
+    true_labels_df
+    .loc[true_labels_df.groupby(['sorted_tuple_names'])['N'].idxmax()]  # keep max N per id1/id2 pair
+    .drop(columns=cols_to_drop)
+    .drop_duplicates()
+    .sort_values(by=["type", "cumulative_modes"], ascending=[False, True])
+    .reset_index(drop=True)
+    .rename(columns={'cumulative_modes': 'true_val'}, inplace=False)
+)
+
+
+# Add the 
+for cfg in bm_results_dict.keys():
+    # Column name for this cfg
+    col_name = cfg
+
+    # Prepare mapping from pair name to valency
+    val_dict = bm_results_dict[cfg]['final_valencies_dict']
+
+    # Build column values
+    vals = []
+    for pair in benchmark_df['sorted_tuple_names']:
+        if not bm_results_dict[cfg]['passed']:
+            vals.append(np.nan)
+        elif pair in val_dict:
+            vals.append(val_dict[pair])
+        elif pair in negative_ppi_pairs:
+            vals.append(0)
+        else:
+            raise ValueError(bm_results_dict[cfg]['passed'])
+
+    # Assign to df
+    benchmark_df[col_name] = vals
+
+# Save the resulting df
+benchmark_df.to_csv(out_path + '/valencies_by_method.tsv', sep='\t', index=False)
+
 # ============================================================================
 # BEST CONFIGURATION (UNTIL NOW)
 # ============================================================================
