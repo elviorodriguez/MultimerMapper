@@ -7,6 +7,8 @@ from scipy.stats import pearsonr, spearmanr
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
 
 ############################## Helper functions ###############################
 
@@ -55,6 +57,9 @@ def evaluate_clustering_methods(df, true_label_col, metadata_cols):
         linkage = method_parts[2] if len(method_parts) > 2 else 'Unknown'
         validation = method_parts[3] if len(method_parts) > 3 else 'Unknown'
         
+        # Detect QW flag
+        has_qw = method.endswith('_QW')
+        
         # Compute classification metrics (treating as multi-class)
         try:
             precision = precision_score(y_true, y_pred, average='macro', zero_division=0)
@@ -97,6 +102,7 @@ def evaluate_clustering_methods(df, true_label_col, metadata_cols):
             'Clustering': clustering,
             'Linkage': linkage,
             'Validation': validation,
+            'Quality-Weight': has_qw,
             'Precision': precision,
             'Recall': recall,
             'Accuracy': accuracy,
@@ -190,7 +196,10 @@ def visualize_clustering_methods(
     rows_map=None,
     cols_map=None,
     colors_map=None,
-    shapes_map=None
+    shapes_map=None,
+    border_color_column="Quality-Weight",
+    border_color_true="black",
+    border_color_false="red"
 ):
     """
     Create an advanced visualization of clustering method performance.
@@ -252,6 +261,11 @@ def visualize_clustering_methods(
     
     # Remove rows with NaN values in required columns
     required_cols = [subplot_rows, subplot_cols, x_axis, y_axis, point_size, point_color, point_shape]
+    
+    # Add border color column to required columns if specified
+    if border_color_column and border_color_column in df.columns:
+        required_cols.append(border_color_column)
+    
     df_clean = df.dropna(subset=required_cols)
     
     if len(df_clean) == 0:
@@ -328,6 +342,17 @@ def visualize_clustering_methods(
                     sizes = ((data_subset[point_size] - size_min) / size_range * 
                             (max_size - min_size) + min_size)
                     
+                    # Determine border colors based on the boolean column
+                    if border_color_column and border_color_column in data_subset.columns:
+                        border_colors = [
+                            border_color_true if val else border_color_false 
+                            for val in data_subset[border_color_column]
+                        ]
+                        border_width = 2  # Make border more visible
+                    else:
+                        border_colors = 'white'  # Default border color
+                        border_width = 1
+                    
                     # Create hover text with all metadata
                     hover_text = []
                     for idx, row in data_subset.iterrows():
@@ -354,7 +379,7 @@ def visualize_clustering_methods(
                             color=color_map[color_cat],
                             symbol=shape_map[shape_cat],
                             opacity=opacity,
-                            line=dict(width=1, color='white')
+                            line=dict(width=border_width, color=border_colors)
                         ),
                         name=f"{color_cat} ({shape_cat})",
                         text=hover_text,
@@ -429,6 +454,39 @@ def visualize_clustering_methods(
             name=f"{val:.3f}"
         ))
     
+    # Add border color legend if border coloring is enabled
+    if border_color_column and border_color_column in df_clean.columns:
+        # True border color legend
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None],
+            mode='markers',
+            marker=dict(
+                size=15, 
+                color='lightgray',
+                symbol='circle',
+                line=dict(width=2, color=border_color_true)
+            ),
+            showlegend=True,
+            legendgroup="border_legend",
+            legendgrouptitle=dict(text=f"<b>{border_color_column}</b>", font=dict(size=16)),
+            name="True"
+        ))
+        
+        # False border color legend
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None],
+            mode='markers',
+            marker=dict(
+                size=15, 
+                color='lightgray',
+                symbol='circle',
+                line=dict(width=2, color=border_color_false)
+            ),
+            showlegend=True,
+            legendgroup="border_legend",
+            name="False"
+        ))
+    
     # Update layout
     fig.update_layout(
         title=dict(
@@ -466,7 +524,7 @@ def visualize_clustering_methods(
         y_pos = 1 - (i*1.08 + 0.42) / n_rows
         fig.add_annotation(
             text=f"<b>{str(row_cat)}</b>",
-            x=1.02,  # Moved slightly further right
+            x=1.025,  # Moved slightly further right
             y=y_pos,
             xref="paper",
             yref="paper",
@@ -489,7 +547,7 @@ def visualize_clustering_methods(
         fig.add_annotation(
             text=f"<b>{str(col_cat)}</b>",
             x=x_pos,
-            y=1.02,  # Moved higher
+            y=1.016,  # Moved higher
             xref="paper", 
             yref="paper",
             showarrow=False,
