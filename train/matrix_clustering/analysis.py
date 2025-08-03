@@ -184,7 +184,9 @@ def visualize_clustering_methods(
     show_plot=True,
     x_range=None,
     y_range=None,
-    fullscreen=True
+    fullscreen=True,
+    add_range_lines=False,
+    grid_divisions=5
 ):
     """
     Create an advanced visualization of clustering method performance.
@@ -233,6 +235,10 @@ def visualize_clustering_methods(
         [min, max] values for y-axis (default: None, auto-scale)
     fullscreen : bool
         Whether to make plot fullscreen in HTML (default: True)
+    add_range_lines : bool
+        Whether to add lines at x/y min/max when ranges are specified (default: False)
+    grid_divisions : int
+        Number of grid divisions between min and max values (default: 5)
     
     Returns:
     --------
@@ -288,8 +294,8 @@ def visualize_clustering_methods(
         vertical_spacing=0.08
     )
     
-    # Track which combinations exist for legend creation
-    existing_combinations = set()
+    # Track which combinations we've added to the legend
+    added_to_legend = {"color": set(), "shape": set(), "size": False}
     
     # Add traces for each subplot
     for i, row_cat in enumerate(row_categories):
@@ -318,6 +324,23 @@ def visualize_clustering_methods(
                     sizes = ((data_subset[point_size] - size_min) / size_range * 
                             (max_size - min_size) + min_size)
                     
+                    # Create hover text with all metadata
+                    hover_text = []
+                    for idx, row in data_subset.iterrows():
+                        text_parts = [f"Method: {row['Method']}"]
+                        # Add all available columns as metadata
+                        for col in df_clean.columns:
+                            if col != 'Method' and not pd.isna(row[col]):
+                                if isinstance(row[col], float):
+                                    text_parts.append(f"{col}: {row[col]:.3f}")
+                                else:
+                                    text_parts.append(f"{col}: {row[col]}")
+                        hover_text.append("<br>".join(text_parts))
+                    
+                    # Determine if this combination should show in legend
+                    show_in_legend = (color_cat not in added_to_legend["color"] or 
+                                    shape_cat not in added_to_legend["shape"])
+                    
                     # Create trace
                     trace = go.Scatter(
                         x=data_subset[x_axis],
@@ -330,28 +353,40 @@ def visualize_clustering_methods(
                             opacity=opacity,
                             line=dict(width=1, color='white')
                         ),
-                        name=f"{color_cat}_{shape_cat}",
-                        text=[f"Method: {method}<br>" +
-                              f"{x_axis}: {x:.3f}<br>" +
-                              f"{y_axis}: {y:.3f}<br>" +
-                              f"{point_size}: {s:.3f}<br>" +
-                              f"{point_color}: {c}<br>" +
-                              f"{point_shape}: {sh}"
-                              for method, x, y, s, c, sh in zip(
-                                  data_subset['Method'],
-                                  data_subset[x_axis],
-                                  data_subset[y_axis], 
-                                  data_subset[point_size],
-                                  data_subset[point_color],
-                                  data_subset[point_shape]
-                              )],
+                        name=f"{color_cat} ({shape_cat})",
+                        text=hover_text,
                         hovertemplate="%{text}<extra></extra>",
-                        showlegend=False,  # We'll create custom legends
+                        showlegend=show_in_legend,
                         legendgroup=f"{color_cat}_{shape_cat}"
                     )
                     
                     fig.add_trace(trace, row=i+1, col=j+1)
-                    existing_combinations.add((color_cat, shape_cat))
+                    
+                    # Mark as added to legend
+                    if show_in_legend:
+                        added_to_legend["color"].add(color_cat)
+                        added_to_legend["shape"].add(shape_cat)
+    
+    # Add size legend traces (invisible points for size reference)
+    if not added_to_legend["size"]:
+        size_values = [size_min, (size_min + size_max) / 2, size_max]
+        size_sizes = [min_size, (min_size + max_size) / 2, max_size]
+        
+        for k, (val, size) in enumerate(zip(size_values, size_sizes)):
+            fig.add_trace(go.Scatter(
+                x=[None], y=[None],
+                mode='markers',
+                marker=dict(
+                    size=size, 
+                    color='rgba(128,128,128,0.7)', 
+                    line=dict(width=1, color='white')
+                ),
+                showlegend=True,
+                legendgroup="size_legend",
+                legendgrouptitle=dict(text=f"<b>{point_size}</b>"),
+                name=f"{val:.2f}"
+            ))
+        added_to_legend["size"] = True
     
     # Update layout
     fig.update_layout(
@@ -363,10 +398,19 @@ def visualize_clustering_methods(
         ),
         width=width,
         height=height,
-        showlegend=False,
+        showlegend=True,
         plot_bgcolor='white',
         font=dict(size=10),
-        margin=dict(l=100, r=250, t=80, b=80)  # Increased margins for labels and legends
+        margin=dict(l=100, r=300, t=80, b=80),  # Increased right margin for legend
+        legend=dict(
+            x=1.02,
+            y=1,
+            bgcolor="rgba(255,255,255,0.9)",
+            bordercolor="lightgray",
+            borderwidth=1,
+            font=dict(size=10),
+            groupclick="toggleitem"
+        )
     )
     
     # Add custom annotations for row and column labels
@@ -377,7 +421,7 @@ def visualize_clustering_methods(
             y=(n_rows - i - 0.5) / n_rows,
             xref="paper",
             yref="paper",
-            textangle=-90,
+            textangle=90,  # Rotated 180 degrees
             showarrow=False,
             font=dict(size=14, color="black"),
             xanchor="center",
@@ -410,107 +454,87 @@ def visualize_clustering_methods(
         yanchor="top"
     )
     
+    # Y-axis label rotated 180 degrees
     fig.add_annotation(
         text=f"<b>{y_axis}</b>",
         x=-0.06,
         y=0.5,
         xref="paper",
         yref="paper",
-        textangle=90,
+        textangle=180,  # Rotated 180 degrees instead of 90
         showarrow=False,
         font=dict(size=16, color="black"),
         xanchor="center",
         yanchor="middle"
     )
     
-    # Create custom legends using scatter traces (more reliable than annotations)
-    legend_x_pos = 1.08
-    
-    # Size legend
-    size_legend_y = 0.85
-    fig.add_annotation(
-        text=f"<b>{point_size}</b>",
-        x=legend_x_pos,
-        y=size_legend_y,
-        xref="paper",
-        yref="paper",
-        showarrow=False,
-        font=dict(size=14, color="black"),
-        xanchor="left"
-    )
-    
-    # Add size legend items as actual scatter points
-    size_values = [size_min, (size_min + size_max) / 2, size_max]
-    size_sizes = [min_size, (min_size + max_size) / 2, max_size]
-    
-    for k, (val, size) in enumerate(zip(size_values, size_sizes)):
-        # Add invisible scatter point for legend
-        fig.add_trace(go.Scatter(
-            x=[None], y=[None],
-            mode='markers',
-            marker=dict(size=size, color='gray', opacity=0.7, line=dict(width=1, color='white')),
-            showlegend=True,
-            legendgroup="size_legend",
-            legendgrouptitle=dict(text=f"<b>{point_size}</b>"),
-            name=f"{val:.2f}",
-            visible='legendonly'
-        ))
-    
-    # Color legend - add traces for each color category
-    for k, color_cat in enumerate(color_categories):
-        fig.add_trace(go.Scatter(
-            x=[None], y=[None],
-            mode='markers',
-            marker=dict(size=12, color=color_map[color_cat], opacity=0.7, 
-                       line=dict(width=1, color='white')),
-            showlegend=True,
-            legendgroup="color_legend",
-            legendgrouptitle=dict(text=f"<b>{point_color}</b>"),
-            name=color_cat,
-            visible='legendonly'
-        ))
-    
-    # Shape legend - add traces for each shape category
-    for k, shape_cat in enumerate(shape_categories):
-        fig.add_trace(go.Scatter(
-            x=[None], y=[None],
-            mode='markers',
-            marker=dict(size=12, color='gray', symbol=shape_map[shape_cat], 
-                       opacity=0.7, line=dict(width=1, color='white')),
-            showlegend=True,
-            legendgroup="shape_legend", 
-            legendgrouptitle=dict(text=f"<b>{point_shape}</b>"),
-            name=shape_cat,
-            visible='legendonly'
-        ))
-    
-    # Update legend layout
-    fig.update_layout(
-        legend=dict(
-            x=1.08,
-            y=0.98,
-            bgcolor="rgba(255,255,255,0.8)",
-            bordercolor="lightgray",
-            borderwidth=1,
-            font=dict(size=10),
-            groupclick="toggleitem",
-            tracegroupgap=15
-        )
-    )
-    
-    # Update axes for all subplots
-    fig.update_xaxes(
-        showgrid=True, 
-        gridwidth=1, 
-        gridcolor='lightgray',
-        range=x_range if x_range else None
-    )
-    fig.update_yaxes(
-        showgrid=True, 
-        gridwidth=1, 
-        gridcolor='lightgray',
-        range=y_range if y_range else None
-    )
+    # Update axes for all subplots with custom grid
+    for i in range(1, n_rows + 1):
+        for j in range(1, n_cols + 1):
+            # Calculate grid tick values
+            if x_range:
+                x_tick_vals = [x_range[0] + k * (x_range[1] - x_range[0]) / grid_divisions 
+                              for k in range(grid_divisions + 1)]
+            else:
+                x_tick_vals = None
+                
+            if y_range:
+                y_tick_vals = [y_range[0] + k * (y_range[1] - y_range[0]) / grid_divisions 
+                              for k in range(grid_divisions + 1)]
+            else:
+                y_tick_vals = None
+            
+            fig.update_xaxes(
+                showgrid=True, 
+                gridwidth=1, 
+                gridcolor='lightgray',
+                range=x_range if x_range else None,
+                tickvals=x_tick_vals,
+                row=i, col=j
+            )
+            fig.update_yaxes(
+                showgrid=True, 
+                gridwidth=1, 
+                gridcolor='lightgray',
+                range=y_range if y_range else None,
+                tickvals=y_tick_vals,
+                row=i, col=j
+            )
+            
+            # Add range lines if requested
+            if add_range_lines and x_range:
+                # Vertical lines at x_min and x_max
+                fig.add_vline(
+                    x=x_range[0], 
+                    line_dash="solid", 
+                    line_color="black", 
+                    line_width=1,
+                    row=i, col=j
+                )
+                fig.add_vline(
+                    x=x_range[1], 
+                    line_dash="solid", 
+                    line_color="black", 
+                    line_width=1,
+                    row=i, col=j
+                )
+            
+            if add_range_lines and y_range:
+                # Horizontal lines at y_min and y_max
+                fig.add_hline(
+                    y=y_range[0], 
+                    line_dash="solid", 
+                    line_color="black", 
+                    line_width=1,
+                    row=i, col=j
+                )
+                fig.add_hline(
+                    y=y_range[1], 
+                    line_dash="solid", 
+                    line_color="black", 
+                    line_width=1,
+                    row=i, col=j
+                )
     
     # Create HTML with fullscreen option
     config = {
@@ -564,28 +588,6 @@ def visualize_clustering_methods(
     
     return fig
 
-# Example usage:
-# Assuming you have the evaluation_results dataframe from the previous function
-# 
-# fig = visualize_clustering_methods(
-#     evaluation_results,
-#     subplot_rows="Linkage",
-#     subplot_cols="Validation", 
-#     x_axis="Recall",
-#     y_axis="Precision",
-#     point_size="Exact_Match_Accuracy",  # Using exact match accuracy instead
-#     point_color="Distance",
-#     point_shape="Clustering",
-#     min_size=8,
-#     max_size=30,
-#     opacity=0.8,
-#     title="Clustering Methods Performance Analysis",
-#     filename="clustering_performance_analysis.html",
-#     x_range=[0, 1],  # Limit x-axis from 0 to 1
-#     y_range=[0, 1],  # Limit y-axis from 0 to 1
-#     fullscreen=True  # Make plot occupy full HTML page
-# )
-
 ###############################################################################
 
 # --------------------------------- Load data ---------------------------------
@@ -627,21 +629,32 @@ for metric, methods in best_methods.items():
 # --------------------------- Some plots of the data  -------------------------
 
 
+# fig = visualize_clustering_methods(
+#     evaluation_results,
+#     # subplot_rows="Linkage",
+#     # subplot_cols="Validation", 
+#     # x_axis="Recall",
+#     # y_axis="Precision",
+#     point_size="Accuracy",  # Using exact match accuracy instead
+#     # point_color="Distance",
+#     # point_shape="Clustering",
+#     min_size=8,
+#     max_size=30,
+#     opacity=0.8,
+#     title="",
+#     filename="/home/elvio/Desktop/clustering_performance_analysis.html",
+#     x_range=[0, 1],  # Limit x-axis from 0 to 1
+#     y_range=[0, 1],  # Limit y-axis from 0 to 1
+#     fullscreen=True  # Make plot occupy full HTML page
+# )
+
 fig = visualize_clustering_methods(
     evaluation_results,
-    # subplot_rows="Linkage",
-    # subplot_cols="Validation", 
-    # x_axis="Recall",
-    # y_axis="Precision",
-    point_size="Accuracy",  # Using exact match accuracy instead
-    # point_color="Distance",
-    # point_shape="Clustering",
-    min_size=8,
-    max_size=30,
-    opacity=0.8,
-    title="",
+    point_size="Accuracy",
+    x_range=[0, 1],
+    y_range=[0, 1],
+    add_range_lines=True,  # Add boundary lines
+    grid_divisions=10,     # More grid lines
     filename="/home/elvio/Desktop/clustering_performance_analysis.html",
-    x_range=[0, 1],  # Limit x-axis from 0 to 1
-    y_range=[0, 1],  # Limit y-axis from 0 to 1
-    fullscreen=True  # Make plot occupy full HTML page
+    fullscreen=True
 )
