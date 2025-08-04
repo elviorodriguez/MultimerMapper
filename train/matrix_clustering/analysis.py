@@ -736,7 +736,7 @@ drop_monovalent = True
 # Paths
 working_dir = "/home/elvio/Desktop/multivalency_benchmark"
 # out_path = working_dir + "/matrix_clustering_benchmark_results"
-out_path = working_dir + "/matrix_clustering_benchmark_results_no_monovalent"
+out_path = working_dir + "/final_benchmark_results"
 benchmark_df_file =  out_path + '/valencies_by_method.tsv'
 
 # Read benchmark data and convert string to actual tuples
@@ -784,7 +784,7 @@ fig = visualize_clustering_methods(
     add_range_lines=True,  # Add boundary lines
     grid_divisions=10,     # More grid lines
     title = '',
-    filename="/home/elvio/Desktop/clustering_performance_analysis_no_monovalents.html",
+    filename="/home/elvio/Desktop/clustering_performance_analysis_final.html",
     equal_aspect_ratio=True,
     rows_map=link_map,
     cols_map=val_map,
@@ -796,14 +796,14 @@ fig = visualize_clustering_methods(
     height=800,
     fullscreen=False,
     border_width = 2,
-    opacity=0.9
+    opacity=0.8
 )
 
 
 
 
-pd.DataFrame({'pair': list(benchmark_df['sorted_tuple_names']),
-              'ppis': list(benchmark_df['true_val']),
-              'best': list(benchmark_df['MC+0.2_H_S_S_QW'])})
+# pd.DataFrame({'pair': list(benchmark_df['sorted_tuple_names']),
+#               'ppis': list(benchmark_df['true_val']),
+#               'best': list(benchmark_df['MC+0.2_H_S_S_QW'])})
 
 

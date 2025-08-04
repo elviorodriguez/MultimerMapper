@@ -279,7 +279,7 @@ for dist_met in distance_metrics:
 # Add three extra methods manually, derived from the best ones (MC_H_A/S/C_S_QW)
 for link_met in linkage_methods:
     
-    cfg_name = f'MC+0.2_H__{link_met}_S_QW'
+    cfg_name = f'MC+0.2_H_{link_met}_S_QW'
     
     benchmark_configs[cfg_name] = {
         'distance_metric': 'closeness',
@@ -445,29 +445,29 @@ benchmark_df.to_csv(out_path + '/valencies_by_method.tsv', sep='\t', index=False
 # BEST CONFIGURATION (UNTIL NOW)
 # ============================================================================
 
-# Custom analysis
-contact_clustering_config = {
-    'distance_metric': 'closeness',
-    'clustering_method': 'hierarchical',
-    'linkage_method': 'average',
-    'validation_metric': 'silhouette',
-    'quality_weight': True,
-    'silhouette_improvement': 0.2,
-    'max_extra_clusters': 3,
-    'overlap_structural_contribution': 1,
-    'overlap_use_contact_region_only': False,
-    'use_median': False
-}
+# # Custom analysis
+# contact_clustering_config = {
+#     'distance_metric': 'closeness',
+#     'clustering_method': 'hierarchical',
+#     'linkage_method': 'average',
+#     'validation_metric': 'silhouette',
+#     'quality_weight': True,
+#     'silhouette_improvement': 0.2,
+#     'max_extra_clusters': 3,
+#     'overlap_structural_contribution': 1,
+#     'overlap_use_contact_region_only': False,
+#     'use_median': False
+# }
 
-# Run with conservative configuration
-results = run_contacts_clustering_analysis_with_config(
-    mm_output, contact_clustering_config)
+# # Run with conservative configuration
+# results = run_contacts_clustering_analysis_with_config(
+#     mm_output, contact_clustering_config)
 
-interaction_counts_df   = results[0]
-all_clusters            = results[1]
-multivalent_pairs_list  = results[2]
-multimode_pairs_list    = results[3]
-valency_dict            = results[4]
+# interaction_counts_df   = results[0]
+# all_clusters            = results[1]
+# multivalent_pairs_list  = results[2]
+# multimode_pairs_list    = results[3]
+# valency_dict            = results[4]
 
 
 
