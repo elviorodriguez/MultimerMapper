@@ -13,7 +13,8 @@ from utils.progress_bar import print_progress_bar
 
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
-
+pd.set_option('display.max_colwidth', None)
+pd.set_option('display.width', 200)
 
 # ============================================================================
 # Benchmark setup
@@ -21,7 +22,7 @@ pd.set_option('display.max_columns', None)
 
 # Paths
 working_dir = "/home/elvio/Desktop/multivalency_benchmark"
-out_path = working_dir + "/matrix_clustering_benchmark_results_no_monovalent"
+out_path = working_dir + "/final_benchmark_results"
 fasta_file = working_dir + "/multivalency_test_no_monovalent.fasta"
 AF2_2mers = working_dir + "/multivalency_test_AF_2mers"
 AF2_Nmers = working_dir + "/multivalency_test_AF_Nmers"
@@ -191,35 +192,28 @@ DISTANCE METRICS ('distance_metric'):
 - 'correlation' (Corr): Pearson correlation between matrices
 - 'spearman' (S): Spearman correlation between matrices
 - 'hamming' (H): Binary difference between matrices
-- 'structural_overlap' (SO): Advanced metric using 3D distance information
-      + 'overlap_structural_contribution': Proportional contribution of distogram to
-                                            the final distance between matrixes (0 to 1)
-      + 'overlap_use_contact_region_only': Use the distance from the distogram from 
-                                            residue pairs in contacts only (True)
 
 CLUSTERING METHODS ('clustering_method'):
 - 'hierarchical' (H): Agglomerative clustering (default, works well with precomputed distances)
 - 'kmeans' (K): K-means clustering (requires feature conversion)
-- 'dbscan' (D): Density-based clustering (automatically determines number of clusters)
 
 LINKAGE METHODS ('linkage_method'):
 - 'single' (S): clusters based on the minimum pairwise distance between observations (tends to produce elongated clusters)
 - 'complete' (C): uses the maximum pairwise distance (yields compact, tight clusters)
 - 'average' (A): merges clusters by the average distance between all inter-cluster pairs
-- 'ward' (W): minimizes the total within-cluster variance (merges clusters that increase variance the least)
 
 VALIDATION METRICS ('validation_metric'):
 - 'silhouette' (S): Silhouette coefficient (higher is better)
 - 'calinski_harabasz' (CH): Calinski-Harabasz index (higher is better)
 - 'davies_bouldin' (DB): Davies-Bouldin index (lower is better)
-- 'gap_statistic' (G): Gap statistic (higher is better)
 
 QUALITY FEATURES:
 - 'quality_weight' (QW): Uses PAE and pLDDT to weight distances (True or False)
 - 'min_contacts_threshold': Minimum number of contacts to consider a matrix valid
 
 CLUSTER OPTIMIZATION:
-- 'silhouette_improvement¡: Minimum improvement required to add extra clusters (proportion)
+- 'silhouette_improvement¡: Minimum improvement required to add extra clusters (0<float<1)
+- 'min_extra_clusters': Minimum number of clusters below max_valency to try
 - 'max_extra_clusters': Maximum number of clusters beyond max_valency to try
 """
 
@@ -279,6 +273,26 @@ for dist_met in distance_metrics:
                     'min_extra_clusters': 2,
                     'max_extra_clusters': 3
                 }
+
+
+
+# Add three extra methods manually, derived from the best ones (MC_H_A/S/C_S_QW)
+for link_met in linkage_methods:
+    
+    cfg_name = f'MC+0.2_H__{link_met}_S_QW'
+    
+    benchmark_configs[cfg_name] = {
+        'distance_metric': 'closeness',
+        'use_median': False,
+        'clustering_method': 'hierarchical',
+        'linkage_method': link_map[link_met],
+        'validation_metric': 'silhouette',
+        'quality_weight': True,
+        # Added silhouette improvement term
+        'silhouette_improvement': 0.2,
+        'min_extra_clusters': 2,
+        'max_extra_clusters': 3
+    }
 
 del dist_met, clust_met, link_met, val_met
 
@@ -352,12 +366,12 @@ for current, cfg in enumerate(benchmark_configs):
     # if current%10 == 0:
     #     gc.collect()
         
-
+n_passed = 0
 # Verify if any have failed
 for cfg in bm_results_dict.keys():
     if cfg in bm_results_dict.keys() and 'passed' in bm_results_dict[cfg].keys():
         
-        print(bm_results_dict[cfg].keys())
+        # print(bm_results_dict[cfg].keys())
         
         # # This end up occupying too much memory
         # del bm_results_dict[cfg]["interaction_counts_df"]
@@ -366,8 +380,12 @@ for cfg in bm_results_dict.keys():
         # del bm_results_dict[cfg]["multimode_pairs_list"]
         # del bm_results_dict[cfg]["valency_dict"]
         
-        if not bm_results_dict[cfg]['passed']:
-            print(cfg)
+        if bm_results_dict[cfg]['passed']:
+            # print(cfg)
+            n_passed+=1
+
+print(f'{n_passed/total*100}% of configurations have passed!')
+
             
 # ============================================================================
 # Generate an input dataframe to perform the benchmark analysis
