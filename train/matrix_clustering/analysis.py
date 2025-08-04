@@ -12,7 +12,7 @@ pd.set_option('display.max_columns', None)
 
 ############################## Helper functions ###############################
 
-def evaluate_clustering_methods(df, true_label_col, metadata_cols):
+def evaluate_clustering_methods(df, true_label_col, metadata_cols, average_method = "weighted"):
     """
     Evaluate clustering methods by computing various performance metrics.
     
@@ -62,10 +62,10 @@ def evaluate_clustering_methods(df, true_label_col, metadata_cols):
         
         # Compute classification metrics (treating as multi-class)
         try:
-            precision = precision_score(y_true, y_pred, average='macro', zero_division=0)
-            recall = recall_score(y_true, y_pred, average='macro', zero_division=0)
+            precision = precision_score(y_true, y_pred, average=average_method, zero_division=0)
+            recall = recall_score(y_true, y_pred, average=average_method, zero_division=0)
             accuracy = accuracy_score(y_true, y_pred)
-            f1 = f1_score(y_true, y_pred, average='macro', zero_division=0)
+            f1 = f1_score(y_true, y_pred, average=average_method, zero_division=0)
         except:
             precision = recall = accuracy = f1 = np.nan
         
@@ -199,7 +199,9 @@ def visualize_clustering_methods(
     shapes_map=None,
     border_color_column="Quality-Weight",
     border_color_true="black",
-    border_color_false="red"
+    border_color_false="red",
+    border_width = 2,
+    equal_aspect_ratio=False
 ):
     """
     Create an advanced visualization of clustering method performance.
@@ -312,8 +314,8 @@ def visualize_clustering_methods(
         vertical_spacing=0.04
     )
     
-    # Track which combinations we've added to the legend
-    added_to_legend = {"color": set(), "shape": set(), "size": False}
+    # # Track which combinations we've added to the legend
+    # added_to_legend = {"color": set(), "shape": set(), "size": False}
     
     # Add traces for each subplot
     for i, row_cat in enumerate(row_categories):
@@ -348,7 +350,7 @@ def visualize_clustering_methods(
                             border_color_true if val else border_color_false 
                             for val in data_subset[border_color_column]
                         ]
-                        border_width = 2  # Make border more visible
+                        border_width = border_width  # Make border more visible
                     else:
                         border_colors = 'white'  # Default border color
                         border_width = 1
@@ -521,7 +523,7 @@ def visualize_clustering_methods(
             row_cat = rows_map[row_cat]
         
         # Calculate the y position for each row
-        y_pos = 1 - (i*1.08 + 0.42) / n_rows
+        y_pos = 1 - (i*1.045 + 0.45) / n_rows
         fig.add_annotation(
             text=f"<b>{str(row_cat)}</b>",
             x=1.025,  # Moved slightly further right
@@ -543,7 +545,7 @@ def visualize_clustering_methods(
             col_cat = cols_map[col_cat]
         
         # Calculate the x position for each column
-        x_pos = (j*1.057 + 0.417) / n_cols
+        x_pos = (j*1.04 + 0.46) / n_cols
         fig.add_annotation(
             text=f"<b>{str(col_cat)}</b>",
             x=x_pos,
@@ -560,7 +562,7 @@ def visualize_clustering_methods(
     fig.add_annotation(
         text=f"<b>{x_axis}</b>",
         x=0.5,
-        y=-0.08,
+        y=-0.03,
         xref="paper",
         yref="paper",
         showarrow=False,
@@ -572,7 +574,7 @@ def visualize_clustering_methods(
     # Y-axis label
     fig.add_annotation(
         text=f"<b>{y_axis}</b>",
-        x=-0.08,
+        x=-0.07,
         y=0.5,
         xref="paper",
         yref="paper",
@@ -605,6 +607,8 @@ def visualize_clustering_methods(
                 gridcolor='lightgray',
                 range=x_range if x_range else None,
                 tickvals=x_tick_vals,
+                scaleanchor="y" if equal_aspect_ratio else None,  # ADD THIS LINE
+                scaleratio=1 if equal_aspect_ratio else None,     # ADD THIS LINE
                 row=i, col=j
             )
             fig.update_yaxes(
@@ -655,7 +659,7 @@ def visualize_clustering_methods(
     config = {
         'displayModeBar': True,
         'displaylogo': False,
-        'modeBarButtonsToRemove': ['pan2d', 'lasso2d'],
+        'modeBarButtonsToRemove': ['lasso2d'],
         'responsive': fullscreen
     }
     
@@ -705,13 +709,13 @@ def visualize_clustering_methods(
 
 
 # Symbols
-distance_metrics = ['J', 'MC', 'MedC', 'Cos', 'Corr', 'S', 'H']
+distance_metrics = ['J', 'MC', 'MC+0.2', 'MedC','MedC+0.2', 'Cos', 'Corr', 'S', 'H']
 clustering_methods = ['H', 'K', 'D']
 linkage_methods = ['S', 'C', 'A']
 validation_methods = ['S', 'CH', 'DB', 'G']
 
 # True names
-distance_names = ['Jaccard', 'Mean Closeness', 'Median Closeness', 'Cosine', 'Pearson', 'Spearman', 'Hamming']
+distance_names = ['Jaccard', 'Mean Closeness', 'Mean Closeness (0.2)', 'Median Closeness', 'Median Closeness (0.2)', 'Cosine', 'Pearson', 'Spearman', 'Hamming']
 clustering_names = ['Hierarchical', 'K-means',  'DBSCAN']
 linkage_names = ['Single Linkage', 'Complete Linkage', 'Average Linkage']
 validation_names = ['Silhouette', 'Calinski-Harabasz', 'Davies-Bouldin', 'Gap']
@@ -731,7 +735,8 @@ drop_monovalent = True
 
 # Paths
 working_dir = "/home/elvio/Desktop/multivalency_benchmark"
-out_path = working_dir + "/matrix_clustering_benchmark_results"
+# out_path = working_dir + "/matrix_clustering_benchmark_results"
+out_path = working_dir + "/matrix_clustering_benchmark_results_no_monovalent"
 benchmark_df_file =  out_path + '/valencies_by_method.tsv'
 
 # Read benchmark data and convert string to actual tuples
@@ -746,9 +751,11 @@ if drop_monovalent:
 # Example usage with your specific data:
 metadata_cols = ['type', 'sorted_tuple_names']
 true_label_col = 'true_val'
+average_method = ["micro", "macro", "weighted"][2]
 
 # Run the evaluation (assuming your DataFrame is called benchmark_df)
-evaluation_results = evaluate_clustering_methods(benchmark_df, true_label_col, metadata_cols)
+evaluation_results = evaluate_clustering_methods(benchmark_df, true_label_col,
+                                                 metadata_cols, average_method)
 
 # Display results
 print("Top 10 methods by exact match accuracy:")
@@ -777,10 +784,26 @@ fig = visualize_clustering_methods(
     add_range_lines=True,  # Add boundary lines
     grid_divisions=10,     # More grid lines
     title = '',
-    filename="/home/elvio/Desktop/clustering_performance_analysis.html",
-    fullscreen=False,
+    filename="/home/elvio/Desktop/clustering_performance_analysis_no_monovalents.html",
+    equal_aspect_ratio=True,
     rows_map=link_map,
     cols_map=val_map,
     colors_map=dist_map,
-    shapes_map=clust_map
+    shapes_map=clust_map,
+    min_size=4,
+    max_size=18,
+    width=1050,
+    height=800,
+    fullscreen=False,
+    border_width = 2,
+    opacity=0.9
 )
+
+
+
+
+pd.DataFrame({'pair': list(benchmark_df['sorted_tuple_names']),
+              'ppis': list(benchmark_df['true_val']),
+              'best': list(benchmark_df['MC+0.2_H_S_S_QW'])})
+
+
