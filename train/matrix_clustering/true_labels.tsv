@@ -16,9 +16,9 @@ homo	3IBA-o2	3IBA-o2	FPPS	FPPS	FALSE	3	3	1	1	TRUE	TRUE	NA	Unstable
 #	#	#	#	#	#		#	#	#	#	#	#	#
 #	#	#	#	#	#		#	#	#	#	#	#	#
 homo	5EUC-4	5EUC-4	HPRT	HPRT	FALSE	2	2	1	1	TRUE	TRUE	TRUE	
-homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	3	3	3	3	TRUE	TRUE	TRUE	The 1st and 2nd interaction modes are clear and are the main stabilizers of the structure. The 3rd one is not clear, but it must appear in the contact matrixes.
-homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	4	4	3	3	TRUE	TRUE	TRUE	The 1st and 2nd interaction modes are clear and are the main stabilizers of the structure. The 3rd one is not clear, but it must appear in the contact matrixes.
-homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	5	5	3	3	TRUE	TRUE	TRUE	The 5th chain is modeled outside the stable homo-4-mer 
+homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	3	3	2	2	TRUE	TRUE	TRUE	The 1st and 2nd interaction modes are clear and are the main stabilizers of the structure. A 3rd one is not clear. Set as 2.
+homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	4	4	2	2	TRUE	TRUE	TRUE	The 1st and 2nd interaction modes are clear and are the main stabilizers of the structure. A 3rd one is not clear. Set as 2.
+homo	5EUC-4	5EUC-4	HPRT	HPRT	TRUE	5	5	2	2	TRUE	TRUE	TRUE	The 5th chain is modeled outside the stable homo-4-mer 
 homo	7WP3-3	7WP3-3	PCNA	PCNA	FALSE	2	2	0	0	TRUE	TRUE	TRUE	PPI is not detected (FP)
 homo	7WP3-3	7WP3-3	PCNA	PCNA	TRUE	3	3	2	2	TRUE	TRUE	TRUE	This is the true stoichiometry
 homo	7WP3-3	7WP3-3	PCNA	PCNA	TRUE	4	4	2	2	TRUE	TRUE	TRUE	AF keeps adding subunits to the circle, but it is still divalent
@@ -40,7 +40,7 @@ homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	4	4	2	2	TRUE	TRUE	TRUE	This is the true stoich
 homo	8I40-4	8I40-4	ASCT	ASCT	TRUE	5	5	2	2	TRUE	TRUE	TRUE	The 5th chain is modeled outside the stable homo-4-mer 
 homo	7V4J-5	7V4J-5	GSIb	GSIb	FALSE	2	2	0	0	TRUE	TRUE	TRUE	PPI is not detected (FN)
 homo	7V4J-5	7V4J-5	GSIb	GSIb	FALSE	3	3	0	0	TRUE	TRUE	TRUE	PPI is not detected (FN).
-homo	7V4J-5	7V4J-5	GSIb	GSIb	FALSE	4	4	2	2	TRUE	TRUE	TRUE	Still, PPI is not detected (FN): AF tries to close the circle but it can’t as the subunits are not big enough, so they end up disconnecting
+homo	7V4J-5	7V4J-5	GSIb	GSIb	TRUE	4	4	2	2	TRUE	TRUE	TRUE	Still, PPI is not detected (FN): AF tries to close the circle but it can’t as the subunits are not big enough, so they end up disconnecting
 homo	7V4J-5	7V4J-5	GSIb	GSIb	TRUE	5	5	2	2	TRUE	TRUE	TRUE	This is the true stoichiometry
 homo	7V4J-5	7V4J-5	GSIb	GSIb	TRUE	6	6	2	2	TRUE	TRUE	FALSE	AF keeps adding subunits to the circle, but it is still divalent
 homo	7V4J-5	7V4J-5	GSIb	GSIb	TRUE	7	7	2	2	TRUE	TRUE	FALSE	AF keeps adding subunits to the circle, but it is still divalent
@@ -88,11 +88,11 @@ hetero	2GIA-oP2	2GIA-oQ2	MRP1	MRP2	TRUE	5	2P3Q	2	2	TRUE	TRUE	TRUE	Unstable: in s
 hetero	2GIA-oP2	2GIA-oQ2	MRP1	MRP2	TRUE	5	3P2Q	2	2	TRUE	TRUE	TRUE	Unstable: in some models the extra P subunit is included in the symmetric structure, and in some not. However, the valency should be still 2.
 hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	FALSE	2	1P1Q	1	1	TRUE	TRUE	TRUE	Stable
 hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	3	1P2Q	2	2	TRUE	TRUE	TRUE	Stable: Q homooligomerizes and P is hold by the N-ter of Q1 and the C-ter of Q2.
-hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	3	2P1Q	1	2	TRUE	TRUE	TRUE	Unstable: The extra P subunit is left aside.
-hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	4	1P3Q	2	2	TRUE	TRUE	TRUE	Is detected as unstable, but it is described as stable stoichiometry by the literature. Q forms a homotrimer using a flexible section. However, it does not affects the divalency with P.
-hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	4	2P2Q	2	2	TRUE	TRUE	TRUE	True stoichiometry
-hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	5	2P3Q	2	2	TRUE	TRUE	TRUE	Unstable
-hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	5	3P2Q	2	2	TRUE	TRUE	TRUE	Unstable
+hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	3	2P1Q	1	3	TRUE	TRUE	TRUE	Unstable: The extra P subunit is left aside.
+hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	4	1P3Q	2	3	TRUE	TRUE	TRUE	Is detected as unstable, but it is described as stable stoichiometry by the literature. Q forms a homotrimer using a flexible section. However, it does not affects the divalency with P.
+hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	4	2P2Q	2	3	TRUE	TRUE	TRUE	True stoichiometry
+hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	5	2P3Q	2	3	TRUE	TRUE	TRUE	Unstable
+hetero	3MZL-oP2	3MZL-oQ2	SEC13	SEC31	TRUE	5	3P2Q	2	3	TRUE	TRUE	TRUE	Unstable
 hetero	5FIL-oP3	5FIL-oQ3	ATPSα	ATPSβ	FALSE	2	1P1Q	1	1	TRUE	TRUE	TRUE	Stable
 hetero	5FIL-oP3	5FIL-oQ3	ATPSα	ATPSβ	TRUE	3	1P2Q	2	2	TRUE	TRUE	TRUE	Stable
 hetero	5FIL-oP3	5FIL-oQ3	ATPSα	ATPSβ	TRUE	3	2P1Q	2	2	TRUE	TRUE	TRUE	Stable
@@ -118,7 +118,7 @@ hetero	7Q8S-P5	7Q8S-Q5	ACT	Cofilin	FALSE	2	1P1Q	1	1	TRUE	TRUE	NA	Stable
 hetero	7Q8S-P5	7Q8S-Q5	ACT	Cofilin	TRUE	3	1P2Q	2	2	TRUE	TRUE	NA	Unstable. AF generates very poor quality models for this highly conserved interaction.
 hetero	7Q8S-P5	7Q8S-Q5	ACT	Cofilin	TRUE	3	2P1Q	2	2	TRUE	TRUE	NA	Unstable. AF generates very poor quality models for this highly conserved interaction.
 hetero	8RTH-P6	8RTH-Q6	MCCα	MCCβ	FALSE	2	1P1Q	1	1	TRUE	TRUE	NA	Stable
-hetero	8RTH-P6	8RTH-Q6	MCCα	MCCβ	TRUE	3	1P2Q	2	2	TRUE	TRUE	NA	Unstable, but PPI is detected and the multivalency is detected with FMC=0.167 (FPR=0.05)
+hetero	8RTH-P6	8RTH-Q6	MCCα	MCCβ	TRUE	3	1P2Q	2	2	TRUE	TRUE	NA	Unstable, but PPI is detected and the multivalency is detected with FMC=0.16666666 (FPR=0.05)
 hetero	8RTH-P6	8RTH-Q6	MCCα	MCCβ	TRUE	3	2P1Q	1	2	TRUE	TRUE	NA	Unstable, but PPI is detected. This is not multivalent
 hetero	8U0V-oP3	8U0V-oQ3	PEX1	PEX6	FALSE	2	1P1Q	1	1	TRUE	TRUE	NA	Stable
 hetero	8U0V-oP3	8U0V-oQ3	PEX1	PEX6	TRUE	3	2P1Q	2	2	TRUE	TRUE	NA	Unstable, but should be stable (FN). PPI is detected, and the bi-valency can be detected
