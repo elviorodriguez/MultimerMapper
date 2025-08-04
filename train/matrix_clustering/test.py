@@ -31,7 +31,7 @@ AF2_Nmers = working_dir + "/multivalency_test_AF_Nmers"
 true_labels_file = "/home/elvio/MultimerMapper/train/matrix_clustering/true_labels.tsv"
 true_labels_df = pd.read_csv(true_labels_file, sep="\t")
 
-# Remove unnecesary rows and separators
+# Remove unnecessary rows and separators
 true_labels_df = true_labels_df[
     true_labels_df['type'].isin(['homo', 'hetero'])
     & (true_labels_df['plus4mers_ok'] != 'FALSE')
@@ -47,7 +47,7 @@ true_labels_df['sorted_tuple_ids'] = true_labels_df[['id1','id2']] \
 true_labels_df['N'] = true_labels_df['N'].astype(int)
 true_labels_df['cumulative_modes'] = true_labels_df['cumulative_modes'].astype(int)
 
-# Remove unnecesary columns
+# Remove unnecessary columns
 cols_to_drop = [
     '2mers_ok',
     '3mers_ok',
@@ -61,7 +61,7 @@ true_labels_df = true_labels_df.drop(columns=cols_to_drop)
 # Filters only multivalent
 true_labels_df = true_labels_df.query('cumulative_modes > 1')
 
-# remove duplicate rows and eset the index
+# remove duplicate rows and reset the index
 true_labels_df = true_labels_df.drop_duplicates()
 true_labels_df = true_labels_df.reset_index(drop=True)
 
@@ -128,7 +128,7 @@ homo_from_hetero_pairs = []
 negative_ppi_pairs = []
 positive_ppi_pairs = []
 
-# Verify that all of the pairs from the data are in the benchmark and viceversa
+# Verify that all of the pairs from the data are in the benchmark and vice versa
 for pair, cluster_list in matrix_data.items():
         
     if pair not in benchmark_pairs:
