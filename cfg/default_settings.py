@@ -226,13 +226,13 @@ method_index = 0
 # Detection method
 multivalency_detection_metric = ["fraction_of_multivalent_chains", "max_valency"][method_index]
 
-# Detection threshold (Best values)
+# Detection threshold (Best values):
 
-# FPR ~0.01
+# FPR ~0.01 (FMC=0.25)
 # multivalency_metric_threshold = [0.25, 2][method_index]
 
-# FPR ~0.05
-multivalency_metric_threshold = [0.167, 2][method_index]
+# FPR ~0.05 (FMC=0.166)
+multivalency_metric_threshold = [0.166, 2][method_index]
 
 
 # ----------------------------------------------------------------------------
