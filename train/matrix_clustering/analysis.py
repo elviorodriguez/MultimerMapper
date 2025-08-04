@@ -168,6 +168,36 @@ def create_summary_report(results_df):
     
     return None
 
+def generate_random_assignments_from_df(benchmark_df, n_random_methods=50):
+    """
+    Generate random valency assignments from benchmark dataframe
+    """
+    random_df = benchmark_df.copy()
+    
+    # Identify metadata columns
+    metadata_cols = ['type', 'true_val', 'sorted_tuple_names']
+    
+    # Set random seed for reproducibility
+    np.random.seed(42)
+
+    methods_combinations = ["_".join(c.split("_")[1:]) for c in benchmark_df.columns if c not in ('type', 'true_val', 'sorted_tuple_names')]
+    
+    # Generate random methods with proper naming format
+    for i in range(n_random_methods):
+        random_values = []
+        
+        for idx, row in benchmark_df.iterrows():
+            true_val = row['true_val']
+            possible_values = [true_val, true_val + 1, true_val + 2, true_val + 3]
+            random_val = np.random.choice(possible_values)
+            random_values.append(random_val)
+        
+        # Use a format that will parse correctly
+        for comb in methods_combinations:
+            random_df[f'Random_{comb}_{i+1}'] = random_values
+    
+    return random_df
+
 
 def visualize_clustering_methods(
     df,
@@ -201,7 +231,12 @@ def visualize_clustering_methods(
     border_color_true="black",
     border_color_false="red",
     border_width = 2,
-    equal_aspect_ratio=False
+    equal_aspect_ratio=False,
+    compare_with_random=True,
+    original_benchmark_df=None,
+    random_color='lightgray',
+    random_opacity=0.2,
+    random_size=8
 ):
     """
     Create an advanced visualization of clustering method performance.
@@ -263,15 +298,32 @@ def visualize_clustering_methods(
     
     # Remove rows with NaN values in required columns
     required_cols = [subplot_rows, subplot_cols, x_axis, y_axis, point_size, point_color, point_shape]
-    
+
     # Add border color column to required columns if specified
     if border_color_column and border_color_column in df.columns:
         required_cols.append(border_color_column)
-    
+
     df_clean = df.dropna(subset=required_cols)
-    
+
     if len(df_clean) == 0:
         raise ValueError("No valid data after removing NaN values")
+
+    # Generate random baseline if requested
+    random_evaluation_results = None
+    if compare_with_random and original_benchmark_df is not None:
+        # Generate random assignments
+        random_benchmark_df = generate_random_assignments_from_df(original_benchmark_df, original_benchmark_df.shape[1])
+        
+        # Evaluate random methods using same function
+        metadata_cols = ['type', 'sorted_tuple_names']
+        true_label_col = 'true_val'
+        random_evaluation_results = evaluate_clustering_methods(
+            random_benchmark_df, true_label_col, metadata_cols, average_method="weighted"
+        )
+        
+        # Clean random results
+        random_required_cols = [subplot_rows, subplot_cols, x_axis, y_axis, point_size]
+        random_df_clean = random_evaluation_results.dropna(subset=random_required_cols)
     
     # Get unique categories for subplots
     row_categories = sorted(df_clean[subplot_rows].unique())
@@ -328,6 +380,41 @@ def visualize_clustering_methods(
             
             if len(subset) == 0:
                 continue
+
+            # Add random baseline points first (background layer)
+            if compare_with_random and random_evaluation_results is not None:
+                random_subset = random_df_clean[
+                    (random_df_clean[subplot_rows] == row_cat) & 
+                    (random_df_clean[subplot_cols] == col_cat)
+                ]
+                
+                if len(random_subset) > 0:
+                    # Normalize sizes for random points
+                    random_sizes = [random_size] * len(random_subset)
+                    
+                    # Create hover text for random methods
+                    random_hover_text = [f"Random Method: {row['Method']}" for idx, row in random_subset.iterrows()]
+                    
+                    # Add random trace
+                    random_trace = go.Scatter(
+                        x=random_subset[x_axis],
+                        y=random_subset[y_axis],
+                        mode='markers',
+                        marker=dict(
+                            size=random_sizes,
+                            color=random_color,
+                            symbol='circle',
+                            opacity=random_opacity,
+                            line=dict(width=0)  # No border
+                        ),
+                        name="Random Methods",
+                        text=random_hover_text,
+                        hovertemplate="%{text}<extra></extra>",
+                        showlegend=False,  # Only show in legend once
+                        legendgroup="random_baseline"
+                    )
+                    
+                    fig.add_trace(random_trace, row=i+1, col=j+1)
             
             # Group by color and shape to create separate traces
             for color_cat in color_categories:
@@ -394,7 +481,26 @@ def visualize_clustering_methods(
                     
                     # Don't mark anything as added since we're not using the combined legend
     
-    # Create separate legends for color, shape, and size
+    # Create separate legends for color, shape, size and random legend
+
+    # Random baseline legend (add first)
+    if compare_with_random and random_evaluation_results is not None:
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None],
+            mode='markers',
+            marker=dict(
+                size=15, 
+                color=random_color,
+                symbol='circle',
+                opacity=random_opacity,
+                line=dict(width=0)
+            ),
+            showlegend=True,
+            legendgroup="random_baseline_legend",
+            legendgrouptitle=dict(text="<b>Random Baseline</b>", font=dict(size=16)),
+            name="Random Methods"
+        ))
+
     # Color legend
     for i, color_cat in enumerate(color_categories):
         # Map the color category to the actual name
@@ -776,6 +882,11 @@ for metric, methods in best_methods.items():
 
 fig = visualize_clustering_methods(
     evaluation_results,
+    original_benchmark_df=benchmark_df,
+    compare_with_random=True,
+    random_color='lightgray',
+    random_opacity=1,
+    random_size=8,
     subplot_rows="Linkage",
     subplot_cols="Validation",
     point_size="Accuracy",
@@ -792,8 +903,8 @@ fig = visualize_clustering_methods(
     shapes_map=clust_map,
     min_size=4,
     max_size=18,
-    width=1050,
-    height=800,
+    width=1155,
+    height=880,
     fullscreen=False,
     border_width = 2,
     opacity=0.8
