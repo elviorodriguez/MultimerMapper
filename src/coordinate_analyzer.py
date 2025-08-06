@@ -945,10 +945,10 @@ def generate_protein_enrichment(proteins_in_models,
                                 plddt_clusters_folder,
                                 mode: Literal["no_query_repeats",
                                               "single_query_repeat",
-                                              "multiple_query_repeats"] = "single_query_repeat",
+                                              "multiple_query_repeats"] = "multiple_query_repeats",
                                 logger = None, out_path = "."):
     
-    default_mode = "single_query_repeat"
+    default_mode = "multiple_query_repeats"
     if logger is None:
         logger = configure_logger(out_path)(__name__)
     
@@ -970,10 +970,10 @@ def generate_protein_enrichment(proteins_in_models,
             elif mode == "single_query_repeat":
                 proteins.append(protein_ID)
             elif mode == "multiple_query_repeats":
-                repeated_query = [protein_ID] * times_query_is_present
+                repeated_query = [protein_ID] * (times_query_is_present - 1)
                 proteins.extend(repeated_query)
             else:
-                repeated_query = [protein_ID] * times_query_is_present
+                repeated_query = [protein_ID] * (times_query_is_present - 1)
                 proteins.extend(repeated_query)
                 mode = default_mode
                 
@@ -1384,7 +1384,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                             point_of_ref: Literal["lowest_plddt",
                                                   "highest_plddt"] = "highest_plddt",
                             plddt_clustering_method = 'silhouette',
-                            repeated_protein_IDs_cloud_mode = "single_query_repeat",
+                            repeated_protein_IDs_cloud_mode = "multiple_query_repeats",
                             generate_interactive_viz: bool = True,
                             logger: logging.Logger | None = None, log_level: str = "info"):
     """
@@ -1884,7 +1884,7 @@ def generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
         plddt_clustering_method: Literal["interactive", 'silhouette', None] = 'silhouette',
         repeated_protein_IDs_cloud_mode: Literal["no_query_repeats",
                                                  "single_query_repeat",
-                                                 "multiple_query_repeats"]  = "single_query_repeat",
+                                                 "multiple_query_repeats"]  = "multiple_query_repeats",
         log_level: str = 'info',
         logger: logging.Logger | None = None):
     
