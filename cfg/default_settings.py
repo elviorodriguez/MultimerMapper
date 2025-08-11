@@ -11,7 +11,7 @@ overwrite: bool = False
 
 # Logging level ("notset", "debug", "info", "warn", "error", "critical")
 # Increase it to "warn", "error" or "critical" to reduce verbosity
-log_level = "debug"
+log_level = "info"
 
 # If you do not provide an out_path
 default_out_path = "MM_output_"
