@@ -145,16 +145,16 @@ show_PAE_along_backbone = False
 
 ####################### Test 6'' (multivalency 2GIA) ######################
 
-fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_2GIA/proteins_mm.fasta"
-AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_2GIA/2-mers"
-AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_2GIA/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_2GIA/MM_multivalency_test"
-use_names = True
-overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-auto_domain_detection = True
-graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_2GIA/proteins_mm.fasta"
+# AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_2GIA/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_2GIA/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_2GIA/MM_multivalency_test"
+# use_names = True
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
@@ -253,16 +253,16 @@ graph_resolution_preset = None
 
 # ###################### Test 9 (TbNuA4 - No piccolo) #########################
 
-# fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/NuA4_no_piccolo.fasta"
-# AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/2-mers"
-# AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/mm_out_testing_layout_algorithm"
-# use_names = True 
-# overwrite = True
-# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# graph_resolution_preset = None
-# auto_domain_detection = True
+fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/NuA4_no_piccolo.fasta"
+AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/mm_out_testing_layout_algorithm"
+use_names = True 
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+graph_resolution_preset = None
+auto_domain_detection = True
 
 ###############################################################################
 
@@ -293,7 +293,7 @@ logger = mm.configure_logger(out_path = out_path, log_level = log_level, clear_r
 
 
 # Run the main MultimerMapper pipeline
-import multimer_mapper as mm
+# import multimer_mapper as mm
 mm_output = mm.parse_AF2_and_sequences(fasta_file,
                                        AF2_2mers,
                                        AF2_Nmers,

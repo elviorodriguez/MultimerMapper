@@ -172,29 +172,39 @@ def generate_random_assignments_from_df(benchmark_df, n_random_methods=50):
     """
     Generate random valency assignments from benchmark dataframe
     """
-    random_df = benchmark_df.copy()
-    
-    # Identify metadata columns
-    metadata_cols = ['type', 'true_val', 'sorted_tuple_names']
+    random_df = benchmark_df[['type', 'true_val', 'sorted_tuple_names']].copy()
     
     # Set random seed for reproducibility
     np.random.seed(42)
 
-    methods_combinations = ["_".join(c.split("_")[1:]) for c in benchmark_df.columns if c not in ('type', 'true_val', 'sorted_tuple_names')]
+    # Get unique method combinations from the original data
+    method_cols = [col for col in benchmark_df.columns if col not in ('type', 'true_val', 'sorted_tuple_names')]
     
-    # Generate random methods with proper naming format
-    for i in range(n_random_methods):
-        random_values = []
-        
-        for idx, row in benchmark_df.iterrows():
-            true_val = row['true_val']
-            possible_values = [true_val, true_val + 1, true_val + 2, true_val + 3]
-            random_val = np.random.choice(possible_values)
-            random_values.append(random_val)
-        
-        # Use a format that will parse correctly
-        for comb in methods_combinations:
-            random_df[f'Random_{comb}_{i+1}'] = random_values
+    # Extract unique combinations of Distance_Clustering_Linkage_Validation patterns
+    unique_combinations = set()
+    for col in method_cols:
+        parts = col.split('_')
+        if len(parts) >= 4:
+            # Extract core combination (Distance_Clustering_Linkage_Validation)
+            core_combo = '_'.join(parts[:4])
+            unique_combinations.add(core_combo)
+            # Also add QW version if it exists
+            if col.endswith('_QW'):
+                unique_combinations.add(core_combo + '_QW')
+    
+    # Generate random methods for each unique combination
+    for combo in unique_combinations:
+        for i in range(n_random_methods):
+            random_values = []
+            
+            for idx, row in benchmark_df.iterrows():
+                true_val = row['true_val']
+                possible_values = [true_val, true_val + 1, true_val + 2, true_val + 3]
+                random_val = np.random.choice(possible_values)
+                random_values.append(random_val)
+            
+            # Use RANDOM prefix to distinguish from real methods
+            random_df[f'RANDOM_{combo}_{i+1}'] = random_values
     
     return random_df
 
@@ -236,7 +246,8 @@ def visualize_clustering_methods(
     original_benchmark_df=None,
     random_color='lightgray',
     random_opacity=0.2,
-    random_size=8
+    random_size=8,
+    random_average_method='weigthed'
 ):
     """
     Create an advanced visualization of clustering method performance.
@@ -308,22 +319,32 @@ def visualize_clustering_methods(
     if len(df_clean) == 0:
         raise ValueError("No valid data after removing NaN values")
 
-    # Generate random baseline if requested
-    random_evaluation_results = None
+    # Generate random baseline if requested - MOVED OUTSIDE OF SUBPLOT LOOP
+    random_df_clean = None
     if compare_with_random and original_benchmark_df is not None:
-        # Generate random assignments
-        random_benchmark_df = generate_random_assignments_from_df(original_benchmark_df, original_benchmark_df.shape[1])
+        # Generate random assignments with fewer methods for efficiency
+        random_benchmark_df = generate_random_assignments_from_df(original_benchmark_df, n_random_methods=10)
         
         # Evaluate random methods using same function
         metadata_cols = ['type', 'sorted_tuple_names']
         true_label_col = 'true_val'
         random_evaluation_results = evaluate_clustering_methods(
-            random_benchmark_df, true_label_col, metadata_cols, average_method="weighted"
+            random_benchmark_df, true_label_col, metadata_cols, average_method=random_average_method
         )
         
-        # Clean random results
+        # Filter out only the random methods and clean their names for parsing
+        random_methods_only = random_evaluation_results[random_evaluation_results['Method'].str.startswith('RANDOM_')].copy()
+        
+        # Clean method names to extract the original combination pattern
+        random_methods_only['Method_Clean'] = random_methods_only['Method'].str.replace('RANDOM_', '').str.replace(r'_\d+$', '', regex=True)
+        
+        # Parse the cleaned method names to get subplot categories
+        random_methods_only[['Distance', 'Clustering', 'Linkage', 'Validation']] = random_methods_only['Method_Clean'].str.extract(r'^([^_]+)_([^_]+)_([^_]+)_([^_]+)')
+        random_methods_only['Quality-Weight'] = random_methods_only['Method_Clean'].str.endswith('_QW')
+        
+        # Clean random results once
         random_required_cols = [subplot_rows, subplot_cols, x_axis, y_axis, point_size]
-        random_df_clean = random_evaluation_results.dropna(subset=random_required_cols)
+        random_df_clean = random_methods_only.dropna(subset=random_required_cols)
     
     # Get unique categories for subplots
     row_categories = sorted(df_clean[subplot_rows].unique())
@@ -382,7 +403,7 @@ def visualize_clustering_methods(
                 continue
 
             # Add random baseline points first (background layer)
-            if compare_with_random and random_evaluation_results is not None:
+            if compare_with_random and random_df_clean is not None:
                 random_subset = random_df_clean[
                     (random_df_clean[subplot_rows] == row_cat) & 
                     (random_df_clean[subplot_cols] == col_cat)
@@ -484,7 +505,7 @@ def visualize_clustering_methods(
     # Create separate legends for color, shape, size and random legend
 
     # Random baseline legend (add first)
-    if compare_with_random and random_evaluation_results is not None:
+    if compare_with_random and random_df_clean is not None:
         fig.add_trace(go.Scatter(
             x=[None], y=[None],
             mode='markers',
@@ -887,13 +908,14 @@ fig = visualize_clustering_methods(
     random_color='lightgray',
     random_opacity=1,
     random_size=8,
+    random_average_method=average_method,
     subplot_rows="Linkage",
     subplot_cols="Validation",
     point_size="Accuracy",
     x_range=[0, 1],
     y_range=[0, 1],
-    add_range_lines=True,  # Add boundary lines
-    grid_divisions=10,     # More grid lines
+    add_range_lines=True,
+    grid_divisions=10,
     title = '',
     filename="/home/elvio/Desktop/clustering_performance_analysis_final.html",
     equal_aspect_ratio=True,
@@ -915,6 +937,5 @@ fig = visualize_clustering_methods(
 
 # pd.DataFrame({'pair': list(benchmark_df['sorted_tuple_names']),
 #               'ppis': list(benchmark_df['true_val']),
-#               'best': list(benchmark_df['MC+0.2_H_S_S_QW'])})
-
-
+#               'best': list(benchmark_df['MC_H_S_S_QW']),
+#               'best2': list(benchmark_df['MC+0.2_H_S_S_QW'])})
