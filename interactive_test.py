@@ -379,6 +379,20 @@ mm_output['suggested_combinations'] = suggested_combinations
 # Create the final report
 mm.create_report(out_path)
 
+['name',
+ 'valency',
+ 'N_mers_data',
+ 'N_mers_info',
+ '2_mers_data',
+ '2_mers_info',
+ 'homooligomerization_states',
+ 'multivalency_states',
+ 'dynamics',
+ 'symmetry_fallback',
+ 'phi_coef',
+ 'phi_coef_ascii_plot',
+ 'phi_coef_ascii_plot_html']
+
 ###############################################################################
 ############################### Access output #################################
 ###############################################################################

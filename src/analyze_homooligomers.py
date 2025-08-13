@@ -315,7 +315,7 @@ def find_homooligomerization_breaks(pairwise_2mers_df, pairwise_Nmers_df, pairwi
                 is_fully_connected_network = does_nmer_is_fully_connected_network(
                                             model_pairwise_df = model_pairwise_df,
                                             mm_output         = mm_output,
-                                            pair              = (protein, protein),
+                                            # pair              = (protein, protein),
                                             Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
                                             N_models_cutoff = N_models_cutoff,
                                             N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
@@ -336,7 +336,7 @@ def find_homooligomerization_breaks(pairwise_2mers_df, pairwise_Nmers_df, pairwi
                 is_fully_connected_network = does_nmer_is_fully_connected_network(
                                             model_pairwise_df = model_pairwise_df,
                                             mm_output         = mm_output,
-                                            pair              = (protein, protein),
+                                            # pair              = (protein, protein),
                                             Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
                                             N_models_cutoff = N_models_cutoff,
                                             N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,

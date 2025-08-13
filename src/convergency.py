@@ -21,7 +21,7 @@ def recompute_contact_matrix(min_diagonal_PAE_matrix, min_pLDDT_matrix, distance
 def does_nmer_is_fully_connected_network(
         model_pairwise_df: pd.DataFrame,
         mm_output: Dict,
-        pair: Tuple[str, str],
+        # pair: Tuple[str, str],
         Nmers_contacts_cutoff: int = Nmers_contacts_cutoff_convergency,
         contact_distance_cutoff: float = contact_distance_cutoff,
         N_models_cutoff: int = 4,
@@ -76,7 +76,7 @@ def does_nmer_is_fully_connected_network(
           (highest miPAE) and stops at the first successful one
     """
     # Get all unique chains in this model
-    all_chains = get_set_of_chains_in_model(model_pairwise_df)
+    all_chains = sorted(get_set_of_chains_in_model(model_pairwise_df))
     
     # Get the proteins_in_model from the first row (should be the same for all rows)
     if model_pairwise_df.empty:
@@ -142,6 +142,7 @@ def does_nmer_is_fully_connected_network(
                         
                         # Try to find contact data for this chain pair in this rank
                         chain_pair = (chain1, chain2)
+                        pair = tuple(sorted((proteins_in_model[all_chains.index(chain1)], proteins_in_model[all_chains.index(chain2)])))
 
                         # # DEBUG
                         # print("      - chain_pair:", chain_pair)
