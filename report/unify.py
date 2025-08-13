@@ -282,6 +282,11 @@ def create_zip_report(directory_path):
                     file_path = os.path.join(root, file)
                     rel_path = os.path.relpath(file_path, directory_path)
                     zipf.write(file_path, rel_path)
+        
+        # Add stoich_space directory
+        stoich_space_dir = os.path.join(directory_path, "stoich_space")
+        if os.path.exists(stoich_space_dir):
+            add_folder_to_zip(zipf, directory_path, "stoich_space")
     
     # print(f"Zip report created at: {zip_path}")
 
@@ -917,6 +922,11 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
                 <i class="fas fa-cubes"></i>
                 <span>plotly3D Graph</span>
             </div>
+
+            <div class="menu-item" id="stoich-space-button">
+                <i class="fas fa-tree"></i>
+                <span>Stoichiometric Space</span>
+            </div>
             
             <div class="menu-item menu-dropdown" id="domains-dropdown">
                 <i class="fas fa-puzzle-piece"></i>
@@ -1135,6 +1145,11 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             // plotly3D Graph button
             document.getElementById('graph-plotly3d-button').addEventListener('click', () => {{
                 setMainContent('<iframe id="main-frame" src="graphs/3D_graph_Plotly.html"></iframe>');
+            }});
+
+            // Stoichiometric Space button
+            document.getElementById('stoich-space-button').addEventListener('click', () => {{
+                setMainContent('<iframe id="main-frame" src="stoich_space/stoichiometric_space.html"></iframe>');
             }});
             
             // Initialize domains dropdown
