@@ -7,6 +7,19 @@ from typing import Dict, Tuple, Any
 from cfg.default_settings import contact_distance_cutoff, contact_pLDDT_cutoff, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft, Nmers_contacts_cutoff_convergency
 from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list
 
+def read_stability_dynamic_cutoffs_df(path: str = "cfg/stability_dynamic_cutoffs.tsv"):
+
+    try:
+        from multimer_mapper import mm_path
+    except ImportError:
+        from __main__ import mm_path
+
+    stability_dynamic_cutoffs_df = pd.read_csv(mm_path + '/' + path, sep= "\t")
+    return stability_dynamic_cutoffs_df
+
+stability_dynamic_cutoffs_df = read_stability_dynamic_cutoffs_df()
+
+
 def recompute_contact_matrix(min_diagonal_PAE_matrix, min_pLDDT_matrix, distance_matrix,
                              PAE_cutoff , pLDDT_cutoff, contact_distance):
     '''Recomputes contact matrix using a mask'''
@@ -30,7 +43,8 @@ def does_nmer_is_fully_connected_network(
         use_dynamic_conv_soft_func: bool = True,
         miPAE_cutoff_conv_soft_list: list = None,
         dynamic_conv_start: int = 5,
-        dynamic_conv_end: int = 1) -> bool:
+        dynamic_conv_end: int = 1,
+        stability_dynamic_cutoffs_df = stability_dynamic_cutoffs_df) -> bool:
     """
     Check if all subunits form a fully connected network using contacts.
     
@@ -94,7 +108,11 @@ def does_nmer_is_fully_connected_network(
         # print("   - proteins_in_model:", proteins_in_model)
 
         if miPAE_cutoff_conv_soft_list is None:
-            miPAE_cutoff_conv_soft_list = [13.0, 10.5, 7.20, 4.50, 3.00]  # Default from config
+            # Get the cutoffs for the N-mer size
+            Nmer_size = len(proteins_in_model)
+            row = stability_dynamic_cutoffs_df[stability_dynamic_cutoffs_df["Nmer_use_case"] == Nmer_size]
+            miPAE_cutoff_conv_soft_list = [float(row[f"{i}"]) for i in [5, 4, 3, 2, 1]]
+
         
         # Corresponding N_models cutoffs for each miPAE cutoff
         N_models_cutoff_list = [5, 4, 3, 2, 1]
@@ -302,7 +320,8 @@ def does_xmer_is_fully_connected_network(
         use_dynamic_conv_soft_func: bool = True,
         miPAE_cutoff_conv_soft_list: list = None,
         dynamic_conv_start: int = 5,
-        dynamic_conv_end: int = 1) -> bool:
+        dynamic_conv_end: int = 1,
+        stability_dynamic_cutoffs_df = stability_dynamic_cutoffs_df) -> bool:
     """
     Check if all subunits form a fully connected network using contacts.
     
@@ -360,7 +379,10 @@ def does_xmer_is_fully_connected_network(
     if use_dynamic_conv_soft_func:
 
         if miPAE_cutoff_conv_soft_list is None:
-            miPAE_cutoff_conv_soft_list = [13.0, 10.5, 7.20, 4.50, 3.00]  # Default from config
+            # Get the cutoffs for the N-mer size
+            Nmer_size = len(proteins_in_model)
+            row = stability_dynamic_cutoffs_df[stability_dynamic_cutoffs_df["Nmer_use_case"] == Nmer_size]
+            miPAE_cutoff_conv_soft_list = [float(row[f"{i}"]) for i in [5, 4, 3, 2, 1]]
         
         # Corresponding N_models cutoffs for each miPAE cutoff
         N_models_cutoff_list = [5, 4, 3, 2, 1]

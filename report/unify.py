@@ -924,7 +924,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             </div>
 
             <div class="menu-item" id="stoich-space-button">
-                <i class="fas fa-tree"></i>
+                <i class="fas fa-sitemap"></i>
                 <span>Stoichiometric Space</span>
             </div>
             
