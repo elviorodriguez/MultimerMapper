@@ -2,6 +2,10 @@
 
 import numpy as np
 import pandas as pd
+import igraph as ig
+import plotly.graph_objects as go
+from sklearn.manifold import MDS
+from collections import Counter
 
 from src.convergency import does_xmer_is_fully_connected_network
 from src.convergency import get_ranks_ptms, get_ranks_iptms, get_ranks_mipaes, get_ranks_aipaes, get_ranks_pdockqs, get_ranks_mean_plddts
@@ -12,7 +16,7 @@ from cfg.default_settings import dynamic_conv_start, dynamic_conv_end
 
 def initialize_stoich_dict(mm_output):
     
-    # Unpack necessary datacc
+    # Unpack necessary data
     combined_graph = mm_output['combined_graph']
     protein_list = mm_output['prot_IDs']
     pairwise_2mers_df = mm_output['pairwise_2mers_df']
@@ -73,12 +77,6 @@ def initialize_stoich_dict(mm_output):
         }
     
     return stoich_dict
-
-
-import numpy as np
-import plotly.graph_objects as go
-from sklearn.manifold import MDS
-from collections import Counter
 
 def add_xyz_coord_to_stoich_dict(stoich_dict):
     """
@@ -283,7 +281,138 @@ def get_categorical_variables(stoich_dict):
     """
     return ['is_stable']  # For now, only stability is categorical
 
-def plot_stoich_space(stoich_dict, html_file, button_shift = 0.03, buttons_x = 0.93,
+# Create ASCII bar visualization for protein combinations
+def create_protein_stoich_visualization(combination, system_proteins, max_count, max_prot_len):
+    """
+    Create an ASCII bar plot visualization of protein stoichiometry
+    """
+    # Count proteins in combination
+    protein_counts = Counter(combination)
+    
+    # Sort proteins alphabetically for consistent display
+    sorted_proteins = sorted(system_proteins)
+    
+    # Create header with count numbers
+    header = "".join([f"─{i+1}" for i in range(max_count + 1)])
+    
+    # Create visualization
+    viz_lines = [f'{" " * max_prot_len}┤{header}─├']
+    
+    for protein in sorted_proteins:
+        count = protein_counts.get(protein, 0)
+        # Create bar representation
+        bar = " ■"*count
+        viz_lines.append(f"{protein:<{max_prot_len}}|{bar}")
+
+    return "<br>".join(viz_lines)
+
+# Create igraph with stoichiometric connections
+def create_stoichiometric_graph(stoich_dict):
+    """
+    Create an igraph with stoichiometric combinations as nodes and connections between N and N+1 layers
+    """
+    # Create vertices (combinations)
+    combinations = list(stoich_dict.keys())
+    
+    # Create igraph
+    g = ig.Graph()
+    g.add_vertices(len(combinations))
+    
+    # Add vertex attributes
+    for i, combo in enumerate(combinations):
+        g.vs[i]['name'] = combo
+        g.vs[i]['combination'] = combo
+        g.vs[i]['size'] = len(combo)
+        g.vs[i]['is_stable'] = stoich_dict[combo]['is_stable']
+        # Add all other attributes from stoich_dict
+        for key, value in stoich_dict[combo].items():
+            g.vs[i][key] = value
+    
+    # Create edges between N and N+1 layers
+    edges_to_add = []
+    edge_attributes = {'variation': [], 'category': []}
+    
+    for i, combo1 in enumerate(combinations):
+        for j, combo2 in enumerate(combinations):
+            if len(combo2) == len(combo1) + 1:  # N+1 layer
+                # Check if combo1 is contained in combo2
+                combo1_counter = Counter(combo1)
+                combo2_counter = Counter(combo2)
+                
+                # Check if all proteins in combo1 are in combo2 with at least the same count
+                is_contained = True
+                variation_protein = None
+                
+                for protein, count in combo1_counter.items():
+                    if combo2_counter[protein] < count:
+                        is_contained = False
+                        break
+                
+                if is_contained:
+                    # Find the variation (added protein)
+                    diff_counter = combo2_counter - combo1_counter
+                    if len(diff_counter) == 1:
+                        variation_protein = list(diff_counter.keys())[0]
+                        
+                        # Add edge
+                        edges_to_add.append((i, j))
+                        edge_attributes['variation'].append(variation_protein)
+                        
+                        # Determine category based on stability
+                        stable1 = stoich_dict[combo1]['is_stable']
+                        stable2 = stoich_dict[combo2]['is_stable']
+                        
+                        if stable1 is True and stable2 is True:
+                            category = "Stable->Stable"
+                        elif stable1 is True and stable2 is False:
+                            category = "Stable->Unstable"
+                        elif stable1 is False and stable2 is True:
+                            category = "Unstable->Stable"
+                        elif stable1 is False and stable2 is False:
+                            category = "Unstable->Unstable"
+                        elif stable1 is True and stable2 is None:
+                            category = "Stable->Untested"
+                        elif stable1 is False and stable2 is None:
+                            category = "Unstable->Untested"
+                        elif stable1 is None and stable2 is None:
+                            category = "Untested->Untested"
+                        elif stable1 is None and stable2 is True:
+                            category = "Untested->Stable"
+                        elif stable1 is None and stable2 is False:
+                            category = "Untested->Unstable"
+                        else:
+                            category = "Unknown"
+                        
+                        edge_attributes['category'].append(category)
+    
+    # Add edges to graph
+    if edges_to_add:
+        g.add_edges(edges_to_add)
+        for attr_name, attr_values in edge_attributes.items():
+            g.es[attr_name] = attr_values
+    
+    return g
+
+# Get line styling based on edge category
+def get_line_style(edge_category):
+    """
+    Return color, dash pattern, and width for edge based on category
+    """
+    style_map = {
+        "Stable->Stable": {"color": "black", "dash": "solid", "width": 4},
+        "Stable->Unstable": {"color": "red", "dash": "dash", "width": 1},
+        "Unstable->Stable": {"color": "green", "dash": "dash", "width": 4},
+        "Unstable->Unstable": {"color": "red", "dash": "dot", "width": 1},
+        "Stable->Untested": {"color": "orange", "dash": "dash", "width": 1},
+        "Unstable->Untested": {"color": "orange", "dash": "dot", "width": 1},
+        "Untested->Untested": {"color": "yellow", "dash": "dash", "width": 1},
+        "Untested->Stable": {"color": "orange", "dash": "solid", "width": 1},
+        "Untested->Unstable": {"color": "yellow", "dash": "dot", "width": 1}
+    }
+    return style_map.get(edge_category, {"color": "gray", "dash": "solid", "width": 1})
+
+
+def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03, buttons_x = 0.93,
                        color_button_y = 0.95, size_button_y = 0.85, shape_button_y = 0.75):
     """
     Create interactive 3D plotly visualization of stoichiometric space with dropdown controls
@@ -298,6 +427,11 @@ def plot_stoich_space(stoich_dict, html_file, button_shift = 0.03, buttons_x = 0
     y_coords = [stoich_dict[combo]['y'] for combo in combinations]
     z_coords = [stoich_dict[combo]['z'] for combo in combinations]
     stability_status = [stoich_dict[combo].get('is_stable', None) for combo in combinations]
+
+    # Get system proteins and max count for visualization
+    system_proteins = set(prot for comb in stoich_dict.keys() for prot in comb)
+    max_count = max(max(Counter(combo).values()) for combo in stoich_dict.keys())
+    max_name_length = max([len(prot_id) for prot_id in system_proteins])
     
     labels = []
     hover_texts = []
@@ -308,13 +442,17 @@ def plot_stoich_space(stoich_dict, html_file, button_shift = 0.03, buttons_x = 0
         # Create label
         if isinstance(combination, tuple):
             label = ' + '.join(combination)
+            ascii_viz = create_protein_stoich_visualization(combination, system_proteins, max_count, max_name_length)
         else:
             label = str(combination)
+            ascii_viz = create_protein_stoich_visualization([combination], system_proteins, max_count, max_name_length)
         labels.append(label)
-        
-        # Create hover text
-        hover_info = f"<b>{label}</b><br>"
+                
+        # Create hover text with ASCII visualization
+        hover_info = f"<b>{label}</b><br><br>"
+        hover_info += f"<b>Stoichiometry:</b><br>{ascii_viz}<br><br>"
         n = len(combination) if isinstance(combination, tuple) else 1
+        hover_info += f"Metadata:<br>"
         hover_info += f"N = {n}<br>"
         hover_info += f"Coordinates: ({data['x']:.2f}, {data['y']:.2f}, {data['z']})<br>"
         
@@ -368,12 +506,64 @@ def plot_stoich_space(stoich_dict, html_file, button_shift = 0.03, buttons_x = 0
                 symbol='circle'
             ),
             text=[labels[i] for i in indices],
+            hoverlabel=dict(
+                font_size=10,
+                font_family="Courier New, monospace",  # Ensures monospace for proper ASCII alignment
+                font_color="black",
+                bgcolor="lightgray",
+                bordercolor="black"
+            ),
             hovertext=[hover_texts[i] for i in indices],
             hoverinfo='text',
             visible=True,
             legendgroup=f"stability_{status}",
             showlegend=True
         ))
+    
+
+    # Add edge traces for connections
+    edge_categories = set(stoich_graph.es['category']) if stoich_graph.es else set()
+
+    for category in edge_categories:
+        edge_indices = [i for i, cat in enumerate(stoich_graph.es['category']) if cat == category]
+        if not edge_indices:
+            continue
+        
+        # Get line style
+        style = get_line_style(category)
+        
+        # Prepare edge coordinates
+        edge_x = []
+        edge_y = []
+        edge_z = []
+        
+        for edge_idx in edge_indices:
+            edge = stoich_graph.es[edge_idx]
+            source_combo = stoich_graph.vs[edge.source]['combination']
+            target_combo = stoich_graph.vs[edge.target]['combination']
+            
+            # Add line coordinates
+            edge_x.extend([stoich_dict[source_combo]['x'], stoich_dict[target_combo]['x'], None])
+            edge_y.extend([stoich_dict[source_combo]['y'], stoich_dict[target_combo]['y'], None])
+            edge_z.extend([stoich_dict[source_combo]['z'], stoich_dict[target_combo]['z'], None])
+        
+        # Add edge trace
+        fig.add_trace(go.Scatter3d(
+            x=edge_x,
+            y=edge_y,
+            z=edge_z,
+            mode='lines',
+            name=category,
+            line=dict(
+                color=style['color'],
+                width=style['width'],
+                dash=style['dash']
+            ),
+            hoverinfo='skip',
+            visible=True,
+            legendgroup=f"edge_{category}",
+            showlegend=True
+        ))        
     
     # Get trace count and indices for each stability group
     trace_info = []
@@ -536,7 +726,7 @@ def plot_stoich_space(stoich_dict, html_file, button_shift = 0.03, buttons_x = 0
     # Update layout with dropdown menus positioned on the right
     fig.update_layout(
         title={
-            'text': 'Stoichiometric Space Visualization',
+            'text': 'Stoichiometric Space Exploration Graph',
             'x': 0.5,
             'font': {'size': 16}
         },
@@ -556,7 +746,7 @@ def plot_stoich_space(stoich_dict, html_file, button_shift = 0.03, buttons_x = 0
             y=0.99,
             xanchor="left",
             x=0.01,
-            title="Stability:"
+            title=""
         ),
         updatemenus=[
             dict(
