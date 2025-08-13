@@ -567,7 +567,7 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
         ))
     
 
-    # Add edge traces for connections
+    # Add edge traces for connections with intermediate points for hover
     edge_categories = set(stoich_graph.es['category']) if stoich_graph.es else set()
 
     for category in edge_categories:
@@ -578,22 +578,53 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
         # Get line style
         style = get_line_style(category)
         
-        # Prepare edge coordinates
+        # Prepare edge coordinates with intermediate points
         edge_x = []
         edge_y = []
         edge_z = []
+        edge_hover_texts = []
         
         for edge_idx in edge_indices:
             edge = stoich_graph.es[edge_idx]
             source_combo = stoich_graph.vs[edge.source]['combination']
             target_combo = stoich_graph.vs[edge.target]['combination']
+            variation = stoich_graph.es[edge_idx]['variation']
             
-            # Add line coordinates
-            edge_x.extend([stoich_dict[source_combo]['x'], stoich_dict[target_combo]['x'], None])
-            edge_y.extend([stoich_dict[source_combo]['y'], stoich_dict[target_combo]['y'], None])
-            edge_z.extend([stoich_dict[source_combo]['z'], stoich_dict[target_combo]['z'], None])
+            # Create hover text for this edge
+            source_label = ' + '.join(source_combo) if isinstance(source_combo, tuple) else str(source_combo)
+            target_label = ' + '.join(target_combo) if isinstance(target_combo, tuple) else str(target_combo)
+            
+            edge_hover = f"<b>Edge Connection</b><br><br>"
+            edge_hover += f"<b>From:</b> {source_label}<br>"
+            edge_hover += f"<b>To:</b> {target_label}<br><br>"
+            edge_hover += f"<b>Variation:</b> +{variation}<br><br>"
+            edge_hover += f"<b>Category:</b> {category}<br>"
+            
+            # Get start and end coordinates
+            x1, x2 = stoich_dict[source_combo]['x'], stoich_dict[target_combo]['x']
+            y1, y2 = stoich_dict[source_combo]['y'], stoich_dict[target_combo]['y']
+            z1, z2 = stoich_dict[source_combo]['z'], stoich_dict[target_combo]['z']
+            
+            # Create 30 intermediate points
+            n_points = 30
+            for i in range(n_points + 1):
+                t = i / n_points
+                x_interp = x1 + t * (x2 - x1)
+                y_interp = y1 + t * (y2 - y1)
+                z_interp = z1 + t * (z2 - z1)
+                
+                edge_x.append(x_interp)
+                edge_y.append(y_interp)
+                edge_z.append(z_interp)
+                edge_hover_texts.append(edge_hover)
+            
+            # Add None to separate this edge from the next
+            edge_x.append(None)
+            edge_y.append(None)
+            edge_z.append(None)
+            edge_hover_texts.append("")
         
-        # Add edge trace
+        # Add edge trace with hover enabled
         fig.add_trace(go.Scatter3d(
             x=edge_x,
             y=edge_y,
@@ -605,11 +636,19 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
                 width=style['width'],
                 dash=style['dash']
             ),
-            hoverinfo='skip',
+            hovertext=edge_hover_texts,
+            hoverinfo='text',
+            hoverlabel=dict(
+                font_size=10,
+                font_family="Arial, sans-serif",
+                font_color="black",
+                bgcolor="lightyellow",
+                bordercolor="black"
+            ),
             visible=True,
             legendgroup=f"edge_{category}",
             showlegend=True
-        ))        
+        ))
     
     # Get trace count and indices for each stability group
     trace_info = []
@@ -772,14 +811,21 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
     # Update layout with dropdown menus positioned on the right
     fig.update_layout(
         title={
-            'text': 'Stoichiometric Space Exploration Graph',
+            'text': 'Global Stoichiometric Space Exploration Graph',
             'x': 0.5,
             'font': {'size': 16}
         },
         scene=dict(
-            xaxis_title='Combinatorial Similarity (X)',
-            yaxis_title='Combinatorial Similarity (Y)', 
-            zaxis_title='Stoichiometry Layer (-N)',
+            xaxis_title='Stoichiometric Similarity (X)',
+            yaxis_title='Stoichiometric Similarity (Y)', 
+            zaxis_title='Stoichiometry Size (N)',
+            zaxis=dict(
+                tickmode='linear',
+                tick0=1,
+                dtick=1,
+                tickvals=[abs(z) for z in sorted(set(z_coords))],
+                ticktext=[str(abs(int(z))) for z in sorted(set(z_coords))]
+            ),
             camera=dict(
                 eye=dict(x=1.5, y=1.5, z=1.5)
             ),
