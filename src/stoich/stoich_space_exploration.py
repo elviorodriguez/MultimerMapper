@@ -80,9 +80,9 @@ def initialize_stoich_dict(mm_output):
 
 def add_xyz_coord_to_stoich_dict(stoich_dict):
     """
-    Assign XYZ coordinates to stoichiometric combinations based on:
+    Assign XYZ coordinates to stoichiometric combinations considering connections between layers
     - Z: negative of combination size (layers by N)
-    - X, Y: based on combinatorial similarity using MDS
+    - X, Y: optimized layout considering inter-layer connections
     """
     
     # Group combinations by size (N)
@@ -93,37 +93,83 @@ def add_xyz_coord_to_stoich_dict(stoich_dict):
             size_groups[n] = []
         size_groups[n].append(key)
     
-    # Process each size group separately
-    for n, combinations in size_groups.items():
-        if len(combinations) == 1:
-            # Single combination - place at origin for this layer
-            stoich_dict[combinations[0]]['x'] = 0.0
-            stoich_dict[combinations[0]]['y'] = 0.0
-            stoich_dict[combinations[0]]['z'] = -n
-            continue
-            
-        # Create similarity matrix based on protein composition
-        similarity_matrix = create_similarity_matrix(combinations)
+    sorted_sizes = sorted(size_groups.keys())
+    
+    # Create graph of connections between combinations
+    combinations = list(stoich_dict.keys())
+    connections = []
+    
+    for i, combo1 in enumerate(combinations):
+        for j, combo2 in enumerate(combinations):
+            if len(combo2) == len(combo1) + 1:  # N+1 layer
+                combo1_counter = Counter(combo1)
+                combo2_counter = Counter(combo2)
+                
+                # Check if combo1 is contained in combo2
+                is_contained = all(combo2_counter[protein] >= count 
+                                 for protein, count in combo1_counter.items())
+                
+                if is_contained:
+                    diff_counter = combo2_counter - combo1_counter
+                    if len(diff_counter) == 1:  # Only one protein difference
+                        connections.append((i, j))
+    
+    # Use global MDS considering all combinations and their connections
+    if len(combinations) > 1:
+        # Create distance matrix considering both similarity and connectivity
+        distance_matrix = create_global_distance_matrix(combinations, connections)
         
-        # Use MDS to embed in 2D space
-        if len(combinations) > 1:
-            # Convert similarity to distance matrix
-            distance_matrix = 1 - similarity_matrix
-            
-            # Apply MDS for 2D embedding
-            mds = MDS(n_components=2, dissimilarity='precomputed', random_state=42)
-            coords_2d = mds.fit_transform(distance_matrix)
-            
-            # Scale coordinates to reasonable range
-            coords_2d = scale_coordinates(coords_2d)
-            
-            # Assign coordinates
-            for i, combination in enumerate(combinations):
-                stoich_dict[combination]['x'] = coords_2d[i, 0]
-                stoich_dict[combination]['y'] = coords_2d[i, 1]
-                stoich_dict[combination]['z'] = -n
+        # Apply 3D MDS (we'll use Z for layers but get better X,Y from 3D embedding)
+        mds = MDS(n_components=3, dissimilarity='precomputed', random_state=42)
+        coords_3d = mds.fit_transform(distance_matrix)
+        
+        # Scale the X,Y coordinates
+        coords_xy = scale_coordinates(coords_3d[:, :2])
+        
+        # Assign coordinates
+        for i, combination in enumerate(combinations):
+            stoich_dict[combination]['x'] = coords_xy[i, 0]
+            stoich_dict[combination]['y'] = coords_xy[i, 1]
+            stoich_dict[combination]['z'] = -len(combination)
+    else:
+        # Single combination case
+        stoich_dict[combinations[0]]['x'] = 0.0
+        stoich_dict[combinations[0]]['y'] = 0.0
+        stoich_dict[combinations[0]]['z'] = -len(combinations[0])
     
     return stoich_dict
+
+def create_global_distance_matrix(combinations, connections):
+    """
+    Create distance matrix considering both compositional similarity and connectivity
+    """
+    n = len(combinations)
+    distance_matrix = np.zeros((n, n))
+    
+    # Create similarity matrix first
+    similarity_matrix = create_similarity_matrix(combinations)
+    
+    # Convert similarity to base distance
+    base_distances = 1 - similarity_matrix
+    
+    # Create connectivity bonus matrix
+    connectivity_bonus = np.zeros((n, n))
+    for i, j in connections:
+        # Connected nodes should be closer
+        connectivity_bonus[i, j] = -0.3  # Reduce distance for connected pairs
+        connectivity_bonus[j, i] = -0.3
+    
+    # Combine base distances with connectivity
+    distance_matrix = base_distances + connectivity_bonus
+    
+    # Ensure non-negative distances and symmetry
+    distance_matrix = np.maximum(distance_matrix, 0.1)  # Minimum distance of 0.1
+    distance_matrix = (distance_matrix + distance_matrix.T) / 2  # Ensure symmetry
+    
+    # Set diagonal to 0
+    np.fill_diagonal(distance_matrix, 0)
+    
+    return distance_matrix
 
 def create_similarity_matrix(combinations):
     """
