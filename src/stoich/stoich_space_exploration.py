@@ -3,18 +3,21 @@
 import numpy as np
 import pandas as pd
 import igraph as ig
+import os
 import plotly.graph_objects as go
 from sklearn.manifold import MDS
 from collections import Counter
+from logging import Logger
 
 from src.convergency import does_xmer_is_fully_connected_network
 from src.convergency import get_ranks_ptms, get_ranks_iptms, get_ranks_mipaes, get_ranks_aipaes, get_ranks_pdockqs, get_ranks_mean_plddts
 from cfg.default_settings import N_models_cutoff, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft, Nmers_contacts_cutoff_convergency
 from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list
 from cfg.default_settings import dynamic_conv_start, dynamic_conv_end
+from utils.logger_setup import configure_logger
 
 
-def initialize_stoich_dict(mm_output):
+def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestions = True):
     
     # Unpack necessary data
     combined_graph = mm_output['combined_graph']
@@ -75,8 +78,53 @@ def initialize_stoich_dict(mm_output):
             'miPAE': get_ranks_mipaes(model_pairwise_df),
             'aiPAE': get_ranks_aipaes(model_pairwise_df)
         }
-    
-    return stoich_dict
+
+    removed_suggestions = []  # Track removed suggestions
+
+    if include_suggestions:
+        
+        inf_zero = 0.00000000001
+        max_pae = 32
+
+        for model in suggested_combinations:
+
+            sorted_tuple_combination = tuple(sorted(model))
+            
+            # Check if all parents are unstable or untested
+            has_stable_parent = False
+            combo_counter = Counter(sorted_tuple_combination)
+            
+            # Find all potential parents (N-1 combinations)
+            for existing_combo in stoich_dict.keys():
+                if len(existing_combo) == len(sorted_tuple_combination) - 1:
+                    existing_counter = Counter(existing_combo)
+                    
+                    # Check if existing_combo is contained in sorted_tuple_combination
+                    is_parent = all(combo_counter[protein] >= count 
+                                   for protein, count in existing_counter.items())
+                    
+                    if is_parent:
+                        parent_stability = stoich_dict[existing_combo]['is_stable']
+                        if parent_stability is True:  # Found at least one stable parent
+                            has_stable_parent = True
+                            break
+            
+            # Only add suggestion if it has at least one stable parent
+            if has_stable_parent:
+                stoich_dict[sorted_tuple_combination] = {
+                    'is_stable': None,
+                    'pLDDT': [[inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model)],
+                    'pTM': [0, 0, 0, 0, 0],
+                    'ipTM': [0, 0, 0, 0, 0],
+                    'pDockQ': [[inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model)],
+                    'miPAE': [[max_pae]*len(model), [max_pae]*len(model), [max_pae]*len(model), [max_pae]*len(model), [max_pae]*len(model)],
+                    'aiPAE': [[max_pae]*len(model), [max_pae]*len(model), [max_pae]*len(model), [max_pae]*len(model), [max_pae]*len(model)]
+                }
+            else:
+                # Track removed suggestions
+                removed_suggestions.append(sorted_tuple_combination)
+
+    return stoich_dict, removed_suggestions
 
 def add_xyz_coord_to_stoich_dict(stoich_dict):
     """
@@ -348,7 +396,7 @@ def create_protein_stoich_visualization(combination, system_proteins, max_count,
         count = protein_counts.get(protein, 0)
         # Create bar representation
         bar = " ■"*count
-        viz_lines.append(f"{protein:<{max_prot_len}}|{bar}")
+        viz_lines.append(f"{protein:<{max_prot_len}}|{bar:<{max_count*3}}|")
 
     return "<br>".join(viz_lines)
 
@@ -445,24 +493,30 @@ def get_line_style(edge_category):
     Return color, dash pattern, and width for edge based on category
     """
     style_map = {
-        "Stable->Stable": {"color": "black", "dash": "solid", "width": 4},
-        "Stable->Unstable": {"color": "red", "dash": "dash", "width": 1},
-        "Unstable->Stable": {"color": "green", "dash": "dash", "width": 4},
-        "Unstable->Unstable": {"color": "red", "dash": "dot", "width": 1},
-        "Stable->Untested": {"color": "orange", "dash": "dash", "width": 1},
-        "Unstable->Untested": {"color": "orange", "dash": "dot", "width": 1},
-        "Untested->Untested": {"color": "yellow", "dash": "dash", "width": 1},
-        "Untested->Stable": {"color": "orange", "dash": "solid", "width": 1},
-        "Untested->Unstable": {"color": "yellow", "dash": "dot", "width": 1}
+        "Stable->Stable"    : {"color": "black"     , "dash": "solid", "width": 10},
+        "Stable->Unstable"  : {"color": "red"       , "dash": "dash" , "width": 1},
+        "Stable->Untested"  : {"color": "orange"    , "dash": "solid", "width": 1},
+
+        "Unstable->Stable"  : {"color": "green"     , "dash": "dash" , "width": 4},
+        "Unstable->Unstable": {"color": "red"       , "dash": "dot"  , "width": 1},
+        "Unstable->Untested": {"color": "orange"    , "dash": "dot"  , "width": 1},
+
+        "Untested->Stable"  : {"color": "purple"    , "dash": "solid", "width": 4},
+        "Untested->Unstable": {"color": "purple"    , "dash": "dot"  , "width": 1},
+        "Untested->Untested": {"color": "purple"    , "dash": "dash" , "width": 1}
     }
     return style_map.get(edge_category, {"color": "gray", "dash": "solid", "width": 1})
 
 
 def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03, buttons_x = 0.93,
-                       color_button_y = 0.95, size_button_y = 0.85, shape_button_y = 0.75):
+                       color_button_y = 0.95, size_button_y = 0.85, shape_button_y = 0.75, logger: Logger | None = None):
     """
     Create interactive 3D plotly visualization of stoichiometric space with dropdown controls
     """
+
+    if logger is None:
+        logger = configure_logger()(__name__)
+
     # Compute metadata statistics
     stats = compute_metadata_stats(stoich_dict)
     categorical_vars = get_categorical_variables(stoich_dict)
@@ -566,9 +620,12 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
             showlegend=True
         ))
     
-
-    # Add edge traces for connections with intermediate points for hover
+    # Add edge traces for connections - group edges into tandems for consistent dash patterns
     edge_categories = set(stoich_graph.es['category']) if stoich_graph.es else set()
+    category_legend_added = set()  # Track which categories already have legend entries
+    
+    # Set number of edges per tandem trace
+    n_tandem_edges = 10  # Variable to test different values
 
     for category in edge_categories:
         edge_indices = [i for i, cat in enumerate(stoich_graph.es['category']) if cat == category]
@@ -578,77 +635,89 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
         # Get line style
         style = get_line_style(category)
         
-        # Prepare edge coordinates with intermediate points
-        edge_x = []
-        edge_y = []
-        edge_z = []
-        edge_hover_texts = []
-        
-        for edge_idx in edge_indices:
-            edge = stoich_graph.es[edge_idx]
-            source_combo = stoich_graph.vs[edge.source]['combination']
-            target_combo = stoich_graph.vs[edge.target]['combination']
-            variation = stoich_graph.es[edge_idx]['variation']
+        # Group edges into tandems
+        for tandem_start in range(0, len(edge_indices), n_tandem_edges):
+            tandem_edges = edge_indices[tandem_start:tandem_start + n_tandem_edges]
             
-            # Create hover text for this edge
-            source_label = ' + '.join(source_combo) if isinstance(source_combo, tuple) else str(source_combo)
-            target_label = ' + '.join(target_combo) if isinstance(target_combo, tuple) else str(target_combo)
+            # Prepare edge coordinates for this tandem
+            edge_x = []
+            edge_y = []
+            edge_z = []
+            edge_hover_texts = []
             
-            edge_hover = f"<b>Edge Connection</b><br><br>"
-            edge_hover += f"<b>From:</b> {source_label}<br>"
-            edge_hover += f"<b>To:</b> {target_label}<br><br>"
-            edge_hover += f"<b>Variation:</b> +{variation}<br><br>"
-            edge_hover += f"<b>Category:</b> {category}<br>"
+            # Set number of intermediate points
+            n_intermediate_points = 20
             
-            # Get start and end coordinates
-            x1, x2 = stoich_dict[source_combo]['x'], stoich_dict[target_combo]['x']
-            y1, y2 = stoich_dict[source_combo]['y'], stoich_dict[target_combo]['y']
-            z1, z2 = stoich_dict[source_combo]['z'], stoich_dict[target_combo]['z']
-            
-            # Create 30 intermediate points
-            n_points = 30
-            for i in range(n_points + 1):
-                t = i / n_points
-                x_interp = x1 + t * (x2 - x1)
-                y_interp = y1 + t * (y2 - y1)
-                z_interp = z1 + t * (z2 - z1)
+            for edge_idx in tandem_edges:
+                edge = stoich_graph.es[edge_idx]
+                source_combo = stoich_graph.vs[edge.source]['combination']
+                target_combo = stoich_graph.vs[edge.target]['combination']
+                variation = stoich_graph.es[edge_idx]['variation']
                 
-                edge_x.append(x_interp)
-                edge_y.append(y_interp)
-                edge_z.append(z_interp)
-                edge_hover_texts.append(edge_hover)
+                # Create hover text for this edge
+                source_label = ' + '.join(source_combo) if isinstance(source_combo, tuple) else str(source_combo)
+                target_label = ' + '.join(target_combo) if isinstance(target_combo, tuple) else str(target_combo)
+                
+                edge_hover = f"<b>Edge Connection</b><br><br>"
+                edge_hover += f"<b>From:</b> {source_label}<br>"
+                edge_hover += f"<b>To:</b> {target_label}<br><br>"
+                edge_hover += f"<b>Variation:</b> +{variation}<br><br>"
+                edge_hover += f"<b>Category:</b> {category}<br>"
+                
+                # Get start and end coordinates
+                x1, x2 = stoich_dict[source_combo]['x'], stoich_dict[target_combo]['x']
+                y1, y2 = stoich_dict[source_combo]['y'], stoich_dict[target_combo]['y']
+                z1, z2 = stoich_dict[source_combo]['z'], stoich_dict[target_combo]['z']
+                
+                # Create intermediate points for smoother hover
+                t_values = np.linspace(0, 1, n_intermediate_points + 2)  # +2 to include start and end
+                
+                for t in t_values:
+                    # Linear interpolation between start and end points
+                    x_interp = x1 + t * (x2 - x1)
+                    y_interp = y1 + t * (y2 - y1)
+                    z_interp = z1 + t * (z2 - z1)
+                    
+                    edge_x.append(x_interp)
+                    edge_y.append(y_interp)
+                    edge_z.append(z_interp)
+                    edge_hover_texts.append(edge_hover)
+                
+                # Add separator (None) between edges in the same tandem
+                if edge_idx != tandem_edges[-1]:  # Don't add separator after last edge
+                    edge_x.append(None)
+                    edge_y.append(None)
+                    edge_z.append(None)
+                    edge_hover_texts.append("")
             
-            # Add None to separate this edge from the next
-            edge_x.append(None)
-            edge_y.append(None)
-            edge_z.append(None)
-            edge_hover_texts.append("")
-        
-        # Add edge trace with hover enabled
-        fig.add_trace(go.Scatter3d(
-            x=edge_x,
-            y=edge_y,
-            z=edge_z,
-            mode='lines',
-            name=category,
-            line=dict(
-                color=style['color'],
-                width=style['width'],
-                dash=style['dash']
-            ),
-            hovertext=edge_hover_texts,
-            hoverinfo='text',
-            hoverlabel=dict(
-                font_size=10,
-                font_family="Arial, sans-serif",
-                font_color="black",
-                bgcolor="lightyellow",
-                bordercolor="black"
-            ),
-            visible=True,
-            legendgroup=f"edge_{category}",
-            showlegend=True
-        ))
+            # Add tandem trace
+            fig.add_trace(go.Scatter3d(
+                x=edge_x,
+                y=edge_y,
+                z=edge_z,
+                mode='lines',
+                name=category,
+                line=dict(
+                    color=style['color'],
+                    width=style['width'],
+                    dash=style['dash']
+                ),
+                hovertext=edge_hover_texts,
+                hoverinfo='text',
+                hoverlabel=dict(
+                    font_size=10,
+                    font_family="Arial, sans-serif",
+                    font_color="black",
+                    bgcolor="lightyellow",
+                    bordercolor="black"
+                ),
+                visible=True,
+                legendgroup=f"edge_{category}",
+                showlegend=category not in category_legend_added
+            ))
+            
+            # Mark this category as having a legend entry
+            category_legend_added.add(category)
     
     # Get trace count and indices for each stability group
     trace_info = []
@@ -894,11 +963,41 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
     
     # Save to HTML file
     fig.write_html(html_file)
-    print(f"Stoichiometric space visualization saved to {html_file}")
-    print(f"Available numerical variables: {list(stats.keys())}")
-    print(f"Available categorical variables: {categorical_vars}")
-    print(f"Statistics computed:")
+    logger.info( f"   Stoichiometric space visualization saved to {html_file}")
+    logger.debug(f"   Available numerical variables: {list(stats.keys())}")
+    logger.debug(f"   Available categorical variables: {categorical_vars}")
+    logger.debug(f"   Statistics computed:")
     for var, stat in stats.items():
-        print(f"  {var}: min={stat['min']:.3f}, max={stat['max']:.3f}, mean={stat['mean']:.3f}, median={stat['median']:.3f}")
+        logger.debug(f"  {var}: min={stat['min']:.3f}, max={stat['max']:.3f}, mean={stat['mean']:.3f}, median={stat['median']:.3f}")
     
     return fig
+
+
+
+def generate_stoichiometric_space_graph(mm_output, suggested_combinations, logger: Logger = None):
+    '''
+    Integrated pipeline for stoichiometric space generation.
+    '''
+
+    if logger is None:
+        logger = configure_logger()(__name__)
+    
+    logger.info('INITIALIZING: Stoichiometric Space Exploration Algorithm...')
+
+    # Create directory and give out_file name
+    out_dir = mm_output['out_path'] + "/stoich_space"
+    os.makedirs(out_dir, exist_ok=True)
+    out_file = out_dir + "/stoichiometric_space.html"
+    
+    logger.info('   Analyzing available stoichiometries and suggestions...')
+    stoich_dict, removed_suggestions = initialize_stoich_dict(mm_output, suggested_combinations)
+    logger.info('   Adding xyz coordinates...')
+    stoich_dict = add_xyz_coord_to_stoich_dict(stoich_dict)
+    logger.info('   Generating Stoichiometric Space Graph...')
+    stoich_graph = create_stoichiometric_graph(stoich_dict)
+    logger.info('   Generating visualization...')
+    plot_stoich_space(stoich_dict, stoich_graph, out_file)
+
+    logger.info('FINISHED: Stoichiometric Space Exploration Algorithm')
+    
+    return stoich_dict, stoich_graph, removed_suggestions

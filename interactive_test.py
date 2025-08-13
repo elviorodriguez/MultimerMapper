@@ -368,10 +368,12 @@ nw.generate_plotly_3d_plot(save_path = out_path + '/graphs/3D_graph_plotly.html'
 mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
     mm_output = mm_output, out_path = out_path)
 
-# Get suggested combinations
+# Get suggested combinations and stoichiometric space
+import multimer_mapper as mm
 suggested_combinations = mm.suggest_combinations(mm_output = mm_output, 
                                                  # To ommit saving, change to None
                                                  out_path = out_path)
+mm_output['suggested_combinations'] = suggested_combinations
 
 # Create the final report
 mm.create_report(out_path)

@@ -12,6 +12,7 @@ from collections import Counter
 from typing import List, Tuple, Dict, Any
 
 from utils.logger_setup import configure_logger, default_error_msgs
+from src.stoich.stoich_space_exploration import generate_stoichiometric_space_graph
 
 
 # -----------------------------------------------------------------------------
@@ -601,6 +602,10 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
     already_computed: list[tuple[str]] = list(get_user_2mers_combinations(pairwise_2mers_df)) + list(get_user_Nmers_combinations(pairwise_Nmers_df))
     suggested_combinations: list[tuple[str]] = [ sug for sug in suggested_combinations if sug not in already_computed ]
 
+    # Explore the stoichiometric space and remove uninformative suggestions
+    stoich_dict, stoich_graph, uninformative_suggestions = generate_stoichiometric_space_graph(mm_output, suggested_combinations)
+    suggested_combinations: list[tuple[str]] = [ sug for sug in suggested_combinations if sug not in uninformative_suggestions ]
+
     # Save the suggestions
     if out_path is not None:
 
@@ -655,4 +660,4 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
                 use_names = b
             )
 
-    return suggested_combinations
+    return suggested_combinations, stoich_dict, stoich_graph
