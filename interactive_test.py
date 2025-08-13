@@ -130,16 +130,16 @@ show_PAE_along_backbone = False
 
 ####################### Test 6'' (multivalency PEX13/31) ######################
 
-# fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/proteins_mm.fasta"
-# AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/2-mers"
-# AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/MM_multivalency_test"
-# use_names = True
-# overwrite = True
-# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# auto_domain_detection = True
-# graph_resolution_preset = None
+fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/proteins_mm.fasta"
+AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/MM_multivalency_test"
+use_names = True
+overwrite = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+auto_domain_detection = True
+graph_resolution_preset = None
 
 ###############################################################################
 
@@ -253,16 +253,16 @@ show_PAE_along_backbone = False
 
 # ###################### Test 9 (TbNuA4 - No piccolo) #########################
 
-fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/NuA4_no_piccolo.fasta"
-AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/2-mers"
-AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/mm_out_testing_layout_algorithm"
-use_names = True 
-overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-graph_resolution_preset = None
-auto_domain_detection = True
+# fasta_file = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/NuA4_no_piccolo.fasta"
+# AF2_2mers = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/Assemblies/NuA4/no_piccolo_for_FLAP/mm_out_testing_layout_algorithm"
+# use_names = True 
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# graph_resolution_preset = None
+# auto_domain_detection = True
 
 ###############################################################################
 
@@ -369,10 +369,11 @@ mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
     mm_output = mm_output, out_path = out_path)
 
 # Get suggested combinations and stoichiometric space
-import multimer_mapper as mm
-suggested_combinations = mm.suggest_combinations(mm_output = mm_output, 
-                                                 # To ommit saving, change to None
-                                                 out_path = out_path)
+# import multimer_mapper as mm
+suggested_combinations, stoich_dict, stoich_graph = mm.suggest_combinations(
+    mm_output = mm_output, 
+    # To ommit saving, change to None
+    out_path = out_path)
 mm_output['suggested_combinations'] = suggested_combinations
 
 # Create the final report

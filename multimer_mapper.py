@@ -661,10 +661,11 @@ if __name__ == "__main__":
         df_plddt_stats, df_pae_stats = compute_and_plot_stability_metrics(mm_output, mm_traj)
     
     # Generate suggested combinations files
-    sug_combs = suggest_combinations(mm_output = mm_output,
-                                     out_path = out_path,
-                                     log_level = log_level,
-                                     max_N = N_value + 1)
+    sug_combs, stoich_dict, stoich_graph  = suggest_combinations(
+        mm_output = mm_output,
+        out_path = out_path,
+        log_level = log_level,
+        max_N = N_value + 1)
     
     # Create 3D network
     nw = interactive_igraph_to_py3dmol(mm_output['combined_graph'], logger = logger, automatic_true = first_plot,
