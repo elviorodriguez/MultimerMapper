@@ -673,10 +673,7 @@ if __name__ == "__main__":
     # Integrate everything into an HTML report
     create_report(out_path)
     
-    # Explore the stoichiometric space of the complex
-    logger.warning("Stoichiometric Space Exploration Algorithm is not available yet")
-    logger.warning("   - We are making sure this feature is fully functional before release")
-    logger.warning("   - It will be available soon. Skipping...")
+    # # Explore the stoichiometric space of the complex using simulation algorithm (EXPERIMENTAL)
     # stoichiometric_space_exploration_pipeline(mm_output, log_level = log_level, open_plots = True)
 
     # Progress
