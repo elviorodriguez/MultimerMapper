@@ -603,7 +603,8 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
     suggested_combinations: list[tuple[str]] = [ sug for sug in suggested_combinations if sug not in already_computed ]
 
     # Explore the stoichiometric space and remove uninformative suggestions
-    stoich_dict, stoich_graph, uninformative_suggestions = generate_stoichiometric_space_graph(mm_output, suggested_combinations)
+    stoich_dict, stoich_graph, uninformative_suggestions, informative_suggestions = generate_stoichiometric_space_graph(mm_output, suggested_combinations)
+    suggested_combinations = suggested_combinations + informative_suggestions
     suggested_combinations: list[tuple[str]] = [ sug for sug in suggested_combinations if sug not in uninformative_suggestions ]
 
     # Save the suggestions

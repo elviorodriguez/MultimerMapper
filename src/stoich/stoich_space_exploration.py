@@ -12,7 +12,7 @@ from logging import Logger
 from src.convergency import does_xmer_is_fully_connected_network
 from src.convergency import get_ranks_ptms, get_ranks_iptms, get_ranks_mipaes, get_ranks_aipaes, get_ranks_pdockqs, get_ranks_mean_plddts
 from cfg.default_settings import N_models_cutoff, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft, Nmers_contacts_cutoff_convergency
-from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list
+from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, PT_palette
 from cfg.default_settings import dynamic_conv_start, dynamic_conv_end
 from utils.logger_setup import configure_logger
 
@@ -20,6 +20,7 @@ from utils.logger_setup import configure_logger
 def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestions = True):
     
     # Unpack necessary data
+    protein_list = mm_output['prot_IDs']
     pairwise_2mers_df = mm_output['pairwise_2mers_df']
     pairwise_Nmers_df = mm_output['pairwise_Nmers_df']
     
@@ -77,13 +78,27 @@ def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestion
         }
 
     removed_suggestions = []  # Track removed suggestions
+    added_suggestions = []
 
     if include_suggestions:
+
+        # Add extra suggestions based on stable stoichiometries
+        for sorted_tuple_combination in stoich_dict:
+            # Skip unstable stoichiometries
+            if not stoich_dict[sorted_tuple_combination]['is_stable']:
+                continue
+            
+            # Generate possible combinations by adding +1 of each protein
+            for prot_id in protein_list:
+                possible_new_suggestion = tuple(sorted(list(sorted_tuple_combination) + [prot_id]))
+
+                if possible_new_suggestion not in suggested_combinations and possible_new_suggestion not in added_suggestions and possible_new_suggestion not in stoich_dict:
+                    added_suggestions.append(possible_new_suggestion)
         
         inf_zero = 0.00000000001
         max_pae = 32
 
-        for model in suggested_combinations:
+        for model in suggested_combinations + added_suggestions:
 
             sorted_tuple_combination = tuple(sorted(model))
             
@@ -121,7 +136,7 @@ def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestion
                 # Track removed suggestions
                 removed_suggestions.append(sorted_tuple_combination)
 
-    return stoich_dict, removed_suggestions
+    return stoich_dict, removed_suggestions, added_suggestions
 
 def add_xyz_coord_to_stoich_dict(stoich_dict):
     """
@@ -490,17 +505,17 @@ def get_line_style(edge_category):
     Return color, dash pattern, and width for edge based on category
     """
     style_map = {
-        "Stable->Stable"    : {"color": "black"     , "dash": "solid", "width": 10},
-        "Stable->Unstable"  : {"color": "red"       , "dash": "dash" , "width": 1},
-        "Stable->Untested"  : {"color": "orange"    , "dash": "solid", "width": 1},
+        "Stable->Stable"    : {"color": PT_palette["black"]     , "dash": "solid", "width": 10},
+        "Stable->Unstable"  : {"color": PT_palette["red"]       , "dash": "dash" , "width": 1},
+        "Stable->Untested"  : {"color": PT_palette["orange"]    , "dash": "solid", "width": 1},
 
-        "Unstable->Stable"  : {"color": "green"     , "dash": "dash" , "width": 4},
-        "Unstable->Unstable": {"color": "red"       , "dash": "dot"  , "width": 1},
-        "Unstable->Untested": {"color": "orange"    , "dash": "dot"  , "width": 1},
+        "Unstable->Stable"  : {"color": PT_palette["green"]     , "dash": "dash" , "width": 4},
+        "Unstable->Unstable": {"color": PT_palette["red"]       , "dash": "dot"  , "width": 1},
+        "Unstable->Untested": {"color": PT_palette["orange"]    , "dash": "dot"  , "width": 1},
 
-        "Untested->Stable"  : {"color": "purple"    , "dash": "solid", "width": 4},
-        "Untested->Unstable": {"color": "purple"    , "dash": "dot"  , "width": 1},
-        "Untested->Untested": {"color": "purple"    , "dash": "dash" , "width": 1}
+        "Untested->Stable"  : {"color": PT_palette["deep orange"]    , "dash": "solid", "width": 4},
+        "Untested->Unstable": {"color": PT_palette["deep orange"]    , "dash": "dot"  , "width": 1},
+        "Untested->Untested": {"color": PT_palette["deep orange"]    , "dash": "dash" , "width": 1}
     }
     return style_map.get(edge_category, {"color": "gray", "dash": "solid", "width": 1})
 
@@ -987,7 +1002,7 @@ def generate_stoichiometric_space_graph(mm_output, suggested_combinations, logge
     out_file = out_dir + "/stoichiometric_space.html"
     
     logger.info('   Analyzing available stoichiometries and suggestions...')
-    stoich_dict, removed_suggestions = initialize_stoich_dict(mm_output, suggested_combinations)
+    stoich_dict, removed_suggestions, added_suggestions = initialize_stoich_dict(mm_output, suggested_combinations)
     logger.info('   Adding xyz coordinates...')
     stoich_dict = add_xyz_coord_to_stoich_dict(stoich_dict)
     logger.info('   Generating Stoichiometric Space Graph...')
@@ -997,4 +1012,4 @@ def generate_stoichiometric_space_graph(mm_output, suggested_combinations, logge
 
     logger.info('FINISHED: Stoichiometric Space Exploration Algorithm')
     
-    return stoich_dict, stoich_graph, removed_suggestions
+    return stoich_dict, stoich_graph, removed_suggestions, added_suggestions
