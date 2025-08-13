@@ -20,13 +20,10 @@ from utils.logger_setup import configure_logger
 def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestions = True):
     
     # Unpack necessary data
-    combined_graph = mm_output['combined_graph']
-    protein_list = mm_output['prot_IDs']
     pairwise_2mers_df = mm_output['pairwise_2mers_df']
     pairwise_Nmers_df = mm_output['pairwise_Nmers_df']
     
     # Compute necessary data
-    N_max = max([len(p_in_m) for p_in_m in pairwise_Nmers_df['proteins_in_model']])
     predicted_2mers = set(p_in_m for p_in_m in pairwise_2mers_df['sorted_tuple_pair'])
     predicted_Nmers = set(p_in_m for p_in_m in pairwise_Nmers_df['proteins_in_model'])
     predicted_Xmers = sorted(predicted_2mers.union(predicted_Nmers))
@@ -552,7 +549,7 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
         hover_info = f"<b>{label}</b><br><br>"
         hover_info += f"<b>Stoichiometry:</b><br>{ascii_viz}<br><br>"
         n = len(combination) if isinstance(combination, tuple) else 1
-        hover_info += f"Metadata:<br>"
+        hover_info += f"<b>Metadata:</b><br>"
         hover_info += f"N = {n}<br>"
         hover_info += f"Coordinates: ({data['x']:.2f}, {data['y']:.2f}, {data['z']})<br>"
         
