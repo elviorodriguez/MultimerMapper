@@ -369,7 +369,7 @@ mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
     mm_output = mm_output, out_path = out_path)
 
 # Get suggested combinations and stoichiometric space
-# import multimer_mapper as mm
+import multimer_mapper as mm
 suggested_combinations, stoich_dict, stoich_graph = mm.suggest_combinations(
     mm_output = mm_output, 
     # To ommit saving, change to None

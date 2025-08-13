@@ -388,29 +388,61 @@ def get_categorical_variables(stoich_dict):
     return ['is_stable']  # For now, only stability is categorical
 
 # Create ASCII bar visualization for protein combinations
-def create_protein_stoich_visualization(combination, system_proteins, max_count, max_prot_len):
+def create_protein_stoich_visualization(
+    combination,
+    system_proteins,
+    max_count,
+    max_prot_len,
+    html=True,
+    block_char="■",
+    top_char="_",
+    bottom_char="¯"
+):
     """
-    Create an ASCII bar plot visualization of protein stoichiometry
-    """
-    # Count proteins in combination
-    protein_counts = Counter(combination)
-    
-    # Sort proteins alphabetically for consistent display
-    sorted_proteins = sorted(system_proteins)
-    
-    # Create header with count numbers
-    header = "".join([f"─{i+1}" for i in range(max_count + 1)])
-    
-    # Create visualization
-    viz_lines = [f'{" " * max_prot_len}┤{header}─├']
-    
-    for protein in sorted_proteins:
-        count = protein_counts.get(protein, 0)
-        # Create bar representation
-        bar = " ■"*count
-        viz_lines.append(f"{protein:<{max_prot_len}}|{bar:<{max_count*3}}|")
+    ASCII visualization with header, top fill, rows, and bottom fill.
 
-    return "<br>".join(viz_lines)
+    - top_char: character used to draw the line between header and rows.
+    - bottom_char: character used to draw the bottom line under the rows.
+    """
+    counts = Counter(combination)
+    sorted_proteins = sorted(system_proteins)
+
+    # column geometry
+    col_w = 2                    # each column is " ⬛" or " "
+    interior_len = col_w * max_count + 1  # matches bar built below
+
+    # header like "─1─2─3─..." then wrap with ┤ ... ├
+    header = "".join(f"─{i+1}" for i in range(max_count))
+    header_line = f'{" " * max_prot_len}┤{header}─├'
+
+    viz_lines = [header_line]
+
+    # top fill (between header and first protein row)
+    top_fill = " " * (max_prot_len + 1) + (top_char * interior_len)
+    viz_lines.append(top_fill)
+
+    # build rows
+    for prot in sorted_proteins:
+        cnt = counts.get(prot, 0)
+        visible = min(cnt, max_count)
+        overflow = cnt - visible
+
+        cols = [(" " + block_char) if i < visible else "  " for i in range(max_count)]
+        bar = "".join(cols) + " "   # trailing space so right '|' doesn't touch block
+
+        name = prot if len(prot) <= max_prot_len else prot[: max_prot_len - 1] + "…"
+        line = f"{name:<{max_prot_len}}|{bar}|"
+        if overflow:
+            line += f" +{overflow}"
+        viz_lines.append(line)
+
+    # bottom fill (under the rows)
+    bottom = " " * (max_prot_len + 1) + (bottom_char * interior_len)
+    viz_lines.append(bottom)
+
+    sep = "<br>" if html else "\n"
+    return sep.join(viz_lines)
+
 
 # Create igraph with stoichiometric connections
 def create_stoichiometric_graph(stoich_dict):
@@ -562,7 +594,7 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
                 
         # Create hover text with ASCII visualization
         hover_info = f"<b>{label}</b><br><br>"
-        hover_info += f"<b>Stoichiometry:</b><br>{ascii_viz}<br><br>"
+        hover_info += f"<b>Stoichiometry:</b><br><br>{ascii_viz}<br><br>"
         n = len(combination) if isinstance(combination, tuple) else 1
         hover_info += f"<b>Metadata:</b><br>"
         hover_info += f"N = {n}<br>"
