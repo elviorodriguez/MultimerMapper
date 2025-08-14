@@ -1108,6 +1108,15 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         const mainFrame = document.getElementById('main-frame');
         const toggleBtn = document.getElementById('toggleSidebar');
         const contactClustersPanel = document.getElementById('contact-clusters-panel');
+        
+        let currentOpenPanel = null;
+
+        function closeAllPanels() {{
+            if (currentOpenPanel) {{
+                currentOpenPanel.style.right = '-600px';
+                currentOpenPanel = null;
+            }}
+        }}
 
         // Toggle sidebar functionality
         toggleBtn.addEventListener('click', () => {{
@@ -1178,6 +1187,12 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             
             // About button
             document.getElementById('about-button').addEventListener('click', showAboutPage);
+
+            // To close the sliding panels
+            document.getElementById('close-contact-panel').addEventListener('click', closeAllPanels);
+            document.getElementById('close-domains-panel').addEventListener('click', closeAllPanels);
+            document.getElementById('close-plddt-panel').addEventListener('click', closeAllPanels);
+            document.getElementById('close-stability-panel').addEventListener('click', closeAllPanels);
             
             // Menu dropdown functionality
             const menuDropdowns = document.querySelectorAll('.menu-dropdown');
@@ -1216,22 +1231,26 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
 
         function openDomainsPanel() {{
             const panel = document.getElementById('domains-panel');
+            if (currentOpenPanel === panel) {{
+                closeAllPanels();
+                return;
+            }}
+            closeAllPanels();
             panel.style.right = '0';
+            currentOpenPanel = panel;
             populateDomainButtons();
-            
-            document.getElementById('close-domains-panel').addEventListener('click', () => {{
-                panel.style.right = '-600px';
-            }});
         }}
 
         function openPLDDTPanel() {{
             const panel = document.getElementById('plddt-clusters-panel');
+            if (currentOpenPanel === panel) {{
+                closeAllPanels();
+                return;
+            }}
+            closeAllPanels();
             panel.style.right = '0';
+            currentOpenPanel = panel;
             populatePLDDTButtons();
-            
-            document.getElementById('close-plddt-panel').addEventListener('click', () => {{
-                panel.style.right = '-600px';
-            }});
         }}
 
         function populateDomainButtons() {{
@@ -1270,16 +1289,15 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         
         // Open Contact Clusters Panel
         function openContactClustersPanel() {{
-            // Show the panel
-            contactClustersPanel.style.right = '0';
-            
-            // Populate protein buttons
+            const panel = document.getElementById('contact-clusters-panel');
+            if (currentOpenPanel === panel) {{
+                closeAllPanels();
+                return;
+            }}
+            closeAllPanels();
+            panel.style.right = '0';
+            currentOpenPanel = panel;
             populateContactProteinButtons();
-            
-            // Close button functionality
-            document.getElementById('close-contact-panel').addEventListener('click', () => {{
-                contactClustersPanel.style.right = '-600px';
-            }});
         }}
         
         // Populate Contact Protein Buttons
@@ -1505,12 +1523,14 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         // Open Stability Plots Panel
         function openStabilityPlotsPanel() {{
             const panel = document.getElementById('stability-plots-panel');
+            if (currentOpenPanel === panel) {{
+                closeAllPanels();
+                return;
+            }}
+            closeAllPanels();
             panel.style.right = '0';
+            currentOpenPanel = panel;
             populateStabilityProteinButtons();
-            
-            document.getElementById('close-stability-panel').addEventListener('click', () => {{
-                panel.style.right = '-600px';
-            }});
         }}
         
         // Populate protein buttons
