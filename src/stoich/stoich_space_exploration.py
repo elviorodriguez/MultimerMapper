@@ -8,6 +8,8 @@ import plotly.graph_objects as go
 from sklearn.manifold import MDS
 from collections import Counter
 from logging import Logger
+import colorsys
+from matplotlib.colors import to_rgb
 
 from src.convergency import does_xmer_is_fully_connected_network
 from src.convergency import get_ranks_ptms, get_ranks_iptms, get_ranks_mipaes, get_ranks_aipaes, get_ranks_pdockqs, get_ranks_mean_plddts
@@ -367,11 +369,11 @@ def viridis_colorscale(values):
     
     return normalized_values
 
-def get_stability_colors(stability_status):
+def get_stability_colors(stability_status, palette=PT_palette):
     """
     Get colors for stability status
     """
-    color_map = {True: 'black', False: 'red', None: 'orange'}
+    color_map = {True: palette['black'], False: palette['red'], None: palette['orange']}
     return [color_map.get(status, 'gray') for status in stability_status]
 
 def get_stability_shapes(stability_status):
@@ -551,9 +553,15 @@ def get_line_style(edge_category):
     }
     return style_map.get(edge_category, {"color": "gray", "dash": "solid", "width": 1})
 
+def readable_text_color(c):
+    r, g, b = to_rgb(c)  # (0..1)
+    # Relative luminance (sRGB)
+    L = 0.2126*r + 0.7152*g + 0.0722*b
+    return "black" if L > 0.5 else "white"
 
-def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03, buttons_x = 0.93,
-                       color_button_y = 0.95, size_button_y = 0.85, shape_button_y = 0.75, logger: Logger | None = None):
+def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015, buttons_x = 0.01,
+                       color_button_y = 0.35, size_button_y = 0.25, shape_button_y = 0.15,
+                       palette = PT_palette, logger: Logger | None = None):
     """
     Create interactive 3D plotly visualization of stoichiometric space with dropdown controls
     """
@@ -629,7 +637,7 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
     # Add traces by stability (order: Untested, Unstable, Stable for proper layering)
     stability_order = [None, False, True]
     stability_names = {True: 'Stable', False: 'Unstable', None: 'Untested'}
-    stability_colors = {True: 'black', False: 'red', None: 'orange'}
+    stability_colors = {True: palette['black'], False: palette['red'], None: palette['orange']}
     
     for status in stability_order:
         indices = [i for i, s in enumerate(stability_status) if s == status]
@@ -653,8 +661,8 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
             hoverlabel=dict(
                 font_size=10,
                 font_family="Courier New, monospace",  # Ensures monospace for proper ASCII alignment
-                font_color="black",
-                bgcolor="lightgray",
+                font_color=readable_text_color(stability_colors[status]),
+                bgcolor=stability_colors[status],
                 bordercolor="black"
             ),
             hovertext=[hover_texts[i] for i in indices],
@@ -751,8 +759,8 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
                 hoverlabel=dict(
                     font_size=10,
                     font_family="Arial, sans-serif",
-                    font_color="black",
-                    bgcolor="lightyellow",
+                    font_color=readable_text_color(style['color']),
+                    bgcolor=style['color'],
                     bordercolor="black"
                 ),
                 visible=True,
@@ -962,7 +970,7 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
                 x=buttons_x,
                 xanchor="left",
                 y=color_button_y - button_shift,
-                yanchor="top",
+                # yanchor="top",
                 bgcolor="rgba(255,255,255,0.8)",
                 bordercolor="black",
                 borderwidth=1,
@@ -974,8 +982,8 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
                 showactive=True,
                 x=buttons_x,
                 xanchor="left",
-                y=size_button_y - button_shift,
-                yanchor="top",
+                y=size_button_y,
+                # yanchor="top",
                 bgcolor="rgba(255,255,255,0.8)",
                 bordercolor="black",
                 borderwidth=1,
@@ -987,8 +995,8 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
                 showactive=True,
                 x=buttons_x,
                 xanchor="left",
-                y=shape_button_y - button_shift,
-                yanchor="top",
+                y=shape_button_y,
+                # yanchor="top",
                 bgcolor="rgba(255,255,255,0.8)",
                 bordercolor="black",
                 borderwidth=1,
