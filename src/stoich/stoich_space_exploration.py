@@ -190,12 +190,12 @@ def add_xyz_coord_to_stoich_dict(stoich_dict):
         for i, combination in enumerate(combinations):
             stoich_dict[combination]['x'] = coords_xy[i, 0]
             stoich_dict[combination]['y'] = coords_xy[i, 1]
-            stoich_dict[combination]['z'] = -len(combination)
+            stoich_dict[combination]['z'] = len(combination)
     else:
         # Single combination case
         stoich_dict[combinations[0]]['x'] = 0.0
         stoich_dict[combinations[0]]['y'] = 0.0
-        stoich_dict[combinations[0]]['z'] = -len(combinations[0])
+        stoich_dict[combinations[0]]['z'] = len(combinations[0])
     
     return stoich_dict
 
@@ -936,8 +936,9 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.03,
                 tickmode='linear',
                 tick0=1,
                 dtick=1,
-                tickvals=[abs(z) for z in sorted(set(z_coords))],
-                ticktext=[str(abs(int(z))) for z in sorted(set(z_coords))]
+                tickvals=sorted(set(z_coords)),
+                ticktext=[str(int(z)) for z in sorted(set(z_coords))],
+                autorange='reversed'
             ),
             camera=dict(
                 eye=dict(x=1.5, y=1.5, z=1.5)
