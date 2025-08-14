@@ -560,7 +560,7 @@ def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], D
                                     pair: Tuple[str, str],
                                     max_valency: int,
                                     config: ClusteringConfig,
-                                    logger: logging.Logger | None = None) -> Tuple[List[int], List, np.ndarray, np.ndarray]:
+                                    logger: logging.Logger | None = None) -> Tuple[List[int], List, np.ndarray, np.ndarray, Dict]:
     """Enhanced clustering with multiple metrics and validation"""
 
     # Set up logging
@@ -634,7 +634,10 @@ def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], D
         reduced_features = mds.fit_transform(distance_matrix)
         explained_variance = None
     
-    return labels, model_keys, reduced_features, explained_variance
+    # Create a mapping to track the reordering that will happen in generate_cluster_dict
+    original_to_reordered = {}
+    
+    return labels, model_keys, reduced_features, explained_variance, original_to_reordered
 
 
 def analyze_protein_interactions_with_enhanced_clustering(
@@ -719,13 +722,16 @@ def analyze_protein_interactions_with_enhanced_clustering(
         )
         
         if result[0] is not None:
-            labels, model_keys, reduced_features, explained_variance = result
+            labels, model_keys, reduced_features, explained_variance, _ = result
             
-            # Generate cluster dictionary (reuse existing function)
-            cluster_info = generate_cluster_dict(
+            # Generate cluster dictionary and get reordered labels
+            cluster_info, reordered_labels = generate_cluster_dict(
                 all_pair_matrices, pair, model_keys, labels, mm_output,
                 config.distance_metric, config.use_median
             )
+            
+            # Use reordered labels for visualization
+            labels = reordered_labels
             
             if cluster_info:
                 all_clusters[pair] = cluster_info
@@ -761,7 +767,7 @@ def generate_cluster_dict(all_pair_matrices: Dict,
                          mm_output: Dict,
                          similarity_metric: str = "closeness",
                          use_median: bool = False,
-                         logger: logging.Logger | None = None) -> Dict:
+                         logger: logging.Logger | None = None) -> Tuple[Dict, List[int]]:
     """Modified version of your original function to work with enhanced clustering"""
     
     # Set up logging
@@ -812,9 +818,12 @@ def generate_cluster_dict(all_pair_matrices: Dict,
     # Sort labels by size descending
     sorted_labels = sorted(size_map, key=lambda l: size_map[l], reverse=True)
 
-    # Build sorted dict
+    # Build sorted dict and create reordering mapping
     cluster_dict = {}
     metrics = EnhancedDistanceMetrics()
+    
+    # Create mapping from old labels to new sorted labels
+    label_mapping = {old_lbl: new_id for new_id, old_lbl in enumerate(sorted_labels)}
     
     for new_id, old_lbl in enumerate(sorted_labels):
         indices = raw_clusters[old_lbl]
@@ -860,7 +869,10 @@ def generate_cluster_dict(all_pair_matrices: Dict,
             'n_models': len(models)
         }
 
-    return cluster_dict
+    # Update labels with the new mapping
+    reordered_labels = [label_mapping[lbl] for lbl in labels]
+    
+    return cluster_dict, reordered_labels
 
 
 def print_clustering_summary(clusters: Dict, logger = None):
