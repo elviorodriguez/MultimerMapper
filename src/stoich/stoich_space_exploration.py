@@ -675,6 +675,88 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
     # Add edge traces for connections - group edges into tandems for consistent dash patterns
     edge_categories = set(stoich_graph.es['category']) if stoich_graph.es else set()
     category_legend_added = set()  # Track which categories already have legend entries
+
+    # Add arrowheads for "Stable->Stable" edges - placed independently at midpoints
+    stable_to_stable_edges = [i for i, cat in enumerate(stoich_graph.es['category']) if cat == "Stable->Stable"]
+
+    if stable_to_stable_edges:
+        # Prepare arrowhead coordinates
+        arrow_x = []
+        arrow_y = []
+        arrow_z = []
+        arrow_u = []  # direction vectors
+        arrow_v = []
+        arrow_w = []
+        arrow_hover_texts = []
+        
+        for edge_idx in stable_to_stable_edges:
+            edge = stoich_graph.es[edge_idx]
+            source_combo = stoich_graph.vs[edge.source]['combination']
+            target_combo = stoich_graph.vs[edge.target]['combination']
+            variation = stoich_graph.es[edge_idx]['variation']
+            
+            # Ensure correct direction: N -> N+1 (source should be smaller)
+            if len(source_combo) > len(target_combo):
+                # Swap if source is larger than target
+                source_combo, target_combo = target_combo, source_combo
+            
+            # Get coordinates
+            x1, x2 = stoich_dict[source_combo]['x'], stoich_dict[target_combo]['x']
+            y1, y2 = stoich_dict[source_combo]['y'], stoich_dict[target_combo]['y']
+            z1, z2 = stoich_dict[source_combo]['z'], stoich_dict[target_combo]['z']
+            
+            # Calculate direction vector (N -> N+1)
+            dx, dy, dz = x2 - x1, y2 - y1, z2 - z1
+            
+            # Normalize direction vector
+            length = np.sqrt(dx**2 + dy**2 + dz**2)
+            if length > 0:
+                dx, dy, dz = dx/length, dy/length, dz/length
+            else:
+                # If points are identical, use z-direction (pointing up in N layers)
+                dx, dy, dz = 0, 0, 1
+            
+            # Position arrowhead at exact midpoint
+            ax = (x1 + x2) / 2
+            ay = (y1 + y2) / 2
+            az = (z1 + z2) / 2
+            
+            arrow_x.append(ax)
+            arrow_y.append(ay)
+            arrow_z.append(az)
+            arrow_u.append(dx)
+            arrow_v.append(dy)
+            arrow_w.append(dz)
+            
+            # Simple hover text showing just the protein variation
+            arrow_hover_texts.append(f"+{variation}")
+        
+        # Add cone trace for arrowheads
+        fig.add_trace(go.Cone(
+            x=arrow_x,
+            y=arrow_y,
+            z=arrow_z,
+            u=arrow_u,
+            v=arrow_v,
+            w=arrow_w,
+            sizemode="absolute",
+            sizeref=0.4,  # Smaller size for cleaner look
+            colorscale=[[0, palette['black']], [1, palette['black']]],
+            showscale=False,
+            name="Stable Directions",
+            hovertext=arrow_hover_texts,
+            hoverinfo='text',
+            hoverlabel=dict(
+                font_size=12,
+                font_family="Arial, sans-serif",
+                font_color="white",
+                bgcolor=palette['black'],
+                bordercolor="white"
+            ),
+            visible=True,
+            legendgroup="stable_arrows",
+            showlegend=True
+        ))
     
     # Set number of edges per tandem trace
     n_tandem_edges = 10  # Variable to test different values
