@@ -311,13 +311,13 @@ mm_output = mm.parse_AF2_and_sequences(fasta_file,
 
 combined_graph_interactive = mm.interactive_igraph_to_plotly(
     mm_output["combined_graph"], out_path = out_path,
-    layout_algorithm = 'weighted_fr',    
+    layout_algorithm = 'kk',    
     
     # You can remove specific interaction types from the graph
     # "No 2-mers Data"
     # remove_interactions = ("Indirect", "No 2-mers Data"),
     remove_interactions = remove_interactions,
-    self_loop_size = 4,
+    self_loop_size = 2,
     
     # Answer y automatically
     automatic_true = True)
@@ -370,7 +370,7 @@ mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
 
 # Get suggested combinations and stoichiometric space
 import multimer_mapper as mm
-suggested_combinations, stoich_dict, stoich_graph = mm.suggest_combinations(
+suggested_combinations, stoich_dict, stoich_graph, convergent_stoichs = mm.suggest_combinations(
     mm_output = mm_output, 
     # To ommit saving, change to None
     out_path = out_path)

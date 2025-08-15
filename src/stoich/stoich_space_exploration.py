@@ -138,7 +138,79 @@ def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestion
                 # Track removed suggestions
                 removed_suggestions.append(sorted_tuple_combination)
 
-    return stoich_dict, removed_suggestions, added_suggestions
+    # Identify convergent stoichiometries
+    convergent_stoichiometries = identify_convergent_stoichiometries(stoich_dict, protein_list)
+    
+    return stoich_dict, removed_suggestions, added_suggestions, convergent_stoichiometries
+
+
+def identify_convergent_stoichiometries(stoich_dict, protein_list):
+    """
+    Identify convergent stoichiometries where all children are unstable and none are unexplored.
+    
+    Returns:
+        convergent_stoichiometries: list of sorted tuples representing convergent stoichiometries
+    """
+    convergent_stoichiometries = []
+    
+    for combination, data in stoich_dict.items():
+        # Skip if current combination is not stable
+        if data['is_stable'] is not True:
+            stoich_dict[combination]['is_convergent'] = None
+            continue
+        
+        # Generate all possible children (N+1 combinations)
+        possible_children = []
+        for prot_id in protein_list:
+            child_combination = tuple(sorted(list(combination) + [prot_id]))
+            possible_children.append(child_combination)
+        
+        # Remove duplicates while preserving order
+        unique_children = []
+        seen = set()
+        for child in possible_children:
+            if child not in seen:
+                unique_children.append(child)
+                seen.add(child)
+        
+        # Check the status of all possible children
+        children_in_dict = [child for child in unique_children if child in stoich_dict]
+        
+        if not children_in_dict:
+            # No children explored yet
+            stoich_dict[combination]['is_convergent'] = None
+            continue
+        
+        # Check if all possible children are in the dictionary (no unexplored children)
+        all_children_explored = len(children_in_dict) == len(unique_children)
+        
+        if not all_children_explored:
+            # Some children are unexplored
+            stoich_dict[combination]['is_convergent'] = None
+            continue
+        
+        # All children are explored, check their stability
+        children_stability = [stoich_dict[child]['is_stable'] for child in children_in_dict]
+        
+        # Check if any child stability is None (unexplored)
+        if any(stability is None for stability in children_stability):
+            stoich_dict[combination]['is_convergent'] = None
+            continue
+        
+        # All children have known stability
+        all_children_unstable = all(stability is False for stability in children_stability)
+        at_least_one_child_stable = any(stability is True for stability in children_stability)
+        
+        if all_children_unstable:
+            stoich_dict[combination]['is_convergent'] = True
+            convergent_stoichiometries.append(combination)
+        elif at_least_one_child_stable:
+            stoich_dict[combination]['is_convergent'] = False
+        else:
+            stoich_dict[combination]['is_convergent'] = None
+    
+    return convergent_stoichiometries
+
 
 def add_xyz_coord_to_stoich_dict(stoich_dict):
     """
@@ -387,7 +459,7 @@ def get_categorical_variables(stoich_dict):
     """
     Identify categorical variables
     """
-    return ['is_stable']  # For now, only stability is categorical
+    return ['is_stable', 'is_convergent']
 
 # Create ASCII bar visualization for protein combinations
 def create_protein_stoich_visualization(
@@ -643,34 +715,80 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
         indices = [i for i, s in enumerate(stability_status) if s == status]
         if not indices:
             continue
+        
+        # Separate indices by convergence status
+        convergent_indices = []
+        non_convergent_indices = []
+        
+        for i in indices:
+            combination = combinations[i]
+            is_convergent = stoich_dict[combination].get('is_convergent', None)
+            if is_convergent is True:
+                convergent_indices.append(i)
+            else:
+                non_convergent_indices.append(i)
+        
+        # Add trace for non-convergent markers (regular border)
+        if non_convergent_indices:
+            fig.add_trace(go.Scatter3d(
+                x=[x_coords[i] for i in non_convergent_indices],
+                y=[y_coords[i] for i in non_convergent_indices],
+                z=[z_coords[i] for i in non_convergent_indices],
+                mode='markers',
+                name=stability_names[status],
+                marker=dict(
+                    size=12,
+                    color=stability_colors[status],
+                    opacity=1,
+                    line=dict(width=1, color='black'),
+                    symbol='circle'
+                ),
+                text=[labels[i] for i in non_convergent_indices],
+                hoverlabel=dict(
+                    font_size=10,
+                    font_family="Courier New, monospace",
+                    font_color=readable_text_color(stability_colors[status]),
+                    bgcolor=stability_colors[status],
+                    bordercolor="black"
+                ),
+                hovertext=[hover_texts[i] for i in non_convergent_indices],
+                hoverinfo='text',
+                visible=True,
+                legendgroup=f"stability_{status}",
+                showlegend=True
+            ))
+        
+        # Add trace for convergent markers (gold border)
+        if convergent_indices:
+            gold_color = palette.get('gold', '#FFD700')
             
-        fig.add_trace(go.Scatter3d(
-            x=[x_coords[i] for i in indices],
-            y=[y_coords[i] for i in indices],
-            z=[z_coords[i] for i in indices],
-            mode='markers',
-            name=stability_names[status],
-            marker=dict(
-                size=12,
-                color=stability_colors[status],
-                opacity=0.8,
-                line=dict(width=1, color='black'),
-                symbol='circle'
-            ),
-            text=[labels[i] for i in indices],
-            hoverlabel=dict(
-                font_size=10,
-                font_family="Courier New, monospace",  # Ensures monospace for proper ASCII alignment
-                font_color=readable_text_color(stability_colors[status]),
-                bgcolor=stability_colors[status],
-                bordercolor="black"
-            ),
-            hovertext=[hover_texts[i] for i in indices],
-            hoverinfo='text',
-            visible=True,
-            legendgroup=f"stability_{status}",
-            showlegend=True
-        ))
+            fig.add_trace(go.Scatter3d(
+                x=[x_coords[i] for i in convergent_indices],
+                y=[y_coords[i] for i in convergent_indices],
+                z=[z_coords[i] for i in convergent_indices],
+                mode='markers',
+                name=f"{stability_names[status]} (Convergent)",
+                marker=dict(
+                    size=12,
+                    color=stability_colors[status],
+                    opacity=0.8,
+                    line=dict(width=4, color=gold_color),
+                    symbol='circle'
+                ),
+                text=[labels[i] for i in convergent_indices],
+                hoverlabel=dict(
+                    font_size=10,
+                    font_family="Courier New, monospace",
+                    font_color=readable_text_color(stability_colors[status]),
+                    bgcolor=stability_colors[status],
+                    bordercolor="black"
+                ),
+                hovertext=[hover_texts[i] for i in convergent_indices],
+                hoverinfo='text',
+                visible=True,
+                legendgroup=f"stability_{status}_convergent",
+                showlegend=True
+            ))
     
     # Add edge traces for connections - group edges into tandems for consistent dash patterns
     edge_categories = set(stoich_graph.es['category']) if stoich_graph.es else set()
@@ -739,8 +857,8 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
             u=arrow_u,
             v=arrow_v,
             w=arrow_w,
-            sizemode="absolute",
-            sizeref=0.4,  # Smaller size for cleaner look
+            sizemode="scaled",
+            sizeref=0.7,
             colorscale=[[0, palette['black']], [1, palette['black']]],
             showscale=False,
             name="Stable Directions",
@@ -853,16 +971,43 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
             # Mark this category as having a legend entry
             category_legend_added.add(category)
     
-    # Get trace count and indices for each stability group
+    # Get trace count and indices for each stability group (including convergent traces)
     trace_info = []
     trace_count = 0
     for status in stability_order:
         indices = [i for i, s in enumerate(stability_status) if s == status]
-        if indices:
+        if not indices:
+            continue
+            
+        # Separate indices by convergence status
+        convergent_indices = []
+        non_convergent_indices = []
+        
+        for i in indices:
+            combination = combinations[i]
+            is_convergent = stoich_dict[combination].get('is_convergent', None)
+            if is_convergent is True:
+                convergent_indices.append(i)
+            else:
+                non_convergent_indices.append(i)
+        
+        # Add trace info for non-convergent markers
+        if non_convergent_indices:
             trace_info.append({
                 'status': status,
-                'indices': indices,
-                'trace_idx': trace_count
+                'indices': non_convergent_indices,
+                'trace_idx': trace_count,
+                'convergent': False
+            })
+            trace_count += 1
+        
+        # Add trace info for convergent markers
+        if convergent_indices:
+            trace_info.append({
+                'status': status,
+                'indices': convergent_indices,
+                'trace_idx': trace_count,
+                'convergent': True
             })
             trace_count += 1
     
@@ -1010,6 +1155,23 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
         label="Stability",
         method="restyle"
     ))
+
+    # Convergence shapes
+    convergence_shapes_by_trace = []
+    convergence_shape_map = {True: 'star', False: 'circle', None: 'circle'}
+    for trace in trace_info:
+        convergence_shapes = []
+        for i in trace['indices']:
+            combination = combinations[i]
+            is_convergent = stoich_dict[combination].get('is_convergent', None)
+            convergence_shapes.append(convergence_shape_map[is_convergent])
+        convergence_shapes_by_trace.append(convergence_shapes)
+    
+    shape_buttons.append(dict(
+        args=create_trace_updates("marker.symbol", convergence_shapes_by_trace),
+        label="Convergence",
+        method="restyle"
+    ))
     
     # Update layout with dropdown menus positioned on the right
     fig.update_layout(
@@ -1042,7 +1204,7 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
             y=0.99,
             xanchor="left",
             x=0.01,
-            title=""
+            title="<b>Stoichiometries:</b>"
         ),
         updatemenus=[
             dict(
@@ -1125,7 +1287,7 @@ def generate_stoichiometric_space_graph(mm_output, suggested_combinations, logge
     out_file = out_dir + "/stoichiometric_space.html"
     
     logger.info('   Analyzing available stoichiometries and suggestions...')
-    stoich_dict, removed_suggestions, added_suggestions = initialize_stoich_dict(mm_output, suggested_combinations)
+    stoich_dict, removed_suggestions, added_suggestions, convergent_stoichiometries = initialize_stoich_dict(mm_output, suggested_combinations)
     logger.info('   Adding xyz coordinates...')
     stoich_dict = add_xyz_coord_to_stoich_dict(stoich_dict)
     logger.info('   Generating Stoichiometric Space Graph...')
@@ -1133,6 +1295,15 @@ def generate_stoichiometric_space_graph(mm_output, suggested_combinations, logge
     logger.info('   Generating visualization...')
     plot_stoich_space(stoich_dict, stoich_graph, out_file)
 
+    # Report convergent stoichiometries detected
+    if len(convergent_stoichiometries) == 0:
+        logger.info(f'   No convergent stoichiometries were found')
+    else:
+        logger.info(f'   Found {len(convergent_stoichiometries)} convergent stoichiometries:')
+        for i, stoich in enumerate(convergent_stoichiometries):
+            logger.info(f'      - Convergent stoichiometry {i+1}: {stoich}')
+
+
     logger.info('FINISHED: Stoichiometric Space Exploration Algorithm')
     
-    return stoich_dict, stoich_graph, removed_suggestions, added_suggestions
+    return stoich_dict, stoich_graph, removed_suggestions, added_suggestions, convergent_stoichiometries
