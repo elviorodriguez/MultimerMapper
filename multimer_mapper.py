@@ -661,7 +661,7 @@ if __name__ == "__main__":
         df_plddt_stats, df_pae_stats = compute_and_plot_stability_metrics(mm_output, mm_traj)
     
     # Generate suggested combinations files
-    sug_combs, stoich_dict, stoich_graph  = suggest_combinations(
+    sug_combs, stoich_dict, stoich_graph, convergent_stoich = suggest_combinations(
         mm_output = mm_output,
         out_path = out_path,
         log_level = log_level,
