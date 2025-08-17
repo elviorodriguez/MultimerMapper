@@ -3,9 +3,239 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 from typing import Dict, Tuple, Any
+from scipy.spatial.distance import cdist
+from sklearn.neighbors import NearestNeighbors
 
 from cfg.default_settings import contact_distance_cutoff, contact_pLDDT_cutoff, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft, Nmers_contacts_cutoff_convergency
 from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list
+
+
+def get_chain_fast(model, chain_id):
+    """O(1) if model supports dict-like indexing, fallback otherwise."""
+    try:
+        return model[chain_id]  # Biopython Entity indexing
+    except Exception:
+        for ch in model.get_chains():
+            if ch.id == chain_id:
+                return ch
+    return None
+
+def extract_ca_coords(chain, dtype=np.float32):
+    """Residue-level CA extraction in sequence order."""
+    coords = []
+    # chain.get_residues() preserves biological order
+    for res in chain.get_residues():
+        # Slightly faster than try/except
+        if res.has_id('CA'):
+            coords.append(res['CA'].get_coord())
+    # Single allocation
+    return np.asarray(coords, dtype=dtype)
+
+def reconstruct_models_fast(model_pairwise_df, ranks=(1, 2, 3, 4, 5), dtype=np.float16):
+    """
+    Returns: dict[rank -> dict[chain_id -> np.ndarray(N,3)]]
+    - One pass per needed chain; avoids scanning all chains/atoms.
+    """
+    reconstructed = {}
+    for r in ranks:
+        reconstructed[r] = {}
+        for _, model_row in model_pairwise_df.query('rank == @r').iterrows():
+            pair_model = model_row['model']
+            ch1, ch2 = model_row['pair_chains_tuple']
+            for chain_id in (ch1, ch2):
+                if chain_id in reconstructed[r]:
+                    continue
+                chain = get_chain_fast(pair_model, chain_id)
+                if chain is None:
+                    # Optional: log or raise depending on your expectations
+                    continue
+                reconstructed[r][chain_id] = extract_ca_coords(chain, dtype=dtype)
+    return reconstructed
+
+def create_backbone_mesh_optimized(ca_coords, tube_radius=2.0, sampling_points=4):
+    """
+    Create an efficient mesh representation of the protein backbone.
+    Uses cylindrical approximation with optimized sampling.
+    
+    Args:
+        ca_coords: numpy array of CA coordinates (N, 3)
+        tube_radius: radius of the backbone tube in Angstroms
+        sampling_points: number of points to sample per CA-CA segment
+    
+    Returns:
+        numpy array of mesh points (M, 3)
+    """
+    if len(ca_coords) < 2:
+        return ca_coords.copy()
+    
+    mesh_points = []
+    
+    # Vectorized approach for efficiency
+    for i in range(len(ca_coords) - 1):
+        start = ca_coords[i]
+        end = ca_coords[i + 1]
+        
+        # Create points along the backbone segment
+        t_values = np.linspace(0, 1, sampling_points, endpoint=False)
+        segment_points = start[None, :] + t_values[:, None] * (end - start)[None, :]
+        
+        # Add radial sampling for tube representation
+        direction = end - start
+        direction_norm = np.linalg.norm(direction)
+        
+        if direction_norm > 0:
+            direction = direction / direction_norm
+            
+            # Create perpendicular vectors for radial sampling
+            if abs(direction[2]) < 0.9:
+                perp1 = np.cross(direction, [0, 0, 1])
+            else:
+                perp1 = np.cross(direction, [1, 0, 0])
+            perp1 = perp1 / np.linalg.norm(perp1)
+            perp2 = np.cross(direction, perp1)
+            
+            # Sample points around the tube circumference (simplified to 4 points for speed)
+            radial_offsets = np.array([
+                tube_radius * perp1,
+                tube_radius * perp2,
+                -tube_radius * perp1,
+                -tube_radius * perp2
+            ])
+            
+            # Add radial points for each segment point
+            for seg_point in segment_points:
+                mesh_points.extend(seg_point + radial_offsets)
+    
+    return np.array(mesh_points)
+
+def detect_steric_clashes_optimized(chain_meshes, clash_threshold=1.5, 
+                                  min_clash_points=5, sample_fraction=0.3):
+    """
+    Detect steric clashes between protein chain meshes using efficient algorithms.
+    
+    Args:
+        chain_meshes: dict of {chain_id: mesh_points_array}
+        clash_threshold: minimum distance to consider a clash (Angstroms)
+        min_clash_points: minimum number of clashing points to consider significant
+        sample_fraction: fraction of points to sample for efficiency
+    
+    Returns:
+        bool: True if significant steric clashes detected, False otherwise
+    """
+    if len(chain_meshes) < 2:
+        return False
+    
+    chain_ids = list(chain_meshes.keys())
+    
+    # Pre-filter: check if any chains have overlapping bounding boxes
+    bounding_boxes = {}
+    for chain_id, mesh in chain_meshes.items():
+        if len(mesh) == 0:
+            continue
+        min_coords = np.min(mesh, axis=0)
+        max_coords = np.max(mesh, axis=0)
+        bounding_boxes[chain_id] = (min_coords, max_coords)
+    
+    # Check all chain pairs
+    for i in range(len(chain_ids)):
+        for j in range(i + 1, len(chain_ids)):
+            chain1_id, chain2_id = chain_ids[i], chain_ids[j]
+            
+            if chain1_id not in bounding_boxes or chain2_id not in bounding_boxes:
+                continue
+                
+            # Quick bounding box check
+            min1, max1 = bounding_boxes[chain1_id]
+            min2, max2 = bounding_boxes[chain2_id]
+            
+            # Expand bounding boxes by clash threshold
+            if not np.any((min1 - clash_threshold <= max2) & (max1 + clash_threshold >= min2)):
+                continue  # No possible overlap
+            
+            mesh1 = chain_meshes[chain1_id]
+            mesh2 = chain_meshes[chain2_id]
+            
+            if len(mesh1) == 0 or len(mesh2) == 0:
+                continue
+            
+            # Sample points for efficiency
+            n_sample1 = max(1, int(len(mesh1) * sample_fraction))
+            n_sample2 = max(1, int(len(mesh2) * sample_fraction))
+            
+            # Use random sampling for better coverage
+            if n_sample1 < len(mesh1):
+                indices1 = np.random.choice(len(mesh1), n_sample1, replace=False)
+                sample1 = mesh1[indices1]
+            else:
+                sample1 = mesh1
+                
+            if n_sample2 < len(mesh2):
+                indices2 = np.random.choice(len(mesh2), n_sample2, replace=False)
+                sample2 = mesh2[indices2]
+            else:
+                sample2 = mesh2
+            
+            # Use NearestNeighbors for efficient distance queries
+            nbrs = NearestNeighbors(radius=clash_threshold, algorithm='ball_tree').fit(sample2)
+            distances, indices = nbrs.radius_neighbors(sample1, return_distance=True)
+            
+            # Count clashing points
+            clash_count = sum(len(d) for d in distances)
+            
+            if clash_count >= min_clash_points:
+                return True
+    
+    return False
+
+def check_rank_steric_validity(model_pairwise_df, rank, all_chains, 
+                              clash_threshold=1.5, min_clash_points=5):
+    """
+    Check if a specific rank has steric clashes that make it invalid.
+    
+    Args:
+        model_pairwise_df: DataFrame containing model data
+        rank: rank number to check
+        all_chains: list of chain IDs to check
+        clash_threshold: distance threshold for clash detection
+        min_clash_points: minimum clashing points for invalidity
+    
+    Returns:
+        bool: True if rank is valid (no significant clashes), False otherwise
+    """
+    try:
+        # Get models for this rank
+        rank_models = reconstruct_models_fast(model_pairwise_df, ranks=[rank])
+        
+        if rank not in rank_models:
+            return True  # No data, assume valid
+        
+        chain_coords = rank_models[rank]
+        
+        # Create meshes for each chain
+        chain_meshes = {}
+        for chain_id in all_chains:
+            if chain_id in chain_coords and len(chain_coords[chain_id]) > 0:
+                chain_meshes[chain_id] = create_backbone_mesh_optimized(
+                    chain_coords[chain_id], 
+                    tube_radius=2.0, 
+                    sampling_points=3  # Reduced for speed
+                )
+        
+        # Check for steric clashes
+        has_clashes = detect_steric_clashes_optimized(
+            chain_meshes, 
+            clash_threshold=clash_threshold,
+            min_clash_points=min_clash_points,
+            sample_fraction=0.2  # Use only 20% of points for speed
+        )
+        
+        return not has_clashes  # True if NO clashes (valid), False if clashes (invalid)
+        
+    except Exception as e:
+        # If anything fails, assume the rank is valid to avoid false negatives
+        print(f"Warning: Steric check failed for rank {rank}: {e}")
+        return True
+
 
 def read_stability_dynamic_cutoffs_df(path: str = "cfg/stability_dynamic_cutoffs.tsv"):
 
@@ -199,7 +429,10 @@ def does_nmer_is_fully_connected_network(
                 
                 # Check if graph is connected (all nodes can reach all other nodes)
                 if len(all_chains) > 0 and nx.is_connected(G):
-                    ranks_with_fully_connected_network += 1
+                    # Additional check: verify no steric clashes in this rank
+                    if check_rank_steric_validity(model_pairwise_df, rank, all_chains):
+                        ranks_with_fully_connected_network += 1
+                    # If steric clashes detected, don't count this rank as fully connected
             
             # Check if this cutoff gives a fully connected network using the current N_models cutoff
             if ranks_with_fully_connected_network >= current_N_models_cutoff:
@@ -454,7 +687,10 @@ def does_xmer_is_fully_connected_network(
                 
                 # Check if graph is connected (all nodes can reach all other nodes)
                 if len(all_chains) > 0 and nx.is_connected(G):
-                    ranks_with_fully_connected_network += 1
+                    # Additional check: verify no steric clashes in this rank
+                    if check_rank_steric_validity(model_pairwise_df, rank, all_chains):
+                        ranks_with_fully_connected_network += 1
+                    # If steric clashes detected, don't count this rank as fully connected
             
             # Check if this cutoff gives a fully connected network using the current N_models cutoff
             if ranks_with_fully_connected_network >= current_N_models_cutoff:

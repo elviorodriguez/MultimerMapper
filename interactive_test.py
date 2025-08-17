@@ -130,16 +130,16 @@ show_PAE_along_backbone = False
 
 ####################### Test 6'' (multivalency PEX13/31) ######################
 
-fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/proteins_mm.fasta"
-AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/2-mers"
-AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/N-mers"
-# AF2_Nmers = None
-out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/MM_multivalency_test"
-use_names = True
-overwrite = True
-# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-auto_domain_detection = True
-graph_resolution_preset = None
+# fasta_file = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/proteins_mm.fasta"
+# AF2_2mers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/2-mers"
+# AF2_Nmers = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/N-mers"
+# # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/heteromultimeric_states_benchmark/converged_3MZL/MM_multivalency_test"
+# use_names = True
+# overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# auto_domain_detection = True
+# graph_resolution_preset = None
 
 ###############################################################################
 
@@ -281,6 +281,23 @@ graph_resolution_preset = None
 
 ###############################################################################
 
+# ###################### Test 11 (Homooligomers) ########################
+
+fasta_file = "/home/elvio/Desktop/homooligomeric_states_benchmark/proteins.fasta"
+AF2_2mers = "/home/elvio/Desktop/homooligomeric_states_benchmark/AF2_2mers"
+AF2_Nmers = "/home/elvio/Desktop/homooligomeric_states_benchmark/AF2_Nmers"
+# # AF2_Nmers = None
+out_path = "/home/elvio/Desktop/homooligomeric_states_benchmark/mm_out_interactive_test"
+use_names = True 
+overwrite = True
+# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+graph_resolution_preset = None
+auto_domain_detection = True
+remove_interactions = ("Indirect", "No 2-mers Data")
+
+###############################################################################
+
+
 ###############################################################################
 ############################### MM main run ###################################
 ###############################################################################
@@ -317,7 +334,7 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     # "No 2-mers Data"
     # remove_interactions = ("Indirect", "No 2-mers Data"),
     remove_interactions = remove_interactions,
-    self_loop_size = 2,
+    self_loop_size = 3,
     
     # Answer y automatically
     automatic_true = True)
