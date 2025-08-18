@@ -116,9 +116,9 @@ def check_if_skipped_homo_N_mers(homo_Nmers_models: set,
         if any(len(model) == N for model in models):
             is_ok.append(True)
         else:
-            logger.info(f'   Missing homo-{N}-mer for {models[0][0]}!')
-            logger.info( '   Homo-N-mers must be incremental (trimer -> tetramer -> etc)')
-            logger.info( '   You need to provide them all in order to properly extract homooligomerization states!')
+            logger.warning(f'      - Missing homo-{N}-mer for {models[0][0]}!')
+            logger.warning( '      - Homo-N-mers must be incremental (trimer -> tetramer -> etc)')
+            logger.warning( '      - You need to provide them all in order to properly extract homooligomerization states!')
             is_ok.append(False)
          
     return is_ok
@@ -265,91 +265,80 @@ def find_homooligomerization_breaks(pairwise_2mers_df, pairwise_Nmers_df, pairwi
         is_ok: list[bool] = check_if_skipped_homo_N_mers(homo_Nmers_models, protein, logger)
         
         # If any state was skipped
-        if any(not ok for ok in is_ok):
-            
-            # State that there is a problem with the models filling N_states with Nones
-            homooligomerization_states[protein]["is_ok"] = is_ok
-            homooligomerization_states[protein]["N_states"] = [None] * len(is_ok)
-            homooligomerization_states[protein]["2mer_interact"] = does_2mer_homodimerize(query_protein        = protein,
+        homooligomerization_states[protein]["is_ok"] = is_ok
+        homooligomerization_states[protein]["2mer_interact"] = does_2mer_homodimerize(query_protein        = protein,
                                                                                           pairwise_2mers_df    = pairwise_2mers_df,
                                                                                           pairwise_2mers_df_F3 = pairwise_2mers_df_F3)
-            
-            # Skip to the next protein
-            continue
-        
-        # If everything is OK, continue the computation
-        else:
-            
-            # Add information to dict
-            homooligomerization_states[protein]["is_ok"] = is_ok
-            homooligomerization_states[protein]["2mer_interact"] = does_2mer_homodimerize(query_protein        = protein,
-                                                                                          pairwise_2mers_df    = pairwise_2mers_df,
-                                                                                          pairwise_2mers_df_F3 = pairwise_2mers_df_F3)
-            
-            # # Progress
-            # logger.info(f'      Found {len(is_ok)} homooligomerization state(s):')
-        
+                
+        # Initialize N_states with None values for all expected states
+        homooligomerization_states[protein]["N_states"] = [None] * len(is_ok)
+
         # For each homooligomerization state (starting with homo-3-mers)
-        for N_state, model in enumerate(sorted(list(homo_Nmers_models), key = len), start = 3):
+        for model in sorted(list(homo_Nmers_models), key = len):
             
-            # Separate only data for the current homooligomerization state and add chain info
-            model_pairwise_df = protein_homo_N_mers_pairwise_df.query('proteins_in_model == @model')
-            add_chain_information_to_df(model_pairwise_df)
+            # Get the actual N-mer size from the model
+            N_state = len(model)
             
-            # Select which method to use: PAE
-            if Nmer_stability_method == "pae":
-                # Make the verification
-                all_have_at_least_one_interactor: bool = does_all_have_at_least_one_interactor(
-                                                            model_pairwise_df = model_pairwise_df,
-                                                            min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
-                                                            pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
-                                                            N_models_cutoff = N_models_cutoff)
-                
-                Nmer_is_stable = all_have_at_least_one_interactor
-                
-            # Select which method to use: Contact Network (recommended)
-            elif Nmer_stability_method == "contact_network":
-                # logger.info("--------------------- USING CONTACT NETWORK METHOD ---------------------")
-
-                # Make the verification using the new function
-                is_fully_connected_network = does_nmer_is_fully_connected_network(
-                                            model_pairwise_df = model_pairwise_df,
-                                            mm_output         = mm_output,
-                                            # pair              = (protein, protein),
-                                            Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
-                                            N_models_cutoff = N_models_cutoff,
-                                            N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
-                                            miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
-                                            use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
-                                            miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
-                                            dynamic_conv_start = dynamic_conv_start,
-                                            dynamic_conv_end = dynamic_conv_end)
-                
-                Nmer_is_stable = is_fully_connected_network
-
-            # Select which method to use: Falls back to default method (Contact Network)
-            else:
-                logger.error(f"   - Something went wrong! Provided Nmer_stability_method is unknown: {Nmer_stability_method}")
-                logger.error(f"      - Using default method: contact_network")
-
-                # Make the verification using the new function
-                is_fully_connected_network = does_nmer_is_fully_connected_network(
-                                            model_pairwise_df = model_pairwise_df,
-                                            mm_output         = mm_output,
-                                            # pair              = (protein, protein),
-                                            Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
-                                            N_models_cutoff = N_models_cutoff,
-                                            N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
-                                            miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
-                                            use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
-                                            miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
-                                            dynamic_conv_start = dynamic_conv_start,
-                                            dynamic_conv_end = dynamic_conv_end)
-                
-                Nmer_is_stable = is_fully_connected_network
+            # Find the correct index in the is_ok/N_states arrays (N_state - 3 gives us 0-based index)
+            state_index = N_state - 3
             
-            # Add if it surpass cutoff to N_states
-            homooligomerization_states[protein]["N_states"].append(Nmer_is_stable)
+            # Only compute if this state was marked as OK (not skipped)
+            if state_index < len(is_ok) and is_ok[state_index]:
+                
+                # Separate only data for the current homooligomerization state and add chain info
+                model_pairwise_df = protein_homo_N_mers_pairwise_df.query('proteins_in_model == @model')
+                add_chain_information_to_df(model_pairwise_df)
+                
+                # Select which method to use: PAE
+                if Nmer_stability_method == "pae":
+                    # Make the verification
+                    all_have_at_least_one_interactor: bool = does_all_have_at_least_one_interactor(
+                                                                model_pairwise_df = model_pairwise_df,
+                                                                min_PAE_cutoff_Nmers = min_PAE_cutoff_Nmers,
+                                                                pDockQ_cutoff_Nmers = pDockQ_cutoff_Nmers,
+                                                                N_models_cutoff = N_models_cutoff)
+                    
+                    Nmer_is_stable = all_have_at_least_one_interactor
+                    
+                # Select which method to use: Contact Network (recommended)
+                elif Nmer_stability_method == "contact_network":
+                    # Make the verification using the new function
+                    is_fully_connected_network, triggering_N = does_nmer_is_fully_connected_network(
+                                                model_pairwise_df = model_pairwise_df,
+                                                mm_output         = mm_output,
+                                                Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
+                                                N_models_cutoff = N_models_cutoff,
+                                                N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
+                                                miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
+                                                use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+                                                miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+                                                dynamic_conv_start = dynamic_conv_start,
+                                                dynamic_conv_end = dynamic_conv_end)
+                    
+                    Nmer_is_stable = is_fully_connected_network
+
+                # Select which method to use: Falls back to default method (Contact Network)
+                else:
+                    logger.error(f"   - Something went wrong! Provided Nmer_stability_method is unknown: {Nmer_stability_method}")
+                    logger.error(f"      - Using default method: contact_network")
+
+                    # Make the verification using the new function
+                    is_fully_connected_network, triggering_N = does_nmer_is_fully_connected_network(
+                                                model_pairwise_df = model_pairwise_df,
+                                                mm_output         = mm_output,
+                                                Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
+                                                N_models_cutoff = N_models_cutoff,
+                                                N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
+                                                miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
+                                                use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+                                                miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+                                                dynamic_conv_start = dynamic_conv_start,
+                                                dynamic_conv_end = dynamic_conv_end)
+                    
+                    Nmer_is_stable = is_fully_connected_network
+                
+                # Add if it surpass cutoff to N_states at the correct index
+                homooligomerization_states[protein]["N_states"][state_index] = Nmer_is_stable
         
         # For proteins that the last state computed (N) is positive, add the suggestion to compute N+1
         if all(ok for ok in is_ok) and (homooligomerization_states[protein]["N_states"][-1] == True):
