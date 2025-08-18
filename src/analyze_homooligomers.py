@@ -350,7 +350,7 @@ def find_homooligomerization_breaks(pairwise_2mers_df, pairwise_Nmers_df, pairwi
         # Log the results for the homooligomer
         if homooligomerization_states[protein]['2mer_interact']:
             dimer_classification = "Stable"
-        elif homooligomerization_states[protein]['2mer_interact']:
+        elif not homooligomerization_states[protein]['2mer_interact']:
             dimer_classification = "Unstable"
         elif homooligomerization_states[protein]['2mer_interact'] is None:
             dimer_classification = "Not tested"
