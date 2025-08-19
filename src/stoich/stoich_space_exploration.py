@@ -49,7 +49,7 @@ def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestion
             model_pairwise_df: pd.DataFrame = pairwise_Nmers_df.query('proteins_in_model == @model')
             
             # Check if N-mer is stable
-            is_fully_connected_network = does_xmer_is_fully_connected_network(
+            is_fully_connected_network, triggering_N = does_xmer_is_fully_connected_network(
                 model_pairwise_df,
                 mm_output,
                 Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
@@ -68,6 +68,10 @@ def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestion
             
             # Check if 2-mer is stable
             is_fully_connected_network = sorted_tuple_combination in interacting_2mers
+            if is_fully_connected_network:                
+                triggering_N = 5
+            else:
+                triggering_N = 0
         
         stoich_dict[sorted_tuple_combination] = {
             'is_stable': is_fully_connected_network,
@@ -76,7 +80,8 @@ def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestion
             'ipTM': get_ranks_iptms(model_pairwise_df),
             'pDockQ': get_ranks_pdockqs(model_pairwise_df),
             'miPAE': get_ranks_mipaes(model_pairwise_df),
-            'aiPAE': get_ranks_aipaes(model_pairwise_df)
+            'aiPAE': get_ranks_aipaes(model_pairwise_df),
+            'triggering_N': triggering_N
         }
 
     removed_suggestions = []  # Track removed suggestions
@@ -132,7 +137,8 @@ def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestion
                     'ipTM': [0, 0, 0, 0, 0],
                     'pDockQ': [[inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model)],
                     'miPAE': [[max_pae]*len(model), [max_pae]*len(model), [max_pae]*len(model), [max_pae]*len(model), [max_pae]*len(model)],
-                    'aiPAE': [[max_pae]*len(model), [max_pae]*len(model), [max_pae]*len(model), [max_pae]*len(model), [max_pae]*len(model)]
+                    'aiPAE': [[max_pae]*len(model), [max_pae]*len(model), [max_pae]*len(model), [max_pae]*len(model), [max_pae]*len(model)],
+                    'triggering_N': 0
                 }
             else:
                 # Track removed suggestions

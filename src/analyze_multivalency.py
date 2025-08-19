@@ -1891,7 +1891,7 @@ def find_multivalency_states(combined_graph, mm_output,
 
             elif Nmer_stability_method == "contact_network":
                 # Make the verification using the new function
-                is_fully_connected_network = does_nmer_is_fully_connected_network(
+                is_fully_connected_network, triggering_N = does_nmer_is_fully_connected_network(
                                             model_pairwise_df,
                                             mm_output,
                                             # pair,
@@ -1911,7 +1911,7 @@ def find_multivalency_states(combined_graph, mm_output,
                 logger.error(f"      - Using default method: contact_network")
 
                 # Make the verification using the new function
-                is_fully_connected_network = does_nmer_is_fully_connected_network(
+                is_fully_connected_network, triggering_N = does_nmer_is_fully_connected_network(
                                             model_pairwise_df,
                                             mm_output,
                                             # pair,

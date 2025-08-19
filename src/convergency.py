@@ -324,7 +324,7 @@ def does_nmer_is_fully_connected_network(
     
     # Get the proteins_in_model from the first row (should be the same for all rows)
     if model_pairwise_df.empty:
-        return False
+        return False, 0
     proteins_in_model = model_pairwise_df.iloc[0]['proteins_in_model']
     
     # ------------------------------------ DYNAMIC METHOD ------------------------------------
@@ -332,11 +332,6 @@ def does_nmer_is_fully_connected_network(
     # Dynamic method: test different N-mer cutoffs
     if use_dynamic_conv_soft_func:
         
-        # # DEBUG
-        # print("USING DYNAMIC METHOD!")
-        # print("   - PAIR:", pair)
-        # print("   - proteins_in_model:", proteins_in_model)
-
         if miPAE_cutoff_conv_soft_list is None:
             # Get the cutoffs for the N-mer size
             Nmer_size = len(proteins_in_model)
@@ -369,9 +364,6 @@ def does_nmer_is_fully_connected_network(
             current_miPAE_cutoff = miPAE_cutoff_conv_soft_list[i]
             current_N_models_cutoff = N_models_cutoff_list[i]
             
-            # # DEBUG
-            # print(f"   - Testing: miPAE_cutoff={current_miPAE_cutoff}, N_models_cutoff={current_N_models_cutoff}")
-
             # Track how many ranks have fully connected networks for this cutoff
             ranks_with_fully_connected_network = 0
             
@@ -392,9 +384,6 @@ def does_nmer_is_fully_connected_network(
                         chain_pair = (chain1, chain2)
                         pair = tuple(sorted((proteins_in_model[all_chains.index(chain1)], proteins_in_model[all_chains.index(chain2)])))
 
-                        # # DEBUG
-                        # print("      - chain_pair:", chain_pair)
-
                         try:
                             # Always recompute when using dynamic method
                             pairwise_contact_matrices = mm_output['pairwise_contact_matrices'][pair][(proteins_in_model, chain_pair, rank)]
@@ -409,21 +398,12 @@ def does_nmer_is_fully_connected_network(
                             
                             num_contacts = contacts.sum()
 
-                            # # DEBUG
-                            # print("      - num_contacts:", num_contacts)
-                            
                             # If contacts exceed threshold, add edge to graph
                             if num_contacts >= Nmers_contacts_cutoff:
                                 G.add_edge(chain1, chain2)
 
-                                # # DEBUG
-                                # print("      - SURPASSED CUTOFF!")
-
                         except KeyError:
                             
-                            # # DEBUG
-                            # print("      - This chain pair might not exist in the contact matrices")
-
                             # This chain pair might not exist in the contact matrices
                             pass
                 
@@ -437,18 +417,10 @@ def does_nmer_is_fully_connected_network(
             # Check if this cutoff gives a fully connected network using the current N_models cutoff
             if ranks_with_fully_connected_network >= current_N_models_cutoff:
 
-                # # DEBUG
-                # print(f"      - ranks_with_fully_connected_network: {ranks_with_fully_connected_network}")
-                # print(f"      - current_N_models_cutoff: {current_N_models_cutoff}")
-                # print(f"      - proteins_in_model {proteins_in_model} is stable!")
-
-                return True
+                return True, current_N_models_cutoff
         
-        # # DEBUG
-        # print(f"      - proteins_in_model {proteins_in_model} is UNSTABLE!")
-
         # If no cutoff worked, return False
-        return False
+        return False, 0
     
     # ------------------------------------ STATIC METHOD ------------------------------------
 
@@ -511,7 +483,7 @@ def does_nmer_is_fully_connected_network(
             ranks_with_fully_connected_network += 1
     
     # Return True if enough ranks have fully connected networks
-    return ranks_with_fully_connected_network >= N_models_cutoff_conv_soft
+    return ranks_with_fully_connected_network >= N_models_cutoff_conv_soft, None
 
 def get_set_of_chains_in_model(model_pairwise_df: pd.DataFrame) -> set:
     """
@@ -603,7 +575,7 @@ def does_xmer_is_fully_connected_network(
     
     # Get the proteins_in_model from the first row (should be the same for all rows)
     if model_pairwise_df.empty:
-        return False
+        return False, 0
     proteins_in_model = model_pairwise_df.iloc[0]['proteins_in_model']
     
     # ------------------------------------ DYNAMIC METHOD ------------------------------------
@@ -695,10 +667,10 @@ def does_xmer_is_fully_connected_network(
             # Check if this cutoff gives a fully connected network using the current N_models cutoff
             if ranks_with_fully_connected_network >= current_N_models_cutoff:
 
-                return True
+                return True, current_N_models_cutoff
 
         # If no cutoff worked, return False
-        return False
+        return False, 0
     
     # ------------------------------------ STATIC METHOD ------------------------------------
 
@@ -758,7 +730,7 @@ def does_xmer_is_fully_connected_network(
             ranks_with_fully_connected_network += 1
     
     # Return True if enough ranks have fully connected networks
-    return ranks_with_fully_connected_network >= N_models_cutoff_conv_soft
+    return ranks_with_fully_connected_network >= N_models_cutoff_conv_soft, None
 
 
 # Helpers
