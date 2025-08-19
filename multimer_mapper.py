@@ -14,6 +14,7 @@ try:
     from cfg.default_settings import *
     from utils.logger_setup import configure_logger
     from src.input_check import seq_input_from_fasta, extract_seqs_from_AF2_PDBs, merge_fasta_with_PDB_data, check_graph_resolution_preset
+    from utils.interpro import submit_interpro_jobs
     from src.metrics_extractor import extract_AF2_metrics_from_JSON, generate_pairwise_2mers_df, generate_pairwise_Nmers_df
     from src.detect_domains import detect_domains
     from src.ppi_detector import filter_non_int_2mers_df, filter_non_int_Nmers_df
@@ -151,6 +152,9 @@ def parse_AF2_and_sequences(
                               use_names = use_names,
                               logger = logger)
     
+    # Submit InterPro jobs
+    interpro_jobs = submit_interpro_jobs(prot_IDs, prot_seqs)
+    
     # Verify the graph resolution preset
     if graph_resolution_preset is not None:
         graph_resolution_preset = check_graph_resolution_preset(graph_resolution_preset,
@@ -194,7 +198,7 @@ def parse_AF2_and_sequences(
         show_inline = display_PAE_domains_inline, show_structure = show_monomer_structures,
         save_html = save_domains_html, save_tsv = save_domains_tsv,
         out_path = out_path, overwrite = True, log_level = log_level, manual_domains = manual_domains,
-        show_PAE_along_backbone = show_PAE_along_backbone)
+        show_PAE_along_backbone = show_PAE_along_backbone, interpro_jobs = interpro_jobs)
     
     # Progress
     logger.info(f"Resulting domains:\n{domains_df}")

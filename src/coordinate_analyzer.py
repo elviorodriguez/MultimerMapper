@@ -113,7 +113,10 @@ def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
         ref_residues = list(ref_structure.get_residues())
         
         # Add sub_domains_df to vertex
-        vertex["domains_df"] = domains_df.query(f'Protein_ID == "{protein_ID}"').filter(["Domain", "Start", "End", "Mean_pLDDT"])
+        try:
+            vertex["domains_df"] = domains_df.query(f'Protein_ID == "{protein_ID}"').filter(["Domain", "Start", "End", "Mean_pLDDT", "InterPro"])
+        except:
+            vertex["domains_df"] = domains_df.query(f'Protein_ID == "{protein_ID}"').filter(["Domain", "Start", "End", "Mean_pLDDT"])
         
         # Initialize dataframes to store RMSD
         columns = ["Domain","Model","Chain", "Rank", "Mean_pLDDT", "RMSD"]

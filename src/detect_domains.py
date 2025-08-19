@@ -19,6 +19,7 @@ from copy import deepcopy
 
 from utils.logger_setup import configure_logger
 from cfg.default_settings import DOMAIN_COLORS
+from utils.interpro import check_and_process_interpro_results
 
 
 # -----------------------------------------------------------------------------
@@ -526,7 +527,8 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
                    auto_domain_detection: bool = True, graph_resolution_preset: bool | None = None, save_preset: bool  = True,
                    save_png_file: bool  = True, show_image: bool  = False, show_structure: bool  = False, show_inline: bool  = False,
                    save_html: bool  = True, save_tsv: bool  = True, overwrite: bool = False, manual_domains: str | None = None,
-                   logger: Logger | None = None, show_PAE_along_backbone: bool = True, save_svg: bool = True):
+                   logger: Logger | None = None, show_PAE_along_backbone: bool = True, save_svg: bool = True,
+                   interpro_jobs: dict | None = None):
     
     '''Modifies sliced_PAE_and_pLDDTs to add domain information. Generates the 
     following sub-keys for each protein_ID key:
@@ -781,6 +783,23 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
     domains_df['End'] = domains_df['End'].astype(int)
     domains_df['Mean_pLDDT'] = domains_df['Mean_pLDDT'].astype(float)
     
+    # Check and process InterPro results if jobs were submitted
+    if interpro_jobs is not None:
+        logger.info("Checking InterPro job status...")
+        interpro_jobs = check_and_process_interpro_results(interpro_jobs, out_path, logger)
+        
+        # Add InterPro column to domains_df
+        domains_df['InterPro'] = ''
+        
+        # Map InterPro results to domains
+        for index, row in domains_df.iterrows():
+            protein_id = row['Protein_ID']
+            if protein_id in interpro_jobs:
+                summary = interpro_jobs[protein_id].get('summary', 'No results')
+                domains_df.at[index, 'InterPro'] = summary
+            else:
+                domains_df.at[index, 'InterPro'] = 'No InterPro data'
+    
     if save_tsv:
         save_folder = out_path + "/domains"
         tsv_file_path = save_folder + "/domains.tsv"
@@ -788,10 +807,9 @@ def detect_domains(sliced_PAE_and_pLDDTs: dict, fasta_file_path: str, out_path: 
 
         if save_svg:
             from report.domains_svg.tsv_to_domains_svg import parse_tsv, create_svg
-            data, backbone_lengths = parse_tsv(tsv_file_path, threshold = 40) # Threshold = minimum mean pLDDT to consider as domain
+            data, backbone_lengths = parse_tsv(tsv_file_path, threshold = 40)
             create_svg(data, backbone_lengths, save_folder + "/domains.svg")
-            
-        
+    
     return domains_df
 
 
