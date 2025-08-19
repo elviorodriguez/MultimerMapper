@@ -8,7 +8,6 @@ import plotly.graph_objects as go
 from sklearn.manifold import MDS
 from collections import Counter
 from logging import Logger
-import colorsys
 from matplotlib.colors import to_rgb
 
 from src.convergency import does_xmer_is_fully_connected_network
@@ -640,7 +639,7 @@ def readable_text_color(c):
 
 def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015, buttons_x = 0.01,
                        color_button_y = 0.35, size_button_y = 0.25, shape_button_y = 0.15,
-                       palette = PT_palette, logger: Logger | None = None):
+                       palette = PT_palette, z_aspectratio = 1.5, logger: Logger | None = None):
     """
     Create interactive 3D plotly visualization of stoichiometric space with dropdown controls
     """
@@ -834,7 +833,7 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
             dx, dy, dz = x2 - x1, y2 - y1, z2 - z1
             
             # Normalize direction vector
-            length = np.sqrt(dx**2 + dy**2 + dz**2)
+            length = np.sqrt(dx**2 + dy**2 + (dz*z_aspectratio)**2 )
             if length > 0:
                 dx, dy, dz = dx/length, dy/length, dz/length
             else:
@@ -1203,7 +1202,7 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
                 eye=dict(x=1.5, y=1.5, z=1.5)
             ),
             aspectmode='manual',
-            aspectratio=dict(x=1, y=1, z=1.5)
+            aspectratio=dict(x=1, y=1, z=z_aspectratio)
         ),
         showlegend=True,
         legend=dict(
