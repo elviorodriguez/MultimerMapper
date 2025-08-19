@@ -8,7 +8,6 @@ from Bio import PDB
 import seaborn as sns
 import plotly.graph_objects as go
 import plotly.express as px
-# from plotly.subplots import make_subplots
 import base64
 from collections import Counter
 from typing import Literal
@@ -17,12 +16,13 @@ from sklearn.metrics import silhouette_score
 import matplotlib.pyplot as plt
 from collections import Counter
 from wordcloud import WordCloud
+import json
 
 from traj.partners_density import analyze_protein_distribution, save_results_to_tsv, plot_distributions, html_interactive_metadata
 from traj.py3Dmol_traj import create_trajectory_viewer
 from utils.logger_setup import configure_logger
 from utils.logger_setup import configure_logger
-from utils.pdb_utils import get_domain_atoms, ChainSelect, DomainSelect, get_core_residues, core_superimposition, plot_core_residue_analysis
+from utils.pdb_utils import get_domain_atoms, ChainSelect, DomainSelect, get_core_residues, core_superimposition, plot_core_residue_analysis, get_per_res_plddt_mean_and_cv_dict
 
 
 def add_domain_RMSD_against_reference(graph, domains_df, sliced_PAE_and_pLDDTs,
@@ -1592,6 +1592,9 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
     monomer_mean_pLDDTs = [np.mean(model_per_res_plddt) for model_per_res_plddt in b_factors]
     monomer_ROGs = compute_rog_for_all_chains(all_coords)
 
+    # Get per-residue pLDDT mean and CV
+    plddt_dict = get_per_res_plddt_mean_and_cv_dict(protein_ID, b_factors)
+
     # Calculate RMSF for full length and save it -----------------
     rmsf_values = calculate_rmsf(all_coords)
     rmsf_plot_filename = os.path.join(monomer_trajectory_folder, protein_ID + "_monomer_RMSF.png")
@@ -1874,6 +1877,8 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
         'rmsf_values_per_domain': rmsf_values_per_domain.tolist(),
         'b_factors': b_factors,
         'b_factor_clusters': b_factor_clusters.tolist(),
+        'per_res_plddts_mean': plddt_dict['mean_plddt'],
+        'per_res_plddts_cv': plddt_dict['cv_plddt'],
         'chain_types': all_chain_types,
         'model_info': all_chain_info,
         'rmsd_trajectory_file': rmsd_traj_file
@@ -1891,15 +1896,13 @@ def generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
         log_level: str = 'info',
         logger: logging.Logger | None = None):
     
-    
     mm_trajectories = {}
     
-    # Debug
     for protein_index, _ in enumerate(mm_output['prot_IDs']):
         protein_ID = mm_output['prot_IDs'][protein_index]
         protein_seq = mm_output['prot_seqs'][protein_index]
         
-        # Debug
+        # Get RMSD trajectory
         protein_traj = protein_RMSD_trajectory(protein_ID = protein_ID, protein_seq = protein_seq,
                                 pairwise_2mers_df = mm_output['pairwise_2mers_df'],
                                 sliced_PAE_and_pLDDTs = mm_output['sliced_PAE_and_pLDDTs'],
@@ -1913,4 +1916,17 @@ def generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
         
         mm_trajectories[protein_ID] = protein_traj
     
+    # Save JSON file with per residue mean plddt and CV for report
+    json_file_path = os.path.join(out_path, "domains", "per_residue_plddts_mean_and_cv.json")
+    plddts_dict = {}
+    for prot_id in mm_output['prot_IDs']:
+        plddts_dict[prot_id] = {
+            'per_res_plddts_mean': list(mm_trajectories[prot_id]['per_res_plddts_mean']),
+            'per_res_plddts_cv': list(mm_trajectories[prot_id]['per_res_plddts_cv'])
+        }
+    os.makedirs(os.path.dirname(json_file_path), exist_ok=True)
+    with open(json_file_path, 'w') as f:
+        json.dump(plddts_dict, f, indent=4)
+
+
     return mm_trajectories

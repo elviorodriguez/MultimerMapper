@@ -531,6 +531,19 @@ def core_superimposition(chain_atoms: List, ref_atoms: List, core_residues: Set[
     
     return rotation_matrix, translation_vector
 
+def get_per_res_plddt_mean_and_cv_dict(protein_id, pLDDTs):
+
+    plddt_matrix = np.array(pLDDTs)
+    mean_plddt = np.mean(plddt_matrix, axis=0)
+    std_plddt = np.std(plddt_matrix, axis=0)
+    cv_plddt = std_plddt / (mean_plddt + 1e-8)
+
+    results_dict = {
+        "mean_plddt": mean_plddt,
+        "cv_plddt": cv_plddt
+    }
+
+    return results_dict
 
 # Additional utility function to visualize core residue selection
 def plot_core_residue_analysis(pLDDTs: List[np.ndarray], 
