@@ -16,6 +16,7 @@ from src.convergency import get_ranks_ptms, get_ranks_iptms, get_ranks_mipaes, g
 from cfg.default_settings import N_models_cutoff, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft, Nmers_contacts_cutoff_convergency
 from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, PT_palette
 from cfg.default_settings import dynamic_conv_start, dynamic_conv_end
+from src.stability_metrics import combination_label
 from utils.logger_setup import configure_logger
 
 
@@ -671,7 +672,7 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
         
         # Create label
         if isinstance(combination, tuple):
-            label = ' + '.join(combination)
+            label = combination_label(combination)
             ascii_viz = create_protein_stoich_visualization(combination, system_proteins, max_count, max_name_length)
         else:
             label = str(combination)
