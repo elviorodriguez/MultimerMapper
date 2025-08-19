@@ -12,7 +12,7 @@ from collections import Counter
 from typing import List, Tuple, Dict, Any
 
 from utils.logger_setup import configure_logger, default_error_msgs
-from src.stoich.stoich_space_exploration import generate_stoichiometric_space_graph
+from src.stoich.stoich_space_exploration import generate_stoichiometric_space_graph, can_be_formed_by_stable_components
 
 
 # -----------------------------------------------------------------------------
@@ -532,7 +532,7 @@ def initialize_multimer_mapper(fasta_file, out_path, use_names, logger):
     return suggested_combinations
     
 # When at least 2-mers or N-mers where passed
-def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, max_N: int = 4, log_level: str = "info"):
+def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, max_N: int = 4, log_level: str = "info", max_combination_order = 1):
 
     logger = configure_logger(out_path = mm_output['out_path'], log_level = log_level)(__name__)
 
@@ -603,9 +603,22 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
     suggested_combinations: list[tuple[str]] = [ sug for sug in suggested_combinations if sug not in already_computed ]
 
     # Explore the stoichiometric space and remove uninformative suggestions
-    stoich_dict, stoich_graph, uninformative_suggestions, informative_suggestions, convergent_stoichiometries = generate_stoichiometric_space_graph(mm_output, suggested_combinations)
+    stoich_dict, stoich_graph, uninformative_suggestions, informative_suggestions, convergent_stoichiometries = generate_stoichiometric_space_graph(
+        mm_output, suggested_combinations, max_combination_order = max_combination_order)
     suggested_combinations = suggested_combinations + informative_suggestions
-    suggested_combinations: list[tuple[str]] = [ sug for sug in suggested_combinations if sug not in uninformative_suggestions ]
+    
+    # Only remove uninformative suggestions that are not critical for higher-order exploration
+    # Keep suggestions that could be formed by stable k-mer combinations
+    truly_uninformative = []
+    for uninf_sug in uninformative_suggestions:
+        # Keep suggestions that could result from combining stable k-mers
+        if max_combination_order > 1:
+            if not can_be_formed_by_stable_components(uninf_sug, stoich_dict, max_combination_order):
+                truly_uninformative.append(uninf_sug)
+        else:
+            truly_uninformative.append(uninf_sug)
+    
+    suggested_combinations: list[tuple[str]] = [ sug for sug in suggested_combinations if sug not in truly_uninformative ]
 
     # Save the suggestions
     if out_path is not None:

@@ -19,7 +19,7 @@ from src.stability_metrics import combination_label
 from utils.logger_setup import configure_logger
 
 
-def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestions = True):
+def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestions = True, max_combination_order = 1):
     
     # Unpack necessary data
     protein_list = mm_output['prot_IDs']
@@ -90,17 +90,38 @@ def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestion
     if include_suggestions:
 
         # Add extra suggestions based on stable stoichiometries
-        for sorted_tuple_combination in stoich_dict:
-            # Skip unstable stoichiometries
-            if not stoich_dict[sorted_tuple_combination]['is_stable']:
-                continue
+        for combination_order in range(1, max_combination_order + 1):
             
-            # Generate possible combinations by adding +1 of each protein
-            for prot_id in protein_list:
-                possible_new_suggestion = tuple(sorted(list(sorted_tuple_combination) + [prot_id]))
+            if combination_order == 1:
+                # Add +1 of each protein to stable stoichiometries
+                for sorted_tuple_combination in stoich_dict:
+                    # Skip unstable stoichiometries
+                    if not stoich_dict[sorted_tuple_combination]['is_stable']:
+                        continue
+                    
+                    # Generate possible combinations by adding +1 of each protein
+                    for prot_id in protein_list:
+                        possible_new_suggestion = tuple(sorted(list(sorted_tuple_combination) + [prot_id]))
 
-                if possible_new_suggestion not in suggested_combinations and possible_new_suggestion not in added_suggestions and possible_new_suggestion not in stoich_dict:
-                    added_suggestions.append(possible_new_suggestion)
+                        if possible_new_suggestion not in suggested_combinations and possible_new_suggestion not in added_suggestions and possible_new_suggestion not in stoich_dict:
+                            added_suggestions.append(possible_new_suggestion)
+            
+            else:
+                # Combine stable N-mers of size combination_order
+                stable_nmers = [combo for combo, data in stoich_dict.items() 
+                               if len(combo) == combination_order and data['is_stable'] is True]
+                
+                # Generate all unique combinations of stable N-mers
+                for i, combo1 in enumerate(stable_nmers):
+                    for combo2 in stable_nmers[i:]:  # Start from i to avoid duplicates and allow self-combinations
+                        # Combine the two N-mers
+                        combined_suggestion = tuple(sorted(list(combo1) + list(combo2)))
+                        
+                        # Check if this combination is new
+                        if (combined_suggestion not in suggested_combinations and 
+                            combined_suggestion not in added_suggestions and 
+                            combined_suggestion not in stoich_dict):
+                            added_suggestions.append(combined_suggestion)
         
         inf_zero = 0.00000000001
         max_pae = 32
@@ -109,27 +130,40 @@ def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestion
 
             sorted_tuple_combination = tuple(sorted(model))
             
-            # Check if all parents are unstable or untested
-            has_stable_parent = False
+            # Check if combination has stable ancestors or is informative
+            has_stable_ancestor = False
             combo_counter = Counter(sorted_tuple_combination)
+            current_size = len(sorted_tuple_combination)
             
-            # Find all potential parents (N-1 combinations)
+            # Check for stable ancestors at different levels
             for existing_combo in stoich_dict.keys():
-                if len(existing_combo) == len(sorted_tuple_combination) - 1:
+                existing_size = len(existing_combo)
+                
+                # Check ancestors from N-1 down to size 1 (and up to max_combination_order levels back)
+                max_ancestor_gap = min(max_combination_order, current_size - 1)
+                
+                if (current_size - max_ancestor_gap) <= existing_size < current_size:
                     existing_counter = Counter(existing_combo)
                     
                     # Check if existing_combo is contained in sorted_tuple_combination
-                    is_parent = all(combo_counter[protein] >= count 
-                                   for protein, count in existing_counter.items())
+                    is_ancestor = all(combo_counter[protein] >= count 
+                                     for protein, count in existing_counter.items())
                     
-                    if is_parent:
-                        parent_stability = stoich_dict[existing_combo]['is_stable']
-                        if parent_stability is True:  # Found at least one stable parent
-                            has_stable_parent = True
+                    if is_ancestor:
+                        ancestor_stability = stoich_dict[existing_combo]['is_stable']
+                        if ancestor_stability is True:  # Found at least one stable ancestor
+                            has_stable_ancestor = True
                             break
             
-            # Only add suggestion if it has at least one stable parent
-            if has_stable_parent:
+            # Special case: For combinations that could result from combining stable k-mers,
+            # check if they can be decomposed into stable components
+            if not has_stable_ancestor and max_combination_order > 1:
+                has_stable_ancestor = can_be_formed_by_stable_components(
+                    sorted_tuple_combination, stoich_dict, max_combination_order
+                )
+            
+            # Only add suggestion if it has at least one stable ancestor or can be formed by stable components
+            if has_stable_ancestor:
                 stoich_dict[sorted_tuple_combination] = {
                     'is_stable': None,
                     'pLDDT': [[inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model)],
@@ -145,12 +179,63 @@ def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestion
                 removed_suggestions.append(sorted_tuple_combination)
 
     # Identify convergent stoichiometries
-    convergent_stoichiometries = identify_convergent_stoichiometries(stoich_dict, protein_list)
+    convergent_stoichiometries = identify_convergent_stoichiometries(stoich_dict, protein_list, max_combination_order)
     
     return stoich_dict, removed_suggestions, added_suggestions, convergent_stoichiometries
 
 
-def identify_convergent_stoichiometries(stoich_dict, protein_list):
+def can_be_formed_by_stable_components(combination, stoich_dict, max_combination_order):
+    """
+    Check if a combination can be formed by combining stable k-mers (k <= max_combination_order)
+    """
+    combo_counter = Counter(combination)
+    total_size = len(combination)
+    
+    # Try to find a way to decompose the combination into stable components
+    for k in range(2, min(max_combination_order + 1, total_size)):
+        stable_kmers = [combo for combo, data in stoich_dict.items() 
+                       if len(combo) == k and data['is_stable'] is True]
+        
+        # Try combinations of stable k-mers that could sum to our target combination
+        if can_decompose_into_stable_kmers(combo_counter, stable_kmers, max_combination_order):
+            return True
+    
+    return False
+
+def can_decompose_into_stable_kmers(target_counter, stable_kmers, max_components):
+    """
+    Check if target combination can be decomposed into stable k-mers
+    Using a simple greedy approach - could be made more sophisticated if needed
+    """
+    if not stable_kmers:
+        return False
+    
+    # Try to greedily subtract stable k-mers from target
+    remaining = target_counter.copy()
+    components_used = 0
+    
+    while sum(remaining.values()) > 0 and components_used < max_components:
+        found_match = False
+        
+        for stable_kmer in stable_kmers:
+            stable_counter = Counter(stable_kmer)
+            
+            # Check if we can subtract this stable k-mer from remaining
+            if all(remaining[protein] >= count for protein, count in stable_counter.items()):
+                # Subtract this stable k-mer
+                remaining = remaining - stable_counter
+                components_used += 1
+                found_match = True
+                break
+        
+        if not found_match:
+            break
+    
+    # Success if we used up all proteins
+    return sum(remaining.values()) == 0
+
+
+def identify_convergent_stoichiometries(stoich_dict, protein_list, max_combination_order=1):
     """
     Identify convergent stoichiometries where all children are unstable and none are unexplored.
     
@@ -165,11 +250,25 @@ def identify_convergent_stoichiometries(stoich_dict, protein_list):
             stoich_dict[combination]['is_convergent'] = None
             continue
         
-        # Generate all possible children (N+1 combinations)
+        # Generate all possible children (N+1 combinations and N+k combinations based on max_combination_order)
         possible_children = []
+        
+        # Always include N+1 combinations (adding single proteins)
         for prot_id in protein_list:
             child_combination = tuple(sorted(list(combination) + [prot_id]))
             possible_children.append(child_combination)
+        
+        # Include N+k combinations if max_combination_order > 1
+        # For this, we need to check if there are stable k-mers that could be combined with this combination
+        current_size = len(combination)
+        for k in range(2, max_combination_order + 1):
+            # Find stable k-mers in stoich_dict
+            stable_kmers = [combo for combo, data in stoich_dict.items() 
+                           if len(combo) == k and data['is_stable'] is True]
+            
+            for stable_kmer in stable_kmers:
+                child_combination = tuple(sorted(list(combination) + list(stable_kmer)))
+                possible_children.append(child_combination)
         
         # Remove duplicates while preserving order
         unique_children = []
@@ -525,9 +624,9 @@ def create_protein_stoich_visualization(
 
 
 # Create igraph with stoichiometric connections
-def create_stoichiometric_graph(stoich_dict):
+def create_stoichiometric_graph(stoich_dict, max_combination_order=1):
     """
-    Create an igraph with stoichiometric combinations as nodes and connections between N and N+1 layers
+    Create an igraph with stoichiometric combinations as nodes and connections between N and N+k layers (k <= max_combination_order)
     """
     # Create vertices (combinations)
     combinations = list(stoich_dict.keys())
@@ -546,62 +645,81 @@ def create_stoichiometric_graph(stoich_dict):
         for key, value in stoich_dict[combo].items():
             g.vs[i][key] = value
     
-    # Create edges between N and N+1 layers
+    # Create edges between N and N+k layers (k from 1 to max_combination_order)
     edges_to_add = []
-    edge_attributes = {'variation': [], 'category': []}
+    edge_attributes = {'variation': [], 'category': [], 'connection_type': [], 'order_jump': []}
     
     for i, combo1 in enumerate(combinations):
         for j, combo2 in enumerate(combinations):
-            if len(combo2) == len(combo1) + 1:  # N+1 layer
-                # Check if combo1 is contained in combo2
+            size_diff = len(combo2) - len(combo1)
+            
+            # Check connections from N to N+k where k <= max_combination_order
+            if 1 <= size_diff <= max_combination_order:
                 combo1_counter = Counter(combo1)
                 combo2_counter = Counter(combo2)
                 
-                # Check if all proteins in combo1 are in combo2 with at least the same count
-                is_contained = True
-                variation_protein = None
-                
-                for protein, count in combo1_counter.items():
-                    if combo2_counter[protein] < count:
-                        is_contained = False
-                        break
+                # Check if combo1 is contained in combo2
+                is_contained = all(combo2_counter[protein] >= count 
+                                 for protein, count in combo1_counter.items())
                 
                 if is_contained:
-                    # Find the variation (added protein)
+                    # Find the variation (added proteins/components)
                     diff_counter = combo2_counter - combo1_counter
-                    if len(diff_counter) == 1:
-                        variation_protein = list(diff_counter.keys())[0]
-                        
-                        # Add edge
-                        edges_to_add.append((i, j))
-                        edge_attributes['variation'].append(variation_protein)
-                        
-                        # Determine category based on stability
-                        stable1 = stoich_dict[combo1]['is_stable']
-                        stable2 = stoich_dict[combo2]['is_stable']
-                        
-                        if stable1 is True and stable2 is True:
-                            category = "Stable->Stable"
-                        elif stable1 is True and stable2 is False:
-                            category = "Stable->Unstable"
-                        elif stable1 is False and stable2 is True:
-                            category = "Unstable->Stable"
-                        elif stable1 is False and stable2 is False:
-                            category = "Unstable->Unstable"
-                        elif stable1 is True and stable2 is None:
-                            category = "Stable->Untested"
-                        elif stable1 is False and stable2 is None:
-                            category = "Unstable->Untested"
-                        elif stable1 is None and stable2 is None:
-                            category = "Untested->Untested"
-                        elif stable1 is None and stable2 is True:
-                            category = "Untested->Stable"
-                        elif stable1 is None and stable2 is False:
-                            category = "Untested->Unstable"
+                    variation_proteins = []
+                    for protein, count in diff_counter.items():
+                        variation_proteins.extend([protein] * count)
+                    
+                    if size_diff == 1:
+                        # Single protein addition (N -> N+1)
+                        if len(diff_counter) == 1:
+                            variation = list(diff_counter.keys())[0]
+                            connection_type = "monomer_addition"
                         else:
-                            category = "Unknown"
+                            variation = "+".join(variation_proteins)
+                            connection_type = "complex_addition"
+                    else:
+                        # Multi-protein addition (N -> N+k, k>1)
+                        variation = "+".join(variation_proteins)
                         
-                        edge_attributes['category'].append(category)
+                        # Try to identify if this could be from combining stable components
+                        connection_type = identify_connection_type(combo1, combo2, stoich_dict, size_diff)
+                    
+                    # Add edge
+                    edges_to_add.append((i, j))
+                    edge_attributes['variation'].append(variation)
+                    edge_attributes['connection_type'].append(connection_type)
+                    edge_attributes['order_jump'].append(size_diff)
+                    
+                    # Determine category based on stability
+                    stable1 = stoich_dict[combo1]['is_stable']
+                    stable2 = stoich_dict[combo2]['is_stable']
+                    
+                    if stable1 is True and stable2 is True:
+                        category = "Stable->Stable"
+                    elif stable1 is True and stable2 is False:
+                        category = "Stable->Unstable"
+                    elif stable1 is False and stable2 is True:
+                        category = "Unstable->Stable"
+                    elif stable1 is False and stable2 is False:
+                        category = "Unstable->Unstable"
+                    elif stable1 is True and stable2 is None:
+                        category = "Stable->Untested"
+                    elif stable1 is False and stable2 is None:
+                        category = "Unstable->Untested"
+                    elif stable1 is None and stable2 is None:
+                        category = "Untested->Untested"
+                    elif stable1 is None and stable2 is True:
+                        category = "Untested->Stable"
+                    elif stable1 is None and stable2 is False:
+                        category = "Untested->Unstable"
+                    else:
+                        category = "Unknown"
+                    
+                    # Modify category to indicate order jump if > 1
+                    if size_diff > 1:
+                        category = f"{category}_N+{size_diff}"
+                    
+                    edge_attributes['category'].append(category)
     
     # Add edges to graph
     if edges_to_add:
@@ -611,12 +729,52 @@ def create_stoichiometric_graph(stoich_dict):
     
     return g
 
+
+def identify_connection_type(combo1, combo2, stoich_dict, size_diff):
+    """
+    Identify the type of connection between two combinations
+    """
+    # Check if combo2 could be formed by combining combo1 with stable k-mers
+    combo1_counter = Counter(combo1)
+    combo2_counter = Counter(combo2)
+    diff_counter = combo2_counter - combo1_counter
+    
+    # If the difference is exactly one stable component from stoich_dict
+    diff_tuple = tuple(sorted(diff_counter.elements()))
+    
+    if diff_tuple in stoich_dict:
+        stability = stoich_dict[diff_tuple]['is_stable']
+        if stability is True:
+            if len(diff_tuple) == 1:
+                return "monomer_addition"
+            else:
+                return f"stable_{len(diff_tuple)}mer_addition"
+        elif stability is False:
+            return f"unstable_{len(diff_tuple)}mer_addition"
+        else:
+            return f"untested_{len(diff_tuple)}mer_addition"
+    
+    # Check if it could be multiple stable components
+    stable_components = []
+    for combo, data in stoich_dict.items():
+        if (data['is_stable'] is True and 
+            len(combo) <= size_diff and
+            all(diff_counter[protein] >= Counter(combo)[protein] 
+                for protein in set(combo))):
+            stable_components.append(combo)
+    
+    if stable_components:
+        return "multi_stable_component_addition"
+    else:
+        return "complex_addition"
+    
+
 # Get line styling based on edge category
 def get_line_style(edge_category):
     """
     Return color, dash pattern, and width for edge based on category
     """
-    style_map = {
+    base_style_map = {
         "Stable->Stable"    : {"color": PT_palette["black"]     , "dash": "solid", "width": 10},
         "Stable->Unstable"  : {"color": PT_palette["red"]       , "dash": "dash" , "width": 1},
         "Stable->Untested"  : {"color": PT_palette["orange"]    , "dash": "solid", "width": 1},
@@ -629,7 +787,23 @@ def get_line_style(edge_category):
         "Untested->Unstable": {"color": PT_palette["deep orange"]    , "dash": "dot"  , "width": 1},
         "Untested->Untested": {"color": PT_palette["deep orange"]    , "dash": "dash" , "width": 1}
     }
-    return style_map.get(edge_category, {"color": "gray", "dash": "solid", "width": 1})
+    
+    # Handle N+k categories (higher order jumps)
+    if "_N+" in edge_category:
+        base_category, jump_info = edge_category.split("_N+")
+        base_style = base_style_map.get(base_category, {"color": "gray", "dash": "solid", "width": 1})
+        
+        # Modify style for higher order jumps
+        jump_order = int(jump_info)
+        modified_style = base_style.copy()
+        
+        # Make higher order jumps more prominent and distinguishable
+        modified_style["width"] = max(1, base_style["width"] // jump_order)
+        modified_style["dash"] = "dashdot" if jump_order > 1 else base_style["dash"]
+        
+        return modified_style
+    
+    return base_style_map.get(edge_category, {"color": "gray", "dash": "solid", "width": 1})
 
 def readable_text_color(c):
     r, g, b = to_rgb(c)  # (0..1)
@@ -1277,7 +1451,7 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
 
 
 
-def generate_stoichiometric_space_graph(mm_output, suggested_combinations, logger: Logger = None):
+def generate_stoichiometric_space_graph(mm_output, suggested_combinations, max_combination_order=1, logger: Logger = None):
     '''
     Integrated pipeline for stoichiometric space generation.
     '''
@@ -1293,11 +1467,12 @@ def generate_stoichiometric_space_graph(mm_output, suggested_combinations, logge
     out_file = out_dir + "/stoichiometric_space.html"
     
     logger.info('   Analyzing available stoichiometries and suggestions...')
-    stoich_dict, removed_suggestions, added_suggestions, convergent_stoichiometries = initialize_stoich_dict(mm_output, suggested_combinations)
+    stoich_dict, removed_suggestions, added_suggestions, convergent_stoichiometries = initialize_stoich_dict(
+        mm_output, suggested_combinations, max_combination_order=max_combination_order)
     logger.info('   Adding xyz coordinates...')
     stoich_dict = add_xyz_coord_to_stoich_dict(stoich_dict)
     logger.info('   Generating Stoichiometric Space Graph...')
-    stoich_graph = create_stoichiometric_graph(stoich_dict)
+    stoich_graph = create_stoichiometric_graph(stoich_dict, max_combination_order)
     logger.info('   Generating visualization...')
     plot_stoich_space(stoich_dict, stoich_graph, out_file)
 

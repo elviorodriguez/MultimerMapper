@@ -270,6 +270,13 @@ Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff
 # Dynamic softening function (False uses static method: just one cutoff)
 use_dynamic_conv_soft_func = True
 
+# Controls the generation of suggestions by the 
+# (=1): generates suggestions by adding +1 of each protein to stable stoichs
+# (=2): same as =1, but also adds stable dimers (if available) to stable stoichs (+2)
+# (=3): same as =2, but also adds stable trimers (if available) to stable stoichs (+3)
+# (=n): ...
+max_combination_order = 1
+
 # ------------------------------ Dynamic method ------------------------------
 
 # # With FPR = 0.01

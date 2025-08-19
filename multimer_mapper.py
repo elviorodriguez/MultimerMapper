@@ -549,6 +549,9 @@ if __name__ == "__main__":
     parser.add_argument('--N_value', type = int, default = 4,
         help='Current N value (Only 2-mers => N=2 | 2+3-mers => N=3 | 2+3+4-mers => N=4 | ...). This is to suggest combinations.')
     
+    parser.add_argument('--max_comb_order', type = int, default = max_combination_order,
+        help='Maximum variation size of suggested combinations. By default it suggests combinations by adding +1 of each protein to each stable stoichiometries. If set to 2, it will also add the stable 2-mers to stable stoichiometries (+2). If set to 3, it will add stable 2- and 3-mers. Etc...')
+    
     parser.add_argument('--out_path', type = str, default = "mm_output",
         help='Output directory to store results')
     
@@ -596,6 +599,7 @@ if __name__ == "__main__":
     skip_traj       = args.skip_traj
     first_plot      = args.first_plot
     skip_plots      = args.skip_plots
+    max_comb_order  = args.max_comb_order
 
     # Verbosity level
     if args.reduce_verbosity:
@@ -665,7 +669,8 @@ if __name__ == "__main__":
         mm_output = mm_output,
         out_path = out_path,
         log_level = log_level,
-        max_N = N_value + 1)
+        max_N = N_value + 1,
+        max_combination_order = max_comb_order)
     
     # Create 3D network
     nw = interactive_igraph_to_py3dmol(mm_output['combined_graph'], logger = logger, automatic_true = first_plot,
