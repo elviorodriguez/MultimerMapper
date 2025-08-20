@@ -165,7 +165,7 @@ def create_html_visualization(interpro_data, protein_id, plddts_data, domains_df
                 margin: 0 auto;
             }}
             .protein-viz {{
-                margin: 20px 0;
+                margin: 0px 0;
                 position: relative;
             }}
             .row {{
@@ -181,7 +181,7 @@ def create_html_visualization(interpro_data, protein_id, plddts_data, domains_df
                 position: relative;
             }}
             .domain-row {{
-                height: 30px;
+                height: 20px;
                 position: relative;
                 margin: 5px 0;
             }}
@@ -249,11 +249,12 @@ def create_html_visualization(interpro_data, protein_id, plddts_data, domains_df
                 pointer-events: none;
             }}
             .legend {{
+            	margin-left: 110px;
                 margin-top: 20px;
                 display: flex;
-                justify-content: center;
+                justify-content: left;
                 align-items: center;
-                gap: 48px;
+                gap: 100px;
             }}
             .legend-section {{
                 display: flex;
@@ -293,13 +294,13 @@ def create_html_visualization(interpro_data, protein_id, plddts_data, domains_df
     # Add domain segments row (first row)
     html_content += """
                 <div class="row domain-segments-row">
-                    <div class="row-label">Segments</div>
+                    <div class="row-label">PAE domains</div>
     """
     if not protein_domains.empty:
         for _, domain in protein_domains.iterrows():
             start = domain['Start'] - 1  # Convert to 0-based
             end = domain['End'] - 1
-            width = (end - start + 1) * 8
+            width = (end - start + 0.5) * 8
             left = start * 8
             domain_num = domain['Domain']
             
@@ -391,7 +392,7 @@ def create_html_visualization(interpro_data, protein_id, plddts_data, domains_df
             
             html_content += f"""
                     <div class="domain-segment" 
-                         style="background-color: {color}; width: {width}px; left: {left}px;"
+                         style="background-color: {color}; width: {width}px; left: {left}px; height: 18px;"
                          data-tooltip="{tooltip_text}">
                         {domain_name[:20]}
                     </div>
