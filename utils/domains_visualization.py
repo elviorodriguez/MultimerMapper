@@ -223,8 +223,8 @@ def create_html_visualization(interpro_data, protein_id, plddts_data, domains_df
                 position: absolute;
                 width: 2px;
                 background-color: black;
-                top: 0;
-                bottom: 0;
+                top: calc( (35px / 2) );  /* 17.5px from the row’s top */
+                height: calc(100% - 17.5px)
             }}
             .row-label {{
                 position: absolute;
@@ -278,7 +278,7 @@ def create_html_visualization(interpro_data, protein_id, plddts_data, domains_df
                 gap: 10px;
             }}
             .cv-gradient {{
-                width: 100px;
+                width: 150px;
                 height: 15px;
                 background: linear-gradient(to right, #ff0000, #00ff00);
                 border: 1px solid #333;
@@ -300,7 +300,7 @@ def create_html_visualization(interpro_data, protein_id, plddts_data, domains_df
         for _, domain in protein_domains.iterrows():
             start = domain['Start'] - 1  # Convert to 0-based
             end = domain['End'] - 1
-            width = (end - start + 0.5) * 8
+            width = (end - start + 0.75) * 8
             left = start * 8
             domain_num = domain['Domain']
             
