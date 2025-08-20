@@ -109,6 +109,18 @@ def get_monomer_trajectories(directory_path):
     
     return trajectories
 
+def get_domain_visualizations(directory_path):
+    """Extract domain visualization information."""
+    domain_viz = {}
+    
+    viz_files = glob.glob(os.path.join(directory_path, "domains", "visualizations", "*_domains.html"))
+    for file in viz_files:
+        basename = os.path.basename(file)
+        protein_name = basename.replace("_domains.html", "")
+        domain_viz[protein_name] = os.path.relpath(file, directory_path)
+    
+    return domain_viz
+
 def get_fallback_images(directory_path):
     """Get all PNG files in the fallback_analysis directory."""
     fallback_images = glob.glob(os.path.join(directory_path, "fallback_analysis", "*.png"))
@@ -321,6 +333,9 @@ def create_report(directory_path, zip_report = True):
     
     # Collect available monomer trajectories
     monomer_trajectories = get_monomer_trajectories(directory_path)
+
+    # Collect domain visualizations
+    domain_visualizations = get_domain_visualizations(directory_path)
     
     # Collect available fallback analysis images
     fallback_images = get_fallback_images(directory_path)
@@ -345,6 +360,7 @@ def create_report(directory_path, zip_report = True):
         contact_clusters, 
         plddt_clusters, 
         monomer_trajectories,
+        domain_visualizations,
         fallback_images,
         stability_plots,
         combinations_data,
@@ -359,13 +375,14 @@ def create_report(directory_path, zip_report = True):
         create_zip_report(directory_path)
 
 def generate_html(directory_path, protein_names, contact_clusters, plddt_clusters, 
-                  monomer_trajectories, fallback_images, stability_plots, combinations_data, log_content):
+                  monomer_trajectories, domain_visualizations, fallback_images, stability_plots, combinations_data, log_content):
     """Generate the main HTML content."""
     
     # Convert data to JSON for JavaScript use
     contact_clusters_json = json.dumps(contact_clusters)
     plddt_clusters_json = json.dumps(plddt_clusters)
     monomer_trajectories_json = json.dumps(monomer_trajectories)
+    domain_visualizations_json = json.dumps(domain_visualizations)
     protein_names_json = json.dumps(protein_names)
     fallback_images_json = json.dumps(fallback_images)
     stability_plots_json = json.dumps(stability_plots)
@@ -1097,6 +1114,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         const contactClusters = {contact_clusters_json};
         const plddtClusters = {plddt_clusters_json};
         const monomerTrajectories = {monomer_trajectories_json};
+        const domainVisualizations = {domain_visualizations_json};
         const fallbackImages = {fallback_images_json};
         const combinationsData = {combinations_data_json};
         const logContent = {log_content_json};
@@ -1426,45 +1444,52 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         }}
         
         // Show RMSD Trajectories
-        function showRMSDTrajectories() {{
-            let html = `
-                <div class="data-table">
-                    <h2 class="mb-20">RMSD Trajectories</h2>
-            `;
-            
-            Object.keys(monomerTrajectories).forEach(protein => {{
-                const data = monomerTrajectories[protein];
-                // Sort domains numerically
-                const sortedDomains = data.domains.sort((a, b) => 
-                    parseInt(a.domain_num) - parseInt(b.domain_num)
-                );
-                
-                html += `<div class="protein-row">
-                    <div class="protein-name">${{protein}}</div>
-                    <div class="trajectory-buttons">`;
-                
-                if (data.monomer) {{
-                    html += `
-                        <button class="trajectory-button" onclick="showSplitView('${{data.monomer.interactive}}', '${{data.monomer.rmsd}}')">
-                            <i class="fas fa-chart-line"></i> Monomer Trajectory
-                        </button>
-                    `;
-                }}
-                
-                sortedDomains.forEach(domain => {{
-                    html += `
-                        <button class="trajectory-button" onclick="showSplitView('${{domain.interactive}}', '${{domain.rmsd}}')">
-                            <i class="fas fa-puzzle-piece"></i> Domain ${{domain.domain_num}}
-                        </button>
-                    `;
-                }});
-                
-                html += `</div></div>`;
+    function showRMSDTrajectories() {{
+        let html = `
+        <div class="data-table">
+        <h2 class="mb-20">RMSD Trajectories</h2>
+        `;
+        Object.keys(monomerTrajectories).forEach(protein => {{
+            const data = monomerTrajectories[protein];
+            // Sort domains numerically
+            const sortedDomains = data.domains.sort((a, b) =>
+                parseInt(a.domain_num) - parseInt(b.domain_num)
+            );
+            html += `<div class="protein-row">
+            <div class="protein-name">${{protein}}</div>
+            <div class="trajectory-buttons">`;
+            if (data.monomer) {{
+                html += `
+                <button class="trajectory-button" onclick="showSplitView('${{data.monomer.interactive}}', '${{data.monomer.rmsd}}')">
+                <i class="fas fa-chart-line"></i> Monomer Trajectory
+                </button>
+                `;
+            }}
+            sortedDomains.forEach(domain => {{
+                html += `
+                <button class="trajectory-button" onclick="showSplitView('${{domain.interactive}}', '${{domain.rmsd}}')">
+                <i class="fas fa-puzzle-piece"></i> Domain ${{domain.domain_num}}
+                </button>
+                `;
             }});
+            html += `</div>`;
+            
+            // Add domain visualization container if it exists for this protein
+            if (domainVisualizations[protein]) {{
+                html += `
+                <div class="domain-visualization-container" style="margin-top: 15px; border: 1px solid #ddd; border-radius: 5px; padding: 10px; background-color: #f9f9f9;">
+                    <h4 style="margin: 0 0 10px 0; color: var(--primary-color);">
+                        <i class="fas fa-eye"></i> Domain Structure Reference
+                    </h4>
+                    <iframe src="${{domainVisualizations[protein]}}" style="width: 100%; height: 400px; border: none; border-radius: 3px;"></iframe>
+                </div>`;
+            }}
             
             html += `</div>`;
-            setMainContent(html);
-        }}
+        }});
+        html += `</div>`;
+        setMainContent(html);
+    }}
         
         // Show Split View for RMSD Trajectory
         function showSplitView(interactivePath, rmsdPath) {{

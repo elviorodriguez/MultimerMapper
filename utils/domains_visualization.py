@@ -55,7 +55,7 @@ def generate_domain_colors():
     ]
     return colors
 
-def create_html_visualization(interpro_data, protein_id, plddts_data, domains_df, output_file):
+def create_interpro_html_visualization(interpro_data, protein_id, plddts_data, domains_df, output_file):
     """Create the HTML visualization"""
     
     # Debug: Print data structure info
@@ -510,7 +510,7 @@ def main():
             domains_df = pd.DataFrame()
         
         # Generate visualization
-        create_html_visualization(interpro_data, args.protein_id, plddts_data, domains_df, args.output_html)
+        create_interpro_html_visualization(interpro_data, args.protein_id, plddts_data, domains_df, args.output_html)
         
     except FileNotFoundError as e:
         print(f"Error: File not found - {e}")

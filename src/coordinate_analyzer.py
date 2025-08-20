@@ -1916,7 +1916,7 @@ def generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
         
         mm_trajectories[protein_ID] = protein_traj
     
-    # Save JSON file with per residue mean plddt and CV for report
+    # Save JSON file with per residue mean plddt and CV for report -----------------------------
     json_file_path = os.path.join(out_path, "domains", "per_residue_plddts_mean_and_cv.json")
     plddts_dict = {}
     for prot_id in mm_output['prot_IDs']:
@@ -1928,5 +1928,39 @@ def generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
     with open(json_file_path, 'w') as f:
         json.dump(plddts_dict, f, indent=4)
 
+
+    # Create domain visualization --------------------------------------------------------------
+
+    from utils.domains_visualization import create_interpro_html_visualization
+
+    # Create out dir
+    domains_dir = os.path.join(mm_output['out_path'], "domains")
+    html_domains_dir_path = os.path.join(domains_dir, "visualizations")
+    os.makedirs(html_domains_dir_path, exist_ok=True)
+    
+    # Retrieve necessary files
+    interpro_dir = os.path.join(domains_dir, "interpro")
+
+    for prot_id in mm_output['prot_IDs']:
+
+        try:
+            # Output_file
+            output_file = os.path.join(html_domains_dir_path, f"{prot_id}_domains.html")
+
+            # Load interpro results for protein
+            interpro_file = os.path.join(interpro_dir, f"{prot_id}_interpro_results.json")
+            with open(interpro_file, 'r') as f:
+                interpro_data = json.load(f)
+            
+            create_interpro_html_visualization(
+                interpro_data, prot_id,
+                plddts_dict, mm_output['domains_df'], output_file)
+            
+        except Exception as e:
+            logger.error( '   An exception occurred durning the generation of interpro domains visualization:')
+            logger.error(f'      - Protein: {prot_id}')
+            logger.error(f'      - Error: {e}')
+            logger.error(f'      - Interpro file path: {interpro_file}')
+            logger.error(f'      - Interpro file exist?: {os.path.exists(interpro_file)}')
 
     return mm_trajectories
