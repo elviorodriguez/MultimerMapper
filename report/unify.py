@@ -1211,7 +1211,6 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             }});
         }}
         
-        // With this corrected code:
         // Keep the original menu initialization and add panel handlers
         function initDomainsDropdown() {{
             // Original dropdown functionality removed, just keep empty
