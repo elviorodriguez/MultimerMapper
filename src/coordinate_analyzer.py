@@ -1917,6 +1917,7 @@ def generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
         mm_trajectories[protein_ID] = protein_traj
     
     # Save JSON file with per residue mean plddt and CV for report -----------------------------
+    
     json_file_path = os.path.join(out_path, "domains", "per_residue_plddts_mean_and_cv.json")
     plddts_dict = {}
     for prot_id in mm_output['prot_IDs']:
@@ -1954,7 +1955,7 @@ def generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
             
             create_interpro_html_visualization(
                 interpro_data, prot_id,
-                plddts_dict, mm_output['domains_df'], output_file)
+                plddts_dict, mm_output['domains_df'], output_file, logger)
             
         except Exception as e:
             logger.error( '   An exception occurred durning the generation of interpro domains visualization:')

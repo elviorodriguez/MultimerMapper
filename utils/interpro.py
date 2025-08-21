@@ -576,6 +576,41 @@ def submit_interpro_jobs(prot_IDs: list, prot_seqs: list, logger = None):
     return interpro_jobs
 
 
+def create_empty_interpro_results(sequence, reason):
+    """Create an empty InterPro results structure with failure reason."""
+    start = 1
+    end = len(sequence)
+    return {
+    "interproscan-version": "5.75-106.0",
+    "failure_reason": reason,
+    "results": [{
+            "sequence": sequence,
+            "md5": "",
+            "matches": [{
+            "signature": {
+                "accession": reason,
+                "name": reason,
+                "description": reason,
+                "type": "REGION"
+            },
+            "locations": [
+                {
+                "start": start,
+                "end": end
+                }
+            ]
+            }],
+            "xref": [
+                {
+                    "name": "FAILED_JOB",
+                    "id": "FAILED_JOB"
+                }
+            ]
+        }
+    ]
+    }
+
+
 def check_and_process_interpro_results(interpro_jobs: dict, out_path: str, logger = None, max_wait_per_cycle: int = 300):
     """Check InterPro job status and process results with user interaction."""
     if logger is None:
@@ -616,10 +651,24 @@ def check_and_process_interpro_results(interpro_jobs: dict, out_path: str, logge
                     else:
                         job_info['status'] = 'FAILED'
                         job_info['summary'] = 'Failed to retrieve results'
+                        
+                        # Generate empty results file
+                        empty_results = create_empty_interpro_results(job_info.get('sequence', ''), 'Failed to retrieve results from InterPro server')
+                        result_file = os.path.join(interpro_folder, f"{prot_id}_interpro_results.json")
+                        with open(result_file, 'w') as f:
+                            json.dump(empty_results, f, indent=2)
+                        
                         logger.error(f"Failed to retrieve InterPro results for {prot_id}")
                 elif status in ['ERROR', 'FAILURE']:
                     job_info['status'] = 'FAILED'
                     job_info['summary'] = f'Job failed: {status}'
+                    
+                    # Generate empty results file
+                    empty_results = create_empty_interpro_results(job_info.get('sequence', ''), f'InterPro job failed with status: {status}')
+                    result_file = os.path.join(interpro_folder, f"{prot_id}_interpro_results.json")
+                    with open(result_file, 'w') as f:
+                        json.dump(empty_results, f, indent=2)
+                    
                     logger.error(f"InterPro job failed for {prot_id}: {status}")
                 else:
                     pending_jobs.append(prot_id)
@@ -680,11 +729,30 @@ def check_and_process_interpro_results(interpro_jobs: dict, out_path: str, logge
                     break
             
             if pending_jobs:
+                # Generate empty files for jobs that timed out
+                for prot_id in pending_jobs:
+                    interpro_jobs[prot_id]['summary'] = f'Timeout after {max_wait_per_cycle} seconds'
+                    interpro_jobs[prot_id]['status'] = 'TIMEOUT'
+                    
+                    # Generate empty results file
+                    empty_results = create_empty_interpro_results(interpro_jobs[prot_id].get('sequence', ''), f'InterPro job timed out after {max_wait_per_cycle} seconds')
+                    result_file = os.path.join(interpro_folder, f"{prot_id}_interpro_results.json")
+                    with open(result_file, 'w') as f:
+                        json.dump(empty_results, f, indent=2)
+                
                 logger.warning(f"Wait time exceeded. {len(pending_jobs)} jobs still pending.")
         else:
-            # User chose not to wait, mark pending jobs as timeout
+            # User chose not to wait, mark pending jobs as timeout and generate empty files
             for prot_id in pending_jobs:
                 interpro_jobs[prot_id]['summary'] = 'Waiting time out'
+                interpro_jobs[prot_id]['status'] = 'TIMEOUT'
+                
+                # Generate empty results file
+                empty_results = create_empty_interpro_results(interpro_jobs[prot_id].get('sequence', ''), 'User chose not to wait for InterPro results')
+                result_file = os.path.join(interpro_folder, f"{prot_id}_interpro_results.json")
+                with open(result_file, 'w') as f:
+                    json.dump(empty_results, f, indent=2)
+                
             logger.info("User chose not to wait. Proceeding with available results.")
             break
     

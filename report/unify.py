@@ -1479,7 +1479,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
                 html += `
                 <div class="domain-visualization-container" style="margin-top: 15px; border: 1px solid #ddd; border-radius: 5px; padding: 10px; background-color: #f9f9f9;">
                     <h4 style="margin: 0 0 10px 0; color: var(--primary-color);">
-                        <i class="fas fa-eye"></i> Domain Structure Reference
+                        <i class="fas fa-eye"></i> Domain Architecture Reference (InterProScan)
                     </h4>
                     <iframe src="${{domainVisualizations[protein]}}" style="width: 100%; height: 400px; border: none; border-radius: 3px;"></iframe>
                 </div>`;

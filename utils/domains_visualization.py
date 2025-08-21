@@ -55,84 +55,84 @@ def generate_domain_colors():
     ]
     return colors
 
-def create_interpro_html_visualization(interpro_data, protein_id, plddts_data, domains_df, output_file):
+def create_interpro_html_visualization(interpro_data, protein_id, plddts_data, domains_df, output_file, logger = None):
     """Create the HTML visualization"""
     
-    # Debug: Print data structure info
-    print(f"Debug: interpro_data keys: {interpro_data.keys() if interpro_data else 'None'}")
-    if interpro_data and 'results' in interpro_data:
-        print(f"Debug: Number of results: {len(interpro_data['results'])}")
-        if interpro_data['results']:
-            print(f"Debug: First result keys: {interpro_data['results'][0].keys()}")
+    # # Debug: Print data structure info
+    # print(f"Debug: interpro_data keys: {interpro_data.keys() if interpro_data else 'None'}")
+    # if interpro_data and 'results' in interpro_data:
+    #     print(f"Debug: Number of results: {len(interpro_data['results'])}")
+    #     if interpro_data['results']:
+    #         print(f"Debug: First result keys: {interpro_data['results'][0].keys()}")
     
     # Check if interpro_data is properly structured
-    if not interpro_data:
-        raise ValueError("InterPro data is None or empty")
+    if not interpro_data and logger is not None:
+        logger.error("InterPro data is None or empty")
     
-    if 'results' not in interpro_data:
-        raise ValueError("InterPro data missing 'results' key")
+    if 'results' not in interpro_data and logger is not None:
+        logger.error("InterPro data missing 'results' key")
     
-    if not interpro_data['results']:
-        raise ValueError("InterPro results list is empty")
+    if not interpro_data['results'] and logger is not None:
+        logger.error("InterPro results list is empty")
     
-    if 'sequence' not in interpro_data['results'][0]:
-        raise ValueError("InterPro results missing 'sequence' key")
+    if 'sequence' not in interpro_data['results'][0] and logger is not None:
+        logger.error("InterPro results missing 'sequence' key")
     
     # Get protein sequence length
     sequence = interpro_data['results'][0]['sequence']
-    if not sequence:
-        raise ValueError("Protein sequence is empty")
+    if not sequence and logger is not None:
+        logger.error("Protein sequence is empty")
     
-    seq_length = len(sequence)
-    print(f"Debug: Sequence length: {seq_length}")
+    # seq_length = len(sequence)
+    # print(f"Debug: Sequence length: {seq_length}")
     
-    # Get pLDDT data for the protein
-    print(f"Debug: Available protein IDs in pLDDT data: {list(plddts_data.keys()) if plddts_data else 'None'}")
-    print(f"Debug: Looking for protein ID: '{protein_id}'")
+    # # Get pLDDT data for the protein
+    # print(f"Debug: Available protein IDs in pLDDT data: {list(plddts_data.keys()) if plddts_data else 'None'}")
+    # print(f"Debug: Looking for protein ID: '{protein_id}'")
     
-    if not plddts_data:
-        raise ValueError("pLDDT data is None or empty")
+    if not plddts_data and logger is not None:
+        logger.error("pLDDT data is None or empty")
     
-    if protein_id not in plddts_data:
-        raise ValueError(f"Protein ID '{protein_id}' not found in pLDDT data. Available IDs: {list(plddts_data.keys())}")
+    if protein_id not in plddts_data and logger is not None:
+        logger.error(f"Protein ID '{protein_id}' not found in pLDDT data. Available IDs: {list(plddts_data.keys())}")
     
-    if 'per_res_plddts_mean' not in plddts_data[protein_id]:
-        raise ValueError(f"Missing 'per_res_plddts_mean' for protein {protein_id}")
+    if 'per_res_plddts_mean' not in plddts_data[protein_id] and logger is not None:
+        logger.error(f"Missing 'per_res_plddts_mean' for protein {protein_id}")
     
-    if 'per_res_plddts_cv' not in plddts_data[protein_id]:
-        raise ValueError(f"Missing 'per_res_plddts_cv' for protein {protein_id}")
+    if 'per_res_plddts_cv' not in plddts_data[protein_id] and logger is not None:
+        logger.error(f"Missing 'per_res_plddts_cv' for protein {protein_id}")
     
     mean_plddts = plddts_data[protein_id]['per_res_plddts_mean']
     cv_plddts = plddts_data[protein_id]['per_res_plddts_cv']
     
-    if not mean_plddts or not cv_plddts:
-        raise ValueError(f"Empty pLDDT data for protein {protein_id}")
+    if not mean_plddts or not cv_plddts and logger is not None:
+        logger.error(f"Empty pLDDT data for protein {protein_id}")
     
-    print(f"Debug: pLDDT mean length: {len(mean_plddts)}, CV length: {len(cv_plddts)}")
+    # print(f"Debug: pLDDT mean length: {len(mean_plddts)}, CV length: {len(cv_plddts)}")
     
-    # Ensure data length matches sequence length
-    if len(mean_plddts) != seq_length or len(cv_plddts) != seq_length:
-        print(f"Warning: Data length mismatch. Sequence: {seq_length}, pLDDT mean: {len(mean_plddts)}, pLDDT CV: {len(cv_plddts)}")
+    # # Ensure data length matches sequence length
+    # if len(mean_plddts) != seq_length or len(cv_plddts) != seq_length:
+    #     print(f"Warning: Data length mismatch. Sequence: {seq_length}, pLDDT mean: {len(mean_plddts)}, pLDDT CV: {len(cv_plddts)}")
     
     # Get domain segments for this protein
     protein_domains = domains_df[domains_df['Protein_ID'] == protein_id] if not domains_df.empty else pd.DataFrame()
     
     # Get InterPro matches
-    if 'matches' not in interpro_data['results'][0]:
-        raise ValueError("InterPro results missing 'matches' key")
+    if 'matches' not in interpro_data['results'][0] and logger is not None:
+        logger.error("InterPro results missing 'matches' key")
     
     interpro_matches = interpro_data['results'][0]['matches']
     if interpro_matches is None:
         interpro_matches = []
-        print("Warning: InterPro matches is None, using empty list")
+    #     print("Warning: InterPro matches is None, using empty list")
     
-    print(f"Debug: Number of InterPro matches: {len(interpro_matches)}")
+    # print(f"Debug: Number of InterPro matches: {len(interpro_matches)}")
     
-    # Debug: Print match structure
-    if interpro_matches:
-        print(f"Debug: First match keys: {interpro_matches[0].keys() if interpro_matches[0] else 'First match is None'}")
-        if interpro_matches[0] and 'signature' in interpro_matches[0]:
-            print(f"Debug: First match signature keys: {interpro_matches[0]['signature'].keys() if interpro_matches[0]['signature'] else 'Signature is None'}")
+    # # Debug: Print match structure
+    # if interpro_matches:
+    #     print(f"Debug: First match keys: {interpro_matches[0].keys() if interpro_matches[0] else 'First match is None'}")
+    #     if interpro_matches[0] and 'signature' in interpro_matches[0]:
+    #         print(f"Debug: First match signature keys: {interpro_matches[0]['signature'].keys() if interpro_matches[0]['signature'] else 'Signature is None'}")
 
     
     # Calculate CV range for color scaling
@@ -359,7 +359,7 @@ def create_interpro_html_visualization(interpro_data, protein_id, plddts_data, d
             
         color = domain_colors[idx % len(domain_colors)]
         
-        print(f"Debug: Processing domain {idx+1}: {domain_name}")
+        # print(f"Debug: Processing domain {idx+1}: {domain_name}")
         
         html_content += f"""
                 <div class="row domain-row">
@@ -474,7 +474,7 @@ def create_interpro_html_visualization(interpro_data, protein_id, plddts_data, d
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html_content)
     
-    print(f"Visualization saved to {output_file}")
+    # print(f"Visualization saved to {output_file}")
 
 def main():
     parser = argparse.ArgumentParser(description='Generate protein domain visualization')
