@@ -148,7 +148,7 @@ def get_combinations_data(directory_path):
     return combinations_data
 
 def get_stability_plots(directory_path):
-    """Extract stability plot information."""
+    """Extract stability plot (confidence profile) information."""
     stability_dir = os.path.join(directory_path, "stability_plots")
     if not os.path.exists(stability_dir):
         return []
@@ -978,7 +978,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
 
             <div class="menu-item" id="stability-plots-button">
                 <i class="fas fa-chart-area"></i>
-                <span>Stability Plots</span>
+                <span>Confidence Profiles</span>
             </div>
             
             <div class="menu-item" id="combinations-suggestions-button">
@@ -1070,7 +1070,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         <!-- Stability Plots panel -->
         <div class="slide-panel" id="stability-plots-panel">
             <div class="slide-panel-header">
-                <h3>Stability Plots</h3>
+                <h3>Confidence Profiles</h3>
                 <button class="close-panel" id="close-stability-panel">
                     <i class="fas fa-times"></i>
                 </button>
@@ -1102,7 +1102,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
                 </select>
             </div>
             <button class="view-button" id="view-stability-plots" disabled>
-                <i class="fas fa-eye"></i> View Stability Plots
+                <i class="fas fa-eye"></i> View Confidence Profiles
             </button>
         </div>
 
@@ -1611,7 +1611,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             viewButton.disabled = !(selectedStabilityProtein1 && selectedStabilityProtein2);
         }}
         
-        // View stability plots with selected options
+        // View confidence profiles with selected options
         function viewStabilityPlots() {{
             const metric = document.getElementById('stability-metric-select').value;
             const statistic = document.getElementById('stability-statistic-select').value;
@@ -1633,7 +1633,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             }}
             
             if (plots.length === 0) {{
-                alert('No stability plots found matching the selected criteria');
+                alert('No confidence profile found matching the selected criteria');
                 return;
             }}
             
@@ -1642,7 +1642,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             
             // Generate HTML for plots
             let html = `<div style="padding: 20px;">
-                <h2>Stability Plots for ${{selectedStabilityProtein1}} and ${{selectedStabilityProtein2}}</h2>
+                <h2>Confidence profiles for ${{selectedStabilityProtein1}} and ${{selectedStabilityProtein2}}</h2>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(500px, 1fr)); gap: 20px;">`;
             
             plots.forEach(plot => {{
