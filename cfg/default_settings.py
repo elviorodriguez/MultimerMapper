@@ -282,8 +282,8 @@ max_combination_order = 1
 # # With FPR = 0.01
 # miPAE_cutoff_conv_soft_list = [10.22, 05.61, 03.98, 02.04, 1.86]
 
-# # With FPR = 0.05
-# miPAE_cutoff_conv_soft_list = [12.96, 10.53, 07.21, 04.46, 3.08]
+# With FPR = 0.05
+miPAE_cutoff_conv_soft_list = [12.96, 10.53, 07.21, 04.46, 3.08]
 
 # # With FPR = 0.10, min(TPR) = 0.60, max (TPR) = 0.63
 # miPAE_cutoff_conv_soft_list = [14.79, 14.08, 10.39, 07.20, 3.90]
@@ -297,13 +297,13 @@ max_combination_order = 1
 # # With FPR = 0.25, min(TPR) = 0.68, max (TPR) = 0.75
 # miPAE_cutoff_conv_soft_list = [17.53, 15.52, 14.27, 12.52, 8.01]
 
-# Set to None to use the cfg/stability_dynamic_cutoff.tsv
-# This varies the cutoffs depending on Nmer size to always have FPR~0.01
-miPAE_cutoff_conv_soft_list = None
+# # Set to None to use the cfg/stability_dynamic_cutoff.tsv
+# # This varies the cutoffs depending on Nmer size to always have FPR~0.01
+# miPAE_cutoff_conv_soft_list = None
 
 # Start and end
 dynamic_conv_start = 5
-dynamic_conv_end   = 1
+dynamic_conv_end   = 5
 
 
 # ------------------------------ Static method -------------------------------

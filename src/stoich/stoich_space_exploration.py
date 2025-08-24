@@ -107,11 +107,32 @@ def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestion
                             added_suggestions.append(possible_new_suggestion)
             
             else:
-                # Combine stable N-mers of size combination_order
-                stable_nmers = [combo for combo, data in stoich_dict.items() 
-                               if len(combo) == combination_order and data['is_stable'] is True]
+                # For combination_order > 1, combine stable stoichiometries with stable k-mers where k <= combination_order
+                stable_stoichiometries = [combo for combo, data in stoich_dict.items() 
+                                        if data['is_stable'] is True]
                 
-                # Generate all unique combinations of stable N-mers
+                # Generate combinations by adding stable k-mers (k from 1 to combination_order) to existing stable stoichiometries
+                for base_combo in stable_stoichiometries:
+                    # Try adding stable k-mers of various sizes
+                    for k in range(1, combination_order + 1):
+                        stable_kmers = [combo for combo, data in stoich_dict.items() 
+                                    if len(combo) == k and data['is_stable'] is True]
+                        
+                        for kmer in stable_kmers:
+                            combined_suggestion = tuple(sorted(list(base_combo) + list(kmer)))
+                            
+                            # Check if this combination is new and within reasonable size limits
+                            if (combined_suggestion not in suggested_combinations and 
+                                combined_suggestion not in added_suggestions and 
+                                combined_suggestion not in stoich_dict and
+                                len(combined_suggestion) - len(base_combo) <= combination_order):
+                                added_suggestions.append(combined_suggestion)
+                
+                # Also generate combinations by combining stable N-mers of the same size (original logic)
+                stable_nmers = [combo for combo, data in stoich_dict.items() 
+                            if len(combo) == combination_order and data['is_stable'] is True]
+                
+                # Generate all unique combinations of stable N-mers of the same size
                 for i, combo1 in enumerate(stable_nmers):
                     for combo2 in stable_nmers[i:]:  # Start from i to avoid duplicates and allow self-combinations
                         # Combine the two N-mers
