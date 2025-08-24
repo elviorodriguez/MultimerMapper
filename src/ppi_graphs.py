@@ -1594,6 +1594,7 @@ def igraph_to_plotly(
                 + f'<br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]}'
                 + f'<br>   - Cluster size: {len(edge["valency"]["models"])}'
                 + f'<br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}'
+                + f'<br>   - N-mers frequency: {get_edge_Nmers_variation(edge)*100}%'
                 +  '<br>'
                 + f'<br>{padded_correlations_flag}'
                 +  '<br>'
