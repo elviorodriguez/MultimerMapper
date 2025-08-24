@@ -19,7 +19,10 @@ from src.stability_metrics import combination_label
 from utils.logger_setup import configure_logger
 
 
-def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestions = True, max_combination_order = 1):
+def initialize_stoich_dict(mm_output, suggested_combinations,
+                           include_suggestions = True,
+                           max_combination_order = 1, 
+                           combine_only_detected_ppi_proteins = True):
     
     # Unpack necessary data
     protein_list = mm_output['prot_IDs']
@@ -30,10 +33,17 @@ def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestion
     predicted_2mers = set(p_in_m for p_in_m in pairwise_2mers_df['sorted_tuple_pair'])
     predicted_Nmers = set(p_in_m for p_in_m in pairwise_Nmers_df['proteins_in_model'])
     predicted_Xmers = sorted(predicted_2mers.union(predicted_Nmers))
-    interacting_2mers = [tuple(sorted(
+    interacting_2mers_pairs = list(set([tuple(sorted(
         (row["protein1"], row["protein2"])))
         for i, row in mm_output['pairwise_2mers_df_F3'].iterrows()
-    ]
+    ]))
+    interacting_Nmers_pairs = list(set([tuple(sorted(
+        (row["protein1"], row["protein2"])))
+        for i, row in mm_output['pairwise_Nmers_df_F3'].iterrows()
+    ]))
+    interacting_proteins_from_2mers_list = list(set([pair[0] for pair in interacting_2mers_pairs] + [pair[1] for pair in interacting_2mers_pairs]))
+    interacting_proteins_from_Nmers_list = list(set([pair[0] for pair in interacting_Nmers_pairs] + [pair[1] for pair in interacting_Nmers_pairs]))
+    interacting_proteins_from_Xmers_list = list(set(interacting_proteins_from_2mers_list + interacting_proteins_from_Nmers_list))
     
     # Dict to store stoichiometric space data
     stoich_dict = {}
@@ -67,7 +77,7 @@ def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestion
             model_pairwise_df: pd.DataFrame = pairwise_2mers_df.query('sorted_tuple_pair == @model')
             
             # Check if 2-mer is stable
-            is_fully_connected_network = sorted_tuple_combination in interacting_2mers
+            is_fully_connected_network = sorted_tuple_combination in interacting_2mers_pairs
             if is_fully_connected_network:                
                 triggering_N = 5
             else:
@@ -101,6 +111,11 @@ def initialize_stoich_dict(mm_output, suggested_combinations, include_suggestion
                     
                     # Generate possible combinations by adding +1 of each protein
                     for prot_id in protein_list:
+
+                        # Skip proteins that were not detected involved in ppis?
+                        if combine_only_detected_ppi_proteins and prot_id not in interacting_proteins_from_Xmers_list:
+                            continue
+
                         possible_new_suggestion = tuple(sorted(list(sorted_tuple_combination) + [prot_id]))
 
                         if possible_new_suggestion not in suggested_combinations and possible_new_suggestion not in added_suggestions and possible_new_suggestion not in stoich_dict:
@@ -645,7 +660,7 @@ def create_protein_stoich_visualization(
 
 
 # Create igraph with stoichiometric connections
-def create_stoichiometric_graph(stoich_dict, max_combination_order=1):
+def create_stoichiometric_graph(stoich_dict, max_combination_order=1, use_N_size_jumps = False):
     """
     Create an igraph with stoichiometric combinations as nodes and connections between N and N+k layers (k <= max_combination_order)
     """
@@ -736,8 +751,8 @@ def create_stoichiometric_graph(stoich_dict, max_combination_order=1):
                     else:
                         category = "Unknown"
                     
-                    # Modify category to indicate order jump if > 1
-                    if size_diff > 1:
+                    # Modify category to indicate order jump if > 1? (for debugging)
+                    if use_N_size_jumps and size_diff > 1:
                         category = f"{category}_N+{size_diff}"
                     
                     edge_attributes['category'].append(category)
