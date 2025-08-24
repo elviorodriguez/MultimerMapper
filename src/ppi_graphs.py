@@ -20,7 +20,7 @@ from cfg.default_settings import vertex_color1, vertex_color2, vertex_color3, ve
 from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, dynamic_conv_start, dynamic_conv_end, weighted_fr_Nmers_contribution, Nmers_contacts_cutoff
 from utils.combinations import generate_multivalent_pair_suggestions
 from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
-from src.interpret_dynamics import add_phi_coefficients_to_combined_graph, add_point_biserial_corr_for_rmsd_and_partners
+from src.interpret_dynamics import add_phi_coefficients_to_combined_graph, add_point_biserial_corr_for_rmsd_and_partners, get_edge_Nmers_variation
 from utils.strings import get_max_visual_line_length, padded_flag_html_aware
 
 # -----------------------------------------------------------------------------
@@ -1565,6 +1565,7 @@ def igraph_to_plotly(
                 + f'<br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]}'
                 + f'<br>   - Cluster size: {len(edge["valency"]["models"])}'
                 + f'<br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}'
+                + f'<br>   - N-mers frequency: {get_edge_Nmers_variation(edge)*100}%'
                 +  '<br>'
                 + f'<br>{dimers_flag}'
                 + f'<br>{edge["2_mers_info"]}'
