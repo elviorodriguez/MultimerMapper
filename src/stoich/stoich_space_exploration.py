@@ -659,8 +659,49 @@ def create_protein_stoich_visualization(
     return sep.join(viz_lines)
 
 
+def has_stable_intermediate_bridge(combo1, combo2, stoich_dict, combinations):
+    """
+    Check if there exists a stable intermediate stoichiometry that could serve as a bridge
+    between combo1 and combo2.
+    
+    Returns True if such a bridge exists, False otherwise.
+    """
+    combo1_counter = Counter(combo1)
+    combo2_counter = Counter(combo2)
+    
+    # Look for intermediates that:
+    # 1. Contain combo1 (combo1 ⊆ intermediate)
+    # 2. Are contained in combo2 (intermediate ⊆ combo2)  
+    # 3. Are stable
+    # 4. Have size between len(combo1) and len(combo2)
+    
+    for intermediate_tuple in combinations:
+        intermediate_size = len(intermediate_tuple)
+        
+        # Skip if not in the intermediate size range
+        if intermediate_size <= len(combo1) or intermediate_size >= len(combo2):
+            continue
+            
+        # Skip if not stable
+        if stoich_dict[intermediate_tuple]['is_stable'] is not True:
+            continue
+            
+        intermediate_counter = Counter(intermediate_tuple)
+        
+        # Check if combo1 ⊆ intermediate ⊆ combo2
+        combo1_in_intermediate = all(intermediate_counter[protein] >= count 
+                                   for protein, count in combo1_counter.items())
+        intermediate_in_combo2 = all(combo2_counter[protein] >= count 
+                                   for protein, count in intermediate_counter.items())
+        
+        if combo1_in_intermediate and intermediate_in_combo2:
+            return True  # Found a stable bridge
+    
+    return False  # No stable bridge found
+
 # Create igraph with stoichiometric connections
-def create_stoichiometric_graph(stoich_dict, max_combination_order=1, use_N_size_jumps = False):
+def create_stoichiometric_graph(stoich_dict, max_combination_order=1, use_N_size_jumps = False,
+                                skip_edges_with_intermediate_stoich = True):
     """
     Create an igraph with stoichiometric combinations as nodes and connections between N and N+k layers (k <= max_combination_order)
     """
@@ -699,63 +740,69 @@ def create_stoichiometric_graph(stoich_dict, max_combination_order=1, use_N_size
                                  for protein, count in combo1_counter.items())
                 
                 if is_contained:
-                    # Find the variation (added proteins/components)
-                    diff_counter = combo2_counter - combo1_counter
-                    variation_proteins = []
-                    for protein, count in diff_counter.items():
-                        variation_proteins.extend([protein] * count)
+                    # For size_diff > 1, check if there's a stable intermediate that could serve as a bridge
+                    should_add_edge = True
+                    if size_diff > 1 and skip_edges_with_intermediate_stoich:
+                        should_add_edge = not has_stable_intermediate_bridge(combo1, combo2, stoich_dict, combinations)
                     
-                    if size_diff == 1:
-                        # Single protein addition (N -> N+1)
-                        if len(diff_counter) == 1:
-                            variation = list(diff_counter.keys())[0]
-                            connection_type = "monomer_addition"
-                        else:
-                            variation = "+".join(variation_proteins)
-                            connection_type = "complex_addition"
-                    else:
-                        # Multi-protein addition (N -> N+k, k>1)
-                        variation = "+".join(variation_proteins)
+                    if should_add_edge:
+                        # Find the variation (added proteins/components)
+                        diff_counter = combo2_counter - combo1_counter
+                        variation_proteins = []
+                        for protein, count in diff_counter.items():
+                            variation_proteins.extend([protein] * count)
                         
-                        # Try to identify if this could be from combining stable components
-                        connection_type = identify_connection_type(combo1, combo2, stoich_dict, size_diff)
-                    
-                    # Add edge
-                    edges_to_add.append((i, j))
-                    edge_attributes['variation'].append(variation)
-                    edge_attributes['connection_type'].append(connection_type)
-                    edge_attributes['order_jump'].append(size_diff)
-                    
-                    # Determine category based on stability
-                    stable1 = stoich_dict[combo1]['is_stable']
-                    stable2 = stoich_dict[combo2]['is_stable']
-                    
-                    if stable1 is True and stable2 is True:
-                        category = "Stable->Stable"
-                    elif stable1 is True and stable2 is False:
-                        category = "Stable->Unstable"
-                    elif stable1 is False and stable2 is True:
-                        category = "Unstable->Stable"
-                    elif stable1 is False and stable2 is False:
-                        category = "Unstable->Unstable"
-                    elif stable1 is True and stable2 is None:
-                        category = "Stable->Untested"
-                    elif stable1 is False and stable2 is None:
-                        category = "Unstable->Untested"
-                    elif stable1 is None and stable2 is None:
-                        category = "Untested->Untested"
-                    elif stable1 is None and stable2 is True:
-                        category = "Untested->Stable"
-                    elif stable1 is None and stable2 is False:
-                        category = "Untested->Unstable"
-                    else:
-                        category = "Unknown"
-                    
-                    # Modify category to indicate order jump if > 1? (for debugging)
-                    if use_N_size_jumps and size_diff > 1:
-                        category = f"{category}_N+{size_diff}"
-                    
-                    edge_attributes['category'].append(category)
+                        if size_diff == 1:
+                            # Single protein addition (N -> N+1)
+                            if len(diff_counter) == 1:
+                                variation = list(diff_counter.keys())[0]
+                                connection_type = "monomer_addition"
+                            else:
+                                variation = "+".join(variation_proteins)
+                                connection_type = "complex_addition"
+                        else:
+                            # Multi-protein addition (N -> N+k, k>1)
+                            variation = "+".join(variation_proteins)
+                            
+                            # Try to identify if this could be from combining stable components
+                            connection_type = identify_connection_type(combo1, combo2, stoich_dict, size_diff)
+                        
+                        # Add edge
+                        edges_to_add.append((i, j))
+                        edge_attributes['variation'].append(variation)
+                        edge_attributes['connection_type'].append(connection_type)
+                        edge_attributes['order_jump'].append(size_diff)
+                        
+                        # Determine category based on stability
+                        stable1 = stoich_dict[combo1]['is_stable']
+                        stable2 = stoich_dict[combo2]['is_stable']
+                        
+                        if stable1 is True and stable2 is True:
+                            category = "Stable->Stable"
+                        elif stable1 is True and stable2 is False:
+                            category = "Stable->Unstable"
+                        elif stable1 is False and stable2 is True:
+                            category = "Unstable->Stable"
+                        elif stable1 is False and stable2 is False:
+                            category = "Unstable->Unstable"
+                        elif stable1 is True and stable2 is None:
+                            category = "Stable->Untested"
+                        elif stable1 is False and stable2 is None:
+                            category = "Unstable->Untested"
+                        elif stable1 is None and stable2 is None:
+                            category = "Untested->Untested"
+                        elif stable1 is None and stable2 is True:
+                            category = "Untested->Stable"
+                        elif stable1 is None and stable2 is False:
+                            category = "Untested->Unstable"
+                        else:
+                            category = "Unknown"
+                        
+                        # Modify category to indicate order jump if > 1? (for debugging)
+                        if use_N_size_jumps and size_diff > 1:
+                            category = f"{category}_N+{size_diff}"
+                        
+                        edge_attributes['category'].append(category)
     
     # Add edges to graph
     if edges_to_add:
