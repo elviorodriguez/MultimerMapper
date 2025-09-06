@@ -347,15 +347,13 @@ def get_edge_weight(
     graph_edge: igraph.Edge,
     classification_df: pd.DataFrame,
     default_edge_weight = edge_default_weight,
-    scaling_factor = edge_scaling_factor,
+    miPAE_scaling_factor = edge_scaling_factor,
     min_edge_weight = edge_min_weight,
     max_edge_weight = edge_max_weight,
     midpoint_PAE = edge_midpoint_PAE,
-    sharpness = edge_weight_sigmoidal_sharpness
+    sharpness = edge_weight_sigmoidal_sharpness,
+    method = "Nmers_freq"
 ):
-    
-    # Compute the midpoint based on midpoint_PAE
-    midpoint = 1 / midpoint_PAE * scaling_factor
 
     # Get the edge classification
     edge_dynamics = graph_edge["dynamics"]
@@ -365,21 +363,42 @@ def get_edge_weight(
 
     if edge_width_is_variable:
         
-        # Compute raw edge weight
-        min_pae_2mers = graph_edge["2_mers_data"]["min_PAE"].to_numpy()
-        min_pae_Nmers = graph_edge["N_mers_data"]["min_PAE"].to_numpy()
-        all_min_pae = np.concatenate([min_pae_2mers, min_pae_Nmers])
-        edge_weight_PAE = 1 / np.mean(all_min_pae)
-        raw_weight = edge_weight_PAE * scaling_factor
+        if method == "miPAE":
 
-        # Apply sigmoid rescaling
-        edge_weight = sigmoid_rescale(
-            raw_weight,
-            min_val=min_edge_weight,
-            max_val=max_edge_weight,
-            midpoint=midpoint,
-            sharpness=sharpness
-        )
+            # Compute the midpoint based on midpoint_PAE
+            midpoint = 1 / midpoint_PAE * miPAE_scaling_factor
+
+            # Compute raw edge weight
+            min_pae_2mers = graph_edge["2_mers_data"]["min_PAE"].to_numpy()
+            min_pae_Nmers = graph_edge["N_mers_data"]["min_PAE"].to_numpy()
+            all_min_pae = np.concatenate([min_pae_2mers, min_pae_Nmers])
+            edge_weight_PAE = 1 / np.mean(all_min_pae)
+            raw_weight = edge_weight_PAE * miPAE_scaling_factor
+
+            # Apply sigmoid rescaling
+            edge_weight = sigmoid_rescale(
+                raw_weight,
+                min_val=min_edge_weight,
+                max_val=max_edge_weight,
+                midpoint=midpoint,
+                sharpness=sharpness
+            )
+            
+        elif method == "Nmers_freq":
+
+            try:            
+                
+                total_models = len(graph_edge["N_mers_data"]['cluster'])    
+                Nmers_predictions_that_surpass_cutoffs = len([1 for i in graph_edge["N_mers_data"]['cluster'] if "✔" in i])
+                edge_weight = (Nmers_predictions_that_surpass_cutoffs / total_models) * edge_max_weight
+
+                # limit the size to min weight
+                if edge_weight < min_edge_weight:
+                    edge_weight = min_edge_weight
+            
+            except:
+                # If anything fails, use the default weight
+                edge_weight = default_edge_weight
 
         # # Debug
         # print("EDGE:", graph_edge['name'])

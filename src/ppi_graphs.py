@@ -18,6 +18,7 @@ from src.coordinate_analyzer import add_domain_RMSD_against_reference
 from src.analyze_multivalency import add_multivalency_state
 from cfg.default_settings import vertex_color1, vertex_color2, vertex_color3, vertex_color_both, Nmer_stability_method, multivalency_detection_metric, multivalency_metric_threshold, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft
 from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, dynamic_conv_start, dynamic_conv_end, weighted_fr_Nmers_contribution, Nmers_contacts_cutoff
+from cfg.default_settings import edge_min_weight, edge_max_weight
 from utils.combinations import generate_multivalent_pair_suggestions
 from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 from src.interpret_dynamics import add_phi_coefficients_to_combined_graph, add_point_biserial_corr_for_rmsd_and_partners, get_edge_Nmers_variation
@@ -1385,6 +1386,8 @@ def igraph_to_plotly(
         oscillation_circles_frequency: int = 20,
         remove_interactions: tuple[str] | None = ("Indirect",),
         add_non_interacting_proteins: bool = True,
+        edge_min_weight: float = edge_min_weight,
+        edge_max_weight: float = edge_max_weight,
         
         logger = None):
     
@@ -1747,6 +1750,7 @@ def igraph_to_plotly(
                 + f'<br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]}'
                 + f'<br>   - Cluster size: {len(edge["valency"]["models"])}'
                 + f'<br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}'
+                + f'<br>   - N-mers frequency: {get_edge_Nmers_variation(edge)*100}%'
                 +  '<br>'
                 + f'<br>{dimers_flag}'
                 + f'<br>{edge["2_mers_info"]}'
@@ -1775,6 +1779,7 @@ def igraph_to_plotly(
                 + f'<br>   - PPI mode (Cluster ID): {edge["valency"]["cluster_n"]}'
                 + f'<br>   - Cluster size: {len(edge["valency"]["models"])}'
                 + f'<br>   - Nº of contacts: {(edge["valency"]["average_matrix"] > 0).sum()}'
+                + f'<br>   - N-mers frequency: {get_edge_Nmers_variation(edge)*100}%'
                 +  '<br>'
                 + f'<br>{padded_correlations_flag}'
                 +  '<br>'
@@ -2278,6 +2283,29 @@ def igraph_to_plotly(
                       dash  = mng_linetype),
             name = mng + oscillation_tag,
             showlegend = True
+        ))
+
+    # Add PPI frequency legend
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode='markers',
+        marker=dict(symbol='circle', size=0, color="white"),
+        name="<br><b>PPI Frequency:</b>",
+        showlegend=True
+        ))
+    
+    # Create 5 lines showing frequency gradient
+    frequency_percentages = [0, 25, 50, 75, 100]
+    for pct in frequency_percentages:
+        # Calculate width: interpolate between edge_min_weight and edge_max_weight
+        width = edge_min_weight + (edge_max_weight - edge_min_weight) * (pct / 100)
+        
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None],
+            mode='lines',
+            line=dict(color='black', width=width, dash='solid'),
+            name=f"{pct}%",
+            showlegend=True
         ))
 
     # Add non interacting proteins
