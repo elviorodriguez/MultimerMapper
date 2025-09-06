@@ -488,9 +488,14 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         
         .sidebar-logo {{
             display: flex;
+            cursor: pointer;
             flex-direction: column;
             align-items: center;
             gap: 5px;
+        }}
+
+        .sidebar-logo:hover {{
+            background-color: rgba(255, 255, 255, 0.05);
         }}
         
         .sidebar-logo i {{
@@ -908,6 +913,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         .main-content.expanded {{
             margin-left: 0;
         }}
+
     </style>
 </head>
 <body>
@@ -915,16 +921,11 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         <!-- Sidebar/Menu -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-logo">
+                <div class="sidebar-logo" id="logo-button">
                     <img src="./multimermapper_logo.png" alt="MultimerMapper Logo" class="custom-logo">
                 </div>
             </div>
-            
-            <div class="menu-item" id="home-button">
-                <i class="fas fa-home"></i>
-                <span>Home</span>
-            </div>
-            
+                        
             <div class="menu-item" id="graph-2d-button">
                 <i class="fas fa-project-diagram"></i>
                 <span>2D Graph</span>
@@ -1154,11 +1155,12 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
         
         // Initialize menu
         function initMenu() {{
-            // Home button
-            document.getElementById('home-button').addEventListener('click', () => {{
-                setMainContent('<iframe id="main-frame" src="graphs/2D_graph.html"></iframe>');
+        
+            // MultimerMapper button
+            document.getElementById('logo-button').addEventListener('click', () => {{
+                window.open('https://github.com/elviorodriguez/MultimerMapper', '_blank');
             }});
-            
+
             // 2D Graph button
             document.getElementById('graph-2d-button').addEventListener('click', () => {{
                 setMainContent('<iframe id="main-frame" src="graphs/2D_graph.html"></iframe>');
@@ -1755,6 +1757,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
                         <p>Created by Elvio Rodriguez Araya</p>
                         <p>Contact: <a href="mailto:rodriguezaraya@conicet.gov.ar">rodriguezaraya@ibr-conicet.gov.ar</a></p>
                         <p>GitHub: <a href="https://github.com/elviorodriguez/MultimerMapper" target="_blank">elviorodriguez/MultimerMapper</a></p>
+                        <p>Reference: <a href="https://www.biorxiv.org/" target="_blank">MultimerMapper manuscript</a></p>
                     </footer>
                 </div>
             `);
