@@ -400,23 +400,9 @@ def get_edge_weight(
                 # If anything fails, use the default weight
                 edge_weight = default_edge_weight
 
-        # # Debug
-        # print("EDGE:", graph_edge['name'])
-        # print("  - Weight:", edge_weight, "!!!!!!!!!!!!!!!!!!!")
-        # print("  - graph_edge[2_mers_data][min_PAE]:", graph_edge["2_mers_data"]["min_PAE"])
-        # print("  - graph_edge[N_mers_data][min_PAE]:", graph_edge["N_mers_data"]["min_PAE"])
-        # print("  - edge_weight_PAE:", edge_weight_PAE)
-        # print("  - raw_weight:", raw_weight)
-        # print("  - Valency:", graph_edge['valency']['cluster_n'])
-
         return edge_weight
 
     else:
-
-        # # Debug
-        # print("EDGE:", graph_edge['name'])
-        # print("  - Weight:", default_edge_weight)
-        # print("  - Valency:", graph_edge['valency']['cluster_n'])
 
         return default_edge_weight
 
