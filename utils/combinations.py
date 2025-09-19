@@ -530,9 +530,67 @@ def initialize_multimer_mapper(fasta_file, out_path, use_names, logger):
             )
 
     return suggested_combinations
+
+
+def get_full_xmers_combinations(prot_list: List[str], xmer: int = 3) -> List[Tuple[str, ...]]:
+    """
+    Generate all possible x-mer combinations from a list of proteins.
+    This includes combinations with repetitions (combinations with replacement).
+    
+    Args:
+        prot_list: List of protein identifiers
+        xmer: Size of combinations to generate (default: 3)
+    
+    Returns:
+        List of tuples representing all possible x-mer combinations, sorted
+    """
+    # Generate all combinations with replacement of size xmer
+    combinations = list(itertools.combinations_with_replacement(prot_list, xmer))
+    
+    # Sort each combination and convert to tuple (they should already be sorted by combinations_with_replacement)
+    sorted_combinations = [tuple(sorted(comb)) for comb in combinations]
+    
+    # Remove duplicates and sort the final list
+    unique_combinations = list(set(sorted_combinations))
+    unique_combinations.sort()
+    
+    return unique_combinations
+
+
+def add_full_xmers_combinations(suggestions: List[Tuple[str, ...]], 
+                               prot_list: List[str], 
+                               already_computed: List[Tuple[str, ...]],
+                               xmer: int = 3,
+                               ) -> List[Tuple[str, ...]]:
+    """
+    Add all possible x-mer combinations to existing suggestions list.
+    
+    Args:
+        suggestions: Existing list of protein combination suggestions
+        prot_list: List of protein identifiers
+        xmer: Size of combinations to generate (default: 3)
+    
+    Returns:
+        Modified list with added x-mer combinations, with duplicates removed
+    """
+    # Get all x-mer combinations
+    xmers_combinations = get_full_xmers_combinations(prot_list, xmer)
+    
+    # Combine with existing suggestions and remove duplicates
+    modified_suggestions = list(set(suggestions + xmers_combinations))
+
+    # Remove already computed combos
+    modified_suggestions = [combo for combo in modified_suggestions if combo not in already_computed]
+    
+    # Sort the final list for consistency
+    modified_suggestions.sort()
+    
+    return modified_suggestions
+
     
 # When at least 2-mers or N-mers where passed
-def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, max_N: int = 4, log_level: str = "info", max_combination_order = 1):
+def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, max_N: int = 4, log_level: str = "info", max_combination_order = 1,
+                         add_full_xmers_suggestions: None | int = None):
 
     logger = configure_logger(out_path = mm_output['out_path'], log_level = log_level)(__name__)
 
@@ -619,6 +677,18 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
             truly_uninformative.append(uninf_sug)
     
     suggested_combinations: list[tuple[str]] = [ sug for sug in suggested_combinations if sug not in truly_uninformative ]
+
+    if add_full_xmers_suggestions is not None:
+        logger.info(f'Get full X-mer parameter passed for {add_full_xmers_suggestions}-mers')
+        if not isinstance(add_full_xmers_suggestions, int):
+            logger.error(f'   add_full_xmers_suggestions is not a valid integer {add_full_xmers_suggestions}')
+            logger.error( '   Skipping addition of full X-mers')
+        else:
+            suggested_combinations = add_full_xmers_combinations(
+                suggestions=suggested_combinations,
+                prot_list=prot_IDs,
+                already_computed=already_computed,
+                xmer=add_full_xmers_suggestions)
 
     # Save the suggestions
     if out_path is not None:

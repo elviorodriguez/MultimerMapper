@@ -559,6 +559,9 @@ if __name__ == "__main__":
     parser.add_argument('--out_path', type = str, default = "mm_output",
         help='Output directory to store results')
     
+    parser.add_argument('--get_full_x_mers_combo', type = int, default = None, metavar="X",
+        help='Include all the possible combinations of X-mers for any value of X. Useful to detect PPI activations by a third protein when 2-mer interactions are negative.')
+    
     parser.add_argument('--manual_domains', type = str, default = None,
         help='Path to tsv file with manually defined domains (look at tests/EAF6_EPL1_PHD1/manual_domains.tsv for an example)')
     
@@ -591,19 +594,20 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Depackage arguments
-    use_names       = False if args.use_IDs else True
-    fasta_file      = args.fasta_file
-    AF_2mers        = args.AF_2mers
-    AF_Nmers        = args.AF_Nmers
-    out_path        = args.out_path
-    overwrite       = args.overwrite
-    manual_domains  = args.manual_domains
-    auto_domains    = True if args.auto_domains else auto_domain_detection
-    N_value         = args.N_value
-    skip_traj       = args.skip_traj
-    first_plot      = args.first_plot
-    skip_plots      = args.skip_plots
-    max_comb_order  = args.max_comb_order
+    use_names                  = False if args.use_IDs else True
+    fasta_file                 = args.fasta_file
+    AF_2mers                   = args.AF_2mers
+    AF_Nmers                   = args.AF_Nmers
+    out_path                   = args.out_path
+    overwrite                  = args.overwrite
+    manual_domains             = args.manual_domains
+    auto_domains               = True if args.auto_domains else auto_domain_detection
+    N_value                    = args.N_value
+    skip_traj                  = args.skip_traj
+    first_plot                 = args.first_plot
+    skip_plots                 = args.skip_plots
+    max_comb_order             = args.max_comb_order
+    add_full_xmers_suggestions = args.get_full_x_mers_combo
 
     # Verbosity level
     if args.reduce_verbosity:
@@ -674,7 +678,8 @@ if __name__ == "__main__":
         out_path = out_path,
         log_level = log_level,
         max_N = N_value + 1,
-        max_combination_order = max_comb_order)
+        max_combination_order = max_comb_order,
+        add_full_xmers_suggestions = add_full_xmers_suggestions)
     
     # Create 3D network
     nw = interactive_igraph_to_py3dmol(mm_output['combined_graph'], logger = logger, automatic_true = first_plot,
