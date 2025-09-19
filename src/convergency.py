@@ -444,6 +444,8 @@ def does_nmer_is_fully_connected_network(
                 
                 # Try to find contact data for this chain pair in this rank
                 chain_pair = (chain1, chain2)
+                pair = tuple(sorted((proteins_in_model[all_chains.index(chain1)], proteins_in_model[all_chains.index(chain2)])))
+
                 try:
                     
                     # If there is no softening
@@ -465,11 +467,6 @@ def does_nmer_is_fully_connected_network(
                         
                         num_contacts = contacts.sum()
 
-                        # # Debugging
-                        # print("SOFTENING ON!")
-                        # print(f"   - chain_pair: {chain_pair}")
-                        # print(f"   - num_contacts: {num_contacts}")
-                    
                     # If contacts exceed threshold, add edge to graph
                     if num_contacts >= Nmers_contacts_cutoff:
                         G.add_edge(chain1, chain2)

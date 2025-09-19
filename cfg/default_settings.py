@@ -74,23 +74,20 @@ DOMAIN_COLORS = ['red', 'green', 'blue', 'purple', 'yellow', 'orange', 'brown', 
 # --------------------------- For PPI detection ------------------------------
 # ----------------------------------------------------------------------------
 
-# General cutoff
+# General cutoffs
 N_models_cutoff = 5
-
-# Cutoffs for 2-mers (Sens = 61.5%, FPR = 0.05)
-min_PAE_cutoff_2mers = 13
-ipTM_cutoff_2mers = 0.0     # Do not change
-  
-# Cutoffs for N-mers (Sens = 61.5%, FPR = 0.05)
-min_PAE_cutoff_Nmers = 13
-pDockQ_cutoff_Nmers = 0.0   # Do not change
-
-# For Nmers
+PAE_cutoff = [12.96, 10.22][0]
 Nmers_contacts_cutoff = 5
 
 # To classify PPI dynamics just using N_models cutoff set to False
 # If true, the cluster N-mers variation will be used
 use_cluster_aware_Nmers_variation = True
+
+# Experimental (Do not change)
+ipTM_cutoff_2mers = 0.0
+pDockQ_cutoff_Nmers = 0.0
+min_PAE_cutoff_2mers = PAE_cutoff
+min_PAE_cutoff_Nmers = PAE_cutoff
 
 # ----------------------------------------------------------------------------
 # ---------------------- For Symmetry Fallback Analysis ----------------------
@@ -267,9 +264,6 @@ Nmer_stability_method = ["pae", "contact_network"][1]
 # Use the same cutoff as for other Nmers? 
 Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff
 
-# Dynamic softening function (False uses static method: just one cutoff)
-use_dynamic_conv_soft_func = True
-
 # Controls the generation of suggestions by the 
 # (=1): generates suggestions by adding +1 of each protein to stable stoichs
 # (=2): same as =1, but also adds stable dimers (if available) to stable stoichs (+2)
@@ -277,7 +271,20 @@ use_dynamic_conv_soft_func = True
 # (=n): ...
 max_combination_order = 1
 
-# ------------------------------ Dynamic method ------------------------------
+# ------------------------------ Static method -------------------------------
+
+# Soften the N_models cutoff?
+softening_index = 0             # <--- Change this (higher is more soft)
+N_models_cutoff_conv_soft   = [5    , 4    , 3   , 2   , 1   ][softening_index]
+miPAE_cutoff_conv_soft      = [12.96, 10.53, 7.21, 4.46, 3.08][softening_index]
+
+
+# ---------------------- Dynamic method (experimental) -----------------------
+
+# DO NOT TOUCH (experimental)
+
+# Dynamic softening function (False uses static method: just one cutoff)
+use_dynamic_conv_soft_func = False  # Dynamic method is not working
 
 # # With FPR = 0.01
 # miPAE_cutoff_conv_soft_list = [10.22, 05.61, 03.98, 02.04, 1.86]
@@ -306,12 +313,6 @@ dynamic_conv_start = 5
 dynamic_conv_end   = 5
 
 
-# ------------------------------ Static method -------------------------------
-
-# Soften the N_models cutoff?
-softening_index = 3             # <--- Change this (higher is more soft)
-N_models_cutoff_conv_soft   = [5   , 4   , 3   , 2   , 1   ][softening_index]
-miPAE_cutoff_conv_soft      = [13.0, 10.5, 7.20, 4.50, 3.00][softening_index]
 
 # ----------------------------------------------------------------------------
 # ------------- For Residue-Residue Contact (RRC) visualizations -------------
