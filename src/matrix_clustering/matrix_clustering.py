@@ -579,15 +579,16 @@ def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], D
             valid_models[model_key] = data
     
     if not valid_models:
-        logger.warning(f"No valid models found for pair {pair}")
-        return None, None, None, None
+        logger.warning(f"   No valid models found for pair {pair}")
+        return None, None, None, None, None
     
     model_keys = list(valid_models.keys())
     matrices = [valid_models[k]['is_contact'] for k in model_keys]
     n = len(matrices)
     
     if n == 1:
-        return [0], model_keys, np.array([[0, 0]]), np.array([100])
+        logger.warning(f"   Only one valid model for pair {pair}")
+        return [0], model_keys, np.array([[0, 0]]), None, {}
     
     # Prepare additional data for distance calculation
     additional_data = {}
