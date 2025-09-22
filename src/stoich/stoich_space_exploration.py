@@ -1439,7 +1439,7 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
     # Update layout with dropdown menus positioned on the right
     fig.update_layout(
         title={
-            'text': 'Global Stoichiometric Space Exploration Graph',
+            'text': 'Stoichiometric Space Exploration Graph',
             'x': 0.5,
             'font': {'size': 16}
         },
