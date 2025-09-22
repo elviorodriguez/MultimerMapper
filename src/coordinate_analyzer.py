@@ -18,7 +18,7 @@ from collections import Counter
 from wordcloud import WordCloud
 import json
 
-from traj.partners_density import analyze_protein_distribution, save_results_to_tsv, plot_distributions, html_interactive_metadata
+from traj.partners_density import analyze_protein_distribution, save_results_to_tsv, plot_distributions, html_interactive_metadata, analyze_stoichiometry
 from traj.py3Dmol_traj import create_trajectory_viewer
 from utils.logger_setup import configure_logger
 from utils.logger_setup import configure_logger
@@ -719,87 +719,8 @@ def plot_traj_heatmap(metadata_list, sorted_indices: list[int], metadata_type_y:
     plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
     plt.close()
   
-
-# # Helper fx to save trajectory file and metadata
-# def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_trajectory_folder,
-                    
-#                     RMSDs: list, pLDDTs: np.array, mean_pLDDTs: list, ROGs: np.array,
-
-#                     rot_matrixes: list, tran_vectors: list,
-
-#                     all_chains, all_chain_types, all_chain_info, domain_start=None, domain_end=None):
-    
-#     trajectory_file = os.path.join(protein_trajectory_folder, f'{protein_ID}_{filename_suffix}_traj.pdb')
-    
-#     df_cols = ['Traj_N', 'Type', 'Is_chain', 'Rank', 'Model', 'RMSD', 'pLDDT', 'ROG']
-#     trajectory_df = pd.DataFrame(columns=df_cols)
-    
-#     io = PDB.PDBIO()
-#     with open(trajectory_file, 'w') as f1:
-#         for i, idx in enumerate(sorted_indices):
-#             chain = all_chains[idx]
-#             chain_type = all_chain_types[idx]
-#             chain_info = all_chain_info[idx]
-#             model_name = f"MODEL_{i+1}_{chain_type}_{chain_info[0]}_{'-'.join(map(str, chain_info[1]))}_{chain_info[2]}"
-            
-#             model_data = pd.DataFrame({
-#                 "Traj_N"  : [i+1], 
-#                 "Type"    : [chain_type],
-#                 "Is_chain": [chain_info[0]],
-#                 "Rank"    : [chain_info[2]],
-#                 "Model"   : ['__vs__'.join(map(str, chain_info[1]))],
-#                 "RMSD"    : [RMSDs[idx]],
-#                 "pLDDT"   : [mean_pLDDTs[idx]],
-#                 "ROG"     : [ROGs[idx]]
-#                 })
-#             trajectory_df = pd.concat([trajectory_df, model_data], ignore_index=True)
-
-#             ### APPLY ROTATION AND TRANSLATION TO ALL ATOMS ###
-#             rotation_matrix = rot_matrixes[idx]
-#             translation_vector = tran_vectors[idx]
-            
-#             # Apply transformation at the chain level
-#             chain.transform(rotation_matrix, translation_vector)
-
-#             # Save transformed chain            
-#             io.set_structure(chain.parent)
-#             if domain_start is not None and domain_end is not None:
-#                 io.save(f1, select=DomainSelect(chain, domain_start, domain_end), write_end=False)
-#             else:
-#                 io.save(f1, select=ChainSelect(chain), write_end=False)
-#             f1.write(f"ENDMDL\nTITLE     {model_name}\n")
-
-#             ### REVERT BACK TO ORIGINAL POSITIONS ###
-#             inverse_rotation = rotation_matrix.T
-#             inverse_translation = -np.dot(inverse_rotation, translation_vector)
-#             chain.transform(inverse_rotation, inverse_translation)
-    
-#     # Generate some plots
-#     plot_traj_metadata(metadata_list = trajectory_df['RMSD'],
-#                        metadata_type = "RMSD",
-#                        protein_trajectory_folder = protein_trajectory_folder,
-#                        protein_ID = protein_ID, filename_suffix = filename_suffix)
-#     plot_traj_metadata(metadata_list = trajectory_df['pLDDT'],
-#                        metadata_type = "Mean pLDDT",
-#                        protein_trajectory_folder = protein_trajectory_folder,
-#                        protein_ID = protein_ID, filename_suffix = filename_suffix)
-#     plot_traj_metadata(metadata_list = trajectory_df['ROG'],
-#                        metadata_type = "ROG",
-#                        protein_trajectory_folder = protein_trajectory_folder,
-#                        protein_ID = protein_ID, filename_suffix = filename_suffix)
-#     plot_traj_heatmap(metadata_list = pLDDTs, sorted_indices = sorted_indices,
-#                       metadata_type_y = "Residue",
-#                       metadata_type_color = "pLDDT",
-#                       domain_start = domain_start, domain_end = domain_start,
-#                       protein_trajectory_folder = protein_trajectory_folder,
-#                       protein_ID = protein_ID, filename_suffix = filename_suffix)
-    
-#     trajectory_df_file = os.path.join(protein_trajectory_folder, f'{protein_ID}_{filename_suffix}_traj.tsv')
-#     trajectory_df.to_csv(trajectory_df_file, sep="\t", index=False)
-    
-#     return trajectory_file
-
-
+  
+  
 # Helper fx to save trajectory file and metadata
 def save_trajectory(sorted_indices, protein_ID, filename_suffix, protein_trajectory_folder,
                     
@@ -1658,6 +1579,9 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                 target_protein = protein_ID,
                 windows = windows)
             
+            # Analyze the stoichiometry distribution
+            stoichiometry_data = analyze_stoichiometry(monomer_rmsd_traj_df, protein_ID)
+            
             # Save results to CSV using the same prefix
             output_csv = os.path.join(monomer_trajectory_folder, 
                                     f'{tsv_prefix}_BPD_results.tsv')
@@ -1682,7 +1606,8 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                         mean_plddts=monomer_mean_pLDDTs, 
                         per_res_plddts = b_factors,
                         rog_values = monomer_ROGs,
-                        bpd_values = rolling_data
+                        bpd_values = rolling_data,
+                        stoichiometry_data = stoichiometry_data
                     )
             
             input_pdb_filename = monomer_trajectory_folder + "/" + os.path.splitext(rmsd_traj_file)[0] + ".pdb"
@@ -1829,6 +1754,9 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                         target_protein = protein_ID,
                         windows = windows)
                     
+                    # Analyze the stoichiometry distribution
+                    stoichiometry_data = analyze_stoichiometry(domain_rmsd_traj_df, protein_ID)
+                    
                     # Save results to CSV using the same prefix
                     output_csv = os.path.join(domain_trajectory_folder, 
                                             f'{tsv_prefix}_BPD_results.tsv')
@@ -1855,6 +1783,7 @@ def protein_RMSD_trajectory(protein_ID: str, protein_seq: str,
                         per_res_plddts = domain_b_factors,
                         rog_values = domain_ROGs,
                         bpd_values = rolling_data,
+                        stoichiometry_data = stoichiometry_data,
 
                         domain_number=str(domain["Domain"])
                     )

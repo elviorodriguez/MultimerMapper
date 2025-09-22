@@ -98,6 +98,36 @@ def analyze_protein_distribution(df, target_protein, windows=[5, 10, 15, 20]):
     
     return results, rolling_data
 
+def analyze_stoichiometry(df, target_protein):
+    """
+    Analyze stoichiometry (count of each protein) in each model.
+    
+    Args:
+        df: DataFrame with the trajectory data
+        target_protein: str, the specific protein being studied
+    
+    Returns:
+        dict: {protein_name: [count_per_model]}
+    """
+    # Extract unique proteins from the Model column
+    all_proteins = set()
+    for model in df['Model'].str.split('__vs__'):
+        all_proteins.update(model)
+    
+    # Create a dictionary to store protein counts by trajectory
+    protein_stoichiometry = {}
+    
+    # For each protein, count its occurrences in each trajectory
+    for protein in all_proteins:
+        protein_stoichiometry[protein] = []
+        
+        for idx in df.index:
+            model_proteins = df.loc[idx, 'Model'].split('__vs__')
+            count = model_proteins.count(protein)
+            protein_stoichiometry[protein].append(count)
+    
+    return protein_stoichiometry
+
 def save_results_to_tsv(results, output_path):
     # Create a list to store all rows
     rows = []
@@ -208,6 +238,7 @@ def html_interactive_metadata(protein_ID: str,
                               per_res_plddts: np.array,
                               rog_values: list,
                               bpd_values: dict,
+                              stoichiometry_data: dict = None,
                               domain_number = None):
     """
     Create an interactive HTML visualization with all trajectory metadata plots
@@ -265,6 +296,12 @@ def html_interactive_metadata(protein_ID: str,
     # Process BPD data for all window sizes
     window_sizes = list(bpd_values.keys()) if bpd_values else []
     processed_bpd_data = {}
+
+    # Process stoichiometry data (used before to sort the stoich data)
+    processed_stoichiometry_data = {}
+    if stoichiometry_data:
+        for protein, counts in stoichiometry_data.items():
+            processed_stoichiometry_data[protein] = counts
 
     for window_size in window_sizes:
         protein_data = bpd_values[window_size]
@@ -326,13 +363,39 @@ def html_interactive_metadata(protein_ID: str,
     # Track trace indices for different plots
     trace_index = 0
     bpd_traces_info = {}  # {window_size: [start_idx, end_idx]}
+    stoichiometry_traces_info = {}  # {protein: trace_idx}
     rog_trend_traces = {}  # {window_size: trace_idx}
     plddt_trend_traces = {}  # {window_size: trace_idx}
-    
+    current_view = 'bpd'  # Track current view: 'bpd' or 'stoichiometry'
+
     # ------------------------------------------------------------------------------------------------
-    # 1. Plot BPD (Bias in Partners Distribution) ----------------------------------------------------
+    # 1. Plot BPD (Bias in Partners Distribution) and Stoichiometry ----------------------------------
     # ------------------------------------------------------------------------------------------------
 
+    # Plot stoichiometry data (initially hidden)
+    if processed_stoichiometry_data:
+        for protein, counts in processed_stoichiometry_data.items():
+            fig.add_trace(
+                go.Scatter(
+                    x=x_traj,
+                    y=counts,
+                    mode='lines',
+                    name=protein,
+                    line=dict(width=2),
+                    marker=dict(size=4),
+                    hovertemplate=
+                    "Traj_N: %{x}<br>" +
+                    "Count: %{y}<br>" +
+                    "Protein: " + protein + "<br>" +
+                    "<extra></extra>",
+                    visible=False  # Initially hidden
+                ),
+                row=1, col=1
+            )
+            stoichiometry_traces_info[protein] = trace_index
+            trace_index += 1
+
+    # Plot BPD data (initially visible)
     if processed_bpd_data:
         # Process each window size
         for window_size in window_sizes:
@@ -370,7 +433,7 @@ def html_interactive_metadata(protein_ID: str,
             end_idx = trace_index - 1
             bpd_traces_info[window_size] = [start_idx, end_idx]
         
-        # Add reference line at BPD=0 (solid line, always visible)
+        # Add reference line at BPD=0 (solid line, visible only for BPD)
         fig.add_trace(
             go.Scatter(
                 x=[1, n_models],
@@ -378,13 +441,15 @@ def html_interactive_metadata(protein_ID: str,
                 mode='lines',
                 line=dict(color='black', width=1),
                 showlegend=False,
-                hoverinfo='skip'
+                hoverinfo='skip',
+                visible=True
             ),
             row=1, col=1
         )
+        bpd_ref_zero_idx = trace_index
         trace_index += 1
         
-        # Add reference line at BPD=1 (dashed line, always visible)
+        # Add reference line at BPD=1 (dashed line, visible only for BPD)
         fig.add_trace(
             go.Scatter(
                 x=[1, n_models],
@@ -392,13 +457,15 @@ def html_interactive_metadata(protein_ID: str,
                 mode='lines',
                 line=dict(color='black', width=1, dash='dash'),
                 showlegend=False,
-                hoverinfo='skip'
+                hoverinfo='skip',
+                visible=True
             ),
             row=1, col=1
         )
+        bpd_ref_pos_idx = trace_index
         trace_index += 1
         
-        # Add reference line at BPD=-1 (dashed line, always visible)
+        # Add reference line at BPD=-1 (dashed line, visible only for BPD)
         fig.add_trace(
             go.Scatter(
                 x=[1, n_models],
@@ -406,13 +473,22 @@ def html_interactive_metadata(protein_ID: str,
                 mode='lines',
                 line=dict(color='black', width=1, dash='dash'),
                 showlegend=False,
-                hoverinfo='skip'
+                hoverinfo='skip',
+                visible=True
             ),
             row=1, col=1
         )
+        bpd_ref_neg_idx = trace_index
         trace_index += 1
 
-    # Set fixed y-axis range for BPD plot
+    # Set dynamic y-axis range that will be updated by buttons
+    if processed_stoichiometry_data:
+        max_stoich = max([max(counts) for counts in processed_stoichiometry_data.values()])
+        stoich_y_range = [0, max_stoich]
+    else:
+        stoich_y_range = [0, 5]
+
+    # Set initial range for BPD
     fig.update_yaxes(range=[-1.1, 1.1], row=1, col=1)
 
     # ------------------------------------------------------------------------------------------------
@@ -420,11 +496,11 @@ def html_interactive_metadata(protein_ID: str,
     # ------------------------------------------------------------------------------------------------
 
     hover_text = [
-        f"Traj_N: {i+1}<br>" +
-        f"Type: {traj_df.iloc[sorted_indexes[i]]['Type']}<br>" +
-        f"Chain: {traj_df.iloc[sorted_indexes[i]]['Is_chain']}<br>" +
-        f"Rank: {traj_df.iloc[sorted_indexes[i]]['Rank']}<br>" +
-        f"Model: {traj_df.iloc[sorted_indexes[i]]['Model']}<br>" +
+        f"Traj_N: {traj_df.iloc[i]['Traj_N']}<br>" +
+        f"Type: {traj_df.iloc[i]['Type']}<br>" +
+        f"Chain: {traj_df.iloc[i]['Is_chain']}<br>" +
+        f"Rank: {traj_df.iloc[i]['Rank']}<br>" +
+        f"Model: {traj_df.iloc[i]['Model']}<br>" +
         f"RMSD: {sorted_rmsd_values[i]:.4f}"
         for i in range(n_models)
     ]
@@ -448,11 +524,11 @@ def html_interactive_metadata(protein_ID: str,
     # ------------------------------------------------------------------------------------------------
 
     hover_text = [
-        f"Traj_N: {i+1}<br>" +
-        f"Type: {traj_df.iloc[sorted_indexes[i]]['Type']}<br>" +
-        f"Chain: {traj_df.iloc[sorted_indexes[i]]['Is_chain']}<br>" +
-        f"Rank: {traj_df.iloc[sorted_indexes[i]]['Rank']}<br>" +
-        f"Model: {traj_df.iloc[sorted_indexes[i]]['Model']}<br>" +
+        f"Traj_N: {traj_df.iloc[i]['Traj_N']}<br>" +
+        f"Type: {traj_df.iloc[i]['Type']}<br>" +
+        f"Chain: {traj_df.iloc[i]['Is_chain']}<br>" +
+        f"Rank: {traj_df.iloc[i]['Rank']}<br>" +
+        f"Model: {traj_df.iloc[i]['Model']}<br>" +
         f"ROG: {sorted_rog_values[i]:.4f}"
         for i in range(n_models)
     ]
@@ -507,11 +583,11 @@ def html_interactive_metadata(protein_ID: str,
     # ------------------------------------------------------------------------------------------------
 
     hover_text = [
-        f"Traj_N: {i+1}<br>" +
-        f"Type: {traj_df.iloc[sorted_indexes[i]]['Type']}<br>" +
-        f"Chain: {traj_df.iloc[sorted_indexes[i]]['Is_chain']}<br>" +
-        f"Rank: {traj_df.iloc[sorted_indexes[i]]['Rank']}<br>" +
-        f"Model: {traj_df.iloc[sorted_indexes[i]]['Model']}<br>" +
+        f"Traj_N: {traj_df.iloc[i]['Traj_N']}<br>" +
+        f"Type: {traj_df.iloc[i]['Type']}<br>" +
+        f"Chain: {traj_df.iloc[i]['Is_chain']}<br>" +
+        f"Rank: {traj_df.iloc[i]['Rank']}<br>" +
+        f"Model: {traj_df.iloc[i]['Model']}<br>" +
         f"Mean pLDDT: {sorted_mean_plddts[i]:.2f}"
         for i in range(n_models)
     ]
@@ -619,11 +695,11 @@ def html_interactive_metadata(protein_ID: str,
         row_hover = []
         for i in range(n_models):
             row_hover.append(
-                f"Traj_N: {i+1}<br>" +
-                f"Type: {traj_df.iloc[sorted_indexes[i]]['Type']}<br>" +
-                f"Chain: {traj_df.iloc[sorted_indexes[i]]['Is_chain']}<br>" +
-                f"Rank: {traj_df.iloc[sorted_indexes[i]]['Rank']}<br>" +
-                f"Model: {traj_df.iloc[sorted_indexes[i]]['Model']}<br>" +
+                f"Traj_N: {traj_df.iloc[i]['Traj_N']}<br>" +
+                f"Type: {traj_df.iloc[i]['Type']}<br>" +
+                f"Chain: {traj_df.iloc[i]['Is_chain']}<br>" +
+                f"Rank: {traj_df.iloc[i]['Rank']}<br>" +
+                f"Model: {traj_df.iloc[i]['Model']}<br>" +
                 f"Residue: {domain_start + j}<br>" +
                 f"pLDDT: {sorted_per_res_plddts[i, j]:.2f}"
             )
@@ -660,17 +736,32 @@ def html_interactive_metadata(protein_ID: str,
     # ------------------------------------------------------------------------------------------------
     # Add buttons for window size selection (only if there are multiple window sizes)
     # ------------------------------------------------------------------------------------------------
+    
+    # Create buttons for both window size and view type selection
+    buttons_list = []
+
+    # Add buttons for window size selection (only if there are multiple window sizes)
     if len(window_sizes) > 1:
-        buttons = []
+        window_buttons = []
         for window_size in window_sizes:
             # Create visibility settings for all traces
-            visibility = [True] * len(fig.data)  # Start with all visible
+            visibility = [True] * len(fig.data)
             
-            # Hide BPD traces that don't match this window size
+            # Hide stoichiometry traces
+            for protein, idx in stoichiometry_traces_info.items():
+                visibility[idx] = False
+            
+            # Show/hide BPD traces based on window size
             for ws, (start, end) in bpd_traces_info.items():
-                if ws != window_size:
-                    for i in range(start, end + 1):
-                        visibility[i] = False
+                show_traces = (ws == window_size)
+                for i in range(start, end + 1):
+                    visibility[i] = show_traces
+            
+            # Show BPD reference lines
+            if 'bpd_ref_zero_idx' in locals():
+                visibility[bpd_ref_zero_idx] = True
+                visibility[bpd_ref_pos_idx] = True
+                visibility[bpd_ref_neg_idx] = True
             
             # Hide ROG trend lines that don't match this window size
             for ws, idx in rog_trend_traces.items():
@@ -680,46 +771,111 @@ def html_interactive_metadata(protein_ID: str,
             for ws, idx in plddt_trend_traces.items():
                 visibility[idx] = (ws == window_size)
             
-            buttons.append(
+            window_buttons.append(
                 dict(
                     label=f"{window_size}",
                     method="update",
-                    args=[{"visible": visibility}]
+                    args=[{"visible": visibility}, 
+                        {"yaxis.range": [-1.1, 1.1], "yaxis.title": "BPD"}]
                 )
             )
         
-        # Add the buttons to the layout
-        fig.update_layout(
-            updatemenus=[
-                dict(
-                    type="buttons",
-                    direction="right",
-                    active=0,
-                    buttons=buttons,
-                    pad={"r": 5, "t": 5},
-                    showactive=True,
-                    x=-0.05,
-                    xanchor="left",
-                    y=1.1,
-                    yanchor="top"
-                )
-            ]
+        buttons_list.append(
+            dict(
+                type="buttons",
+                direction="right",
+                active=0,
+                buttons=window_buttons,
+                pad={"r": 5, "t": 5},
+                showactive=True,
+                x=-0.05,
+                xanchor="left",
+                y=1.1,
+                yanchor="top"
+            )
         )
 
-        # Add an annotation above the buttons and a subtitle
-        fig.update_layout(
-            annotations=[
+    # Add Stoichiometry button (single button, not part of window buttons)
+    if processed_stoichiometry_data:
+        # Stoichiometry button
+        stoich_visibility = [True] * len(fig.data)
+        # Show stoichiometry traces
+        for protein, idx in stoichiometry_traces_info.items():
+            stoich_visibility[idx] = True
+        # Hide all BPD traces
+        for ws, (start, end) in bpd_traces_info.items():
+            for i in range(start, end + 1):
+                stoich_visibility[i] = False
+        # Hide BPD reference lines
+        if 'bpd_ref_zero_idx' in locals():
+            stoich_visibility[bpd_ref_zero_idx] = False
+            stoich_visibility[bpd_ref_pos_idx] = False
+            stoich_visibility[bpd_ref_neg_idx] = False
+        # Hide ALL ROG and pLDDT trend lines
+        for ws, idx in rog_trend_traces.items():
+            stoich_visibility[idx] = False
+        for ws, idx in plddt_trend_traces.items():
+            stoich_visibility[idx] = False
+        
+        stoich_button = [
+            dict(
+                label="Stoichiometry",
+                method="update",
+                args=[{"visible": stoich_visibility}, 
+                    {"yaxis.range": stoich_y_range, "yaxis.title": "Stoichiometry"}]
+            )
+        ]
+        
+        buttons_list.append(
+            dict(
+                type="buttons",
+                direction="right",
+                active=-1,  # No button active initially
+                buttons=stoich_button,
+                pad={"r": 5, "t": 5},
+                showactive=True,
+                x=1.02,
+                xanchor="left", 
+                y=1.1,
+                yanchor="top"
+            )
+        )
+
+    # Add the buttons to the layout if any exist
+    if buttons_list:
+        fig.update_layout(updatemenus=buttons_list)
+
+        # Add annotations above the buttons
+        annotations_list = []
+        if len(window_sizes) > 1:
+            annotations_list.append(
                 dict(
-                    text="Window Size:",
+                    text="Window Size (BPD):",
                     x=-0.05,
-                    y=1.12,  # Position above the buttons (adjust as needed)
-                    xref="paper",  # Relative to figure
+                    y=1.12,
+                    xref="paper",
                     yref="paper",
                     showarrow=False,
                     font=dict(size=14, family="Arial", color="black")
                 )
-            ]
-        )
+            )
+        
+        if processed_stoichiometry_data:
+            annotations_list.append(
+                dict(
+                    text="Alternative View:",
+                    x=1.02,
+                    y=1.12,
+                    xref="paper",
+                    yref="paper", 
+                    xanchor="left",  # Right-align the text
+                    showarrow=False,
+                    font=dict(size=14, family="Arial", color="black")
+                )
+            )
+        
+        if annotations_list:
+            fig.update_layout(annotations=annotations_list)
 
     # ------------------------------------------------------------------------------------------------
     # Update layout and axes
@@ -795,9 +951,8 @@ def html_interactive_metadata(protein_ID: str,
         config={
             'responsive': True,
             'scrollZoom': True,
-            'displayModeBar': True,
             'displaylogo': False,
-            'modeBarButtonsToAdd': ['select2d', 'lasso2d'],  # Add selection tools
+            'modeBarButtonsToAdd': ['drawline', 'eraseshape'],
             'modeBarButtonsToRemove': [],  # Remove any tools that cause issues
             'toImageButtonOptions': {
                 'format': 'png',
@@ -847,6 +1002,10 @@ def main():
         df,
         windows=args.windows,
         target_protein=args.target_protein)
+
+    # Run stoichiometry analysis
+    print("Analyzing stoichiometries...")
+    stoichiometry_data = analyze_stoichiometry(df, args.target_protein)
     
     # Save results to TSV
     output_csv = output_dir / 'protein_distribution_results.tsv'
