@@ -247,7 +247,7 @@ def read_stability_dynamic_cutoffs_df(path: str = "cfg/stability_dynamic_cutoffs
     stability_dynamic_cutoffs_df = pd.read_csv(mm_path + '/' + path, sep= "\t")
     return stability_dynamic_cutoffs_df
 
-stability_dynamic_cutoffs_df = read_stability_dynamic_cutoffs_df()
+# stability_dynamic_cutoffs_df = read_stability_dynamic_cutoffs_df()
 
 
 def recompute_contact_matrix(min_diagonal_PAE_matrix, min_pLDDT_matrix, distance_matrix,
@@ -274,7 +274,7 @@ def does_nmer_is_fully_connected_network(
         miPAE_cutoff_conv_soft_list: list = None,
         dynamic_conv_start: int = 5,
         dynamic_conv_end: int = 1,
-        stability_dynamic_cutoffs_df = stability_dynamic_cutoffs_df) -> bool:
+        stability_dynamic_cutoffs_df = None) -> bool:
     """
     Check if all subunits form a fully connected network using contacts.
     
@@ -331,6 +331,8 @@ def does_nmer_is_fully_connected_network(
 
     # Dynamic method: test different N-mer cutoffs
     if use_dynamic_conv_soft_func:
+
+        stability_dynamic_cutoffs_df = read_stability_dynamic_cutoffs_df()
         
         if miPAE_cutoff_conv_soft_list is None:
             # Get the cutoffs for the N-mer size
@@ -523,7 +525,7 @@ def does_xmer_is_fully_connected_network(
         miPAE_cutoff_conv_soft_list: list = None,
         dynamic_conv_start: int = 5,
         dynamic_conv_end: int = 1,
-        stability_dynamic_cutoffs_df = stability_dynamic_cutoffs_df) -> bool:
+        stability_dynamic_cutoffs_df = None) -> bool:
     """
     Check if all subunits form a fully connected network using contacts.
     
@@ -579,6 +581,8 @@ def does_xmer_is_fully_connected_network(
 
     # Dynamic method: test different N-mer cutoffs
     if use_dynamic_conv_soft_func:
+
+        stability_dynamic_cutoffs_df = read_stability_dynamic_cutoffs_df()
 
         if miPAE_cutoff_conv_soft_list is None:
             # Get the cutoffs for the N-mer size

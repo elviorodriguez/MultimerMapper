@@ -1,11 +1,15 @@
 
 import os
+import numpy as np
+from Bio import PDB
 
+from utils.progress_bar import print_progress_bar
 from utils.logger_setup import configure_logger
 from src.input_check import seq_input_from_fasta, extract_seqs_from_AF2_PDBs, merge_fasta_with_PDB_data
 from src.metrics_extractor import extract_AF2_metrics_from_JSON, generate_pairwise_2mers_df, generate_pairwise_Nmers_df
 from src.ppi_detector import filter_non_int_2mers_df, filter_non_int_Nmers_df
 from src.stoich.stoich_space_exploration import generate_stoichiometric_space_graph
+from src.contact_extractor import compute_pairwise_contacts, remove_Nmers_without_enough_contacts
 
 ######################################################################
 ########################### Configurations ###########################
@@ -17,6 +21,9 @@ log_level = "info"
 save_pairwise_data = False
 use_names = True
 overwrite = True
+contact_distance_cutoff = 8
+main_contact_PAE_cutoff = 9.06
+main_contact_pLDDT_cutoff = 0
 
 # (FPR, PAE_cutoff, N_models_cutoff)
 cutoffs_list = [
@@ -42,7 +49,11 @@ def preprocess_data(fasta_file, AF2_2mers, AF2_Nmers, out_path,
                     use_names = use_names,
                     overwrite = overwrite,
                     save_pairwise_data = save_pairwise_data,
-                    log_level = log_level):
+                    log_level = log_level,
+                    
+                    # General cutoffs
+                    main_contact_PAE_cutoff = main_contact_PAE_cutoff,
+                    main_contact_pLDDT_cutoff = main_contact_pLDDT_cutoff):
 
     logger = configure_logger(out_path, log_level = log_level)(__name__)
 
@@ -72,7 +83,7 @@ def preprocess_data(fasta_file, AF2_2mers, AF2_Nmers, out_path,
     pairwise_Nmers_df = generate_pairwise_Nmers_df(all_pdb_data, out_path = out_path, save_pairwise_data = save_pairwise_data, 
                                                 overwrite = overwrite, logger = logger)
     
-    # Pack results
+    # Pack data
     mm_output_preprocess = {
         "prot_IDs": prot_IDs,
         "prot_names": prot_names,
@@ -131,6 +142,21 @@ def run_stoich_expl_with_cutoff_list(mm_output_preprocess, cutoffs_list = cutoff
         mm_output_preprocess["unique_2mers_proteins"] = unique_2mers_proteins
         mm_output_preprocess["unique_Nmers_proteins"] = unique_Nmers_proteins
 
+        # Compute contacts and add it to output
+        pairwise_contact_matrices = compute_pairwise_contacts(
+            mm_output_preprocess,
+            out_path = mm_output_preprocess['out_path'],
+            contact_distance_cutoff = contact_distance_cutoff,
+            contact_PAE_cutoff      = main_contact_PAE_cutoff,
+            contact_pLDDT_cutoff    = main_contact_pLDDT_cutoff,
+        )
+        mm_output_preprocess["pairwise_contact_matrices"] = pairwise_contact_matrices
+
+        # Remove Nmers that do not have enough contacts from pairwise_Nmers_df_F3 df and their matrices
+        pairwise_Nmers_df_F3, pairwise_contact_matrices = remove_Nmers_without_enough_contacts(mm_output_preprocess, skip_positive_2mers=True)
+        mm_output_preprocess["pairwise_contact_matrices"] = pairwise_contact_matrices
+        mm_output_preprocess['pairwise_Nmers_df_F3'] = pairwise_Nmers_df_F3
+
         # Make output dir
         os.makedirs(mm_output_preprocess['out_path'], exist_ok = True)
 
@@ -141,8 +167,10 @@ def run_stoich_expl_with_cutoff_list(mm_output_preprocess, cutoffs_list = cutoff
             # Variable cutoffs
             use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
             Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff_convergency,
-            N_models_cutoff = N_models_cutoff,
-            miPAE_cutoff_conv_soft = PAE_cutoff
+            N_models_cutoff             = N_models_cutoff,
+            N_models_cutoff_conv_soft   = N_models_cutoff,
+            miPAE_cutoff_conv_soft      = PAE_cutoff,
+            miPAE_cutoff_conv_soft_list = [PAE_cutoff]*5
         )
 
         # Save the results in a dict

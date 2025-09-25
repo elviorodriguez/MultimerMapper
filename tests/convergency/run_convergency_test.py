@@ -91,14 +91,14 @@ def run_multiple_complexes(complexes_dict, cutoffs_list, benchmark_dir):
 ######################################################################
 
 # TEST
-# comp = "3MZL"
+comp = "8I40.4"
 
-# conv_stoichs_dict = run_complex(
-#     fasta_file  = complexes_dict[comp]['fasta_file'],
-#     AF2_2mers   = complexes_dict[comp]['AF2_2mers'],
-#     AF2_Nmers   = complexes_dict[comp]['AF2_Nmers'],
-#     out_path    = f'{benchmark_dir}/{comp}',
-#     cutoff_list = cutoffs_list
-# )
+conv_stoichs_dict = run_complex(
+    fasta_file  = homo_complexes_dict[comp]['fasta_file'],
+    AF2_2mers   = homo_complexes_dict[comp]['AF2_2mers'],
+    AF2_Nmers   = homo_complexes_dict[comp]['AF2_Nmers'],
+    out_path    = f'{benchmark_dir}/{comp}',
+    cutoff_list = cutoffs_list
+)
 
-complexes_conv_stoichs_dict = run_multiple_complexes(homo_complexes_dict, cutoffs_list, benchmark_dir)
+# complexes_conv_stoichs_dict = run_multiple_complexes(homo_complexes_dict, cutoffs_list, benchmark_dir)

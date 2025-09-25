@@ -19,10 +19,22 @@ from src.stability_metrics import combination_label
 from utils.logger_setup import configure_logger
 
 
-def initialize_stoich_dict(mm_output, suggested_combinations,
+def initialize_stoich_dict(mm_output,
+                           suggested_combinations,
                            include_suggestions = True,
                            max_combination_order = 1, 
-                           combine_only_detected_ppi_proteins = True):
+                           combine_only_detected_ppi_proteins = True,
+                           
+                           # Cutoffs
+                           Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff_convergency,
+                           N_models_cutoff = N_models_cutoff,
+                           N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
+                           miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
+                           use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+                           miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+                           dynamic_conv_start = dynamic_conv_start,
+                           dynamic_conv_end = dynamic_conv_end
+    ):
     
     # Unpack necessary data
     protein_list = mm_output['prot_IDs']
@@ -1533,14 +1545,26 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
     return fig
 
 
-
-def generate_stoichiometric_space_graph(mm_output, suggested_combinations, max_combination_order=1, logger: Logger = None):
+def generate_stoichiometric_space_graph(mm_output, suggested_combinations, max_combination_order=1, logger: Logger = None,
+                                        
+                                        # Cutoffs (for benchmark)
+                                        Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff_convergency,
+                                        N_models_cutoff = N_models_cutoff,
+                                        N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
+                                        miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
+                                        use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+                                        miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+                                        dynamic_conv_start = dynamic_conv_start,
+                                        dynamic_conv_end = dynamic_conv_end):
     '''
     Integrated pipeline for stoichiometric space generation.
     '''
 
+    out_path = mm_output['out_path']
+    log_level = mm_output['log_level']
+
     if logger is None:
-        logger = configure_logger()(__name__)
+        logger = configure_logger(out_path, log_level = log_level)(__name__)
     
     logger.info('INITIALIZING: Stoichiometric Space Exploration Algorithm...')
 
@@ -1551,7 +1575,18 @@ def generate_stoichiometric_space_graph(mm_output, suggested_combinations, max_c
     
     logger.info('   Analyzing available stoichiometries and suggestions...')
     stoich_dict, removed_suggestions, added_suggestions, convergent_stoichiometries = initialize_stoich_dict(
-        mm_output, suggested_combinations, max_combination_order=max_combination_order)
+        mm_output, suggested_combinations, max_combination_order=max_combination_order,
+        
+        # Cutoffs
+        Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff_convergency,
+        N_models_cutoff = N_models_cutoff,
+        N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
+        miPAE_cutoff_conv_soft = miPAE_cutoff_conv_soft,
+        use_dynamic_conv_soft_func = use_dynamic_conv_soft_func,
+        miPAE_cutoff_conv_soft_list = miPAE_cutoff_conv_soft_list,
+        dynamic_conv_start = dynamic_conv_start,
+        dynamic_conv_end = dynamic_conv_end)
+    
     logger.info('   Adding xyz coordinates...')
     stoich_dict = add_xyz_coord_to_stoich_dict(stoich_dict)
     logger.info('   Generating Stoichiometric Space Graph...')
