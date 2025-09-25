@@ -1467,7 +1467,8 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
                 dtick=1,
                 tickvals=sorted(set(z_coords)),
                 ticktext=[str(int(z)) for z in sorted(set(z_coords))],
-                autorange='reversed'
+                autorange=False,
+                range=[max(z_coords) + 0.2, min(z_coords) - 0.2]
             ),
             camera=dict(
                 eye=dict(x=1.5, y=1.5, z=1.5)
