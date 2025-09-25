@@ -1461,6 +1461,14 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
             xaxis_title='Stoichiometric Similarity (X)',
             yaxis_title='Stoichiometric Similarity (Y)', 
             zaxis_title='Stoichiometry Size (N)',
+            xaxis=dict(
+                autorange=False,
+                range=[min(x_coords) * 1.2, max(x_coords) * 1.2]
+            ),
+            yaxis=dict(
+                autorange=False,
+                range=[min(y_coords) * 1.2, max(y_coords) * 1.2]
+            ),
             zaxis=dict(
                 tickmode='linear',
                 tick0=1,
@@ -1468,7 +1476,7 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
                 tickvals=sorted(set(z_coords)),
                 ticktext=[str(int(z)) for z in sorted(set(z_coords))],
                 autorange=False,
-                range=[max(z_coords) + 0.2, min(z_coords) - 0.2]
+                range=[max(z_coords) + 0.5, min(z_coords) - 0.5]
             ),
             camera=dict(
                 eye=dict(x=1.5, y=1.5, z=1.5)
