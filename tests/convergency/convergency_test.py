@@ -1,7 +1,6 @@
 
 import os
-import numpy as np
-from Bio import PDB
+from copy import deepcopy
 
 from utils.progress_bar import print_progress_bar
 from utils.logger_setup import configure_logger
@@ -176,9 +175,9 @@ def run_stoich_expl_with_cutoff_list(mm_output_preprocess, cutoffs_list = cutoff
         # Save the results in a dict
         dict_key_results = f'FPR={FPR}_Nmodels={N_models_cutoff}'
         conv_stoichs_dict[dict_key_results] = {
-            "stoich_dict": stoich_dict,
-            "stoich_graph": stoich_graph,
-            "convergent_stoichiometries": convergent_stoichiometries
+            "stoich_dict": deepcopy(stoich_dict),
+            "stoich_graph": deepcopy(stoich_graph),
+            "convergent_stoichiometries": deepcopy(convergent_stoichiometries)
         }
 
         del dict_key_results, removed_suggestions, added_suggestions, pairwise_Nmers_df_F3, unique_Nmers_proteins, pairwise_2mers_df_F3, unique_2mers_proteins

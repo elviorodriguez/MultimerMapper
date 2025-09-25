@@ -1070,7 +1070,9 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
     category_legend_added = set()  # Track which categories already have legend entries
 
     # Add arrowheads for "Stable->Stable" edges - placed independently at midpoints
-    stable_to_stable_edges = [i for i, cat in enumerate(stoich_graph.es['category']) if cat == "Stable->Stable"]
+    stable_to_stable_edges = []
+    if len(edge_categories) > 0:
+        stable_to_stable_edges = [i for i, cat in enumerate(stoich_graph.es['category']) if cat == "Stable->Stable"]
 
     if stable_to_stable_edges:
         # Prepare arrowhead coordinates

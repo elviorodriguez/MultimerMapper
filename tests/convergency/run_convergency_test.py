@@ -92,6 +92,7 @@ def run_multiple_complexes(complexes_dict, cutoffs_list, benchmark_dir):
 
 # TEST
 comp = "8I40.4"
+comp = "1R26.1"
 
 conv_stoichs_dict = run_complex(
     fasta_file  = homo_complexes_dict[comp]['fasta_file'],
