@@ -239,6 +239,7 @@ def parse_AF2_and_sequences(
         "prot_lens": prot_lens,
         "prot_N": prot_N,
         "out_path": out_path,
+        "log_level": log_level,
         "all_pdb_data": all_pdb_data,
         "sliced_PAE_and_pLDDTs": sliced_PAE_and_pLDDTs,
         "domains_df": domains_df,
