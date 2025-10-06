@@ -5,7 +5,7 @@ import pandas as pd
 from src.convergency import does_nmer_is_fully_connected_network
 from src.interpret_dynamics import classify_edge_dynamics, classification_df
 from cfg.default_settings import min_PAE_cutoff_Nmers, pDockQ_cutoff_Nmers, N_models_cutoff, Nmer_stability_method, Nmers_contacts_cutoff_convergency, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft
-from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, dynamic_conv_start, dynamic_conv_end
+from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, dynamic_conv_start, dynamic_conv_end, Nmers_contacts_cutoff
 
 def does_2mer_homodimerize(query_protein: str, pairwise_2mers_df: pd.DataFrame, pairwise_2mers_df_F3: pd.DataFrame):
     '''Returns True if homo-2-mer forms, False if not, and None if it was not tested'''
@@ -430,6 +430,7 @@ def add_homooligomerization_state(graph, pairwise_2mers_df, pairwise_Nmers_df, p
                                                     
                                                     # Cutoffs
                                                     N_models_cutoff = N_models_cutoff,
+                                                    Nmers_contacts_cutoff = Nmers_contacts_cutoff,
                                                     
                                                     # Sorted tuple edges lists
                                                     sorted_edges_2mers_graph  = edges_g1_sort, 
