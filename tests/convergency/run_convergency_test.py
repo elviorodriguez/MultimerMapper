@@ -1,5 +1,6 @@
 
 import os
+import pandas as pd
 
 from tests.convergency.convergency_test import run_complex
 
@@ -27,8 +28,30 @@ cutoffs_list = [
 
     # ------------- New cutoff (AF2m + AF3 average) -------------
 
-    # FPR = 0.05
-    (0.05, 9.06, 4)
+    # FPR = 0.05 (AF2m)
+    (0.01,  1.30, 1),
+    (0.01,  1.30, 2),
+    (0.01,  1.50, 3),
+    (0.01,  1.56, 4),
+    (0.01,  1.56, 5),
+    (0.02,  1.86, 1),
+    (0.02,  1.89, 2),
+    (0.02,  2.70, 3),
+    (0.02,  4.21, 4),
+    (0.02, 10.50, 5),
+    (0.05,  2.84, 1),
+    (0.05,  4.34, 2),
+    (0.05,  6.59, 3),
+    (0.05,  9.82, 4),
+    (0.05, 12.11, 5),
+    (0.1 ,  3.83, 1),
+    (0.1 ,  7.11, 1),
+    (0.1 , 10.28, 1),
+    (0.1 , 11.58, 1),
+    (0.1 , 14.03, 1)
+
+    # # FPR = 0.05 (AF2m)
+    # (0.05, 9.81, 4)
 ]
 
 # Homooligomers files locations
@@ -65,7 +88,7 @@ benchmark_dir = "/home/elvio/Desktop/stoichiometry_benchmark"
 os.makedirs(benchmark_dir, exist_ok=True)
 
 ######################################################################
-############################# HELPER FX ##############################
+############################# HELPER FXs #############################
 ######################################################################
 
 def run_multiple_complexes(complexes_dict, cutoffs_list, benchmark_dir):
@@ -86,20 +109,55 @@ def run_multiple_complexes(complexes_dict, cutoffs_list, benchmark_dir):
 
     return complexes_conv_stoichs_dict
 
+
+def convert_convergent_stoichs_dict_to_df(complexes_conv_stoichs_dict):
+    rows = []
+    
+    for subject in complexes_conv_stoichs_dict:
+        comp_id, expected_stoich = subject.split(".")
+        
+        for cutoff_key in complexes_conv_stoichs_dict[subject]:
+            FPR, N_models = [k.split("=")[1] for k in cutoff_key.split("_")]
+            detected = complexes_conv_stoichs_dict[subject][cutoff_key]["convergent_stoichiometries"]
+            
+            if detected:
+                detected_stoich = len(min(detected, key=len))
+            else:
+                detected_stoich = 1
+    
+            rows.append({
+                "Entities": 1,
+                "Subject": subject,
+                "Expected": expected_stoich,
+                "FPR": FPR,
+                "N_models": N_models,
+                "Detected": detected_stoich
+            })
+
+    stoich_bench_df = pd.DataFrame(rows, columns=['Entities', 'Subject', 'Expected', 'FPR', 'N_models', 'Detected'])
+    
+    return stoich_bench_df
+
+
 ######################################################################
 ############################## Running ###############################
 ######################################################################
 
-# TEST
-comp = "8I40.4"
-comp = "1R26.1"
+# # TESTS
+# comp = "8I40.4"
+# # comp = "1R26.1"
 
-conv_stoichs_dict = run_complex(
-    fasta_file  = homo_complexes_dict[comp]['fasta_file'],
-    AF2_2mers   = homo_complexes_dict[comp]['AF2_2mers'],
-    AF2_Nmers   = homo_complexes_dict[comp]['AF2_Nmers'],
-    out_path    = f'{benchmark_dir}/{comp}',
-    cutoff_list = cutoffs_list
-)
+# conv_stoichs_dict = run_complex(
+#     fasta_file  = homo_complexes_dict[comp]['fasta_file'],
+#     AF2_2mers   = homo_complexes_dict[comp]['AF2_2mers'],
+#     AF2_Nmers   = homo_complexes_dict[comp]['AF2_Nmers'],
+#     out_path    = f'{benchmark_dir}/{comp}/test',
+#     cutoff_list = cutoffs_list
+# )
 
-# complexes_conv_stoichs_dict = run_multiple_complexes(homo_complexes_dict, cutoffs_list, benchmark_dir)
+complexes_conv_stoichs_dict = run_multiple_complexes(homo_complexes_dict, cutoffs_list, benchmark_dir)
+
+stoich_bench_df = convert_convergent_stoichs_dict_to_df(complexes_conv_stoichs_dict)
+
+            
+
