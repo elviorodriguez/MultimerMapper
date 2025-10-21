@@ -34,20 +34,34 @@ self_loop_size = 2
 # multivalency_silhouette_threshold         = 0.25
 # multivalency_contact_similarity_threshold = 0.1
 
-# General cutoff
-# N_models_cutoff = 4
 
+# General cutoffs ---------- (AF3) -----------
+N_models_cutoff = 4
+PAE_cutoff = 10
+contact_PAE_cutoff = PAE_cutoff
+min_PAE_cutoff_2mers = PAE_cutoff
+min_PAE_cutoff_Nmers = PAE_cutoff
+N_models_cutoff_conv_soft = N_models_cutoff
+miPAE_cutoff_conv_soft = PAE_cutoff
 
-# ----------- Conflictive cutoffs -----------
+# # Custom analysis
+# contact_clustering_config = {
+#     'distance_metric': 'mixed_jmc',
+#     'clustering_method': 'hierarchical',
+#     'linkage_method': 'average',
+#     'validation_metric': 'silhouette',
+#     'quality_weight': True,
+#     'silhouette_improvement': 0.0,
+#     'max_extra_clusters': 3,
+#     'min_extra_clusters': 2,
+#     'overlap_structural_contribution': 1,
+#     'overlap_use_contact_region_only': False,
+#     'use_median': False
+# }
 
-# This is OK?
-# Nmers_contacts_cutoff = 5
-# contact_distance_cutoff: float | int = 8.0
-# contact_PAE_cutoff     : float | int = 13
-# contact_pLDDT_cutoff   : float | int = 0
 
 available_layout = ['weighted_fr', 'fr', 'kk', 'circle', 'drl', 'lgl', 'random', 'rt', 'rt_circular', ]
-ppi_graph_layout_algorithm = available_layout[0]
+ppi_graph_layout_algorithm = available_layout[2]
 
 # For 3D visualization
 # layout_3d_iterations = 1000

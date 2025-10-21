@@ -12,7 +12,7 @@ from sklearn.metrics import silhouette_score, calinski_harabasz_score, davies_bo
 from sklearn.metrics.pairwise import cosine_similarity
 import logging
 from dataclasses import dataclass
-from Bio.PDB import PDBIO
+from Bio import PDB
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -22,6 +22,7 @@ from train.multivalency_dicotomic.count_interaction_modes import get_multivalent
 from utils.logger_setup import configure_logger
 from cfg.default_settings import multivalency_detection_metric, multivalency_metric_threshold
 from train.multivalency_dicotomic.count_interaction_modes import analyze_protein_interactions, compute_max_valency
+from utils.pdb_utils import get_bio_pdb_model_model
 
 @dataclass
 class ClusteringConfig:
@@ -199,6 +200,59 @@ class EnhancedDistanceMetrics:
                     base_distance = base_contribution * base_distance + structural_contribution * structural_weight
         
         return base_distance
+    
+    @staticmethod
+    def rmsd_similarity(matrix1: np.ndarray, matrix2: np.ndarray,
+                        model1: PDB.Model.Model, model2: PDB.Model.Model) -> float:
+        """Calculate contact matrix RMSD similarity between binary contact matrices"""
+
+        # Get union matrix
+        m1 = (matrix1 > 0).astype(int)
+        m2 = (matrix2 > 0).astype(int)
+        m_union = m1 | m2
+
+        # Get contacts number
+        contacts1 = np.array(np.where(matrix1 > 0)).T
+        contacts2 = np.array(np.where(matrix2 > 0)).T
+
+        # Get rmsd of atoms involved in contacts
+        if len(contacts1) == 0 or len(contacts2) == 0:
+            rmsd = np.inf
+        else:
+            # Get columns and rows that have at least one True value and convert to 1 base
+            x_positions = np.where(m_union.any(axis=0))[0] + 1
+            y_positions = np.where(m_union.any(axis=1))[0] + 1
+
+            
+
+            # Get protein lengths from models
+            model1_chains = [c for c in model1.get_chains()]
+            model2_chains = [c for c in model2.get_chains()]
+            shape_model1 = [len(c) for c in model1_chains]
+            shape_model2 = [len(c) for c in model2_chains]
+
+            # Compare with protein lengths from matrix and extract corresponding matching CAs
+            if shape_model1 == m_union.shape:
+                ca_chain1_model1 = [atom for atom in model1_chains[0].get_atoms() if atom.name == 'CA' and atom.full_id[3][1] in x_positions]
+                ca_chain2_model1 = [atom for atom in model1_chains[1].get_atoms() if atom.name == 'CA' and atom.full_id[3][1] in y_positions]
+            else:
+                ca_chain1_model1 = [atom for atom in model1_chains[0].get_atoms() if atom.name == 'CA' and atom.full_id[3][1] in y_positions]
+                ca_chain2_model1 = [atom for atom in model1_chains[1].get_atoms() if atom.name == 'CA' and atom.full_id[3][1] in x_positions]
+            if shape_model2 == m_union.shape:
+                ca_chain1_model2 = [atom for atom in model2_chains[0].get_atoms() if atom.name == 'CA' and atom.full_id[3][1] in x_positions]
+                ca_chain2_model2 = [atom for atom in model2_chains[1].get_atoms() if atom.name == 'CA' and atom.full_id[3][1] in y_positions]
+            else:
+                ca_chain1_model2 = [atom for atom in model2_chains[0].get_atoms() if atom.name == 'CA' and atom.full_id[3][1] in y_positions]
+                ca_chain2_model2 = [atom for atom in model2_chains[1].get_atoms() if atom.name == 'CA' and atom.full_id[3][1] in x_positions]
+
+            # Superimpose
+            super_imposer = PDB.Superimposer()
+            ca_xyz_1 = ca_chain1_model1 + ca_chain2_model1
+            ca_xyz_2 = ca_chain1_model2 + ca_chain2_model2
+            super_imposer.set_atoms(ca_xyz_1, ca_xyz_2)
+            rmsd = super_imposer.rms
+
+        return rmsd
 
 
 class ClusterValidationMetrics:
@@ -278,7 +332,7 @@ def save_representative_pdbs_and_metadata(mm_output, clusters, representative_pd
     representative_pdbs_metadata_df = pd.DataFrame(columns=representative_pdbs_metadata_columns)
     
     # Initialize PDB writer
-    pdb_io = PDBIO()
+    pdb_io = PDB.PDBIO()
     
     for pair in clusters:
         logger.info(f'Pair: {pair}')
@@ -335,9 +389,9 @@ def save_representative_pdbs_and_metadata(mm_output, clusters, representative_pd
 
 
 def compute_distance_matrix(matrices: List[np.ndarray], 
-                          config: ClusteringConfig,
-                          additional_data: Dict = None,
-                          logger: logging.Logger | None = None) -> np.ndarray:
+                            config: ClusteringConfig,
+                            additional_data: Dict = None,
+                            logger: logging.Logger | None = None) -> np.ndarray:
     """Compute distance matrix using specified metric"""
 
     # Set up logging
@@ -369,6 +423,9 @@ def compute_distance_matrix(matrices: List[np.ndarray],
                 pae_mat2 = additional_data.get(f'pae_{j}') if additional_data else None
                 plddt_mat1 = additional_data.get(f'min_pLDDT_{i}') if additional_data else None
                 plddt_mat2 = additional_data.get(f'min_pLDDT_{j}') if additional_data else None
+                if config.distance_metric == "rmsd":
+                    model1 = additional_data[f'model_{i}']
+                    model2 = additional_data[f'model_{j}']
                 
                 # Calculate distance based on metric
                 if config.distance_metric == 'jaccard':
@@ -387,6 +444,8 @@ def compute_distance_matrix(matrices: List[np.ndarray],
                     distance = metrics.structural_overlap_distance(mat1, mat2, dist_mat1, dist_mat2,
                                                                    structural_contribution = config.overlap_structural_contribution,
                                                                    use_contact_region_only = config.overlap_use_contact_region_only)
+                elif config.distance_metric == "rmsd":
+                    distance = metrics.rmsd_similarity(mat1, mat2, model1, model2)
                 else:
                     logger.error(f"Unknown distance metric: {config.distance_metric}")
                     logger.error( "   - Falling back to default metric (closeness) and retrying")
@@ -557,10 +616,11 @@ def find_optimal_clusters(distance_matrix: np.ndarray,
     
 
 def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], Dict],
-                                    pair: Tuple[str, str],
-                                    max_valency: int,
-                                    config: ClusteringConfig,
-                                    logger: logging.Logger | None = None) -> Tuple[List[int], List, np.ndarray, np.ndarray, Dict]:
+                                      pairwise_2mers_df, pairwise_Nmers_df,
+                                      pair: Tuple[str, str],
+                                      max_valency: int,
+                                      config: ClusteringConfig,
+                                      logger: logging.Logger | None = None) -> Tuple[List[int], List, np.ndarray, np.ndarray, Dict]:
     """Enhanced clustering with multiple metrics and validation"""
 
     # Set up logging
@@ -600,6 +660,8 @@ def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], D
             additional_data[f'pae_{i}'] = data['PAE']
         if 'min_pLDDT' in data:
             additional_data[f'min_pLDDT_{i}'] = data['min_pLDDT']
+        if config.distance_metric == "rmsd":
+            additional_data[f'model_{i}'] = get_bio_pdb_model_model(pair, key, pairwise_2mers_df, pairwise_Nmers_df)
     
     # Compute distance matrix
     distance_matrix, quality_matrix = compute_distance_matrix(matrices, config, additional_data, logger)
@@ -651,6 +713,8 @@ def analyze_protein_interactions_with_enhanced_clustering(
     
     # Unpack the pairwise contact matrices
     all_pair_matrices = mm_output['pairwise_contact_matrices']
+    pairwise_2mers_df = mm_output['pairwise_2mers_df']
+    pairwise_Nmers_df = mm_output['pairwise_Nmers_df']
     
     # Compute interaction counts
     interaction_counts_df = analyze_protein_interactions(
@@ -719,7 +783,7 @@ def analyze_protein_interactions_with_enhanced_clustering(
 
         # Cluster the matrices of the pair using the minimum clusters number
         result = cluster_contact_matrices_enhanced(
-            all_pair_matrices, pair, minimum_clusters_n, config, logger
+            all_pair_matrices, pairwise_2mers_df, pairwise_Nmers_df, pair, minimum_clusters_n, config, logger
         )
         
         if result[0] is not None:

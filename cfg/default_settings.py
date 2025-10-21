@@ -74,10 +74,20 @@ DOMAIN_COLORS = ['red', 'green', 'blue', 'purple', 'yellow', 'orange', 'brown', 
 # --------------------------- For PPI detection ------------------------------
 # ----------------------------------------------------------------------------
 
-# General cutoffs
-N_models_cutoff = 5
-PAE_cutoff = [12.96, 10.22][0]
+# # General cutoffs (old)
+# N_models_cutoff = 5
+# PAE_cutoff = [12.96, 10.22][0]
+# Nmers_contacts_cutoff = 5
+
+# General cutoffs (AF2)
+N_models_cutoff = 4
+PAE_cutoff = 10
 Nmers_contacts_cutoff = 5
+
+# # General cutoffs (AF3)
+# N_models_cutoff = 5
+# PAE_cutoff = [12.96, 10.22][0]
+# Nmers_contacts_cutoff = 5
 
 # To classify PPI dynamics just using N_models cutoff set to False
 # If true, the cluster N-mers variation will be used
@@ -206,7 +216,7 @@ save_ref_structures = True
 # ----------------------------------------------------------------------------
 
 contact_distance_cutoff: float | int = 8.0
-contact_PAE_cutoff     : float | int = 13
+contact_PAE_cutoff     : float | int = PAE_cutoff
 contact_pLDDT_cutoff   : float | int = 0
 
 # Save/display the contact clusters with PCA plots?
@@ -241,12 +251,12 @@ use_enhanced_matrix_clustering = True
 
 # Custom analysis
 contact_clustering_config = {
-    'distance_metric': 'closeness',
+    'distance_metric': 'rmsd',
     'clustering_method': 'hierarchical',
     'linkage_method': 'average',
     'validation_metric': 'silhouette',
-    'quality_weight': True,
-    'silhouette_improvement': 0.2,
+    'quality_weight': False,
+    'silhouette_improvement': 0.0,
     'max_extra_clusters': 3,
     'min_extra_clusters': 2,
     'overlap_structural_contribution': 1,

@@ -15,16 +15,16 @@ show_PAE_along_backbone = False
 
 ################################# Test 1 ######################################
 
-# fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
-# AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
-# AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
-# # AF2_Nmers = None
-# out_path = "/home/elvio/Desktop/MM_interactive_test"
-# use_names = True 
-# overwrite = True
-# auto_domain_detection = True
-# # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
-# graph_resolution_preset = None
+fasta_file = "tests/EAF6_EPL1_PHD1/HAT1-HAT3_proteins.fasta"
+AF2_2mers = "tests/EAF6_EPL1_PHD1/2-mers"
+AF2_Nmers = "tests/EAF6_EPL1_PHD1/N-mers"
+# AF2_Nmers = None
+out_path = "/home/elvio/Desktop/MM_interactive_test"
+use_names = True 
+overwrite = True
+auto_domain_detection = True
+# graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+graph_resolution_preset = None
 
 ##############################################################################
 
@@ -283,20 +283,37 @@ show_PAE_along_backbone = False
 
 # ###################### Test 11 (Homooligomers) ########################
 
-fasta_file = "/home/elvio/Desktop/homooligomeric_states_benchmark/proteins.fasta"
-AF2_2mers = "/home/elvio/Desktop/homooligomeric_states_benchmark/AF2_2mers"
-AF2_Nmers = "/home/elvio/Desktop/homooligomeric_states_benchmark/AF2_Nmers"
+# fasta_file = "/home/elvio/Desktop/homooligomeric_states_benchmark/proteins.fasta"
+# AF2_2mers = "/home/elvio/Desktop/homooligomeric_states_benchmark/AF2_2mers"
+# AF2_Nmers = "/home/elvio/Desktop/homooligomeric_states_benchmark/AF2_Nmers"
+# # # AF2_Nmers = None
+# out_path = "/home/elvio/Desktop/homooligomeric_states_benchmark/mm_out_interactive_test"
+# use_names = True 
+# overwrite = True
+# # # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
+# graph_resolution_preset = None
+# auto_domain_detection = True
+# remove_interactions = ("Indirect", "No 2-mers Data")
+
+###############################################################################
+
+
+
+# ######################## Test 12 - Aha1-Hsp90-p23 ###########################
+
+fasta_file = "/home/elvio/Desktop/MM_runs_for_the_paper/hsp90_aha1_p23/proteins_mm.fasta"
+AF2_2mers = "/home/elvio/Desktop/MM_runs_for_the_paper/hsp90_aha1_p23/2-mers"
+AF2_Nmers = "/home/elvio/Desktop/MM_runs_for_the_paper/hsp90_aha1_p23/N-mers"
 # # AF2_Nmers = None
-out_path = "/home/elvio/Desktop/homooligomeric_states_benchmark/mm_out_interactive_test"
+out_path = "/home/elvio/Desktop/MM_runs_for_the_paper/hsp90_aha1_p23/mm_out_interactive_test"
 use_names = True 
 overwrite = True
 # # graph_resolution_preset = "/home/elvio/Desktop/graph_resolution_preset.json"
 graph_resolution_preset = None
 auto_domain_detection = True
-remove_interactions = ("Indirect", "No 2-mers Data")
+remove_interactions = ("Indirect",)
 
 ###############################################################################
-
 
 ###############################################################################
 ############################### MM main run ###################################
@@ -360,7 +377,7 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
 # DEFAULT FINE GRAIN CONFIG
 fine_grain_layout_cfg = {
     "algorithm": "residue_optimized",
-    "iterations": 200,
+    "iterations": 50,
     "min_contact_distance": 50,
     "max_contact_distance": 60,
     "contact_force_strength": 10.0,
@@ -386,7 +403,7 @@ mm_monomers_traj = mm.generate_RMSF_pLDDT_cluster_and_RMSD_trajectories(
     mm_output = mm_output, out_path = out_path)
 
 # Get suggested combinations and stoichiometric space
-import multimer_mapper as mm
+# import multimer_mapper as mm
 suggested_combinations, stoich_dict, stoich_graph, convergent_stoichs = mm.suggest_combinations(
     mm_output = mm_output, 
     # To ommit saving, change to None
