@@ -12,6 +12,29 @@ import logging
 
 # from src.coordinate_analyzer import plot_traj_metadata
 
+def get_bio_pdb_model_model(pair, key, pairwise_2mers_df, pairwise_Nmers_df):
+
+    # Example : ('EAF6', 'EAF6'), ('A', 'B'), 1
+    proteins_in_model = key[0]
+    chains = key[1]
+    rank = key[2]
+
+    # 2-mers case
+    if len(proteins_in_model) == 2:
+        model = (pairwise_2mers_df
+                    .query(f'sorted_tuple_pair == @pair')
+                    .query(f'rank == @rank'))['model'].iloc[0]
+    # N-mers case
+    else:
+        model = (pairwise_Nmers_df
+                    .query(f'sorted_tuple_pair == @pair')
+                    .query(f'proteins_in_model == @proteins_in_model')
+                    .query(f'pair_chains_tuple == @chains')
+                    .query(f'rank == @rank'))['model'].iloc[0]
+
+    return model
+
+
 def get_chain_sequence(chain: Chain):
     
     chain_seq = seq1(''.join(residue.resname for residue in chain))
