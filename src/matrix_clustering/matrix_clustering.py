@@ -620,7 +620,8 @@ def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], D
                                       pair: Tuple[str, str],
                                       max_valency: int,
                                       config: ClusteringConfig,
-                                      logger: logging.Logger | None = None) -> Tuple[List[int], List, np.ndarray, np.ndarray, Dict]:
+                                      logger: logging.Logger | None = None#, max_freq_threshold = 0.8
+                                      ) -> Tuple[List[int], List, np.ndarray, np.ndarray, Dict]:
     """Enhanced clustering with multiple metrics and validation"""
 
     # Set up logging
@@ -685,6 +686,59 @@ def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], D
     else:    
         labels, score = find_optimal_clusters(distance_matrix, max_valency, config, features)
     
+    # # START REFINEMENT ----------------------------------------------------
+    # logger.info("   Verifying clusters for refinement...")
+
+    # # Get max freq for each avg matrix
+    # mats = {lab:[] for lab in set(labels)}
+    # for idx, lab in enumerate(labels):
+    #     mats[lab].append(all_pair_matrices[pair][model_keys[idx]]['is_contact'])
+    # avg_mats_max = {lab:np.mean(mats[lab], axis=0).max() for lab in set(labels)}
+    
+    # # Verify refinement for each cluster
+    # new_labels_dict = {}
+    # for lab in set(labels):
+        
+    #     # Skip clusters that surpass threshold
+    #     if avg_mats_max[lab] >= max_freq_threshold:
+    #         continue
+
+    #     logger.info(f"   Refining cluster {lab}...")
+        
+    #     # Get indexes that match the label
+    #     lab_indexes = [i for i, x in enumerate(labels) if x == lab]
+
+    #     # Get sub distance matrix
+    #     sub_distance_matrix = distance_matrix[np.ix_(lab_indexes, lab_indexes)]
+
+    #     # Refine starting with max_valency as 2
+    #     new_labels, new_score = find_optimal_clusters(sub_distance_matrix, 2, config, None)
+
+    #     new_labels_dict[lab] = new_labels
+
+    # # Renumber labels to be continuous
+    # max_label = max(set(labels))
+    # for lab in new_labels_dict.keys():
+    #     lab_indexes = [i for i, x in enumerate(labels) if x == lab]
+        
+    #     # Get unique new labels for this cluster
+    #     unique_new_labels = sorted(set(new_labels_dict[lab]))
+        
+    #     # If cluster was split (more than one unique label)
+    #     if len(unique_new_labels) > 1:
+    #         # First unique label keeps the original label number
+    #         # Subsequent labels get new numbers starting from max_label + 1
+    #         label_mapping = {unique_new_labels[0]: lab}
+    #         for i, new_lab in enumerate(unique_new_labels[1:], start=1):
+    #             max_label += 1
+    #             label_mapping[new_lab] = max_label
+            
+    #         # Apply the mapping to update labels
+    #         for local_idx, global_idx in enumerate(lab_indexes):
+    #             old_new_label = new_labels_dict[lab][local_idx]
+    #             labels[global_idx] = label_mapping[old_new_label]
+    # # END REFINEMENT ----------------------------------------------------
+
     # Create reduced features for visualization
     if features is not None:
         pca = PCA(n_components=min(2, features.shape[1], features.shape[0] - 1))

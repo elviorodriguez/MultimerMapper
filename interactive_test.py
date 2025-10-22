@@ -356,6 +356,8 @@ combined_graph_interactive = mm.interactive_igraph_to_plotly(
     # Answer y automatically
     automatic_true = True)
 
+
+
 # mm_output['contacts_clusters'][list(mm_output['contacts_clusters'].keys())[1]][0].keys()
 # ['models', 'representative', 'average_matrix', 'x_lab', 'y_lab', 'x_dom', 'y_dom', 'was_tested_in_2mers', 'was_tested_in_Nmers', 'average_2mers_matrix', 'average_Nmers_matrix', 'cluster_n']
 
@@ -501,10 +503,32 @@ for prot in nw.get_proteins():
     #                               C: Co-occupied by differt proteins)
     print(surf.get_residues_by_group())
 
+###############################################################################
+######################### TESTS: Contacts clustering 1 ########################
+###############################################################################
+
+# Custom analysis
+contact_clustering_config = {
+    'distance_metric': 'rmsd',
+    'clustering_method': 'hierarchical',
+    'linkage_method': 'average',
+    'validation_metric': 'silhouette',
+    'quality_weight': False,
+    'silhouette_improvement': 0.0,
+    'max_extra_clusters': 3,
+    'min_extra_clusters': 2,
+    'overlap_structural_contribution': 1,
+    'overlap_use_contact_region_only': False,
+    'use_median': False
+}
+
+from src.matrix_clustering.matrix_clustering import run_contacts_clustering_analysis_with_config
+interaction_counts_df, contacts_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict = run_contacts_clustering_analysis_with_config(
+    mm_output, contact_clustering_config)
 
 
 ###############################################################################
-######################### TESTS: Contacts clustering ##########################
+######################### TESTS: Contacts clustering 2 ########################
 ###############################################################################
 
 # Contact Cluster graphing
