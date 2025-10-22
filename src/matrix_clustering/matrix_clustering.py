@@ -223,13 +223,11 @@ class EnhancedDistanceMetrics:
             x_positions = np.where(m_union.any(axis=0))[0] + 1
             y_positions = np.where(m_union.any(axis=1))[0] + 1
 
-            
-
             # Get protein lengths from models
             model1_chains = [c for c in model1.get_chains()]
             model2_chains = [c for c in model2.get_chains()]
-            shape_model1 = [len(c) for c in model1_chains]
-            shape_model2 = [len(c) for c in model2_chains]
+            shape_model1 = tuple([len(c) for c in model1_chains])
+            shape_model2 = tuple([len(c) for c in model2_chains])
 
             # Compare with protein lengths from matrix and extract corresponding matching CAs
             if shape_model1 == m_union.shape:

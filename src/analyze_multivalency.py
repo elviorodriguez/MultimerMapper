@@ -865,7 +865,8 @@ def convert_model_to_hex_colors(model_keys, color_map = 'tab20'):
 def visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
                               reduced_features = None, explained_variance = None,
                               show_plot = False, save_plot = True, plot_by_model = True,
-                              logger: Logger | None = None):
+                              logger: Logger | None = None,
+                              scatter_method = "mds"):
     """
     Visualizes the clusters by plotting the average contact matrices for each cluster, 
     including domain borders as dashed lines and arranging plots side by side.
@@ -891,6 +892,13 @@ def visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
     n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
     if n_clusters == 0:
         n_clusters = 1
+
+    if scatter_method == "mds":
+        scatter_method_title = "MDS"
+        coordinate_title = "Coordinate "
+    else:
+        scatter_method_title = "PCA"
+        coordinate_title = "PC"
     
     ############# Create a combined plot with the PCA on the left and contact maps on the right #############
 
@@ -905,9 +913,9 @@ def visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
         x_coords = reduced_features[:, 0] / 100
         y_coords = reduced_features[:, 1] / 100
         ax_pca.scatter(x_coords, y_coords, c=colors, s=50, alpha=0.7)
-        ax_pca.set_title(f"PCA Plot for {pair}")
-        ax_pca.set_xlabel(f"PC1 ({explained_variance[0]:.2f}% variance)" if explained_variance is not None else "PC1")
-        ax_pca.set_ylabel(f"PC2 ({explained_variance[1]:.2f}% variance)" if explained_variance is not None else "PC2")
+        ax_pca.set_title(f"{scatter_method_title} Plot for {pair}")
+        ax_pca.set_xlabel(f"{coordinate_title}1 ({explained_variance[0]:.2f}% variance)" if explained_variance is not None else f"{coordinate_title}1")
+        ax_pca.set_ylabel(f"{coordinate_title}2 ({explained_variance[1]:.2f}% variance)" if explained_variance is not None else f"{coordinate_title}2")
         ax_pca.grid(True)
         ax_pca.set_aspect('equal', adjustable='box')
 
@@ -999,9 +1007,9 @@ def visualize_clusters_static(cluster_dict, pair, model_keys, labels, mm_output,
 
         # Scatter plot
         ax_pca.scatter(x_coords, y_coords, c=colors, s=50, alpha=0.7)
-        ax_pca.set_title(f"PCA Plot for {pair}")
-        ax_pca.set_xlabel(f"PC1 ({explained_variance[0]:.2f}% variance)" if explained_variance is not None else "PC1")
-        ax_pca.set_ylabel(f"PC2 ({explained_variance[1]:.2f}% variance)" if explained_variance is not None else "PC2")
+        ax_pca.set_title(f"{scatter_method_title} Plot for {pair}")
+        ax_pca.set_xlabel(f"{coordinate_title}1 ({explained_variance[0]:.2f}% variance)" if explained_variance is not None else f"{coordinate_title}1")
+        ax_pca.set_ylabel(f"{coordinate_title}2 ({explained_variance[1]:.2f}% variance)" if explained_variance is not None else f"{coordinate_title}2")
         ax_pca.grid(True)
         ax_pca.set_aspect('equal', adjustable='box')
 
@@ -1177,7 +1185,16 @@ def create_contact_maps_with_buttons(cluster_dict, pair, sliced_PAE_and_pLDDTs):
     
     return fig
 
-def create_pca_plot(reduced_features, labels, model_keys, explained_variance, all_pair_matrices, pair):
+def create_pca_plot(reduced_features, labels, model_keys, explained_variance, all_pair_matrices, pair, scatter_method = "mds"):
+
+    # Set method name
+    if scatter_method == "mds":
+        scatter_method_title = "MDS"
+        coordinate_title = "Coordinate "
+    else:
+        scatter_method_title = "PCA"
+        coordinate_title = "PC"
+
     x_coords = reduced_features[:, 0] / 100
     y_coords = reduced_features[:, 1] / 100
         
@@ -1219,9 +1236,9 @@ def create_pca_plot(reduced_features, labels, model_keys, explained_variance, al
         ))
     
     fig.update_layout(
-        title=dict(text="PCA Plot", x=0.5),
-        xaxis_title=f"PC1 ({explained_variance[0]:.2f}% variance)" if explained_variance is not None else "PC1",
-        yaxis_title=f"PC2 ({explained_variance[1]:.2f}% variance)" if explained_variance is not None else "PC2",
+        title=dict(text=f"{scatter_method_title} Plot", x=0.5),
+        xaxis_title=f"{coordinate_title}1 ({explained_variance[0]:.2f}% variance)" if explained_variance is not None else f"{coordinate_title}1",
+        yaxis_title=f"{coordinate_title}2 ({explained_variance[1]:.2f}% variance)" if explained_variance is not None else f"{coordinate_title}2",
         updatemenus=[dict(
             type="buttons",
             direction="right",
@@ -1266,7 +1283,7 @@ def create_unified_html(pca_fig, contact_fig, pair, side_by_side = False):
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>PCA and Contact Maps for {pair[0]} vs {pair[1]}</title>
+            <title>MDS and Contact Maps for {pair[0]} vs {pair[1]}</title>
             <style>
                 body {{
                     margin: 0;
@@ -1296,7 +1313,7 @@ def create_unified_html(pca_fig, contact_fig, pair, side_by_side = False):
             <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
         </head>
         <body>
-            <h3>PCA and Contact Maps for {pair[0]} vs {pair[1]}</h3>
+            <h3>MDS and Contact Maps for {pair[0]} vs {pair[1]}</h3>
             <div class="container">
                 <div id="pcaPlot" class="plot">
                     {pca_fig.to_html(include_plotlyjs=False, full_html=False, config={'responsive': True})}
@@ -1340,7 +1357,7 @@ def create_unified_html(pca_fig, contact_fig, pair, side_by_side = False):
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>PCA and Contact Maps for {pair[0]} vs {pair[1]}</title>
+            <title>MDS and Contact Maps for {pair[0]} vs {pair[1]}</title>
             <style>
                 html, body {{
                     margin: 0;
@@ -1389,7 +1406,7 @@ def create_unified_html(pca_fig, contact_fig, pair, side_by_side = False):
             <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
         </head>
         <body>
-            <h3>PCA and Contact Maps for {pair[0]} vs {pair[1]}</h3>
+            <h3>MDS and Contact Maps for {pair[0]} vs {pair[1]}</h3>
             <div class="container">
                 <div id="pcaPlot" class="plot">
                     {pca_fig.to_html(include_plotlyjs=False, full_html=False, config={'responsive': True})}
