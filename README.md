@@ -189,6 +189,4 @@ If a tree of prediction sets is present in the directory (subdirectories), each 
 Have a look at devs section (for developers). There you will find explanations of MultimerMapper's main functionalities output data structures and their meaning.
 
 # Reference
-Context-Dependent Protein Structure Prediction Analysis and Stoichiometry Inference with MultimerMapper
-Elvio Rodríguez Araya, Esteban Serra
-doi: https://doi.org/10.1101/2025.10.24.684463
+•	Rodríguez Araya E; Serra E. Context-Dependent Protein Structure Prediction Analysis and Stoichiometry Inference with MultimerMapper. bioRxiv 2025. DOI: https://doi.org/10.1101/2025.10.24.684463.
