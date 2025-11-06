@@ -185,8 +185,5 @@ python utils/af3_compatibility.py /path/to/zip_files/ --out_dir /path/to/output/
 If a tree of prediction sets is present in the directory (subdirectories), each prediction set gets its own subdirectory in the output folder, making it easy to organize results from multiple AF3 runs (e.g., those from each N-mer iteration of a system).
 
 
-# Do you want to combine MultimerMapper with your own pipelines programmatically?
-Have a look at devs section (for developers). There you will find explanations of MultimerMapper's main functionalities output data structures and their meaning.
-
 # Reference
 •	Rodríguez Araya E; Serra E. Context-Dependent Protein Structure Prediction Analysis and Stoichiometry Inference with MultimerMapper. bioRxiv 2025. DOI: https://doi.org/10.1101/2025.10.24.684463.
