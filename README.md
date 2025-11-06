@@ -3,7 +3,7 @@
 # What is MultimerMapper?
 It is a computational tool designed for the integration, analysis and visualization of AlphaFold interaction landscapes based on the novel concept of "Context Dependent Protein Structure Prediction". It is presented as an innovative tool to help researchers understand and visualize how protein complexes behave under different modelling conditions.
 
-The manuscript of the methodology is being written and the software is still under active development... So, keep an eye on it ;)
+MANUSCRIPT: https://www.biorxiv.org/content/10.1101/2025.10.24.684463v1
 
 Here's how it works:
  - **Start with protein sequences**: Input a list of protein sequences you want to study. Typically, they will come from an interactomic experiment.
@@ -187,3 +187,8 @@ If a tree of prediction sets is present in the directory (subdirectories), each 
 
 # Do you want to combine MultimerMapper with your own pipelines programmatically?
 Have a look at devs section (for developers). There you will find explanations of MultimerMapper's main functionalities output data structures and their meaning.
+
+# Reference
+Context-Dependent Protein Structure Prediction Analysis and Stoichiometry Inference with MultimerMapper
+Elvio Rodríguez Araya, Esteban Serra
+doi: https://doi.org/10.1101/2025.10.24.684463
