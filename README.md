@@ -35,7 +35,8 @@ By combining predictions and smart analysis, MultimerMapper helps bridge the gap
 - Pseudo-molecular dynamics trajectories generation (RMSD trajectories)
 - Bias in Partner Distribution (BPD) analysis
 - Partner enrichment
-- Stoichiometric Space Exploration (Assembly Path Simulation) - BETA
+- Stoichiometric Space Exploration Algorithm
+- Stoichiometry inference
 - Interface with combinatorial assembler (CombFold)
 - Much more coming!
 
