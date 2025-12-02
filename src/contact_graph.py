@@ -1138,7 +1138,7 @@ rrc_classification_colors = {
 ###############################################################################################################
 
 # Define a list of valid chain IDs
-VALID_CHAIN_IDS = list(string.ascii_uppercase) + list(string.digits)
+VALID_CHAIN_IDS = list(string.ascii_uppercase) + list(string.digits) + list(string.ascii_lowercase) + list("αβγδεζηθικλμνξοπρστυφχψω") + list("ΓΔΘΛΞΠΣΦΧΨΩ")
 
 def clean_chain(original_chain):
     """
