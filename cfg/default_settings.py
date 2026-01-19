@@ -80,8 +80,8 @@ DOMAIN_COLORS = ['red', 'green', 'blue', 'purple', 'yellow', 'orange', 'brown', 
 # Nmers_contacts_cutoff = 5
 
 # General cutoffs (AF2)
-N_models_cutoff = 4
-PAE_cutoff = 10
+N_models_cutoff = 5
+PAE_cutoff = 11.17
 Nmers_contacts_cutoff = 5
 
 # # General cutoffs (AF3)
