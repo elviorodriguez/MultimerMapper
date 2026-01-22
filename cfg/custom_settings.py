@@ -37,7 +37,7 @@ self_loop_size = 2
 
 # General cutoffs ---------- (AF3) -----------
 N_models_cutoff = 4
-PAE_cutoff = 10
+PAE_cutoff = 8.3
 contact_PAE_cutoff = PAE_cutoff
 min_PAE_cutoff_2mers = PAE_cutoff
 min_PAE_cutoff_Nmers = PAE_cutoff
@@ -60,8 +60,8 @@ miPAE_cutoff_conv_soft = PAE_cutoff
 # }
 
 
-available_layout = ['weighted_fr', 'fr', 'kk', 'circle', 'drl', 'lgl', 'random', 'rt', 'rt_circular', ]
-ppi_graph_layout_algorithm = available_layout[2]
+available_layout = ['weighted_fr', 'fr', 'kk', 'circle', 'drl', 'lgl', 'random', 'rt', 'rt_circular']
+ppi_graph_layout_algorithm = available_layout[0]
 
 # For 3D visualization
 # layout_3d_iterations = 1000
