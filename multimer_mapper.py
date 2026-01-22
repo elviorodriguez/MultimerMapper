@@ -554,6 +554,9 @@ if __name__ == "__main__":
     parser.add_argument('--N_value', type = int, default = 4,
         help='Current N value (Only 2-mers => N=2 | 2+3-mers => N=3 | 2+3+4-mers => N=4 | ...). This is to suggest combinations.')
     
+    parser.add_argument('--use_fully_connected_combinations', action='store_true',
+        help="Explore the stoichiometric space by using only N-mers the selected components create a fully connected PPI network (i.e.: skips combinations of protein without PPI evidence)")
+
     parser.add_argument('--max_comb_order', type = int, default = max_combination_order,
         help='Maximum variation size of suggested combinations. By default it suggests combinations by adding +1 of each protein to each stable stoichiometries. If set to 2, it will also add the stable 2-mers to stable stoichiometries (+2). If set to 3, it will add stable 2- and 3-mers. Etc...')
     
@@ -595,20 +598,21 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Depackage arguments
-    use_names                  = False if args.use_IDs else True
-    fasta_file                 = args.fasta_file
-    AF_2mers                   = args.AF_2mers
-    AF_Nmers                   = args.AF_Nmers
-    out_path                   = args.out_path
-    overwrite                  = args.overwrite
-    manual_domains             = args.manual_domains
-    auto_domains               = True if args.auto_domains else auto_domain_detection
-    N_value                    = args.N_value
-    skip_traj                  = args.skip_traj
-    first_plot                 = args.first_plot
-    skip_plots                 = args.skip_plots
-    max_comb_order             = args.max_comb_order
-    add_full_xmers_suggestions = args.get_full_x_mers_combo
+    use_names                           = False if args.use_IDs else True
+    fasta_file                          = args.fasta_file
+    AF_2mers                            = args.AF_2mers
+    AF_Nmers                            = args.AF_Nmers
+    out_path                            = args.out_path
+    overwrite                           = args.overwrite
+    manual_domains                      = args.manual_domains
+    auto_domains                        = True if args.auto_domains else auto_domain_detection
+    N_value                             = args.N_value
+    skip_traj                           = args.skip_traj
+    first_plot                          = args.first_plot
+    skip_plots                          = args.skip_plots
+    use_fully_connected_combinations    = args.use_fully_connected_combinations
+    max_comb_order                      = args.max_comb_order
+    add_full_xmers_suggestions          = args.get_full_x_mers_combo
 
     # Verbosity level
     if args.reduce_verbosity:
@@ -679,6 +683,7 @@ if __name__ == "__main__":
         out_path = out_path,
         log_level = log_level,
         max_N = N_value + 1,
+        use_fully_connected_combinations=use_fully_connected_combinations,
         max_combination_order = max_comb_order,
         add_full_xmers_suggestions = add_full_xmers_suggestions)
     

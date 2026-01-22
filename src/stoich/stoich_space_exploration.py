@@ -22,6 +22,8 @@ from utils.logger_setup import configure_logger
 def initialize_stoich_dict(mm_output,
                            suggested_combinations,
                            include_suggestions = True,
+
+                           use_fully_connected_combinations = True,
                            max_combination_order = 1, 
                            combine_only_detected_ppi_proteins = True,
                            
@@ -40,6 +42,7 @@ def initialize_stoich_dict(mm_output,
     protein_list = mm_output['prot_IDs']
     pairwise_2mers_df = mm_output['pairwise_2mers_df']
     pairwise_Nmers_df = mm_output['pairwise_Nmers_df']
+    combined_graph = mm_output['combined_graph']
     
     # Compute necessary data
     predicted_2mers = set(p_in_m for p_in_m in pairwise_2mers_df['sorted_tuple_pair'])
@@ -124,13 +127,33 @@ def initialize_stoich_dict(mm_output,
                     # Generate possible combinations by adding +1 of each protein
                     for prot_id in protein_list:
 
-                        # Skip proteins that were not detected involved in ppis?
+                        # Skip proteins that were not detected involved in PPIs?
                         if combine_only_detected_ppi_proteins and prot_id not in interacting_proteins_from_Xmers_list:
                             continue
 
                         possible_new_suggestion = tuple(sorted(list(sorted_tuple_combination) + [prot_id]))
 
                         if possible_new_suggestion not in suggested_combinations and possible_new_suggestion not in added_suggestions and possible_new_suggestion not in stoich_dict:
+                            
+                            # Skip combinations of proteins that generates disconnected PPI networks
+                            if use_fully_connected_combinations:
+                                # Create subgraph with only proteins in the possible combination
+                                proteins_in_combo = set(possible_new_suggestion)
+                                
+                                # Get vertex indices for proteins in this combination
+                                vertex_indices = [v.index for v in combined_graph.vs if v['name'] in proteins_in_combo]
+                                
+                                # Create induced subgraph
+                                if len(vertex_indices) > 1:
+                                    subgraph = combined_graph.subgraph(vertex_indices)
+                                    
+                                    # Check if subgraph is fully connected
+                                    if not subgraph.is_connected():
+                                        continue  # Skip this combination
+                                # If only 1 protein, automatically include it
+                                elif len(vertex_indices) == 0:
+                                    continue  # Skip if no proteins found in graph
+
                             added_suggestions.append(possible_new_suggestion)
             
             else:
@@ -1556,7 +1579,13 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
     return fig
 
 
-def generate_stoichiometric_space_graph(mm_output, suggested_combinations, max_combination_order=1, logger: Logger = None,
+def generate_stoichiometric_space_graph(mm_output, suggested_combinations,
+                                        
+                                        # Stoichiometric space exploration modes
+                                        use_fully_connected_combinations = True,
+                                        max_combination_order=1,
+                                        
+                                        logger: Logger = None,
                                         
                                         # Cutoffs (for benchmark)
                                         Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff_convergency,
@@ -1586,7 +1615,10 @@ def generate_stoichiometric_space_graph(mm_output, suggested_combinations, max_c
     
     logger.info('   Analyzing available stoichiometries and suggestions...')
     stoich_dict, removed_suggestions, added_suggestions, convergent_stoichiometries = initialize_stoich_dict(
-        mm_output, suggested_combinations, max_combination_order=max_combination_order,
+        mm_output, suggested_combinations,
+        
+        use_fully_connected_combinations = use_fully_connected_combinations,
+        max_combination_order=max_combination_order,
         
         # Cutoffs
         Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff_convergency,

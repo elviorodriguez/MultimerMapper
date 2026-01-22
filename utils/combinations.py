@@ -589,7 +589,9 @@ def add_full_xmers_combinations(suggestions: List[Tuple[str, ...]],
 
     
 # When at least 2-mers or N-mers where passed
-def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, max_N: int = 4, log_level: str = "info", max_combination_order = 1,
+def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, max_N: int = 4, log_level: str = "info",
+                         use_fully_connected_combinations: bool = True,
+                         max_combination_order: int = 1,
                          add_full_xmers_suggestions: None | int = None):
 
     logger = configure_logger(out_path = mm_output['out_path'], log_level = log_level)(__name__)
@@ -662,7 +664,8 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
 
     # Explore the stoichiometric space and remove uninformative suggestions
     stoich_dict, stoich_graph, uninformative_suggestions, informative_suggestions, convergent_stoichiometries = generate_stoichiometric_space_graph(
-        mm_output, suggested_combinations, max_combination_order = max_combination_order)
+        mm_output=mm_output, suggested_combinations=suggested_combinations,
+        use_fully_connected_combinations = use_fully_connected_combinations, max_combination_order = max_combination_order)
     suggested_combinations = suggested_combinations + informative_suggestions
     
     # Only remove uninformative suggestions that are not critical for higher-order exploration
