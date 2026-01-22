@@ -141,6 +141,9 @@ def create_interpro_html_visualization(interpro_data, protein_id, plddts_data, d
     
     # Generate domain colors
     domain_colors = generate_domain_colors()
+
+    seq_length = len(sequence)
+    total_width = seq_length * 8  # 8px per residue
     
     # Start building HTML
     html_content = f"""
@@ -161,8 +164,8 @@ def create_interpro_html_visualization(interpro_data, protein_id, plddts_data, d
                 padding: 20px;
                 border-radius: 10px;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                max-width: 1400px;
                 margin: 0 auto;
+                overflow-x: auto;
             }}
             .protein-viz {{
                 margin: 0px 0;
@@ -172,6 +175,8 @@ def create_interpro_html_visualization(interpro_data, protein_id, plddts_data, d
                 display: flex;
                 margin: 2px 0;
                 position: relative;
+                flex-shrink: 0;
+                width: fit-content;
             }}
             .residue {{
                 width: 8px;
@@ -184,11 +189,15 @@ def create_interpro_html_visualization(interpro_data, protein_id, plddts_data, d
                 height: 20px;
                 position: relative;
                 margin: 5px 0;
+                flex-shrink: 0;
+                width: fit-content;
             }}
             .domain-segments-row {{
                 height: 35px;
                 position: relative;
                 margin: 8px 0;
+                flex-shrink: 0;
+                width: fit-content;
             }}
             .domain-segment-box {{
                 position: absolute;
@@ -288,7 +297,7 @@ def create_interpro_html_visualization(interpro_data, protein_id, plddts_data, d
     </head>
     <body>
         <div class="container">
-            <div class="protein-viz" style="position: relative; margin-left: 120px;">
+            <div class="protein-viz" style="position: relative; margin-left: 120px; width: {{total_width}}px; min-width: {{total_width}}px;">
     """
     
     # Add domain segments row (first row)
