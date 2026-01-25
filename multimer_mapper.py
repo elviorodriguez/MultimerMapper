@@ -626,6 +626,14 @@ if __name__ == "__main__":
     
     # Initialize __main__ level logger
     logger = configure_logger(out_path = out_path, log_level = log_level)(__name__)
+
+    # Save the command used to call this script
+    command_file = os.path.join(out_path, "command.sh")
+    with open(command_file, 'w') as f:
+        f.write("#!/bin/bash\n\n")
+        f.write("# Command used to execute MultimerMapper\n")
+        f.write("# Generated on: " + str(os.popen('date').read().strip()) + "\n\n")
+        f.write(" ".join(sys.argv) + "\n")
     
     # --------------------------------------------------------------------------
     # ------------------------- 2-mers initialization --------------------------
