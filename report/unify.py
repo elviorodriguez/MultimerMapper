@@ -10,6 +10,9 @@ import zipfile
 ######################################## Helpers ########################################
 #########################################################################################
 
+vf_name="VERSION.txt"
+mm_logo="multimermapper_logo.png"
+
 def get_protein_names(directory_path):
     """Extract unique protein names from the directory structure."""
     protein_names = set()
@@ -196,7 +199,7 @@ def add_folder_to_zip(zipf, base_dir, folder_name):
             rel = os.path.relpath(full, base_dir)
             zipf.write(full, arcname=rel)
 
-def create_zip_report(directory_path):
+def create_zip_report(directory_path, mm_logo=mm_logo, vf_name=vf_name):
     """
     Creates a zip file containing all necessary files to render the report.html independently.
     
@@ -206,14 +209,21 @@ def create_zip_report(directory_path):
     zip_path = os.path.join(directory_path, "report.zip")
     
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        # Add report.html and logo
+        
+        # Add report.html and version
         report_html = os.path.join(directory_path, "report.html")
         if os.path.exists(report_html):
             zipf.write(report_html, os.path.relpath(report_html, directory_path))
-        
-        logo = os.path.join(directory_path, "multimermapper_logo.png")
+
+        # Add logo file
+        logo = os.path.join(directory_path, mm_logo)
         if os.path.exists(logo):
             zipf.write(logo, os.path.relpath(logo, directory_path))
+        
+        # Add version file
+        vf=os.path.join(directory_path, vf_name)
+        if os.path.exists(vf):
+            zipf.write(vf, os.path.relpath(directory_path, vf_name))
         
         # Add log file
         log_file = os.path.join(directory_path, "multimer_mapper.log")
@@ -302,7 +312,7 @@ def create_zip_report(directory_path):
     
     # print(f"Zip report created at: {zip_path}")
 
-def create_report(directory_path, zip_report = True):
+def create_report(directory_path, zip_report = True, mm_logo=mm_logo,vf_name=vf_name):
     """
     Creates a unified HTML report for the MultimerMapper output.
     
@@ -313,14 +323,25 @@ def create_report(directory_path, zip_report = True):
     output_path = os.path.join(directory_path, "report.html")
 
     # Copy the logo file to the directory_path
-    logo_source_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "multimermapper_logo.png")
-    logo_destination_path = os.path.join(directory_path, "multimermapper_logo.png")
+    logo_source_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), mm_logo)
+    logo_destination_path = os.path.join(directory_path, mm_logo)
     
     # Check if the source logo file exists and copy it
     if os.path.exists(logo_source_path):
         shutil.copy(logo_source_path, logo_destination_path)
     else:
         print(f"Logo file not found: {logo_source_path}")
+
+    # Copy the version file to the directory_path
+    v_source_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), vf_name)
+    v_destination_path = os.path.join(directory_path, vf_name)
+
+    # Check if the source logo file exists and copy it
+    if os.path.exists(v_source_path):
+        shutil.copy(v_source_path, v_destination_path)
+    else:
+        print(f"Version file not found: {v_destination_path}")
+    
     
     # Collect protein names
     protein_names = get_protein_names(directory_path)
@@ -388,6 +409,21 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
     stability_plots_json = json.dumps(stability_plots)
     combinations_data_json = json.dumps(combinations_data)
     log_content_json = json.dumps(log_content)
+
+    # Read version string from a small text file in the output directory
+    # Leaves "v.unknown" if not found or empty
+    version = "v.unknown"
+    vf_name = "VERSION.txt"
+    try:
+        path = os.path.join(directory_path, vf_name)
+        with open(path, "r", encoding="utf-8") as vf:
+            first_line = vf.readline().strip()
+            if first_line:
+                version = first_line
+    except FileNotFoundError:
+        pass
+    except Exception:
+        pass
     
     # Main HTML template
     html = f"""<!DOCTYPE html>
@@ -478,6 +514,26 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             align-items: center;
             flex-direction: column;
             text-align: center;
+        }}
+
+        .sidebar-logo {{
+            display: flex;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            position: relative;
+        }}
+
+        .sidebar-version {{
+            position: absolute;
+            right: 0px;
+            bottom: 0px;
+            color: #ffffff;
+            font-size: 0.8rem;
+            opacity: 0.95;
+            pointer-events: none;
+            background: rgba(0,0,0,0);
         }}
         
         .sidebar-header h3 {{
@@ -923,6 +979,7 @@ def generate_html(directory_path, protein_names, contact_clusters, plddt_cluster
             <div class="sidebar-header">
                 <div class="sidebar-logo" id="logo-button">
                     <img src="./multimermapper_logo.png" alt="MultimerMapper Logo" class="custom-logo">
+                    <div class="sidebar-version">{version}</div>
                 </div>
             </div>
                         
