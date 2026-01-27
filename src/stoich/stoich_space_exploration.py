@@ -306,7 +306,7 @@ def can_decompose_into_stable_kmers(target_counter, stable_kmers, max_components
     return sum(remaining.values()) == 0
 
 
-def identify_convergent_stoichiometries(stoich_dict, protein_list, max_combination_order=1):
+def identify_convergent_stoichiometries(stoich_dict, protein_list, max_combination_order=1, skip_edges_with_intermediate_stoich = True):
     """
     Identify convergent stoichiometries where all children are unstable and none are unexplored.
     
@@ -321,25 +321,61 @@ def identify_convergent_stoichiometries(stoich_dict, protein_list, max_combinati
             stoich_dict[combination]['is_convergent'] = None
             continue
         
-        # Generate all possible children (N+1 combinations and N+k combinations based on max_combination_order)
-        possible_children = []
+        ############################################################
+        # #################### OLD BUGGY CODE #################### #
+
+        # # Generate all possible children (N+1 combinations and N+k combinations based on max_combination_order)
+        # possible_children = []
         
-        # Always include N+1 combinations (adding single proteins)
-        for prot_id in protein_list:
-            child_combination = tuple(sorted(list(combination) + [prot_id]))
-            possible_children.append(child_combination)
+        # # Always include N+1 combinations (adding single proteins)
+        # for prot_id in protein_list:
+        #     child_combination = tuple(sorted(list(combination) + [prot_id]))
+        #     possible_children.append(child_combination)
         
-        # Include N+k combinations if max_combination_order > 1
-        # For this, we need to check if there are stable k-mers that could be combined with this combination
-        current_size = len(combination)
-        for k in range(2, max_combination_order + 1):
-            # Find stable k-mers in stoich_dict
-            stable_kmers = [combo for combo, data in stoich_dict.items() 
-                           if len(combo) == k and data['is_stable'] is True]
+        # # Include N+k combinations if max_combination_order > 1
+        # # For this, we need to check if there are stable k-mers that could be combined with this combination
+        # current_size = len(combination)
+        # for k in range(2, max_combination_order + 1):
+        #     # Find stable k-mers in stoich_dict
+        #     stable_kmers = [combo for combo, data in stoich_dict.items() 
+        #                    if len(combo) == k and data['is_stable'] is True]
             
-            for stable_kmer in stable_kmers:
-                child_combination = tuple(sorted(list(combination) + list(stable_kmer)))
-                possible_children.append(child_combination)
+        #     for stable_kmer in stable_kmers:
+        #         child_combination = tuple(sorted(list(combination) + list(stable_kmer)))
+        #         possible_children.append(child_combination)
+
+        # #################### OLD BUGGY CODE #################### #
+        ############################################################
+
+        ##############################################################
+        # #################### NEW CODE TO TEST #################### #
+
+        # Generate all possible children consistently with edge creation logic
+        possible_children = []  
+
+        # For each size difference from 1 to max_combination_order
+        for size_diff in range(1, max_combination_order + 1):
+            # Look for ALL combinations in stoich_dict that could be children
+            for potential_child in stoich_dict.keys():
+                if len(potential_child) - len(combination) == size_diff:
+                    # Check if current combination is contained in potential_child
+                    combo_counter = Counter(combination)
+                    child_counter = Counter(potential_child)
+                    
+                    is_contained = all(child_counter[protein] >= count 
+                                    for protein, count in combo_counter.items())
+                    
+                    if is_contained:
+                        # For size_diff > 1, check if there's a stable intermediate that could serve as a bridge
+                        should_add = True
+                        if size_diff > 1 and skip_edges_with_intermediate_stoich:
+                            should_add = not has_stable_intermediate_bridge(combination, potential_child, stoich_dict, list(stoich_dict.keys()))
+                        
+                        if should_add:
+                            possible_children.append(potential_child)
+        
+        # #################### NEW CODE TO TEST #################### #
+        ##############################################################
         
         # Remove duplicates while preserving order
         unique_children = []
