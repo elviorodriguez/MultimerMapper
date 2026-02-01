@@ -169,20 +169,26 @@ class AF3PredictionChecker:
         
         return found, missing
     
-    def load_json_input(self, json_path: Path) -> List[str]:
-        """Load and parse the JSON input file to extract prediction names."""
+    def load_json_input(self, json_path: Path) -> Tuple[List[str], Dict[str, dict]]:
+        """Load and parse the JSON input file.
+        
+        Returns:
+            prediction_names: list of lowercased prediction names used for matching.
+            raw_entries: dict mapping each lowercased name to its original full JSON entry,
+                         preserved so missing predictions can be written back verbatim.
+        """
         with open(json_path, 'r') as f:
             data = json.load(f)
         
-        # Extract names from the JSON structure
         prediction_names = []
+        raw_entries = {}
         for item in data:
             if 'name' in item:
-                name = item['name']
-                # Convert uppercase to lowercase for directory name
-                prediction_names.append(name.lower())
+                key = item['name'].lower()
+                prediction_names.append(key)
+                raw_entries[key] = item          # keep the original entry untouched
         
-        return prediction_names
+        return prediction_names, raw_entries
     
     def check_predictions(self, target_path: Path, json_path: Path) -> Dict:
         """Main method to check predictions."""
@@ -191,7 +197,7 @@ class AF3PredictionChecker:
         print(f"{'='*60}\n")
         
         # Load expected predictions from JSON
-        expected_names = self.load_json_input(json_path)
+        expected_names, raw_entries = self.load_json_input(json_path)
         print(f"Expected predictions from JSON: {len(expected_names)}")
         
         if self.verbose:
@@ -239,6 +245,7 @@ class AF3PredictionChecker:
             'missing': len(missing),
             'found_list': found,
             'missing_list': missing,
+            'raw_entries': raw_entries,
             'success': len(missing) == 0
         }
         
@@ -278,7 +285,8 @@ Examples:
     parser.add_argument(
         '--json-output',
         type=str,
-        help='Save results to JSON file'
+        help='Save a JSON file containing only the missing predictions, '
+             'in the same format as the input JSON so it can be submitted directly to AF3'
     )
     
     args = parser.parse_args()
@@ -299,12 +307,18 @@ Examples:
     checker = AF3PredictionChecker(verbose=args.verbose)
     result = checker.check_predictions(target_path, json_path)
     
-    # Save JSON output if requested
+    # Save JSON output if requested: write only the missing predictions,
+    # preserving the original format so the file can be fed back to AF3 directly.
     if args.json_output:
+        missing_entries = [
+            result['raw_entries'][name]
+            for name in result['missing_list']
+            if name in result['raw_entries']
+        ]
         output_path = Path(args.json_output)
         with open(output_path, 'w') as f:
-            json.dump(result, f, indent=2)
-        print(f"\nResults saved to: {output_path}")
+            json.dump(missing_entries, f, indent=2)
+        print(f"\nMissing predictions saved to: {output_path} ({len(missing_entries)} entries)")
     
     # Exit with appropriate code
     sys.exit(0 if result['success'] else 1)
