@@ -70,8 +70,14 @@ class AF3PredictionChecker:
         
         return expected
     
-    def check_folder(self, folder_path: Path, expected_names: List[str]) -> Tuple[List[str], List[str]]:
-        """Check if folder contains expected predictions."""
+    def check_folder(self, folder_path: Path, expected_names: List[str]) -> Tuple[List[str], List[str], List[str]]:
+        """Check if folder contains expected predictions.
+        
+        Returns:
+            found: list of expected predictions that were found
+            missing: list of expected predictions that were not found
+            unexpected: list of prediction directories that were not in the JSON
+        """
         self.log(f"Checking folder: {folder_path}")
         
         # Get all subdirectories
@@ -79,6 +85,7 @@ class AF3PredictionChecker:
         
         found = []
         missing = []
+        matched_subdirs = set()  # track which subdirs we've matched to expected predictions
         
         for expected_name in expected_names:
             normalized = self.normalize_name(expected_name)
@@ -88,6 +95,7 @@ class AF3PredictionChecker:
             for subdir_name, subdir_path in subdirs.items():
                 if self.normalize_name(subdir_name) == normalized:
                     match_found = True
+                    matched_subdirs.add(subdir_name)
                     # Check if essential files exist
                     essential_files = self.get_expected_files(expected_name)
                     
@@ -114,10 +122,30 @@ class AF3PredictionChecker:
                 missing.append(expected_name)
                 self.log(f"✗ Missing: {expected_name}")
         
-        return found, missing
+        # Find unexpected directories (those not matched to any expected prediction)
+        unexpected = []
+        for subdir_name, subdir_path in subdirs.items():
+            if subdir_name not in matched_subdirs:
+                # Check if it looks like a prediction folder (has at least a .cif file)
+                has_prediction_files = any(
+                    f.suffix.lower() == '.cif' 
+                    for f in subdir_path.rglob("*") 
+                    if f.is_file()
+                )
+                if has_prediction_files:
+                    unexpected.append(subdir_path.name)
+                    self.log(f"⚠ Unexpected: {subdir_path.name} (not in JSON)")
+        
+        return found, missing, unexpected
     
-    def check_zip(self, zip_path: Path, expected_names: List[str]) -> Tuple[List[str], List[str]]:
-        """Check if zip contains expected predictions."""
+    def check_zip(self, zip_path: Path, expected_names: List[str]) -> Tuple[List[str], List[str], List[str]]:
+        """Check if zip contains expected predictions.
+        
+        Returns:
+            found: list of expected predictions that were found
+            missing: list of expected predictions that were not found
+            unexpected: list of prediction directories that were not in the JSON
+        """
         self.log(f"Checking zip file: {zip_path}")
         
         found = []
@@ -138,6 +166,8 @@ class AF3PredictionChecker:
                             predictions_in_zip[pred_dir] = []
                         predictions_in_zip[pred_dir].append(filepath)
             
+            matched_pred_dirs = set()  # track which prediction dirs we've matched
+            
             for expected_name in expected_names:
                 normalized = self.normalize_name(expected_name)
                 
@@ -146,6 +176,7 @@ class AF3PredictionChecker:
                 for pred_dir, files in predictions_in_zip.items():
                     if self.normalize_name(pred_dir) == normalized:
                         match_found = True
+                        matched_pred_dirs.add(pred_dir)
                         
                         # Check for essential files
                         file_basenames = [Path(f).name.lower() for f in files]
@@ -166,8 +197,21 @@ class AF3PredictionChecker:
                 if not match_found:
                     missing.append(expected_name)
                     self.log(f"✗ Missing: {expected_name}")
+            
+            # Find unexpected predictions (those not matched to any expected prediction)
+            unexpected = []
+            for pred_dir, files in predictions_in_zip.items():
+                if pred_dir not in matched_pred_dirs:
+                    # Check if it looks like a prediction (has .cif files)
+                    has_prediction_files = any(
+                        Path(f).suffix.lower() == '.cif' 
+                        for f in files
+                    )
+                    if has_prediction_files:
+                        unexpected.append(pred_dir)
+                        self.log(f"⚠ Unexpected: {pred_dir} (not in JSON)")
         
-        return found, missing
+        return found, missing, unexpected
     
     def load_json_input(self, json_path: Path) -> Tuple[List[str], Dict[str, dict]]:
         """Load and parse the JSON input file.
@@ -210,9 +254,9 @@ class AF3PredictionChecker:
         
         # Check if target is folder or zip
         if target_path.is_dir():
-            found, missing = self.check_folder(target_path, expected_names)
+            found, missing, unexpected = self.check_folder(target_path, expected_names)
         elif target_path.suffix.lower() == '.zip':
-            found, missing = self.check_zip(target_path, expected_names)
+            found, missing, unexpected = self.check_zip(target_path, expected_names)
         else:
             print(f"Error: {target_path} is neither a directory nor a zip file")
             sys.exit(1)
@@ -224,6 +268,7 @@ class AF3PredictionChecker:
         print(f"Total expected:  {len(expected_names)}")
         print(f"Found:           {len(found)} ✓")
         print(f"Missing:         {len(missing)} ✗")
+        print(f"Unexpected:      {len(unexpected)} ⚠")
         
         if missing:
             print(f"\n{'='*60}")
@@ -231,6 +276,13 @@ class AF3PredictionChecker:
             print(f"{'='*60}")
             for name in missing:
                 print(f"  ✗ {name}")
+        
+        if unexpected:
+            print(f"\n{'='*60}")
+            print(f"Unexpected Predictions (not in JSON):")
+            print(f"{'='*60}")
+            for name in unexpected:
+                print(f"  ⚠ {name}")
         
         if found and self.verbose:
             print(f"\n{'='*60}")
@@ -243,8 +295,10 @@ class AF3PredictionChecker:
             'expected': len(expected_names),
             'found': len(found),
             'missing': len(missing),
+            'unexpected': len(unexpected),
             'found_list': found,
             'missing_list': missing,
+            'unexpected_list': unexpected,
             'raw_entries': raw_entries,
             'success': len(missing) == 0
         }
