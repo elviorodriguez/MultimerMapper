@@ -18,6 +18,7 @@ import zipfile
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 import re
+import shutil
 
 
 class AF3PredictionChecker:
@@ -241,6 +242,82 @@ class AF3PredictionChecker:
         
         return prediction_names, raw_entries
     
+    def extract_matched_predictions_to_zip(self, source_path: Path, found_predictions: List[str], 
+                                        output_zip_path: Path):
+        """Extract matched predictions from source and create a new zip at depth 0.
+        
+        Args:
+            source_path: Path to the source folder or zip file
+            found_predictions: List of prediction names that were found
+            output_zip_path: Path where the output zip should be created
+        """
+        if source_path.is_dir():
+            self._extract_from_folder(source_path, found_predictions, output_zip_path)
+        elif source_path.suffix.lower() == '.zip':
+            self._extract_from_zip(source_path, found_predictions, output_zip_path)
+        
+    def _extract_from_folder(self, folder_path: Path, found_predictions: List[str], 
+                            output_zip_path: Path):
+        """Extract matched predictions from a folder to a zip file."""
+        with zipfile.ZipFile(output_zip_path, 'w', zipfile.ZIP_DEFLATED) as out_zip:
+            subdirs = {d.name.lower(): d for d in folder_path.iterdir() if d.is_dir()}
+            
+            for pred_name in found_predictions:
+                normalized = self.normalize_name(pred_name)
+                
+                # Find matching directory
+                for subdir_name, subdir_path in subdirs.items():
+                    if self.normalize_name(subdir_name) == normalized:
+                        # Add all files from this directory to the zip at depth 0
+                        for file_path in subdir_path.rglob("*"):
+                            if file_path.is_file():
+                                # Create archive name: pred_dir/filename
+                                arcname = f"{subdir_path.name}/{file_path.relative_to(subdir_path)}"
+                                out_zip.write(file_path, arcname)
+                                self.log(f"  Added: {arcname}")
+                        break
+
+    def _extract_from_zip(self, zip_path: Path, found_predictions: List[str], 
+                        output_zip_path: Path):
+        """Extract matched predictions from a source zip to a new zip file."""
+        with zipfile.ZipFile(zip_path, 'r') as in_zip:
+            with zipfile.ZipFile(output_zip_path, 'w', zipfile.ZIP_DEFLATED) as out_zip:
+                # Get all files and group by prediction directory
+                zip_files = in_zip.namelist()
+                
+                predictions_in_zip = {}
+                for filepath in zip_files:
+                    parts = Path(filepath).parts
+                    filename = Path(filepath).name.lower()
+                    
+                    # Check if this is a prediction file
+                    if filename.endswith(('.cif', '.json')) and 'fold_' in filename:
+                        if len(parts) >= 2:
+                            pred_dir = parts[-2]
+                            if pred_dir not in predictions_in_zip:
+                                predictions_in_zip[pred_dir] = []
+                            predictions_in_zip[pred_dir].append(filepath)
+                
+                # Extract matched predictions
+                for pred_name in found_predictions:
+                    normalized = self.normalize_name(pred_name)
+                    
+                    for pred_dir, files in predictions_in_zip.items():
+                        if self.normalize_name(pred_dir) == normalized:
+                            # Copy all files from this prediction to output zip at depth 0
+                            for filepath in files:
+                                # Read from source zip
+                                file_data = in_zip.read(filepath)
+                                
+                                # Create new archive name at depth 0: pred_dir/filename
+                                parts = Path(filepath).parts
+                                new_arcname = f"{pred_dir}/{parts[-1]}"
+                                
+                                # Write to output zip
+                                out_zip.writestr(new_arcname, file_data)
+                                self.log(f"  Added: {new_arcname}")
+                            break
+    
     def check_predictions(self, target_path: Path, json_path: Path) -> Dict:
         """Main method to check predictions."""
         print(f"\n{'='*60}")
@@ -350,6 +427,13 @@ Examples:
              'in the same format as the input JSON so it can be submitted directly to AF3'
     )
     
+    parser.add_argument(
+    '--predictions-output',
+    type=str,
+    help='Create a new zip file containing only the matched predictions from the input, '
+         'all placed at depth 0 (root level of the zip)'
+    )
+
     args = parser.parse_args()
     
     # Validate paths
@@ -380,6 +464,13 @@ Examples:
         with open(output_path, 'w') as f:
             json.dump(missing_entries, f, indent=2)
         print(f"\nMissing predictions saved to: {output_path} ({len(missing_entries)} entries)")
+
+    # Save matched predictions to zip if requested
+    if args.predictions_output:
+        output_zip_path = Path(args.predictions_output)
+        print(f"\nCreating zip with matched predictions...")
+        checker.extract_matched_predictions_to_zip(target_path, result['found_list'], output_zip_path)
+        print(f"Matched predictions saved to: {output_zip_path} ({len(result['found_list'])} predictions)")
     
     # Exit with appropriate code
     sys.exit(0 if result['success'] else 1)
