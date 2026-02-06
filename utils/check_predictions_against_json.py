@@ -156,12 +156,19 @@ class AF3PredictionChecker:
             zip_files = {name.lower(): name for name in zf.namelist()}
             
             # Group files by prediction directory
+            # Search for prediction directories at any depth in the zip
             predictions_in_zip = {}
             for filepath in zip_files.values():
                 parts = Path(filepath).parts
-                if len(parts) > 1:
-                    pred_dir = parts[0] if parts[0] else (parts[1] if len(parts) > 1 else None)
-                    if pred_dir:
+                filename = Path(filepath).name.lower()
+                
+                # Check if this is a prediction file
+                if filename.endswith(('.cif', '.json')) and 'fold_' in filename:
+                    # Find the immediate parent directory of this prediction file
+                    if len(parts) >= 2:
+                        # The prediction directory is the parent of the file
+                        pred_dir = parts[-2]  # -1 is the filename, -2 is its parent directory
+                        
                         if pred_dir not in predictions_in_zip:
                             predictions_in_zip[pred_dir] = []
                         predictions_in_zip[pred_dir].append(filepath)
