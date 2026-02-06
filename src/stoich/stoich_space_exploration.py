@@ -24,6 +24,8 @@ def initialize_stoich_dict(mm_output,
                            include_suggestions = True,
 
                            use_fully_connected_combinations = True,
+                           use_specific_PPIs_for_fully_connected = True,
+                           PPIs_for_fully_connected = ("Static", "Weak Negative", "No N-mers Data"),
                            max_combination_order = 1, 
                            combine_only_detected_ppi_proteins = True,
                            
@@ -120,22 +122,25 @@ def initialize_stoich_dict(mm_output,
             if combination_order == 1:
                 # Add +1 of each protein to stable stoichiometries
                 for sorted_tuple_combination in stoich_dict:
-                    # Skip unstable stoichiometries
-                    if not stoich_dict[sorted_tuple_combination]['is_stable']:
-                        continue
                     
                     # Generate possible combinations by adding +1 of each protein
                     for prot_id in protein_list:
 
-                        # Skip proteins that were not detected involved in PPIs?
-                        if combine_only_detected_ppi_proteins and prot_id not in interacting_proteins_from_Xmers_list:
+                        possible_new_suggestion = tuple(sorted(list(sorted_tuple_combination) + [prot_id]))
+
+                        # Skip unstable stoichiometries
+                        if not stoich_dict[sorted_tuple_combination]['is_stable']:
+                            removed_suggestions.append(possible_new_suggestion)
                             continue
 
-                        possible_new_suggestion = tuple(sorted(list(sorted_tuple_combination) + [prot_id]))
+                        # Skip proteins that were not detected involved in PPIs?
+                        if combine_only_detected_ppi_proteins and prot_id not in interacting_proteins_from_Xmers_list:
+                            removed_suggestions.append(possible_new_suggestion)
+                            continue
 
                         if possible_new_suggestion not in suggested_combinations and possible_new_suggestion not in added_suggestions and possible_new_suggestion not in stoich_dict:
                             
-                            # Skip combinations of proteins that generates disconnected PPI networks
+                            # Skip combinations of proteins that generates disconnected PPI networks?
                             if use_fully_connected_combinations:
                                 # Create subgraph with only proteins in the possible combination
                                 proteins_in_combo = set(possible_new_suggestion)
@@ -143,16 +148,31 @@ def initialize_stoich_dict(mm_output,
                                 # Get vertex indices for proteins in this combination
                                 vertex_indices = [v.index for v in combined_graph.vs if v['name'] in proteins_in_combo]
                                 
-                                # Create induced subgraph
-                                if len(vertex_indices) > 1:
-                                    subgraph = combined_graph.subgraph(vertex_indices)
-                                    
-                                    # Check if subgraph is fully connected
-                                    if not subgraph.is_connected():
-                                        continue  # Skip this combination
                                 # If only 1 protein, automatically include it
-                                elif len(vertex_indices) == 0:
+                                if len(vertex_indices) == 0:
+                                    removed_suggestions.append(possible_new_suggestion)
                                     continue  # Skip if no proteins found in graph
+
+                                # Create induced subgraph
+                                subgraph = combined_graph.subgraph(vertex_indices)
+
+                                # Use specific PPIs?
+                                if use_specific_PPIs_for_fully_connected:
+                                    
+                                    # Remove edges (PPIs) classified differently that those in PPIs_for_fully_connected
+                                    # i.e., those edges from subgraph with edge["dynamics"] not in PPIs_for_fully_connected
+                                    edges_to_remove = []
+                                    for edge in subgraph.es:
+                                        if edge["dynamics"] not in PPIs_for_fully_connected:
+                                            edges_to_remove.append(edge.index)
+                                    # Remove the filtered edges
+                                    if edges_to_remove:
+                                        subgraph.delete_edges(edges_to_remove)
+                                
+                                # Skip combination if subgraph is not fully connected
+                                if not subgraph.is_connected():
+                                    removed_suggestions.append(possible_new_suggestion)
+                                    continue
 
                             added_suggestions.append(possible_new_suggestion)
             
@@ -234,7 +254,7 @@ def initialize_stoich_dict(mm_output,
                 )
             
             # Only add suggestion if it has at least one stable ancestor or can be formed by stable components
-            if has_stable_ancestor:
+            if has_stable_ancestor and sorted_tuple_combination not in removed_suggestions:
                 stoich_dict[sorted_tuple_combination] = {
                     'is_stable': None,
                     'pLDDT': [[inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model)],
@@ -251,6 +271,7 @@ def initialize_stoich_dict(mm_output,
 
     # Identify convergent stoichiometries
     convergent_stoichiometries = identify_convergent_stoichiometries(stoich_dict, protein_list, max_combination_order)
+    # removed_suggestions = list(set(removed_suggestions))
     
     return stoich_dict, removed_suggestions, added_suggestions, convergent_stoichiometries
 
@@ -1635,6 +1656,8 @@ def generate_stoichiometric_space_graph(mm_output, suggested_combinations,
     '''
     Integrated pipeline for stoichiometric space generation.
     '''
+
+    # print("xxxxxxxxxxxxxxxx - TEST - xxxxxxxxxxxxxxxx")
 
     out_path = mm_output['out_path']
     log_level = mm_output['log_level']
