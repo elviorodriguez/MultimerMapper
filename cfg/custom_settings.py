@@ -28,7 +28,7 @@ again the pipeline from the command line after saving).
 # auto_domain_detection = True
 
 # self_loop_size (radius)
-self_loop_size = 5
+self_loop_size = 3
 
 
 # multivalency_silhouette_threshold         = 0.25
@@ -61,7 +61,7 @@ miPAE_cutoff_conv_soft = PAE_cutoff
 
 
 available_layout = ['weighted_fr', 'fr', 'kk', 'circle', 'drl', 'lgl', 'random', 'rt', 'rt_circular']
-ppi_graph_layout_algorithm = available_layout[0]
+ppi_graph_layout_algorithm = available_layout[4]
 
 # For 3D visualization
 # layout_3d_iterations = 1000

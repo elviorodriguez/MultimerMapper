@@ -664,7 +664,7 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
 
     # Explore the stoichiometric space and remove uninformative suggestions
     stoich_dict, stoich_graph, uninformative_suggestions, informative_suggestions, convergent_stoichiometries = generate_stoichiometric_space_graph(
-        mm_output=mm_output, suggested_combinations=suggested_combinations,
+        mm_output=mm_output, suggested_combinations=suggested_combinations, list_of_expanded_3mer_suggestions = list_of_expanded_3mer_suggestions,
         use_fully_connected_combinations = use_fully_connected_combinations, max_combination_order = max_combination_order)
     suggested_combinations = suggested_combinations + informative_suggestions
     
@@ -679,7 +679,7 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
         else:
             truly_uninformative.append(uninf_sug)
     
-    suggested_combinations: list[tuple[str]] = [ sug for sug in suggested_combinations if sug not in truly_uninformative ]
+    suggested_combinations: list[tuple[str]] = [ sug for sug in suggested_combinations if sug not in truly_uninformative and sug not in already_computed ]
 
     if add_full_xmers_suggestions is not None:
         logger.info(f'Get full X-mer parameter passed for {add_full_xmers_suggestions}-mers')

@@ -15,17 +15,24 @@ from src.convergency import get_ranks_ptms, get_ranks_iptms, get_ranks_mipaes, g
 from cfg.default_settings import N_models_cutoff, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft, Nmers_contacts_cutoff_convergency
 from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, PT_palette
 from cfg.default_settings import dynamic_conv_start, dynamic_conv_end
+from cfg.default_settings import use_specific_PPIs_for_fully_connected, N_for_skip_repeats_for_non_multivalent_non_homo_proteins, Nmers_freq_cutoff, PPIs_for_fully_connected
 from src.stability_metrics import combination_label
 from utils.logger_setup import configure_logger
+from src.interpret_dynamics import get_edge_Nmers_variation
 
 
 def initialize_stoich_dict(mm_output,
                            suggested_combinations,
+                           list_of_expanded_3mer_suggestions,
                            include_suggestions = True,
+                           include_expanded_3mer_suggestions = True,
 
                            use_fully_connected_combinations = True,
                            use_specific_PPIs_for_fully_connected = True,
                            PPIs_for_fully_connected = ("Static", "Weak Negative", "No N-mers Data"),
+                           Nmers_freq_cutoff = 0.7,
+                           skip_repeats_for_non_multivalent_non_homo_proteins = True,
+                           N_for_skip_repeats_for_non_multivalent_non_homo_proteins = 5,
                            max_combination_order = 1, 
                            combine_only_detected_ppi_proteins = True,
                            
@@ -62,6 +69,16 @@ def initialize_stoich_dict(mm_output,
     interacting_proteins_from_Nmers_list = list(set([pair[0] for pair in interacting_Nmers_pairs] + [pair[1] for pair in interacting_Nmers_pairs]))
     interacting_proteins_from_Xmers_list = list(set(interacting_proteins_from_2mers_list + interacting_proteins_from_Nmers_list))
     
+    # Find proteins involved in multivalent and homooligomeric PPIs
+    multivalent_proteins = set()
+    homooligomeric_proteins = set()
+    for e in mm_output["combined_graph"].es:
+        if e['valency']['is_multivalent']:
+            multivalent_proteins.add(e['name'][0])
+            multivalent_proteins.add(e['name'][1])
+        if e['name'][0] == e['name'][1]:
+            homooligomeric_proteins.add(e['name'][0])
+
     # Dict to store stoichiometric space data
     stoich_dict = {}
     
@@ -120,7 +137,28 @@ def initialize_stoich_dict(mm_output,
         for combination_order in range(1, max_combination_order + 1):
             
             if combination_order == 1:
-                # Add +1 of each protein to stable stoichiometries
+                # Track which suggestions should be kept (have at least one stable parent)
+                suggestions_with_stable_parent = set()
+                suggestions_with_unstable_parent = set()
+                
+                # First pass: identify all possible suggestions and their parent stability
+                for sorted_tuple_combination in stoich_dict:
+                    is_stable_parent = stoich_dict[sorted_tuple_combination]['is_stable']
+                    
+                    for prot_id in protein_list:
+                        possible_new_suggestion = tuple(sorted(list(sorted_tuple_combination) + [prot_id]))
+                        
+                        # Skip expanded 3mer suggestions
+                        if include_expanded_3mer_suggestions and possible_new_suggestion in list_of_expanded_3mer_suggestions:
+                            continue
+                        
+                        # Track parent stability
+                        if is_stable_parent:
+                            suggestions_with_stable_parent.add(possible_new_suggestion)
+                        else:
+                            suggestions_with_unstable_parent.add(possible_new_suggestion)
+                
+                # Second pass: add suggestions that have at least one stable parent
                 for sorted_tuple_combination in stoich_dict:
                     
                     # Generate possible combinations by adding +1 of each protein
@@ -128,17 +166,46 @@ def initialize_stoich_dict(mm_output,
 
                         possible_new_suggestion = tuple(sorted(list(sorted_tuple_combination) + [prot_id]))
 
-                        # Skip unstable stoichiometries
-                        if not stoich_dict[sorted_tuple_combination]['is_stable']:
-                            removed_suggestions.append(possible_new_suggestion)
+                        # Skip expanded 3mer suggestions and do not remove them
+                        if (include_expanded_3mer_suggestions and
+                            possible_new_suggestion in list_of_expanded_3mer_suggestions):
+                            if possible_new_suggestion in predicted_Xmers:
+                                removed_suggestions.append(possible_new_suggestion)
+                            continue
+
+                        # Skip combinations that only have unstable parents
+                        if possible_new_suggestion not in suggestions_with_stable_parent:
+                            if possible_new_suggestion not in removed_suggestions:
+                                removed_suggestions.append(possible_new_suggestion)
                             continue
 
                         # Skip proteins that were not detected involved in PPIs?
                         if combine_only_detected_ppi_proteins and prot_id not in interacting_proteins_from_Xmers_list:
-                            removed_suggestions.append(possible_new_suggestion)
+                            if possible_new_suggestion not in removed_suggestions:
+                                removed_suggestions.append(possible_new_suggestion)
                             continue
 
-                        if possible_new_suggestion not in suggested_combinations and possible_new_suggestion not in added_suggestions and possible_new_suggestion not in stoich_dict:
+                        # Stop suggesting homooligomeric/multivalent combinations (+2 of the same protein)
+                        # if the protein is not involved in multivalent or homooligomeric interactions at N=6
+                        # and the stable parent does not contain repeated proteins.
+                        # It is triggered after N = N_for_skip_repeats_for_non_multivalent_non_homo_proteins
+                        if (skip_repeats_for_non_multivalent_non_homo_proteins and
+                             len(possible_new_suggestion) >= N_for_skip_repeats_for_non_multivalent_non_homo_proteins):
+                            if prot_id not in multivalent_proteins or prot_id not in homooligomeric_proteins:
+                                # Check if the stable parent has any repeated proteins
+                                parent_counter = Counter(sorted_tuple_combination)
+                                parent_has_repeats = any(count > 1 for count in parent_counter.values())
+                                
+                                # If parent has no repeats and adding this protein creates repeats, skip it
+                                if not parent_has_repeats and possible_new_suggestion.count(prot_id) > 1:
+                                    if possible_new_suggestion not in removed_suggestions:
+                                        removed_suggestions.append(possible_new_suggestion)
+                                    continue
+
+                        if (possible_new_suggestion not in suggested_combinations and 
+                            possible_new_suggestion not in added_suggestions and 
+                            possible_new_suggestion not in stoich_dict and
+                            possible_new_suggestion not in predicted_Xmers):
                             
                             # Skip combinations of proteins that generates disconnected PPI networks?
                             if use_fully_connected_combinations:
@@ -163,7 +230,7 @@ def initialize_stoich_dict(mm_output,
                                     # i.e., those edges from subgraph with edge["dynamics"] not in PPIs_for_fully_connected
                                     edges_to_remove = []
                                     for edge in subgraph.es:
-                                        if edge["dynamics"] not in PPIs_for_fully_connected:
+                                        if edge["dynamics"] not in PPIs_for_fully_connected and get_edge_Nmers_variation(edge) < Nmers_freq_cutoff:
                                             edges_to_remove.append(edge.index)
                                     # Remove the filtered edges
                                     if edges_to_remove:
@@ -173,8 +240,9 @@ def initialize_stoich_dict(mm_output,
                                 if not subgraph.is_connected():
                                     removed_suggestions.append(possible_new_suggestion)
                                     continue
-
-                            added_suggestions.append(possible_new_suggestion)
+                            
+                            if possible_new_suggestion not in removed_suggestions:
+                                added_suggestions.append(possible_new_suggestion) 
             
             else:
                 # For combination_order > 1, combine stable stoichiometries with stable k-mers where k <= combination_order
@@ -253,8 +321,41 @@ def initialize_stoich_dict(mm_output,
                     sorted_tuple_combination, stoich_dict, max_combination_order
                 )
             
-            # Only add suggestion if it has at least one stable ancestor or can be formed by stable components
-            if has_stable_ancestor and sorted_tuple_combination not in removed_suggestions:
+            # Only add suggestion if it has at least one stable ancestor, it can be formed by stable components and it wasn't added before
+            if (has_stable_ancestor and
+                sorted_tuple_combination not in removed_suggestions and
+                sorted_tuple_combination not in stoich_dict and
+                sorted_tuple_combination not in predicted_Xmers):
+
+                # Skip combinations of proteins that generates disconnected PPI networks?
+                if use_fully_connected_combinations:
+                    # Create subgraph with only proteins in the possible combination
+                    proteins_in_combo = set(sorted_tuple_combination)
+                    
+                    # Get vertex indices for proteins in this combination
+                    vertex_indices = [v.index for v in combined_graph.vs if v['name'] in proteins_in_combo]
+
+                    # Create induced subgraph
+                    subgraph = combined_graph.subgraph(vertex_indices)
+
+                    # Use specific PPIs?
+                    if use_specific_PPIs_for_fully_connected:
+                        
+                        # Remove edges (PPIs) classified differently that those in PPIs_for_fully_connected
+                        # i.e., those edges from subgraph with edge["dynamics"] not in PPIs_for_fully_connected
+                        edges_to_remove = []
+                        for edge in subgraph.es:
+                            if edge["dynamics"] not in PPIs_for_fully_connected and get_edge_Nmers_variation(edge) < Nmers_freq_cutoff:
+                                edges_to_remove.append(edge.index)
+                        # Remove the filtered edges
+                        if edges_to_remove:
+                            subgraph.delete_edges(edges_to_remove)
+                    
+                    # Skip combination if subgraph is not fully connected
+                    if not subgraph.is_connected():
+                        removed_suggestions.append(sorted_tuple_combination)
+                        continue
+
                 stoich_dict[sorted_tuple_combination] = {
                     'is_stable': None,
                     'pLDDT': [[inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model), [inf_zero]*len(model)],
@@ -271,7 +372,7 @@ def initialize_stoich_dict(mm_output,
 
     # Identify convergent stoichiometries
     convergent_stoichiometries = identify_convergent_stoichiometries(stoich_dict, protein_list, max_combination_order)
-    # removed_suggestions = list(set(removed_suggestions))
+    removed_suggestions = list(set(removed_suggestions))
     
     return stoich_dict, removed_suggestions, added_suggestions, convergent_stoichiometries
 
@@ -1636,7 +1737,7 @@ def plot_stoich_space(stoich_dict, stoich_graph, html_file, button_shift = 0.015
     return fig
 
 
-def generate_stoichiometric_space_graph(mm_output, suggested_combinations,
+def generate_stoichiometric_space_graph(mm_output, suggested_combinations, list_of_expanded_3mer_suggestions,
                                         
                                         # Stoichiometric space exploration modes
                                         use_fully_connected_combinations = True,
@@ -1674,10 +1775,14 @@ def generate_stoichiometric_space_graph(mm_output, suggested_combinations,
     
     logger.info('   Analyzing available stoichiometries and suggestions...')
     stoich_dict, removed_suggestions, added_suggestions, convergent_stoichiometries = initialize_stoich_dict(
-        mm_output, suggested_combinations,
+        mm_output, suggested_combinations, list_of_expanded_3mer_suggestions,
         
         use_fully_connected_combinations = use_fully_connected_combinations,
-        max_combination_order=max_combination_order,
+        max_combination_order = max_combination_order,
+        use_specific_PPIs_for_fully_connected = use_specific_PPIs_for_fully_connected,
+        PPIs_for_fully_connected = PPIs_for_fully_connected,
+        Nmers_freq_cutoff = Nmers_freq_cutoff,
+        N_for_skip_repeats_for_non_multivalent_non_homo_proteins=N_for_skip_repeats_for_non_multivalent_non_homo_proteins,
         
         # Cutoffs
         Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff_convergency,

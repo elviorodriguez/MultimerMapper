@@ -281,6 +281,12 @@ Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff
 # (=n): ...
 max_combination_order = 1
 
+# Cutoffs for stoich space exploration
+use_specific_PPIs_for_fully_connected = False
+N_for_skip_repeats_for_non_multivalent_non_homo_proteins = 5
+Nmers_freq_cutoff = 0
+PPIs_for_fully_connected = ("Static", "Weak Negative", "No N-mers Data"),
+
 # ------------------------------ Static method -------------------------------
 
 # Soften the N_models cutoff?
