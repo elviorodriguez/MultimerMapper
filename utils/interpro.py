@@ -552,25 +552,28 @@ def submit_interpro_jobs(prot_IDs: list, prot_seqs: list, logger = None):
     for i, (prot_id, sequence) in enumerate(zip(prot_IDs, prot_seqs)):
         logger.info(f"Submitting job for protein {i+1}/{len(prot_IDs)}: {prot_id}")
         
-        job_id = searcher.submit_search(sequence)
-        if job_id:
-            interpro_jobs[prot_id] = {
-                'job_id': job_id,
-                'sequence': sequence,
-                'status': 'RUNNING',
-                'results': None,
-                'summary': None
-            }
-            logger.info(f"  Job ID: {job_id}")
-        else:
-            logger.error(f"Failed to submit job for {prot_id}")
-            interpro_jobs[prot_id] = {
-                'job_id': None,
-                'sequence': sequence,
-                'status': 'FAILED',
-                'results': None,
-                'summary': 'Submission failed'
-            }
+        for attempt in ['1st', '2nd', '3rd']:
+
+            job_id = searcher.submit_search(sequence)
+            if job_id:
+                interpro_jobs[prot_id] = {
+                    'job_id': job_id,
+                    'sequence': sequence,
+                    'status': 'RUNNING',
+                    'results': None,
+                    'summary': None
+                }
+                logger.info(f"  Job ID ({attempt} attempt): {job_id}")
+                break
+            else:
+                logger.error(f"Failed to submit job for {prot_id} ({attempt} attempt)")
+                interpro_jobs[prot_id] = {
+                    'job_id': None,
+                    'sequence': sequence,
+                    'status': 'FAILED',
+                    'results': None,
+                    'summary': 'Submission failed'
+                }
     
     logger.info(f"Submitted {len([j for j in interpro_jobs.values() if j['job_id']])} InterPro jobs successfully")
     return interpro_jobs
@@ -659,7 +662,7 @@ def check_and_process_interpro_results(interpro_jobs: dict, out_path: str, logge
                             json.dump(empty_results, f, indent=2)
                         
                         logger.error(f"Failed to retrieve InterPro results for {prot_id}")
-                elif status in ['ERROR', 'FAILURE']:
+                elif status in ['ERROR', 'FAILURE', 'FAILED']:
                     job_info['status'] = 'FAILED'
                     job_info['summary'] = f'Job failed: {status}'
                     
@@ -716,7 +719,7 @@ def check_and_process_interpro_results(interpro_jobs: dict, out_path: str, logge
                             else:
                                 job_info['status'] = 'FAILED'
                                 job_info['summary'] = 'Failed to retrieve results'
-                        elif status in ['ERROR', 'FAILURE']:
+                        elif status in ['ERROR', 'FAILURE', "FAILED"]:
                             job_info['status'] = 'FAILED'
                             job_info['summary'] = f'Job failed: {status}'
                         else:
