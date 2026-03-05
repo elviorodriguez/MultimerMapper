@@ -11,8 +11,11 @@ from copy import deepcopy
 from collections import Counter
 from typing import List, Tuple, Dict, Any
 
-from utils.logger_setup import configure_logger, default_error_msgs
-from src.stoich.stoich_space_exploration import generate_stoichiometric_space_graph, can_be_formed_by_stable_components
+if __name__ == "__main__":
+    pass
+else:
+    from utils.logger_setup import configure_logger, default_error_msgs
+    from src.stoich.stoich_space_exploration import generate_stoichiometric_space_graph, can_be_formed_by_stable_components
 
 
 # -----------------------------------------------------------------------------
@@ -748,3 +751,167 @@ def suggest_combinations(mm_output: dict, out_path: str = None, min_N: int = 3, 
             )
 
     return suggested_combinations, stoich_dict, stoich_graph, convergent_stoichiometries
+
+
+if __name__ == "__main__":
+    import argparse
+    import sys
+    from itertools import combinations_with_replacement
+    from pathlib import Path
+
+    # Add the project root (MultimerMapper/) to sys.path so absolute imports work
+    project_root = Path(__file__).resolve().parent.parent  # utils/ -> MultimerMapper/
+    sys.path.insert(0, str(project_root))
+
+    from src.input_check import seq_input_from_fasta
+    from utils.logger_setup import configure_logger
+
+    # -------------------------------------------------------------------------
+    # Argument parsing
+    # -------------------------------------------------------------------------
+    parser = argparse.ArgumentParser(
+        description="Generate protein combination suggestions from a FASTA file.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    # Positional
+    parser.add_argument(
+        "fasta_file",
+        type=str,
+        help="Path to the input FASTA file (format: >ID|Name per header)."
+    )
+
+    # Optional
+    parser.add_argument(
+        "-N", "--combination_size",
+        type=int,
+        required=True,
+        help="Number of proteins in each combination (e.g. 2 for pairs, 3 for trimers)."
+    )
+    parser.add_argument(
+        "--max_protein_repetition",
+        type=int,
+        default=1,
+        help=(
+            "Maximum number of times a single protein entity may appear in one combination. "
+            "Set to 1 for no repetition, 2 to allow homodimers, etc."
+        )
+    )
+    parser.add_argument(
+        "--format",
+        type=str,
+        choices=["json", "tsv", "both"],
+        default="both",
+        help="Output format: 'json' (AlphaFold Server), 'tsv', or 'both'."
+    )
+    parser.add_argument(
+        "--use_names",
+        type=lambda x: x.lower() not in ("false", "0", "no"),
+        default=True,
+        metavar="BOOL",
+        help="Use protein names (True) or IDs (False) as identifiers. Default: True."
+    )
+    parser.add_argument(
+        "--out_path",
+        type=str,
+        default=".",
+        help="Directory where output files will be written."
+    )
+
+    args = parser.parse_args()
+
+    # -------------------------------------------------------------------------
+    # Setup
+    # -------------------------------------------------------------------------
+    logger = configure_logger(out_path=args.out_path)(__name__)
+
+    # -------------------------------------------------------------------------
+    # Parse FASTA
+    # -------------------------------------------------------------------------
+    try:
+        prot_IDs, prot_names, prot_seqs, prot_lens, prot_N = seq_input_from_fasta(
+            fasta_file_path=args.fasta_file,
+            use_names=args.use_names,
+            logger=logger
+        )
+    except FileNotFoundError:
+        logger.error(f"FASTA file not found: {args.fasta_file}")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Failed to parse FASTA file: {e}")
+        sys.exit(1)
+
+    logger.info(f"Loaded {prot_N} proteins from {args.fasta_file}")
+    logger.info(f"use_names={args.use_names} → working identifiers: {prot_IDs}")
+
+    # -------------------------------------------------------------------------
+    # Generate combinations
+    # -------------------------------------------------------------------------
+    def generate_combinations_with_max_repetition(
+        prot_list: list[str],
+        N: int,
+        max_repetition: int
+    ) -> list[tuple[str, ...]]:
+        """
+        All size-N combinations (order-independent, alphabetically sorted)
+        where each protein appears at most `max_repetition` times.
+        """
+        raw = combinations_with_replacement(sorted(prot_list), N)
+        result = []
+        for combo in raw:
+            counts = Counter(combo)
+            if all(v <= max_repetition for v in counts.values()):
+                result.append(tuple(sorted(combo)))   # alphabetical order guaranteed
+        # deduplicate (combinations_with_replacement is already unique, but be safe)
+        return sorted(set(result))
+
+    suggested_combinations = generate_combinations_with_max_repetition(
+        prot_list=prot_IDs,
+        N=args.combination_size,
+        max_repetition=args.max_protein_repetition
+    )
+
+    logger.info(
+        f"Generated {len(suggested_combinations)} combinations "
+        f"(N={args.combination_size}, max_repetition={args.max_protein_repetition})"
+    )
+
+    if not suggested_combinations:
+        logger.warning("No combinations were generated. Check -N and --max_protein_repetition values.")
+        sys.exit(0)
+
+    # -------------------------------------------------------------------------
+    # Save outputs
+    # -------------------------------------------------------------------------
+    os.makedirs(args.out_path, exist_ok=True)
+
+    # Helper: resolve a protein label back to its sequence (IDs are already
+    # swapped to names when use_names=True, so prot_IDs IS the working label list)
+    def get_seq(label: str) -> str:
+        return prot_seqs[prot_IDs.index(label)]
+
+    # -- TSV ------------------------------------------------------------------
+    if args.format in ("tsv", "both"):
+        tsv_path = os.path.join(args.out_path, "combinations.tsv")
+        with open(tsv_path, "w") as fh:
+            fh.write("combination\tproteins\n")
+            for combo in suggested_combinations:
+                fh.write(f"{'_vs_'.join(combo)}\t{chr(9).join(combo)}\n")
+        logger.info(f"TSV saved → {tsv_path}")
+
+    # -- JSON (AlphaFold Server) ----------------------------------------------
+    if args.format in ("json", "both"):
+        af3_jobs = generate_af3_json_jobs(
+            suggested_combinations=suggested_combinations,
+            prot_IDs=prot_IDs,
+            prot_names=prot_names,
+            prot_seqs=prot_seqs,
+            use_names=False,        # job names use the active identifier set
+            base_job_name=""
+        )
+        json_path = os.path.join(args.out_path, "combinations_af3_jobs.json")
+        with open(json_path, "w") as fh:
+            json.dump(af3_jobs, fh, indent=2)
+        logger.info(f"AlphaFold Server JSON saved → {json_path}")
+
+    logger.info("Done.")
