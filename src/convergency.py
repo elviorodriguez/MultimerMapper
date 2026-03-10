@@ -479,7 +479,10 @@ def does_nmer_is_fully_connected_network(
         
         # Check if graph is connected (all nodes can reach all other nodes)
         if len(all_chains) > 0 and nx.is_connected(G):
-            ranks_with_fully_connected_network += 1
+            # Additional check: verify no steric clashes in this rank
+            if check_rank_steric_validity(model_pairwise_df, rank, all_chains):
+                ranks_with_fully_connected_network += 1
+            # If steric clashes detected, don't count this rank as fully connected
     
     # Return True if enough ranks have fully connected networks
     return ranks_with_fully_connected_network >= N_models_cutoff_conv_soft, None
@@ -728,8 +731,11 @@ def does_xmer_is_fully_connected_network(
         
         # Check if graph is connected (all nodes can reach all other nodes)
         if len(all_chains) > 0 and nx.is_connected(G):
-            ranks_with_fully_connected_network += 1
-    
+            # Additional check: verify no steric clashes in this rank
+            if check_rank_steric_validity(model_pairwise_df, rank, all_chains):
+                ranks_with_fully_connected_network += 1
+            # If steric clashes detected, don't count this rank as fully connected
+
     # Return True if enough ranks have fully connected networks
     return ranks_with_fully_connected_network >= N_models_cutoff_conv_soft, None
 
