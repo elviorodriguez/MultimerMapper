@@ -263,6 +263,9 @@ def create_zip_report(directory_path, mm_logo=mm_logo, vf_name=vf_name):
             rel_path = os.path.relpath(domain_file, directory_path)
             zipf.write(domain_file, rel_path)
         
+        # Add domain visualizations (InterProScan-based HTML files)
+        add_folder_to_zip(zipf, directory_path, "domains/visualizations")
+
         # Add monomer trajectory files
         monomer_trajs = get_monomer_trajectories(directory_path)
         for protein_data in monomer_trajs.values():
