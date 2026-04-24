@@ -5,7 +5,7 @@ It is a computational tool designed for the integration, analysis and visualizat
 
 MANUSCRIPT: https://www.biorxiv.org/content/10.1101/2025.10.24.684463v1
 
-TUTORIAL (BiotrAIn - Rosario 2026): follow the colab example [![Colab Example](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/elviorodriguez/BiotrAIn_MultimerMapper/blob/main/MM_notebook_BiotrAIn.ipynb), along with its [GUIDE](https://github.com/elviorodriguez/BiotrAIn_MultimerMapper/tree/main/course_material)
+TUTORIAL (BiotrAIn - Rosario 2026): follow the colab example [![Colab Example](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/elviorodriguez/BiotrAIn_MultimerMapper/blob/main/MM_notebook_BiotrAIn.ipynb), along with the course guide [GUIDE](https://github.com/elviorodriguez/BiotrAIn_MultimerMapper/tree/main/course_material)
 
 Here's how it works:
  - **Start with protein sequences**: Input a list of protein sequences you want to study. Typically, they will come from an interactomic experiment.
