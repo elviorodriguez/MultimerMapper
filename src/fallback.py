@@ -45,6 +45,10 @@ def compute_fb_statistics(models_df, bool_contact_matrix, domains_df, rank_filte
     if rank_filter is not None:
         models_df = models_df[models_df['rank'] == rank_filter]
 
+    # Ensure ascending N order so downstream fallback logic (which walks
+    # small N -> large N, and large N -> small N) can rely on row position
+    models_df = models_df.sort_values('N').reset_index(drop=True)
+
     for _, row in models_df.iterrows():
         pdb_model = row['pdb_model']
         
@@ -363,20 +367,36 @@ def identify_fallback_target(stats_df, fallback_N, logger, confidence_level=0.95
     best_metric = None
     smallest_diff = float('inf')
 
+    std_columns = {
+        'mean_distance': 'std_distance',
+        'mean_projected_distance': 'std_projected_distance'
+    }
+
+    # Weight controls how harshly uncertainty is penalized.
+    # 1.0 means "a candidate with 1 Å of SD is treated as 1 Å farther away".
+    std_penalty_weight = 1.0
+
     # Iterate from N=2 to fallback_N-1 to see if the CI covers the estimated radius
     for i in range(fallback_index):
+        row = stats_df.iloc[i]
 
-        # If no exact match, track the closest in the non-projected distance
+        # If no exact match, track the closest in the non-projected distance,
+        # penalizing candidates whose OWN radius estimate is uncertain (higher SD)
         for met in metrics:
-            diff = abs(row[met] - fallback_row[met])
-            if diff < smallest_diff:
-                smallest_diff = diff
+            std_col = std_columns[met]
+            row_std = row[std_col]
+
+            raw_diff = abs(row[met] - fallback_row[met])
+            penalized_diff = raw_diff + std_penalty_weight * row_std
+
+            if penalized_diff < smallest_diff:
+                smallest_diff = penalized_diff
                 best_match = row['N']
                 best_metric = met
 
-    logger.debug(f'   Falling back N-mer detected by estimated radius ({best_metric}) proximity')
-        
-    return best_match, best_metric, 'Radius Proximity'
+    logger.debug(f'   Falling back N-mer detected by estimated radius ({best_metric}) proximity, SD-penalized')
+
+    return best_match, best_metric, 'Radius Proximity (SD-penalized)'
 
 
 def interpret_fallback(stats_df, logger, drop_threshold=0.2, confidence_level=0.99):
@@ -486,6 +506,7 @@ def analyze_fallback(mm_output, low_fraction = 0.5, up_fraction = 0.5,
                                          bool_contact_matrix = bool_contact_matrix,
                                          domains_df = domains_df,
                                          rank_filter = 1)
+        stats_df = stats_df.sort_values('N').reset_index(drop=True)  # defensive re-sort
         stats_df = add_fallback_ranges(stats_df, low_fraction = low_fraction, up_fraction = up_fraction, method = 'distance')
         stats_df = add_fallback_ranges(stats_df, low_fraction = low_fraction, up_fraction = up_fraction, method = 'projected_distance')
         stats_df['protein'] = prot_ID
