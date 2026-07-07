@@ -752,7 +752,7 @@ def cluster_contact_matrices_enhanced(all_pair_matrices: Dict[Tuple[str, str], D
     # Create a mapping to track the reordering that will happen in generate_cluster_dict
     original_to_reordered = {}
     
-    return labels, model_keys, reduced_features, explained_variance, original_to_reordered
+    return labels, model_keys, reduced_features, explained_variance, original_to_reordered, distance_matrix
 
 
 def analyze_protein_interactions_with_enhanced_clustering(
@@ -801,6 +801,7 @@ def analyze_protein_interactions_with_enhanced_clustering(
     
     # Cluster contact matrices for each protein pair
     all_clusters = {}
+    all_dist_mat = {}
     
     logger.info(f"Using clustering configuration:")
     logger.info(f"  Distance metric: {config.distance_metric}")
@@ -839,7 +840,7 @@ def analyze_protein_interactions_with_enhanced_clustering(
         )
         
         if result[0] is not None:
-            labels, model_keys, reduced_features, explained_variance, _ = result
+            labels, model_keys, reduced_features, explained_variance, _, distance_matrix = result
             
             # Generate cluster dictionary and get reordered labels
             cluster_info, reordered_labels = generate_cluster_dict(
@@ -852,6 +853,7 @@ def analyze_protein_interactions_with_enhanced_clustering(
             
             if cluster_info:
                 all_clusters[pair] = cluster_info
+                all_dist_mat[pair] = distance_matrix
             
             if cluster_info and save_plots_and_metadata:
 
@@ -873,7 +875,7 @@ def analyze_protein_interactions_with_enhanced_clustering(
     
     logger.info(f"Generated clusters for {len(all_clusters)} protein pairs")
     
-    return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict
+    return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict, all_dist_mat
 
 
 # Integration functions to work with your existing code
@@ -1129,7 +1131,7 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
     )
     
     # Run the enhanced analysis
-    interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict = analyze_protein_interactions_with_enhanced_clustering(
+    interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict, all_dist_mat = analyze_protein_interactions_with_enhanced_clustering(
         mm_output, config, save_plots_and_metadata, logger
     )
 
@@ -1152,7 +1154,7 @@ def run_enhanced_clustering_analysis(mm_output: Dict[str, Any],
         # Print summary
         print_clustering_summary(all_clusters, logger)
     
-    return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict
+    return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict, all_dist_mat
 
 # Usage with predefined configurations
 def run_contacts_clustering_analysis_with_config(mm_output, config_dict, save_plots_and_metadata = True, log_level = 'info'):
@@ -1161,7 +1163,7 @@ def run_contacts_clustering_analysis_with_config(mm_output, config_dict, save_pl
                               log_level = log_level,
                               clear_root_handlers = True)(__name__)
 
-    interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict = run_enhanced_clustering_analysis(
+    interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict, all_dist_mat = run_enhanced_clustering_analysis(
         mm_output,
         logger=logger,
         save_plots_and_metadata = save_plots_and_metadata,
@@ -1178,4 +1180,4 @@ def run_contacts_clustering_analysis_with_config(mm_output, config_dict, save_pl
         unify_pca_matrixes_and_py3dmol(mm_output, pairs, logger)
         logger.info("FINISHED: Creating unified HTML representations (PCA+Matrixes+py3Dmol)")
 
-    return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict
+    return interaction_counts_df, all_clusters, multivalent_pairs_list, multimode_pairs_list, valency_dict, all_dist_mat
