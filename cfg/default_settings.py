@@ -79,15 +79,15 @@ DOMAIN_COLORS = ['red', 'green', 'blue', 'purple', 'yellow', 'orange', 'brown', 
 # PAE_cutoff = [12.96, 10.22][0]
 # Nmers_contacts_cutoff = 5
 
-# General cutoffs (AF2)
-N_models_cutoff = 5
-PAE_cutoff = 11.17
-Nmers_contacts_cutoff = 5
-
-# # General cutoffs (AF3)
-# N_models_cutoff = 5
-# PAE_cutoff = [12.96, 10.22][0]
+# # General cutoffs (AF2)
+# N_models_cutoff = 4
+# PAE_cutoff = 9.7
 # Nmers_contacts_cutoff = 5
+
+# General cutoffs (AF3)
+N_models_cutoff = 4
+PAE_cutoff = 7.5
+Nmers_contacts_cutoff = 5
 
 # To classify PPI dynamics just using N_models cutoff set to False
 # If true, the cluster N-mers variation will be used
