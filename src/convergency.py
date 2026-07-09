@@ -1,14 +1,189 @@
 
+import os
 import numpy as np
 import pandas as pd
 import networkx as nx
 from typing import Dict, Tuple, Any
 from scipy.spatial.distance import cdist
 from sklearn.neighbors import NearestNeighbors
+from logging import Logger
 
-from cfg.default_settings import contact_distance_cutoff, contact_pLDDT_cutoff, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft, Nmers_contacts_cutoff_convergency
+from cfg.default_settings import contact_distance_cutoff, contact_pLDDT_cutoff, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft, Nmers_contacts_cutoff_convergency, clash_threshold, min_clash_points
 from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list
 
+################## DEBUGGUING FX ################
+
+"""
+Interactive Plotly visualization of steric-clash checks used by
+`check_rank_steric_validity` (backbone, tube mesh, and clashing points).
+"""
+
+import plotly.graph_objects as go
+
+_CHAIN_COLOR_PALETTE = [
+    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+]
+
+
+def visualize_steric_clash_rank(model_pairwise_df, rank, all_chains,
+                                 proteins_in_model=None,
+                                 clash_threshold=1.5,
+                                 tube_radius=2.0,
+                                 sampling_points=3,
+                                 sample_fraction=0.2,
+                                 save_html=None,
+                                 show=True):
+    """
+    Build an interactive 3D Plotly figure showing, for a single rank:
+      - each chain's CA backbone as a line
+      - each chain's tube mesh as a faint point cloud (toggle on via legend)
+      - the specific mesh points involved in a steric clash, highlighted in red
+
+
+    Geometry construction mirrors `check_rank_steric_validity` /
+    `detect_steric_clashes_optimized` exactly (same tube_radius,
+    sampling_points, clash_threshold, sample_fraction by default), but this
+    function keeps track of which mesh points clash instead of only a bool.
+
+    Note: the sub-sampling used for the NN clash search is randomized, same
+    as in the original detection function, so the exact points shown can
+    differ slightly run-to-run and from whichever call originally flagged
+    the clash.
+
+    Parameters
+    ----------
+    model_pairwise_df, rank, all_chains : as used by check_rank_steric_validity
+    proteins_in_model : optional, only used to label the plot title
+    clash_threshold, tube_radius, sampling_points, sample_fraction :
+        should normally be left at their defaults, which match what
+        check_rank_steric_validity actually uses internally
+    save_html : optional path to save the interactive figure as a
+        standalone .html file (e.g. f"clash_{proteins_in_model}_rank{rank}.html")
+    show : if True, calls fig.show() (opens in browser / renders in notebook)
+
+    Returns
+    -------
+    plotly.graph_objects.Figure, or None if there's no reconstructable
+    data for this rank.
+    """
+    # 1. Reconstruct CA coordinates for this rank only
+    rank_models = reconstruct_models_fast(model_pairwise_df, ranks=[rank])
+    if rank not in rank_models:
+        print(f"[visualize_steric_clash_rank] No reconstructed data for rank {rank}, skipping viz.")
+        return None
+    chain_coords = rank_models[rank]
+
+    # 2. Build the same tube meshes used for clash detection
+    chain_meshes = {}
+    for chain_id in all_chains:
+        coords = chain_coords.get(chain_id)
+        if coords is not None and len(coords) > 0:
+            chain_meshes[chain_id] = create_backbone_mesh_optimized(
+                coords, tube_radius=tube_radius, sampling_points=sampling_points
+            )
+
+    chain_ids = list(chain_meshes.keys())
+
+    # 3. Re-run pairwise clash detection, but keep the clashing points themselves
+    clash_pairs_info = []
+    for i in range(len(chain_ids)):
+        for j in range(i + 1, len(chain_ids)):
+            c1, c2 = chain_ids[i], chain_ids[j]
+            mesh1, mesh2 = chain_meshes[c1], chain_meshes[c2]
+            if len(mesh1) == 0 or len(mesh2) == 0:
+                continue
+
+            n_sample1 = max(1, int(len(mesh1) * sample_fraction))
+            n_sample2 = max(1, int(len(mesh2) * sample_fraction))
+
+            idx1 = (np.random.choice(len(mesh1), n_sample1, replace=False)
+                    if n_sample1 < len(mesh1) else np.arange(len(mesh1)))
+            idx2 = (np.random.choice(len(mesh2), n_sample2, replace=False)
+                    if n_sample2 < len(mesh2) else np.arange(len(mesh2)))
+
+            sample1, sample2 = mesh1[idx1], mesh2[idx2]
+
+            nbrs = NearestNeighbors(radius=clash_threshold, algorithm='ball_tree').fit(sample2)
+            distances, neighbor_idx = nbrs.radius_neighbors(sample1, return_distance=True)
+
+            clash_mask1 = np.array([len(d) > 0 for d in distances])
+            n_clashes = int(clash_mask1.sum())
+            if n_clashes == 0:
+                continue
+
+            clashing_points1 = sample1[clash_mask1]
+            flat_neighbors = np.unique(np.concatenate(
+                [neighbor_idx[k] for k in range(len(neighbor_idx)) if clash_mask1[k]]
+            ))
+            clashing_points2 = sample2[flat_neighbors]
+
+            clash_pairs_info.append({
+                'chain1': c1, 'chain2': c2,
+                'points1': clashing_points1, 'points2': clashing_points2,
+                'n_clashes': n_clashes,
+            })
+
+    # 4. Assemble the figure
+    fig = go.Figure()
+
+    for idx, chain_id in enumerate(chain_ids):
+        color = _CHAIN_COLOR_PALETTE[idx % len(_CHAIN_COLOR_PALETTE)]
+
+        coords = chain_coords.get(chain_id)
+        if coords is not None and len(coords) > 0:
+            fig.add_trace(go.Scatter3d(
+                x=coords[:, 0], y=coords[:, 1], z=coords[:, 2],
+                mode='lines+markers',
+                line=dict(width=6, color=color),
+                marker=dict(size=2, color=color),
+                name=f'Chain {chain_id} backbone (CA)',
+            ))
+
+        mesh = chain_meshes.get(chain_id)
+        if mesh is not None and len(mesh) > 0:
+            fig.add_trace(go.Scatter3d(
+                x=mesh[:, 0], y=mesh[:, 1], z=mesh[:, 2],
+                mode='markers',
+                marker=dict(size=2, color=color, opacity=0.2),
+                name=f'Chain {chain_id} tube mesh',
+                visible='legendonly',  # hidden by default, click legend to show
+            ))
+
+    for info in clash_pairs_info:
+        pts = np.vstack([info['points1'], info['points2']])
+        fig.add_trace(go.Scatter3d(
+            x=pts[:, 0], y=pts[:, 1], z=pts[:, 2],
+            mode='markers',
+            marker=dict(size=6, color='red', symbol='diamond',
+                         line=dict(width=1, color='black')),
+            name=f"Clash {info['chain1']}-{info['chain2']} (n={info['n_clashes']})",
+        ))
+
+    title = f"Steric clash inspection — rank {rank}"
+    if proteins_in_model is not None:
+        title += f" | {proteins_in_model}"
+    title += (f" | {len(clash_pairs_info)} clashing pair(s)" if clash_pairs_info
+              else " | no clashes in this sample")
+
+    fig.update_layout(
+        title=title,
+        scene=dict(aspectmode='data',
+                    xaxis_title='X (Å)', yaxis_title='Y (Å)', zaxis_title='Z (Å)'),
+        legend=dict(itemsizing='constant'),
+        margin=dict(l=0, r=0, t=40, b=0),
+    )
+
+    if save_html:
+        fig.write_html(save_html)
+        print(f"[visualize_steric_clash_rank] Saved interactive HTML -> {save_html}")
+
+    if show:
+        fig.show()
+
+    return fig
+
+################## DEBUGGUING FX ################
 
 def get_chain_fast(model, chain_id):
     """O(1) if model supports dict-like indexing, fallback otherwise."""
@@ -188,7 +363,7 @@ def detect_steric_clashes_optimized(chain_meshes, clash_threshold=1.5,
     return False
 
 def check_rank_steric_validity(model_pairwise_df, rank, all_chains, 
-                              clash_threshold=1.5, min_clash_points=5):
+                              clash_threshold=clash_threshold, min_clash_points=min_clash_points):
     """
     Check if a specific rank has steric clashes that make it invalid.
     
@@ -519,6 +694,7 @@ def get_set_of_chains_in_model(model_pairwise_df: pd.DataFrame) -> set:
 def does_xmer_is_fully_connected_network(
         model_pairwise_df: pd.DataFrame,
         mm_output: Dict,
+        logger: Logger | None,
         Nmers_contacts_cutoff: int = Nmers_contacts_cutoff_convergency,
         contact_distance_cutoff: float = contact_distance_cutoff,
         N_models_cutoff: int = 4,
@@ -663,10 +839,30 @@ def does_xmer_is_fully_connected_network(
                 
                 # Check if graph is connected (all nodes can reach all other nodes)
                 if len(all_chains) > 0 and nx.is_connected(G):
-                    # Additional check: verify no steric clashes in this rank
+                    # Additional check: verify no steric clashes in this rank (# True if NO clashes (valid), False if clashes (invalid))
                     if check_rank_steric_validity(model_pairwise_df, rank, all_chains):
                         ranks_with_fully_connected_network += 1
                     # If steric clashes detected, don't count this rank as fully connected
+                    else:
+                        # Path for clashes
+                        clash_dir = os.path.join(mm_output['out_path'], "clashes")
+
+                        # Create directory if it doesn't exist
+                        os.makedirs(clash_dir, exist_ok=True)
+                        save_clash_html=os.path.join(clash_dir,f"clash_{'_'.join(map(str, proteins_in_model))}_rank{rank}.html")
+
+                        # DEBUG PRINT
+                        logger.warning('      STERIC CLASHES DETECTED:')
+                        logger.warning(f'        - Prediction: {proteins_in_model}')
+                        logger.warning(f'        - Rank: {rank}')
+                        logger.warning(f'        - HTML visualization of the clashes: {save_clash_html}')
+
+                        visualize_steric_clash_rank(
+                            model_pairwise_df, rank, all_chains,
+                            proteins_in_model=proteins_in_model,
+                            save_html=save_clash_html,
+                            show=False,   # set True if you want it to also pop open live
+                        )
             
             # Check if this cutoff gives a fully connected network using the current N_models cutoff
             if ranks_with_fully_connected_network >= current_N_models_cutoff:
@@ -731,10 +927,33 @@ def does_xmer_is_fully_connected_network(
         
         # Check if graph is connected (all nodes can reach all other nodes)
         if len(all_chains) > 0 and nx.is_connected(G):
-            # Additional check: verify no steric clashes in this rank
+
+            # Additional check: verify no steric clashes in this rank (# True if NO clashes (valid), False if clashes (invalid))
             if check_rank_steric_validity(model_pairwise_df, rank, all_chains):
                 ranks_with_fully_connected_network += 1
+
             # If steric clashes detected, don't count this rank as fully connected
+            else:
+                # Path for clashes
+                clash_dir = os.path.join(mm_output['out_path'], "clashes")
+
+                # Create directory if it doesn't exist
+                os.makedirs(clash_dir, exist_ok=True)
+                save_clash_html=os.path.join(clash_dir,f"clash_{'_'.join(map(str, proteins_in_model))}_rank{rank}.html")
+
+                # DEBUG PRINT
+                logger.warning('      STERIC CLASHES DETECTED:')
+                logger.warning(f'        - Prediction: {proteins_in_model}')
+                logger.warning(f'        - Rank: {rank}')
+                logger.warning(f'        - HTML visualization of the clashes: {save_clash_html}')
+
+                visualize_steric_clash_rank(
+                    model_pairwise_df, rank, all_chains,
+                    proteins_in_model=proteins_in_model,
+                    save_html=save_clash_html,
+                    show=False,   # set True if you want it to also pop open live
+                )
+    
 
     # Return True if enough ranks have fully connected networks
     return ranks_with_fully_connected_network >= N_models_cutoff_conv_soft, None

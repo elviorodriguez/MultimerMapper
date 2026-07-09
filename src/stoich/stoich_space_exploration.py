@@ -27,6 +27,8 @@ def initialize_stoich_dict(mm_output,
                            include_suggestions = True,
                            include_expanded_3mer_suggestions = True,
 
+                           logger = None,
+
                            use_fully_connected_combinations = True,
                            use_specific_PPIs_for_fully_connected = True,
                            PPIs_for_fully_connected = ("Static", "Weak Negative", "No N-mers Data"),
@@ -96,6 +98,7 @@ def initialize_stoich_dict(mm_output,
             is_fully_connected_network, triggering_N = does_xmer_is_fully_connected_network(
                 model_pairwise_df,
                 mm_output,
+                logger,
                 Nmers_contacts_cutoff = Nmers_contacts_cutoff_convergency,
                 N_models_cutoff = N_models_cutoff,
                 N_models_cutoff_conv_soft = N_models_cutoff_conv_soft,
@@ -1775,7 +1778,9 @@ def generate_stoichiometric_space_graph(mm_output, suggested_combinations, list_
     
     logger.info('   Analyzing available stoichiometries and suggestions...')
     stoich_dict, removed_suggestions, added_suggestions, convergent_stoichiometries = initialize_stoich_dict(
-        mm_output, suggested_combinations, list_of_expanded_3mer_suggestions,
+        mm_output, suggested_combinations, list_of_expanded_3mer_suggestions, 
+        
+        logger = logger,
         
         use_fully_connected_combinations = use_fully_connected_combinations,
         max_combination_order = max_combination_order,

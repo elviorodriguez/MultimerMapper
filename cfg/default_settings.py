@@ -274,6 +274,10 @@ Nmer_stability_method = ["pae", "contact_network"][1]
 # Use the same cutoff as for other Nmers? 
 Nmers_contacts_cutoff_convergency = Nmers_contacts_cutoff
 
+# To discard clashed models (uses a mesh representation of the backbones)
+clash_threshold = 1.0 # Overlap between backbone meshes (in Angstroms)
+min_clash_points = 10 # Minimum number of clashes between the meshes
+
 # Controls the generation of suggestions by the 
 # (=1): generates suggestions by adding +1 of each protein to stable stoichs
 # (=2): same as =1, but also adds stable dimers (if available) to stable stoichs (+2)
