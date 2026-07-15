@@ -50,6 +50,9 @@ It maps all PPIs and RRCs present in the predictions by decomposing the models i
 
 [View interactive plot](https://elviorodriguez.github.io/MultimerMapper/CPX-2369_stoich_space.html)
 
+https://htmlpreview.github.io/?https://github.com/elviorodriguez/MultimerMapper/blob/main/docs/CPX-2369_stoich_space.html
+
+
 # Installation
 MultimerMapper requires Anaconda/Miniconda (Miniconda installation guide: https://docs.anaconda.com/miniconda/miniconda-install) to create an isolated environment for the software.
 To install it, clone the repo in the directory you want, cd to the repo and install the environment using conda:
