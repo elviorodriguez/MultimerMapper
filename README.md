@@ -1,7 +1,7 @@
 ![image](https://github.com/elviorodriguez/MultimerMapper/blob/main/report/multimermapper_logo.png?raw=true)
 
 # What is MultimerMapper?
-It is a computational tool designed for the integration, analysis and visualization of AlphaFold interaction landscapes based on the novel concept of "Context Dependent Protein Structure Prediction". It is presented as an innovative tool to help researchers understand and visualize how protein complexes behave under different modelling conditions.
+It is a computational tool designed for the generation, integration, analysis, and visualization of AlphaFold interaction landscapes based on the novel concept of "context-dependent protein structure prediction" and the implementation of a stoichiometric space exploration algorithm. It is presented as an innovative tool to help researchers understand and visualize how protein complexes behave under different modeling conditions and infer their underlying stoichiometries.
 
 MANUSCRIPT: https://www.biorxiv.org/content/10.1101/2025.10.24.684463v1
 
@@ -15,8 +15,8 @@ Here's how it works:
  - **Visualize results**: The tool creates 2D and 3D visualizations to help you answer:
     - How proteins assemble into larger complexes?
     - Which interactions are stable or changing?
-    - What are the potential stoichiometry of the complexes?
- - **Iterate and refine**: MultimerMapper suggests new combinations to predict, helping you explore the "interaction landscape" until you have a complete picture.
+    - What are the potential stoichiometries of the underlying complexes?
+ - **Iterate and refine**: At each iteration, MultimerMapper suggests new combinations to predict, helping you explore the "interaction landscape" until you have a complete picture.
  - **Gain insights**: Use the visualizations and analyses to infer the most likely structures and dynamics of your protein complexes.
 By combining predictions and smart analysis, MultimerMapper helps bridge the gap between individual protein structures and complex molecular assemblies, offering new perspectives on how proteins work together in cells.
 
@@ -33,22 +33,23 @@ By combining predictions and smart analysis, MultimerMapper helps bridge the gap
 - Metrics clustering analysis
 - Multivalency detection
 - Contact matrix clustering analysis (Detects different binding modes)
-- Stoichiometry inference (Homo/Hetero-oligomerization states inference)
-- Pseudo-molecular dynamics trajectories generation (RMSD trajectories)
+- Stoichiometry inference (Homo-oligomerig/Binary and overall complex stoichiometries)
+- Pseudo-molecular dynamics trajectories generation (RMSD pseudo-trajectories)
 - Bias in Partner Distribution (BPD) analysis
 - Partner enrichment
 - Stoichiometric Space Exploration Algorithm
-- Stoichiometry inference
-- Interface with combinatorial assembler (CombFold)
-- Much more coming!
+- Much more coming! (DNA, RNA, PTMs, small molecules and ions)
 
 # How does it works?
-The software can perform several tasks by analyzing AF2-multimer (now AF3 too!!!) predictions ensembles of different combinations of proteins separated in two different directories:
+The software can perform several tasks by analyzing AF2-multimer or AF3 prediction ensembles of different combinations of proteins separated in two different directories:
 
     2-mers: contains all possible pairwise interaction predictions of the set of proteins (homo-2-mers and hetero-2-mers)
-    N-mers: contains different combinations (3-mers, 4-mers, etc.) interaction predictions of the set of proteins that 
+    N-mers: contains different combinations (3-mers, 4-mers, etc.) interaction predictions of the set of proteins 
     
-It maps all PPIs and RRCs present in the predictions by decomposing the models into their pairwise sub-components and captures how they change depending on the modelling context (which other proteins were present in the models and in which quantity). This information is converted into PPI and RRC graph representations inside MultimerMapper that you can visually explore in interactive HTML plots. The graphs are also used to simulate thousands of times the assembly paths of the complex(es) using random walks and explore the "stoichiometric space". Each stoichiometry is scored depending on the Nº and classification of their contacts and interaction between proteins, keeping track of the frequency of walked paths and stoichiometries. In general, the most frequent and best scored stoichiometries will represent the most likely stoichiometry(ies) of the complex(es). You can visualize this information in 2D and 3D Stoichiometric Space Exploration Plots and use it to assemble the complex(es) you want by generating CombFold input with MultimerMapper's interface.
+It maps all PPIs and RRCs present in the predictions by decomposing the models into their pairwise sub-components and captures how they change depending on the modelling context (which other proteins were present in the models and in which quantity). This information is converted into PPI and RRC graph representations inside MultimerMapper that you can visually explore in interactive HTML plots. The 2-mer predictions are fixed for each system, but N-mers are suggested by a stoichiometric space exploration algorithm that explores protein combinations based on interaction evidence. Each N-mer is clasified as stable or unstable based, and only stable complexes (parents) can create new derived stoichiometries (children). In general, the biggest stable complexes at each branch of the stoichiometric space match the expected stoichiometries of the underlying complexes. You can visualize this information as 3D Stoichiometric Space Plots.
+
+############################## STOICHIOMETRIC SPACE EXAMPLE HERE ##############################
+
 
 # Installation
 MultimerMapper requires Anaconda/Miniconda (Miniconda installation guide: https://docs.anaconda.com/miniconda/miniconda-install) to create an isolated environment for the software.
