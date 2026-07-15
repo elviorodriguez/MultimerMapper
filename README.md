@@ -160,8 +160,8 @@ Let's look at the example pLDDT clusters of PHD1 (tests/expected_output/RMSF_and
 
 We can see 2 clusters. The main difference between them is in the domain 6. If we open the metadata TSV file
 
-## Visualization of RMSD trajectories in ChimeraX
-MultimerMapper now has its own RMSD trajectory visualizer incorporated, but you can also see it in ChimeraX. Inside ChimeraX, open the sample weighted RMSD trajectory located in tests/expected_output/monomer_trajectories/PHD1/PHD1_domain_6
+## Visualization of RMSD pseudo-trajectories in ChimeraX
+MultimerMapper now has its own RMSD pseudo-trajectory visualizer incorporated, but you can also see it in ChimeraX. Inside ChimeraX, open the sample weighted RMSD trajectory located in tests/expected_output/monomer_trajectories/PHD1/PHD1_domain_6
 
 ```sh
 # Re-align the models to the lowest RMSD model (it will always be #1.1)
