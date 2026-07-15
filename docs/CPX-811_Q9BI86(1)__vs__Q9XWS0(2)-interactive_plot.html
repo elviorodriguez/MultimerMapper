@@ -1,0 +1,272 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Visualization - Q9BI86(1) vs Q9XWS0(2)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            background-color: #f0f0f0;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        .left-panel {
+            width: 35%;
+            height: 100%;
+            border-right: 2px solid #333;
+            overflow: hidden;
+        }
+        
+        .right-panel {
+            width: 65%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background-color: white;
+        }
+        
+        .controls {
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            min-height: 50px;
+        }
+        
+        .controls label {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .cluster-btn {
+            padding: 8px 16px;
+            margin: 2px;
+            border: 2px solid #007bff;
+            background-color: white;
+            color: #007bff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .cluster-btn:hover {
+            background-color: #e6f3ff;
+            transform: translateY(-1px);
+        }
+        
+        .cluster-btn.active {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .py3dmol-container {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .py3dmol-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease;
+        }
+        
+        .py3dmol-frame.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .pca-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: #666;
+            font-size: 18px;
+        }
+        
+        .error {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: #dc3545;
+            font-size: 16px;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .left-panel {
+                width: 100%;
+                height: 50%;
+                border-right: none;
+                border-bottom: 2px solid #333;
+            }
+            
+            .right-panel {
+                width: 100%;
+                height: 50%;
+            }
+            
+            .controls {
+                padding: 5px;
+                min-height: 40px;
+            }
+            
+            .cluster-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="left-panel">
+            <iframe class="pca-frame" src="pca_and_matrixes_html/Q9BI86(1)__vs__Q9XWS0(2)-pca_and_matrixes.html" title="PCA and Matrices"></iframe>
+        </div>
+        
+        <div class="right-panel">
+            <div class="controls">
+                <label>Protein Contact Visualization - Cluster:</label>
+                <button class="cluster-btn active" onclick="showCluster(0)" data-cluster="0">0</button> <button class="cluster-btn" onclick="showCluster(1)" data-cluster="1">1</button>
+            </div>
+            
+            <div class="py3dmol-container">
+                <iframe class="py3dmol-frame active" id="cluster-0" data-src="representative_htmls/Q9BI86(1)__vs__Q9XWS0(2)-cluster_0.html" title="Cluster 0"></iframe> <iframe class="py3dmol-frame" id="cluster-1" data-src="representative_htmls/Q9BI86(1)__vs__Q9XWS0(2)-cluster_1.html" title="Cluster 1"></iframe>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let loadedClusters = new Set();
+        
+        function loadClusterFrame(clusterId) {
+            const frame = document.getElementById(`cluster-${clusterId}`);
+            if (!frame || loadedClusters.has(clusterId)) {
+                return;
+            }
+            
+            const src = frame.getAttribute('data-src');
+            if (src) {
+                frame.src = src;
+                loadedClusters.add(clusterId);
+            }
+        }
+        
+        function showCluster(clusterId) {
+            // Load the cluster frame if not already loaded
+            loadClusterFrame(clusterId);
+            
+            // Hide all frames
+            const frames = document.querySelectorAll('.py3dmol-frame');
+            frames.forEach(frame => {
+                frame.classList.remove('active');
+            });
+            
+            // Show selected frame with a slight delay to ensure proper rendering
+            setTimeout(() => {
+                const selectedFrame = document.getElementById(`cluster-${clusterId}`);
+                if (selectedFrame) {
+                    selectedFrame.classList.add('active');
+                    
+                    // Trigger a resize event to help py3Dmol render properly
+                    selectedFrame.onload = function() {
+                        try {
+                            selectedFrame.contentWindow.dispatchEvent(new Event('resize'));
+                        } catch (e) {
+                            // Cross-origin restrictions might prevent this, but that's OK
+                        }
+                    };
+                }
+            }, 100);
+            
+            // Update button states
+            const buttons = document.querySelectorAll('.cluster-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Activate selected button
+            const selectedBtn = document.querySelector(`[data-cluster="${clusterId}"]`);
+            if (selectedBtn) {
+                selectedBtn.classList.add('active');
+            }
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            // Trigger resize events on all loaded iframes
+            const activeFrame = document.querySelector('.py3dmol-frame.active');
+            if (activeFrame && activeFrame.contentWindow) {
+                try {
+                    activeFrame.contentWindow.dispatchEvent(new Event('resize'));
+                } catch (e) {
+                    // Cross-origin restrictions might prevent this, but that's OK
+                }
+            }
+        });
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load and show first cluster by default
+            const firstClusterId = 0;
+            showCluster(firstClusterId);
+            
+            // Add keyboard navigation
+            document.addEventListener('keydown', function(e) {
+                const clusterIds = [0, 1];
+                const activeBtn = document.querySelector('.cluster-btn.active');
+                if (!activeBtn) return;
+                
+                const currentCluster = parseInt(activeBtn.getAttribute('data-cluster'));
+                const currentIndex = clusterIds.indexOf(currentCluster);
+                
+                if (e.key === 'ArrowLeft' && currentIndex > 0) {
+                    showCluster(clusterIds[currentIndex - 1]);
+                } else if (e.key === 'ArrowRight' && currentIndex < clusterIds.length - 1) {
+                    showCluster(clusterIds[currentIndex + 1]);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
