@@ -48,7 +48,11 @@ The software can perform several tasks by analyzing AF2-multimer or AF3 predicti
     
 It maps all PPIs and RRCs present in the predictions by decomposing the models into their pairwise sub-components and captures how they change depending on the modelling context (which other proteins were present in the models and in which quantity). This information is converted into PPI and RRC graph representations inside MultimerMapper that you can visually explore in interactive HTML plots. The 2-mer predictions are fixed for each system, but N-mers are suggested by a stoichiometric space exploration algorithm that explores protein combinations based on interaction evidence. Each N-mer is clasified as stable or unstable based, and only stable complexes (parents) can create new derived stoichiometries (children). In general, the biggest stable complexes at each branch of the stoichiometric space match the expected stoichiometries of the underlying complexes. You can visualize this information as 3D Stoichiometric Space Plots.
 
-Have a look at the [interactive stoichiometric space plot](https://elviorodriguez.github.io/MultimerMapper/CPX-2369_stoich_space.html)
+# Have a look at different interactive outputs
+   - [interactive PPI 2D plot](https://elviorodriguez.github.io/MultimerMapper/CPX-2369_2D_graph.html.html)
+   - [interactive RRC 3D plot (Plotly)](https://elviorodriguez.github.io/MultimerMapper/CPX-2369_3D_graph_Plotly.html)
+   - [interactive RRC 3D plot (py3Dmol)](https://elviorodriguez.github.io/MultimerMapper/CPX-2369_3D_graph_py3Dmol.html)
+   - [interactive stoichiometric space plot](https://elviorodriguez.github.io/MultimerMapper/CPX-2369_stoich_space.html)
 
 # Installation
 MultimerMapper requires Anaconda/Miniconda (Miniconda installation guide: https://docs.anaconda.com/miniconda/miniconda-install) to create an isolated environment for the software.
