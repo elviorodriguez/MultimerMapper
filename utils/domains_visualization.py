@@ -165,7 +165,10 @@ def create_interpro_html_visualization(interpro_data, protein_id, plddts_data, d
                 border-radius: 10px;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.1);
                 margin: 0 auto;
+            }}
+            .scroll-wrapper {{
                 overflow-x: auto;
+                transform: rotateX(180deg);
             }}
             .protein-viz {{
                 margin: 0px 0;
@@ -297,7 +300,8 @@ def create_interpro_html_visualization(interpro_data, protein_id, plddts_data, d
     </head>
     <body>
         <div class="container">
-            <div class="protein-viz" style="position: relative; margin-left: 120px; width: {{total_width}}px; min-width: {{total_width}}px;">
+            <div class="scroll-wrapper">
+            <div class="protein-viz" style="position: relative; margin-left: 120px; width: {{total_width}}px; min-width: {{total_width}}px; transform: rotateX(180deg);">
     """
     
     # Add domain segments row (first row)
@@ -421,6 +425,7 @@ def create_interpro_html_visualization(interpro_data, protein_id, plddts_data, d
             html_content += f'<div class="separator-line" style="left: {end_pos}px;"></div>\n'
     
     html_content += """
+            </div>
             </div>
             
             <div class="legend">
