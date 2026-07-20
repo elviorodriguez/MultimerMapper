@@ -15,7 +15,7 @@ from src.convergency import get_ranks_ptms, get_ranks_iptms, get_ranks_mipaes, g
 from cfg.default_settings import N_models_cutoff, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft, Nmers_contacts_cutoff_convergency
 from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, PT_palette
 from cfg.default_settings import dynamic_conv_start, dynamic_conv_end
-from cfg.default_settings import use_specific_PPIs_for_fully_connected, N_for_skip_repeats_for_non_multivalent_non_homo_proteins, Nmers_freq_cutoff, PPIs_for_fully_connected
+from cfg.default_settings import use_specific_PPIs_for_fully_connected, N_for_skip_repeats_for_non_multivalent_non_homo_proteins, Nmers_freq_cutoff, PPIs_for_fully_connected, combine_only_detected_ppi_proteins
 from src.stability_metrics import combination_label
 from utils.logger_setup import configure_logger
 from src.interpret_dynamics import get_edge_Nmers_variation
@@ -1784,6 +1784,7 @@ def generate_stoichiometric_space_graph(mm_output, suggested_combinations, list_
         
         use_fully_connected_combinations = use_fully_connected_combinations,
         max_combination_order = max_combination_order,
+        combine_only_detected_ppi_proteins = combine_only_detected_ppi_proteins,
         use_specific_PPIs_for_fully_connected = use_specific_PPIs_for_fully_connected,
         PPIs_for_fully_connected = PPIs_for_fully_connected,
         Nmers_freq_cutoff = Nmers_freq_cutoff,

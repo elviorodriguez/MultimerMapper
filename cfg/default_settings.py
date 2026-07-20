@@ -283,10 +283,11 @@ min_clash_points = 10 # Minimum number of clashes between the meshes
 max_combination_order = 1
 
 # Cutoffs for stoich space exploration
+combine_only_detected_ppi_proteins = False
 use_specific_PPIs_for_fully_connected = False
 N_for_skip_repeats_for_non_multivalent_non_homo_proteins = 5
 Nmers_freq_cutoff = 0
-PPIs_for_fully_connected = ("Static", "Weak Negative", "No N-mers Data"),
+PPIs_for_fully_connected = ("Static", "Weak Negative", "No N-mers Data")
 
 # ------------------------------ Static method -------------------------------
 
