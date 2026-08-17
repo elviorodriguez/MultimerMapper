@@ -304,6 +304,7 @@ def parse_AF2_and_sequences(
     # --------------------------------------------------------------------------
 
     symmetry_fallbacks, symmetry_fallbacks_df = analyze_fallback(mm_output = multimer_mapper_output,
+                                                                 SF_drop_threshold       = SF_drop_threshold,
                                                                  low_fraction            = fallback_low_fraction,
                                                                  up_fraction             = fallback_up_fraction,
                                                                  save_figs               = save_fallback_plots,

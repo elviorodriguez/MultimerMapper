@@ -11,6 +11,7 @@ from scipy import optimize
 
 from devs.mm_getters import get_protein_homooligomeric_models
 from utils.logger_setup import configure_logger
+from cfg.default_settings import SF_drop_threshold
 
 
 ##################################################################################
@@ -431,7 +432,9 @@ def interpret_fallback(stats_df, logger, drop_threshold=0.2, confidence_level=0.
 ##################################################################################
 
 
-def analyze_fallback(mm_output, low_fraction = 0.5, up_fraction = 0.5, 
+def analyze_fallback(mm_output,
+                     SF_drop_threshold = SF_drop_threshold,
+                     low_fraction = 0.5, up_fraction = 0.5, 
                      save_figs = True, figsize = (5, 5), dpi = 200,
                      save_dataframes = True,
                      display_fallback_ranges = True,
@@ -513,7 +516,7 @@ def analyze_fallback(mm_output, low_fraction = 0.5, up_fraction = 0.5,
         output_stats_df = pd.concat([output_stats_df, stats_df], ignore_index=True)
         
         # Analyze fallback
-        fallback_result = interpret_fallback(stats_df, logger = logger)
+        fallback_result = interpret_fallback(stats_df, logger = logger, drop_threshold=SF_drop_threshold)
         
         # Progress report
         if fallback_result["fallback_detected"]:

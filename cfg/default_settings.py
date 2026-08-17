@@ -103,6 +103,7 @@ min_PAE_cutoff_Nmers = PAE_cutoff
 # ---------------------- For Symmetry Fallback Analysis ----------------------
 # ----------------------------------------------------------------------------
 
+SF_drop_threshold: float            = 0.2   # Drop in radius required to consider a symmetry fallback
 fallback_low_fraction: float        = 0.5
 fallback_up_fraction: float         = 0.5
 save_fallback_plots: bool           = True
