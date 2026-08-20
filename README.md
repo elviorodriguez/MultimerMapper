@@ -33,7 +33,7 @@ By combining predictions and smart analysis, MultimerMapper helps bridge the gap
 - Metrics clustering analysis
 - Multivalency detection
 - Contact matrix clustering analysis (Detects different binding modes)
-- Stoichiometry inference (Homo-oligomerig/Binary and overall complex stoichiometries)
+- Stoichiometry inference
 - Pseudo-molecular dynamics trajectories generation (RMSD pseudo-trajectories)
 - Bias in Partner Distribution (BPD) analysis
 - Partner enrichment
