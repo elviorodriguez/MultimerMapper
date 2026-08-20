@@ -125,6 +125,9 @@ trimming_RMSD_plddt_cutoff = 70
 # ------------- For PPI classification and interactive PPI graph -------------
 # ----------------------------------------------------------------------------
 
+# Controls if the phi-coefficient and p-value are computed per model (True) or per prediction (False)
+use_phi_per_model = True
+
 # Color blind friendly palette (Paul Tol's + orange)
 PT_palette = {
     "black"         : "#000000",

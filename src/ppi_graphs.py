@@ -18,7 +18,7 @@ from src.coordinate_analyzer import add_domain_RMSD_against_reference
 from src.analyze_multivalency import add_multivalency_state
 from cfg.default_settings import vertex_color1, vertex_color2, vertex_color3, vertex_color_both, Nmer_stability_method, multivalency_detection_metric, multivalency_metric_threshold, N_models_cutoff_conv_soft, miPAE_cutoff_conv_soft
 from cfg.default_settings import use_dynamic_conv_soft_func, miPAE_cutoff_conv_soft_list, dynamic_conv_start, dynamic_conv_end, weighted_fr_Nmers_contribution, Nmers_contacts_cutoff
-from cfg.default_settings import edge_min_weight, edge_max_weight
+from cfg.default_settings import edge_min_weight, edge_max_weight, use_phi_per_model
 from utils.combinations import generate_multivalent_pair_suggestions
 from train.multivalency_dicotomic.count_interaction_modes import get_multivalent_tuple_pairs_based_on_evidence
 from src.interpret_dynamics import add_phi_coefficients_to_combined_graph, add_point_biserial_corr_for_rmsd_and_partners, get_edge_Nmers_variation
@@ -999,7 +999,7 @@ def generate_combined_graph(
     # ----------------------------------------------------------------------------------------
     
     logger.info("Computing correlations between protein presence/absence and PPI dynamics...")
-    add_phi_coefficients_to_combined_graph(graphC, mm_output=mm_output, logger=logger)
+    add_phi_coefficients_to_combined_graph(graphC, mm_output=mm_output, use_full_computation = use_phi_per_model, logger=logger)
     logger.info("Computing correlations between protein presence/absence and RMSDs...")
     add_point_biserial_corr_for_rmsd_and_partners(graphC)
     
