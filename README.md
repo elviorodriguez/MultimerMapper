@@ -195,4 +195,4 @@ If a tree of prediction sets is present in the directory (subdirectories), each 
 
 
 # Reference
-•	Rodríguez Araya E; Serra E. Context-Dependent Protein Structure Prediction Analysis and Stoichiometry Inference with MultimerMapper. bioRxiv 2025. DOI: https://doi.org/10.1101/2025.10.24.684463.
+Rodríguez Araya E and Serra E (2026) Context-dependent protein structure prediction analysis and complex stoichiometry inference with MultimerMapper. Front. Bioinform. 6:1914731. doi: 10.3389/fbinf.2026.1914731
