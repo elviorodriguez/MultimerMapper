@@ -3,7 +3,7 @@
 # What is MultimerMapper?
 It is a computational tool designed for the generation, integration, analysis, and visualization of AlphaFold interaction landscapes based on the novel concept of "context-dependent protein structure prediction" and the implementation of a stoichiometric space exploration algorithm. It is presented as an innovative tool to help researchers understand and visualize how protein complexes behave under different modeling conditions and infer their underlying stoichiometries.
 
-MANUSCRIPT: https://www.biorxiv.org/content/10.1101/2025.10.24.684463v1
+PAPER: [Context-dependent protein structure prediction analysis and complex stoichiometry inference with MultimerMapper](https://doi.org/10.3389/fbinf.2026.1914731)
 
 TUTORIAL (BiotrAIn - Rosario 2026): follow the colab example [![Colab Example](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/elviorodriguez/BiotrAIn_MultimerMapper/blob/main/MM_notebook_BiotrAIn.ipynb), along with the course [GUIDE](https://github.com/elviorodriguez/BiotrAIn_MultimerMapper/tree/main/course_material)
 
