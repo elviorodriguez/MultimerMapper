@@ -130,7 +130,7 @@ To run MultimerMapper from the begining (i.e., using only a FASTA file with a li
 multimer_mapper proteins.fasta --out_path mm_1
 ```
 
-This will create the directory ```mm_1```. Search for the file ```mm_1/combinations_suggestions/ids_af3_jobs_all.json``` and upload it to the [AF3 server](https://alphafoldserver.com/) using the ```Upload JSON``` button. This will load the pairwise combination jobs, which you can run one by one, and you will be able to run up to 30 per day. Once all the 2-mer are predicted, download them in a single ZIP file. Let's call this file ```2-mers.zip```.
+This will create the directory ```mm_1```. Search for the file ```mm_1/combinations_suggestions/ids_af3_jobs_all.json``` and upload it to the [AF3 server](https://alphafoldserver.com/) using the ```Upload JSON``` button. This will load the pairwise combination jobs, which you can run one by one, and you will be able to run up to 30 per day. Once all the 2-mers are predicted, download them in a single ZIP file. Let's call this file ```2-mers.zip```.
 
 Now it is necesary to convert the AF3 predictions to a compatible format using an utility script:
 
@@ -146,14 +146,14 @@ This will generate a directory called ```2-mers.zip_converted``` with all the 2-
 multimer_mapper proteins.fasta --out_path mm_2 --AF_2mers 2-mers.zip_converted
 ```
 
-This will create the directory ```mm_2``` with the analysis. Open the HTML file mm_2/report.html to explore the results (PPI and RRC graphs, stoichiometric space, profiles, pseudo-dynamics, etc.). If your objective was just to predict interactions between pairs of proteins, you can stop here and see what are the predicted interactions between your proteins. However, as we it is described in the paper, many interactions can appear or dissapear, proteins can change conformations, and higher-order complexes can be formed; all depending on the context. To continue the analysis using higher order assemblies (i.e., N-mers), you need to predict the new suggestions for your system. These will be located in ```mm_2/combinations_suggestions/ids_af3_jobs_all.json```, which you need to upload to the AF3 server. Predict them and download a new ZIP file. Let's call this file ```3-mers.zip```. Now, convert the file using the utility:
+This will create the directory ```mm_2``` with the analysis. Open the HTML file mm_2/report.html to explore the results (PPI and RRC graphs, stoichiometric space, profiles, pseudo-dynamics, etc.). If your objective was just to predict interactions between pairs of proteins, you can stop here and see what are the predicted interactions between your proteins. However, as described in the paper, many interactions can appear or dissapear, proteins can change conformations, and higher-order complexes can be formed; all depending on the context. To continue the analysis using higher order assemblies (i.e., N-mers), you need to predict the new suggestions for your system. These will be located in ```mm_2/combinations_suggestions/ids_af3_jobs_all.json```, which you need to upload to the AF3 server. Predict them and download a new ZIP file. Let's call this file ```3-mers.zip```. Now, convert the file using the utility:
 
 ```
 # Replace <PATH_TO_MULTIMERMAPPER> with the actual PATH you installed it
 python <PATH_TO_MULTIMERMAPPER>/utils/af3_compatibility.py 3-mers.zip
 ```
 
-This will generate a directory called ```3-mers.zip_converted``` with all the 3-mer predictions in a compatible format. Before using this output, create a new directory called ```N-mers``` and move the converted directory.
+This will generate a directory called ```3-mers.zip_converted``` with all the 3-mer predictions in a compatible format. Before using this output, create a new directory called ```N-mers``` and move the converted zip into this directory.
 
 ```
 # Create the N-mers directory
@@ -170,7 +170,20 @@ We can now use ```2-mers.zip_converted```, ```N-mers``` and ```proteins.fasta```
 multimer_mapper proteins.fasta --out_path mm_3 --AF_2mers 2-mers.zip_converted --AF_Nmers N-mers
 ```
 
-This will create the directory ```mm_3``` with the analysis. Open the HTML file mm_3/report.html to explore the results. In comparison to the 2-mers results, this iteration will contain context-dependent information for the PPI and RRC graphs, and the stoichiometric space exploration will start to show stable and unstable branches. At this point, the analysis will continue by generation increasingly higher order assemblies (i.e., 4-mers, 5-mers, and so on). For this, you need to predict the new suggestions for your system. using the ```mm_N/combinations_suggestions/ids_af3_jobs_all.json``` file, upload it to the AF3 server and repeat the iterations until no more suggestions are present in the ```ids_af3_jobs_all.json``` file (point of convergence).
+This will create the directory ```mm_3``` with the analysis. Open the HTML file mm_3/report.html to explore the results. In comparison to the 2-mers results, this iteration will contain context-dependent information for the PPI and RRC graphs, and the stoichiometric space exploration will start to show stable and unstable branches. At this point, the analysis will continue through the prediction of increasingly higher order N-mers (i.e., 4-mers, 5-mers, and so on). For this, you need to predict the new suggestions for your system using the ```mm_N/combinations_suggestions/ids_af3_jobs_all.json``` file. Upload it to the AF3 server, run the jobs, download the 4-mers into a single ZIP file (```4-mers.zip```) and convert them. Move the resulting ```4-mers.zip_converted``` directory into the ```N-mers``` directory and repeat the run:
+
+```
+# Convert the 4-mers to a compatible format
+python <PATH_TO_MULTIMERMAPPER>/utils/af3_compatibility.py 4-mers.zip
+
+# Move the 4-mers to the N-mers directory
+mv 4-mers.zip_converted N-mers
+
+# Analyze 2-mer and 3+4-mer combinations - THIRD ITERATION (N = 2+3+4)
+multimer_mapper proteins.fasta --out_path mm_4 --AF_2mers 2-mers.zip_converted --AF_Nmers N-mers
+```
+
+Repeat these three steps until no more suggestions are present in the ```ids_af3_jobs_all.json``` file (point of convergence).
 
 ## Using manual_domains.tsv
 We highly recommend to use the semi-automatic domain detection algorithm inside MultimerMapper to get the best results, as the pipeline relies on proper definition of compact domains to perform RMSD trajectories and capture conformational changes. However, if you know the exact start and end positions of the globular domains of your proteins, you can use a ```manuals_domains.tsv``` file to define them:
